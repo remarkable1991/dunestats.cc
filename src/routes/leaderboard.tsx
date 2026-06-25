@@ -151,7 +151,15 @@ function Leaderboard() {
                                   {i + 1}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 font-medium">{r.display_name}</td>
+                              <td className="px-4 py-3 font-medium">
+                                <Link
+                                  to="/players/$key"
+                                  params={{ key: r.player_key }}
+                                  className="hover:text-sand"
+                                >
+                                  {r.display_name}
+                                </Link>
+                              </td>
                               <td className="px-4 py-3 text-right font-display text-sand tabular-nums">
                                 {Math.round(Number(r.elo))}
                               </td>

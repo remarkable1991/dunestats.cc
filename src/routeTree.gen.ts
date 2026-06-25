@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as StatsRouteImport } from './routes/stats'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as MatchesRouteImport } from './routes/matches'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as ClaimRouteImport } from './routes/claim'
@@ -26,6 +27,11 @@ const UploadRoute = UploadRouteImport.update({
 const StatsRoute = StatsRouteImport.update({
   id: '/stats',
   path: '/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MatchesRoute = MatchesRouteImport.update({
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/claim': typeof ClaimRoute
   '/leaderboard': typeof LeaderboardRoute
   '/matches': typeof MatchesRoute
+  '/profile': typeof ProfileRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/players/$key': typeof PlayersKeyRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/claim': typeof ClaimRoute
   '/leaderboard': typeof LeaderboardRoute
   '/matches': typeof MatchesRoute
+  '/profile': typeof ProfileRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/players/$key': typeof PlayersKeyRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/claim': typeof ClaimRoute
   '/leaderboard': typeof LeaderboardRoute
   '/matches': typeof MatchesRoute
+  '/profile': typeof ProfileRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/players/$key': typeof PlayersKeyRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/leaderboard'
     | '/matches'
+    | '/profile'
     | '/stats'
     | '/upload'
     | '/players/$key'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/leaderboard'
     | '/matches'
+    | '/profile'
     | '/stats'
     | '/upload'
     | '/players/$key'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/leaderboard'
     | '/matches'
+    | '/profile'
     | '/stats'
     | '/upload'
     | '/players/$key'
@@ -129,6 +141,7 @@ export interface RootRouteChildren {
   ClaimRoute: typeof ClaimRoute
   LeaderboardRoute: typeof LeaderboardRoute
   MatchesRoute: typeof MatchesRoute
+  ProfileRoute: typeof ProfileRoute
   StatsRoute: typeof StatsRoute
   UploadRoute: typeof UploadRoute
   PlayersKeyRoute: typeof PlayersKeyRoute
@@ -148,6 +161,13 @@ declare module '@tanstack/react-router' {
       path: '/stats'
       fullPath: '/stats'
       preLoaderRoute: typeof StatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/matches': {
@@ -201,6 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClaimRoute: ClaimRoute,
   LeaderboardRoute: LeaderboardRoute,
   MatchesRoute: MatchesRoute,
+  ProfileRoute: ProfileRoute,
   StatsRoute: StatsRoute,
   UploadRoute: UploadRoute,
   PlayersKeyRoute: PlayersKeyRoute,
