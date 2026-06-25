@@ -14,7 +14,131 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      game_results: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          leader_name: string | null
+          placement: number
+          player_name: string
+          points: number
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          leader_name?: string | null
+          placement: number
+          player_name: string
+          points?: number
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          leader_name?: string | null
+          placement?: number
+          player_name?: string
+          points?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_results_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      games: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          game_version: Database["public"]["Enums"]["game_version"]
+          id: string
+          image_url: string | null
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          game_version: Database["public"]["Enums"]["game_version"]
+          id?: string
+          image_url?: string | null
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          game_version?: Database["public"]["Enums"]["game_version"]
+          id?: string
+          image_url?: string | null
+          source?: string
+        }
+        Relationships: []
+      }
+      player_ratings: {
+        Row: {
+          display_name: string
+          elo: number
+          game_version: Database["public"]["Enums"]["game_version"]
+          games_played: number
+          id: string
+          player_key: string
+          top2: number
+          total_points: number
+          updated_at: string
+          wins: number
+        }
+        Insert: {
+          display_name: string
+          elo?: number
+          game_version: Database["public"]["Enums"]["game_version"]
+          games_played?: number
+          id?: string
+          player_key: string
+          top2?: number
+          total_points?: number
+          updated_at?: string
+          wins?: number
+        }
+        Update: {
+          display_name?: string
+          elo?: number
+          game_version?: Database["public"]["Enums"]["game_version"]
+          games_played?: number
+          id?: string
+          player_key?: string
+          top2?: number
+          total_points?: number
+          updated_at?: string
+          wins?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +147,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      game_version: "base" | "ix" | "uprising"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +274,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      game_version: ["base", "ix", "uprising"],
+    },
   },
 } as const
