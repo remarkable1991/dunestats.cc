@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { deleteGame } from "@/lib/games.functions";
 import { toast } from "sonner";
 import { ListOrdered, Search, Trash2, Loader2, Shield } from "lucide-react";
 
@@ -98,16 +99,17 @@ function MatchesPage() {
   }, [games, version, onlyMine, q, userId]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this match? ELO already applied will not be reverted.")) return;
+    if (!confirm("Delete this match? ELO and stats it contributed will be reverted.")) return;
     setBusy(id);
-    const { error } = await supabase.from("games").delete().eq("id", id);
-    setBusy(null);
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      await deleteGame({ data: { game_id: id } });
+      toast.success("Match deleted and ratings reverted.");
+      setGames((gs) => gs.filter((g) => g.id !== id));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not delete match.");
+    } finally {
+      setBusy(null);
     }
-    toast.success("Match deleted.");
-    setGames((gs) => gs.filter((g) => g.id !== id));
   };
 
   return (
