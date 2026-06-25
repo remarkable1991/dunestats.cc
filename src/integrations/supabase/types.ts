@@ -17,6 +17,7 @@ export type Database = {
       game_results: {
         Row: {
           created_at: string
+          elo_delta: number
           game_id: string
           id: string
           leader_name: string | null
@@ -26,6 +27,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          elo_delta?: number
           game_id: string
           id?: string
           leader_name?: string | null
@@ -35,6 +37,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          elo_delta?: number
           game_id?: string
           id?: string
           leader_name?: string | null
@@ -139,18 +142,21 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          has_used_reset: boolean
           id: string
           updated_at: string
           username: string | null
         }
         Insert: {
           created_at?: string
+          has_used_reset?: boolean
           id: string
           updated_at?: string
           username?: string | null
         }
         Update: {
           created_at?: string
+          has_used_reset?: boolean
           id?: string
           updated_at?: string
           username?: string | null

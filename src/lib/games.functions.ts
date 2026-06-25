@@ -187,14 +187,93 @@ export const saveGame = createServerFn({ method: "POST" })
       .upsert(upserts, { onConflict: "player_key,game_version" });
     if (uErr) throw new Error(uErr.message);
 
+    // Persist per-result ELO delta so deletions can revert ratings.
+    await Promise.all(
+      data.results.map((r, i) =>
+        supabaseAdmin
+          .from("game_results")
+          .update({ elo_delta: Number((newElos[i] - currentElos[i]).toFixed(4)) })
+          .eq("game_id", gameRow.id)
+          .eq("player_name", r.player_name)
+          .eq("placement", r.placement),
+      ),
+    );
+
     return { game_id: gameRow.id, game_version };
+  });
+
+/** Delete a match and revert the ELO / counters it contributed. */
+export const deleteGame = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ game_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: game, error: gErr } = await supabaseAdmin
+      .from("games")
+      .select("id, created_by, game_version")
+      .eq("id", data.game_id)
+      .maybeSingle();
+    if (gErr) throw new Error(gErr.message);
+    if (!game) throw new Error("Match not found.");
+
+    // Authorize: owner or admin
+    const { data: isAdmin } = await supabaseAdmin.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (game.created_by !== context.userId && !isAdmin) {
+      throw new Error("You can only delete your own matches.");
+    }
+
+    const { data: results } = await supabaseAdmin
+      .from("game_results")
+      .select("player_name, placement, points, elo_delta")
+      .eq("game_id", data.game_id);
+
+    const gv = game.game_version as "base" | "ix" | "uprising";
+    if (results && results.length) {
+      const keys = results.map((r) => r.player_name.toLowerCase().trim());
+      const { data: ratings } = await supabaseAdmin
+        .from("player_ratings")
+        .select("player_key, elo, games_played, wins, top2, total_points")
+        .eq("game_version", gv)
+        .in("player_key", keys);
+      const map = new Map(ratings?.map((r) => [r.player_key, r]) ?? []);
+      for (const r of results) {
+        const k = r.player_name.toLowerCase().trim();
+        const prev = map.get(k);
+        if (!prev) continue;
+        await supabaseAdmin
+          .from("player_ratings")
+          .update({
+            elo: Number((Number(prev.elo) - Number(r.elo_delta ?? 0)).toFixed(2)),
+            games_played: Math.max(0, prev.games_played - 1),
+            wins: Math.max(0, prev.wins - (r.placement === 1 ? 1 : 0)),
+            top2: Math.max(0, prev.top2 - (r.placement <= 2 ? 1 : 0)),
+            total_points: Math.max(0, prev.total_points - r.points),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("player_key", k)
+          .eq("game_version", gv);
+      }
+    }
+
+    const { error: dErr } = await supabaseAdmin.from("games").delete().eq("id", data.game_id);
+    if (dErr) throw new Error(dErr.message);
+    return { ok: true };
   });
 
 /** Claim an unclaimed player name as the signed-in user. */
 export const claimPlayer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({ player_key: z.string().min(1).max(64) }).parse(d),
+    z
+      .object({
+        player_key: z.string().min(1).max(64),
+        reset: z.boolean().optional().default(false),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -202,7 +281,7 @@ export const claimPlayer = createServerFn({ method: "POST" })
 
     const { data: rows, error: rErr } = await supabaseAdmin
       .from("player_ratings")
-      .select("id, claimed_by")
+      .select("id, claimed_by, game_version")
       .eq("player_key", key);
     if (rErr) throw new Error(rErr.message);
     if (!rows || rows.length === 0) throw new Error("This player isn't on the leaderboard yet.");
@@ -210,11 +289,38 @@ export const claimPlayer = createServerFn({ method: "POST" })
     const other = rows.find((r) => r.claimed_by && r.claimed_by !== context.userId);
     if (other) throw new Error("This name has already been claimed by another player.");
 
+    if (data.reset) {
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("has_used_reset")
+        .eq("id", context.userId)
+        .maybeSingle();
+      if (profile?.has_used_reset) {
+        throw new Error("You've already used your one-time stats reset.");
+      }
+      // Reset aggregate stats but keep historical game_results as shadow data.
+      await supabaseAdmin
+        .from("player_ratings")
+        .update({
+          elo: 1000,
+          games_played: 0,
+          wins: 0,
+          top2: 0,
+          total_points: 0,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("player_key", key);
+      await supabaseAdmin
+        .from("profiles")
+        .update({ has_used_reset: true })
+        .eq("id", context.userId);
+    }
+
     const { error: uErr } = await supabaseAdmin
       .from("player_ratings")
       .update({ claimed_by: context.userId, updated_at: new Date().toISOString() })
       .eq("player_key", key);
     if (uErr) throw new Error(uErr.message);
 
-    return { ok: true, player_key: key };
+    return { ok: true, player_key: key, reset: data.reset };
   });
