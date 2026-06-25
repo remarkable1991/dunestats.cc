@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { GAME_VERSIONS } from "@/lib/game-version";
+import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { Trophy, Search } from "lucide-react";
 
 export const Route = createFileRoute("/leaderboard")({
@@ -23,7 +23,7 @@ type Row = {
 };
 
 function Leaderboard() {
-  const [version, setVersion] = useState<string>("base");
+  const [version, setVersion] = useState<GameVersion>("base");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -63,7 +63,7 @@ function Leaderboard() {
           stronger opponents.
         </p>
 
-        <Tabs value={version} onValueChange={setVersion}>
+        <Tabs value={version} onValueChange={(v) => setVersion(v as GameVersion)}>
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between mb-4">
             <TabsList className="bg-card/60 border border-border/60">
               {GAME_VERSIONS.map((v) => (
