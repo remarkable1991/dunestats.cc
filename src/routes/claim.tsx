@@ -10,6 +10,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { claimPlayer } from "@/lib/games.functions";
 import { toast } from "sonner";
 import { BadgeCheck, Loader2, UserCheck, Search } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/claim")({
   head: () => ({ meta: [{ title: "Claim your name · Strategy Arena" }] }),
@@ -22,6 +30,9 @@ type Suggestion = {
   display_name: string;
   game_version: string;
   claimed_by: string | null;
+  elo: number;
+  games_played: number;
+  wins: number;
 };
 
 function ClaimPage() {
@@ -31,6 +42,8 @@ function ClaimPage() {
   const [query, setQuery] = useState(player ?? "");
   const [matches, setMatches] = useState<Suggestion[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [hasUsedReset, setHasUsedReset] = useState<boolean | null>(null);
+  const [confirmKey, setConfirmKey] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -41,6 +54,12 @@ function ClaimPage() {
         });
       } else {
         setChecking(false);
+        void supabase
+          .from("profiles")
+          .select("has_used_reset")
+          .eq("id", data.session.user.id)
+          .maybeSingle()
+          .then(({ data: p }) => setHasUsedReset(Boolean(p?.has_used_reset)));
       }
     });
   }, [navigate, player]);
@@ -54,37 +73,53 @@ function ClaimPage() {
     let cancelled = false;
     void supabase
       .from("player_ratings")
-      .select("player_key, display_name, game_version, claimed_by")
+      .select("player_key, display_name, game_version, claimed_by, elo, games_played, wins")
       .ilike("display_name", `%${needle}%`)
       .limit(50)
       .then(({ data }) => {
         if (cancelled) return;
-        const seen = new Set<string>();
-        const list: Suggestion[] = [];
+        // Group by player_key, keep entry with most games_played as representative.
+        const byKey = new Map<string, Suggestion>();
         for (const r of (data as Suggestion[]) ?? []) {
-          if (seen.has(r.player_key)) continue;
-          seen.add(r.player_key);
-          list.push(r);
+          const prev = byKey.get(r.player_key);
+          if (!prev || r.games_played > prev.games_played) byKey.set(r.player_key, r);
         }
-        setMatches(list);
+        setMatches(Array.from(byKey.values()));
       });
     return () => {
       cancelled = true;
     };
   }, [query]);
 
-  const handleClaim = async (player_key: string) => {
+  const doClaim = async (player_key: string, reset: boolean) => {
     setBusy(player_key);
     try {
-      await claimPlayer({ data: { player_key } });
-      toast.success("Name claimed! It now shows on your leaderboard entry.");
+      await claimPlayer({ data: { player_key, reset } });
+      toast.success(
+        reset
+          ? "Name claimed with a fresh start. Old matches kept as shadow data."
+          : "Name claimed! Your existing stats stay.",
+      );
       navigate({ to: "/leaderboard" });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not claim name.");
     } finally {
       setBusy(null);
+      setConfirmKey(null);
     }
   };
+
+  const handleClaim = (m: Suggestion) => {
+    const hasStats = m.games_played > 0;
+    // First claim ever AND has stats → offer the reset choice.
+    if (hasStats && hasUsedReset === false) {
+      setConfirmKey(m.player_key);
+    } else {
+      void doClaim(m.player_key, false);
+    }
+  };
+
+  const confirmMatch = matches.find((m) => m.player_key === confirmKey) ?? null;
 
   if (checking) return null;
 
@@ -142,7 +177,7 @@ function ClaimPage() {
                 ) : (
                   <Button
                     size="sm"
-                    onClick={() => handleClaim(m.player_key)}
+                    onClick={() => handleClaim(m)}
                     disabled={busy !== null}
                   >
                     {busy === m.player_key ? (
@@ -167,6 +202,45 @@ function ClaimPage() {
           first.
         </p>
       </div>
+
+      <Dialog open={confirmKey !== null} onOpenChange={(o) => !o && setConfirmKey(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Keep stats or start fresh?</DialogTitle>
+            <DialogDescription>
+              This is your one-time stats reset. After claiming you can't reset again on this account.
+            </DialogDescription>
+          </DialogHeader>
+          {confirmMatch && (
+            <div className="rounded-md border border-border/60 bg-background/40 p-3 text-sm">
+              <div className="font-medium">{confirmMatch.display_name}</div>
+              <div className="text-muted-foreground mt-1">
+                ELO <span className="text-sand tabular-nums">{Number(confirmMatch.elo).toFixed(0)}</span> ·
+                Games <span className="tabular-nums">{confirmMatch.games_played}</span> ·
+                Wins <span className="tabular-nums">{confirmMatch.wins}</span>
+              </div>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Either way, the original match history stays in the database as shadow data.
+          </p>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              onClick={() => confirmKey && doClaim(confirmKey, true)}
+              disabled={busy !== null}
+            >
+              Start fresh (1000 ELO)
+            </Button>
+            <Button
+              onClick={() => confirmKey && doClaim(confirmKey, false)}
+              disabled={busy !== null}
+            >
+              Keep current stats
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
