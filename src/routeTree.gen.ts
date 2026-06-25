@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UploadRouteImport } from './routes/upload'
+import { Route as MatchesRouteImport } from './routes/matches'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as ClaimRouteImport } from './routes/claim'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -18,6 +19,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',
   path: '/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MatchesRoute = MatchesRouteImport.update({
+  id: '/matches',
+  path: '/matches',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeaderboardRoute = LeaderboardRouteImport.update({
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/claim': typeof ClaimRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/matches': typeof MatchesRoute
   '/upload': typeof UploadRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/claim': typeof ClaimRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/matches': typeof MatchesRoute
   '/upload': typeof UploadRoute
 }
 export interface FileRoutesById {
@@ -61,14 +69,22 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/claim': typeof ClaimRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/matches': typeof MatchesRoute
   '/upload': typeof UploadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/claim' | '/leaderboard' | '/upload'
+  fullPaths: '/' | '/auth' | '/claim' | '/leaderboard' | '/matches' | '/upload'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/claim' | '/leaderboard' | '/upload'
-  id: '__root__' | '/' | '/auth' | '/claim' | '/leaderboard' | '/upload'
+  to: '/' | '/auth' | '/claim' | '/leaderboard' | '/matches' | '/upload'
+  id:
+    | '__root__'
+    | '/'
+    | '/auth'
+    | '/claim'
+    | '/leaderboard'
+    | '/matches'
+    | '/upload'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,6 +92,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ClaimRoute: typeof ClaimRoute
   LeaderboardRoute: typeof LeaderboardRoute
+  MatchesRoute: typeof MatchesRoute
   UploadRoute: typeof UploadRoute
 }
 
@@ -86,6 +103,13 @@ declare module '@tanstack/react-router' {
       path: '/upload'
       fullPath: '/upload'
       preLoaderRoute: typeof UploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/matches': {
+      id: '/matches'
+      path: '/matches'
+      fullPath: '/matches'
+      preLoaderRoute: typeof MatchesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leaderboard': {
@@ -124,6 +148,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ClaimRoute: ClaimRoute,
   LeaderboardRoute: LeaderboardRoute,
+  MatchesRoute: MatchesRoute,
   UploadRoute: UploadRoute,
 }
 export const routeTree = rootRouteImport
