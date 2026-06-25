@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "./Logo";
 import { Button } from "@/components/ui/button";
-import { Trophy, Upload, LogOut, User as UserIcon } from "lucide-react";
+import { Trophy, Upload, LogOut, User as UserIcon, ListOrdered, BarChart3 } from "lucide-react";
 
 export function Navbar() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -31,12 +31,30 @@ export function Navbar() {
               <span className="hidden sm:inline">Leaderboard</span>
             </Link>
           </Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/matches">
+              <ListOrdered className="size-4" />
+              <span className="hidden sm:inline">Matches</span>
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/stats">
+              <BarChart3 className="size-4" />
+              <span className="hidden sm:inline">Stats</span>
+            </Link>
+          </Button>
           {userId ? (
             <>
               <Button asChild variant="ghost" size="sm">
                 <Link to="/upload">
                   <Upload className="size-4" />
                   <span className="hidden sm:inline">Upload</span>
+                </Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/profile">
+                  <UserIcon className="size-4" />
+                  <span className="hidden sm:inline">Profile</span>
                 </Link>
               </Button>
               <Button onClick={handleLogout} variant="outline" size="sm">
