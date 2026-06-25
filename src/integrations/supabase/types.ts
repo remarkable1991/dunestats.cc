@@ -54,25 +54,40 @@ export type Database = {
       }
       games: {
         Row: {
+          board_version: string | null
           created_at: string
           created_by: string | null
           game_version: Database["public"]["Enums"]["game_version"]
+          has_base_leaders: boolean
+          has_epic_mode: boolean
+          has_immortality: boolean
+          has_rise_of_ix: boolean
           id: string
           image_url: string | null
           source: string
         }
         Insert: {
+          board_version?: string | null
           created_at?: string
           created_by?: string | null
           game_version: Database["public"]["Enums"]["game_version"]
+          has_base_leaders?: boolean
+          has_epic_mode?: boolean
+          has_immortality?: boolean
+          has_rise_of_ix?: boolean
           id?: string
           image_url?: string | null
           source?: string
         }
         Update: {
+          board_version?: string | null
           created_at?: string
           created_by?: string | null
           game_version?: Database["public"]["Enums"]["game_version"]
+          has_base_leaders?: boolean
+          has_epic_mode?: boolean
+          has_immortality?: boolean
+          has_rise_of_ix?: boolean
           id?: string
           image_url?: string | null
           source?: string
@@ -81,6 +96,7 @@ export type Database = {
       }
       player_ratings: {
         Row: {
+          claimed_by: string | null
           display_name: string
           elo: number
           game_version: Database["public"]["Enums"]["game_version"]
@@ -93,6 +109,7 @@ export type Database = {
           wins: number
         }
         Insert: {
+          claimed_by?: string | null
           display_name: string
           elo?: number
           game_version: Database["public"]["Enums"]["game_version"]
@@ -105,6 +122,7 @@ export type Database = {
           wins?: number
         }
         Update: {
+          claimed_by?: string | null
           display_name?: string
           elo?: number
           game_version?: Database["public"]["Enums"]["game_version"]

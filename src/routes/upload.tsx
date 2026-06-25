@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { parseScreenshot, saveGame } from "@/lib/games.functions";
-import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
+import { detectExpansions } from "@/lib/leaders";
 import { toast } from "sonner";
 import { Upload as UploadIcon, Loader2, Trash2, CheckCircle2 } from "lucide-react";
 
@@ -26,8 +27,12 @@ function UploadPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [version, setVersion] = useState<GameVersion>("uprising");
   const [rows, setRows] = useState<Row[]>([]);
+  const [board, setBoard] = useState<"base" | "uprising">("uprising");
+  const [hasIx, setHasIx] = useState(false);
+  const [hasEpic, setHasEpic] = useState(false);
+  const [hasImmortality, setHasImmortality] = useState(false);
+  const [hasBaseLeaders, setHasBaseLeaders] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -36,27 +41,32 @@ function UploadPage() {
     });
   }, [navigate]);
 
-  const onFile = (f: File | null) => {
+  const onFile = async (f: File | null) => {
     setFile(f);
     setRows([]);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(f ? URL.createObjectURL(f) : null);
+    if (f) await analyze(f);
   };
 
-  const analyze = async () => {
-    if (!file) return;
+  const analyze = async (f: File) => {
     setParsing(true);
     try {
-      const b64 = await fileToBase64(file);
-      const res = await parseScreenshot({ data: { imageBase64: b64, mimeType: file.type || "image/png" } });
-      setRows(
-        res.results.map((r) => ({
-          placement: r.placement,
-          player_name: r.player_name,
-          leader_name: r.leader_name ?? "",
-          points: r.points,
-        })),
-      );
+      const b64 = await fileToBase64(f);
+      const res = await parseScreenshot({ data: { imageBase64: b64, mimeType: f.type || "image/png" } });
+      const detected = res.results.map((r) => ({
+        placement: r.placement,
+        player_name: r.player_name,
+        leader_name: r.leader_name ?? "",
+        points: r.points,
+      }));
+      setRows(detected);
+      const suggestion = detectExpansions(detected.map((d) => d.leader_name));
+      setBoard(suggestion.board_version);
+      setHasIx(suggestion.has_rise_of_ix);
+      setHasBaseLeaders(suggestion.has_base_leaders);
+      setHasEpic(false);
+      setHasImmortality(false);
       toast.success(`Detected ${res.results.length} players. Verify and submit.`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not read screenshot");
@@ -67,11 +77,16 @@ function UploadPage() {
 
   const save = async () => {
     if (rows.length < 2) return toast.error("Need at least 2 players");
+    if (hasEpic && !hasIx) return toast.error("Epic Mode requires Rise of Ix.");
     setSaving(true);
     try {
       await saveGame({
         data: {
-          game_version: version,
+          board_version: board,
+          has_rise_of_ix: hasIx,
+          has_epic_mode: hasEpic,
+          has_immortality: hasImmortality,
+          has_base_leaders: hasBaseLeaders,
           results: rows.map((r) => ({
             placement: r.placement,
             player_name: r.player_name.trim(),
@@ -103,25 +118,13 @@ function UploadPage() {
       <div className="container mx-auto px-4 py-10 max-w-5xl">
         <h1 className="font-display text-3xl mb-2">Upload a match</h1>
         <p className="text-muted-foreground mb-8">
-          Drop your Dune Imperium Digital end-screen screenshot. The AI will extract rank, player name, leader, and
-          points — review and submit.
+          Drop your Dune Imperium Digital end-screen screenshot — analysis starts automatically.
+          Confirm the board version + expansions, review the players, then submit.
         </p>
 
         <div className="grid lg:grid-cols-2 gap-6">
           <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
             <div className="space-y-4">
-              <div>
-                <Label>Game version</Label>
-                <Select value={version} onValueChange={(v) => setVersion(v as GameVersion)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {GAME_VERSIONS.map((v) => (
-                      <SelectItem key={v.value} value={v.value}>{v.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
               <div>
                 <Label htmlFor="file">Screenshot</Label>
                 <label
@@ -144,11 +147,49 @@ function UploadPage() {
                     onChange={(e) => onFile(e.target.files?.[0] ?? null)}
                   />
                 </label>
+                {parsing && (
+                  <p className="text-sm text-sand mt-2 flex items-center gap-2">
+                    <Loader2 className="size-4 animate-spin" /> Analysing screenshot with AI…
+                  </p>
+                )}
               </div>
 
-              <Button onClick={analyze} disabled={!file || parsing} className="w-full">
-                {parsing ? (<><Loader2 className="size-4 animate-spin" /> Analysing…</>) : "Analyse with AI"}
-              </Button>
+              {rows.length > 0 && (
+                <div className="space-y-4 pt-2">
+                  <div>
+                    <Label className="mb-2 block">Board version <span className="text-coral">*</span></Label>
+                    <RadioGroup value={board} onValueChange={(v) => setBoard(v as "base" | "uprising")} className="grid grid-cols-2 gap-2">
+                      <label className="flex items-center gap-2 border border-border/60 rounded-md px-3 py-2 cursor-pointer hover:border-sand">
+                        <RadioGroupItem value="base" /> <span>Base Game</span>
+                      </label>
+                      <label className="flex items-center gap-2 border border-border/60 rounded-md px-3 py-2 cursor-pointer hover:border-sand">
+                        <RadioGroupItem value="uprising" /> <span>Uprising</span>
+                      </label>
+                    </RadioGroup>
+                  </div>
+                  <div>
+                    <Label className="mb-2 block">Expansions (optional)</Label>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox checked={hasIx} onCheckedChange={(c) => { setHasIx(!!c); if (!c) setHasEpic(false); }} />
+                        Rise of Ix
+                      </label>
+                      <label className={`flex items-center gap-2 ${hasIx ? "cursor-pointer" : "opacity-40 cursor-not-allowed"}`}>
+                        <Checkbox checked={hasEpic} disabled={!hasIx} onCheckedChange={(c) => setHasEpic(!!c)} />
+                        Epic Mode <span className="text-xs text-muted-foreground">(requires Rise of Ix)</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox checked={hasImmortality} onCheckedChange={(c) => setHasImmortality(!!c)} />
+                        Immortality
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox checked={hasBaseLeaders} onCheckedChange={(c) => setHasBaseLeaders(!!c)} />
+                        Base Leaders
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -160,7 +201,7 @@ function UploadPage() {
 
             {rows.length === 0 ? (
               <p className="text-sm text-muted-foreground py-12 text-center">
-                Upload a screenshot and click <span className="text-sand">Analyse</span> to populate the results.
+                Upload a screenshot — the AI fills the results in automatically.
               </p>
             ) : (
               <div className="space-y-2">

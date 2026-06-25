@@ -1,5 +1,6 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,11 +12,28 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Sign in · Strategy Arena" }] }),
+  validateSearch: z.object({
+    next: z.string().optional(),
+    player: z.string().optional(),
+  }),
   component: Auth,
 });
 
 function Auth() {
   const navigate = useNavigate();
+  const search = useSearch({ from: "/auth" });
+  const nextPath = search.next ?? (search.player ? "/claim" : "/upload");
+  const nextSearch = search.player ? { player: search.player } : undefined;
+  const redirectAfter = () => {
+    if (nextSearch) navigate({ to: nextPath as "/claim", search: nextSearch });
+    else navigate({ to: nextPath as "/upload" });
+  };
+  const absoluteRedirect = (() => {
+    if (typeof window === "undefined") return "/";
+    const url = new URL(nextPath, window.location.origin);
+    if (search.player) url.searchParams.set("player", search.player);
+    return url.toString();
+  })();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,9 +42,10 @@ function Auth() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/upload" });
+      if (data.session) redirectAfter();
     });
-  }, [navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +57,7 @@ function Auth() {
           password,
           options: {
             data: { username: username || email.split("@")[0] },
-            emailRedirectTo: `${window.location.origin}/upload`,
+            emailRedirectTo: absoluteRedirect,
           },
         });
         if (error) throw error;
@@ -47,7 +66,7 @@ function Auth() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate({ to: "/upload" });
+        redirectAfter();
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Authentication failed");
@@ -59,13 +78,13 @@ function Auth() {
   const handleGoogle = async () => {
     setLoading(true);
     const res = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: `${window.location.origin}/upload`,
+      redirect_uri: absoluteRedirect,
     });
     setLoading(false);
     if ("error" in res && res.error) {
       toast.error(res.error.message);
     } else if (!("redirected" in res) || !res.redirected) {
-      navigate({ to: "/upload" });
+      redirectAfter();
     }
   };
 
