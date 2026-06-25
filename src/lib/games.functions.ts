@@ -15,7 +15,11 @@ const ResultRow = z.object({
 });
 
 const SaveInput = z.object({
-  game_version: z.enum(["base", "ix", "uprising"]),
+  board_version: z.enum(["base", "uprising"]),
+  has_rise_of_ix: z.boolean().default(false),
+  has_epic_mode: z.boolean().default(false),
+  has_immortality: z.boolean().default(false),
+  has_base_leaders: z.boolean().default(false),
   results: z.array(ResultRow).min(2).max(8),
 });
 
@@ -110,10 +114,28 @@ export const saveGame = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const userId = context.userId;
 
+    // Derive the leaderboard bucket (existing enum: base / ix / uprising)
+    // from the new board + expansion flags.
+    const game_version: "base" | "ix" | "uprising" =
+      data.board_version === "uprising"
+        ? "uprising"
+        : data.has_rise_of_ix
+          ? "ix"
+          : "base";
+
     // Insert game
     const { data: gameRow, error: gErr } = await supabaseAdmin
       .from("games")
-      .insert({ game_version: data.game_version, source: "screenshot", created_by: userId })
+      .insert({
+        game_version,
+        board_version: data.board_version,
+        has_rise_of_ix: data.has_rise_of_ix,
+        has_epic_mode: data.has_epic_mode,
+        has_immortality: data.has_immortality,
+        has_base_leaders: data.has_base_leaders,
+        source: "screenshot",
+        created_by: userId,
+      })
       .select("id")
       .single();
     if (gErr || !gameRow) throw new Error(gErr?.message ?? "Failed to save game");
@@ -134,8 +156,8 @@ export const saveGame = createServerFn({ method: "POST" })
     const keys = data.results.map((r) => r.player_name.toLowerCase().trim());
     const { data: existing } = await supabaseAdmin
       .from("player_ratings")
-      .select("player_key, elo, games_played, wins, top2, total_points")
-      .eq("game_version", data.game_version)
+      .select("player_key, elo, games_played, wins, top2, total_points, claimed_by")
+      .eq("game_version", game_version)
       .in("player_key", keys);
 
     const existingMap = new Map(existing?.map((r) => [r.player_key, r]) ?? []);
@@ -149,12 +171,13 @@ export const saveGame = createServerFn({ method: "POST" })
       return {
         player_key: k,
         display_name: r.player_name,
-        game_version: data.game_version,
+        game_version,
         elo: Number(newElos[i].toFixed(2)),
         games_played: (prev?.games_played ?? 0) + 1,
         wins: (prev?.wins ?? 0) + (r.placement === 1 ? 1 : 0),
         top2: (prev?.top2 ?? 0) + (r.placement <= 2 ? 1 : 0),
         total_points: (prev?.total_points ?? 0) + r.points,
+        claimed_by: prev?.claimed_by ?? null,
         updated_at: new Date().toISOString(),
       };
     });
@@ -164,5 +187,34 @@ export const saveGame = createServerFn({ method: "POST" })
       .upsert(upserts, { onConflict: "player_key,game_version" });
     if (uErr) throw new Error(uErr.message);
 
-    return { game_id: gameRow.id };
+    return { game_id: gameRow.id, game_version };
+  });
+
+/** Claim an unclaimed player name as the signed-in user. */
+export const claimPlayer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ player_key: z.string().min(1).max(64) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const key = data.player_key.toLowerCase().trim();
+
+    const { data: rows, error: rErr } = await supabaseAdmin
+      .from("player_ratings")
+      .select("id, claimed_by")
+      .eq("player_key", key);
+    if (rErr) throw new Error(rErr.message);
+    if (!rows || rows.length === 0) throw new Error("This player isn't on the leaderboard yet.");
+
+    const other = rows.find((r) => r.claimed_by && r.claimed_by !== context.userId);
+    if (other) throw new Error("This name has already been claimed by another player.");
+
+    const { error: uErr } = await supabaseAdmin
+      .from("player_ratings")
+      .update({ claimed_by: context.userId, updated_at: new Date().toISOString() })
+      .eq("player_key", key);
+    if (uErr) throw new Error(uErr.message);
+
+    return { ok: true, player_key: key };
   });
