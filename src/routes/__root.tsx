@@ -81,10 +81,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "Upload your Dune Imperium Digital match screenshots and climb the ELO leaderboard. Where great minds compete." },
       { name: "author", content: "Strategy Arena" },
       { property: "og:title", content: "Strategy Arena — Dune Imperium ELO" },
-      { property: "og:description", content: "Track your Dune Imperium Digital matches and climb the ELO leaderboard across Base Game, Rise of Ix, and Uprising." },
+      { property: "og:description", content: "Upload your Dune Imperium Digital match screenshots and climb the ELO leaderboard. Where great minds compete." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Strategy Arena — Dune Imperium ELO" },
+      { name: "twitter:description", content: "Upload your Dune Imperium Digital match screenshots and climb the ELO leaderboard. Where great minds compete." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/sCTnIQjXKQN7y7KIi38nQhzNp6b2/social-images/social-1782411561290-1.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/sCTnIQjXKQN7y7KIi38nQhzNp6b2/social-images/social-1782411561290-1.webp" },
     ],
     links: [
       {
