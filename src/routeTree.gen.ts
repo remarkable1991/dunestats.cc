@@ -16,6 +16,7 @@ import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as ClaimRouteImport } from './routes/claim'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PlayersKeyRouteImport } from './routes/players.$key'
 
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',
@@ -52,6 +53,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlayersKeyRoute = PlayersKeyRouteImport.update({
+  id: '/players/$key',
+  path: '/players/$key',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/matches': typeof MatchesRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
+  '/players/$key': typeof PlayersKeyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +77,7 @@ export interface FileRoutesByTo {
   '/matches': typeof MatchesRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
+  '/players/$key': typeof PlayersKeyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +88,7 @@ export interface FileRoutesById {
   '/matches': typeof MatchesRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
+  '/players/$key': typeof PlayersKeyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +100,7 @@ export interface FileRouteTypes {
     | '/matches'
     | '/stats'
     | '/upload'
+    | '/players/$key'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +110,7 @@ export interface FileRouteTypes {
     | '/matches'
     | '/stats'
     | '/upload'
+    | '/players/$key'
   id:
     | '__root__'
     | '/'
@@ -109,6 +120,7 @@ export interface FileRouteTypes {
     | '/matches'
     | '/stats'
     | '/upload'
+    | '/players/$key'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -119,6 +131,7 @@ export interface RootRouteChildren {
   MatchesRoute: typeof MatchesRoute
   StatsRoute: typeof StatsRoute
   UploadRoute: typeof UploadRoute
+  PlayersKeyRoute: typeof PlayersKeyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -172,6 +185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/players/$key': {
+      id: '/players/$key'
+      path: '/players/$key'
+      fullPath: '/players/$key'
+      preLoaderRoute: typeof PlayersKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -183,6 +203,7 @@ const rootRouteChildren: RootRouteChildren = {
   MatchesRoute: MatchesRoute,
   StatsRoute: StatsRoute,
   UploadRoute: UploadRoute,
+  PlayersKeyRoute: PlayersKeyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
