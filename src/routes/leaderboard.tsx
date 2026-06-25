@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
-import { Trophy, Search } from "lucide-react";
+import { Trophy, Search, UserPlus, BadgeCheck } from "lucide-react";
 
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({ meta: [{ title: "Leaderboard · Strategy Arena" }] }),
@@ -14,12 +14,14 @@ export const Route = createFileRoute("/leaderboard")({
 });
 
 type Row = {
+  player_key: string;
   display_name: string;
   elo: number;
   games_played: number;
   wins: number;
   top2: number;
   total_points: number;
+  claimed_by: string | null;
 };
 
 function Leaderboard() {
@@ -33,7 +35,7 @@ function Leaderboard() {
     setLoading(true);
     supabase
       .from("player_ratings")
-      .select("display_name, elo, games_played, wins, top2, total_points")
+      .select("player_key, display_name, elo, games_played, wins, top2, total_points, claimed_by")
       .eq("game_version", version)
       .order("elo", { ascending: false })
       .limit(500)
@@ -113,19 +115,20 @@ function Leaderboard() {
                         <th className="px-4 py-3 text-right">Wins</th>
                         <th className="px-4 py-3 text-right hidden sm:table-cell">Top 2</th>
                         <th className="px-4 py-3 text-right hidden md:table-cell">Win %</th>
+                        <th className="px-4 py-3 text-right">Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {loading && (
                         <tr>
-                          <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                          <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
                             Loading rankings…
                           </td>
                         </tr>
                       )}
                       {!loading && filtered.length === 0 && (
                         <tr>
-                          <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                          <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
                             No players match the filters.
                           </td>
                         </tr>
@@ -142,7 +145,7 @@ function Leaderboard() {
                                   ? "bg-coral/90 text-white"
                                   : "bg-muted text-muted-foreground";
                           return (
-                            <tr key={r.display_name} className="border-t border-border/40 hover:bg-secondary/30">
+                            <tr key={r.player_key} className="border-t border-border/40 hover:bg-secondary/30">
                               <td className="px-4 py-3">
                                 <span className={`inline-flex size-7 items-center justify-center rounded font-bold text-xs ${medal}`}>
                                   {i + 1}
@@ -157,6 +160,21 @@ function Leaderboard() {
                               <td className="px-4 py-3 text-right tabular-nums hidden sm:table-cell">{r.top2}</td>
                               <td className="px-4 py-3 text-right tabular-nums hidden md:table-cell">
                                 {winPct.toFixed(0)}%
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                {r.claimed_by ? (
+                                  <span className="inline-flex items-center gap-1 text-xs text-teal">
+                                    <BadgeCheck className="size-3.5" /> Claimed
+                                  </span>
+                                ) : (
+                                  <Link
+                                    to="/claim"
+                                    search={{ player: r.player_key }}
+                                    className="inline-flex items-center gap-1 text-xs text-coral hover:text-sand underline-offset-2 hover:underline"
+                                  >
+                                    <UserPlus className="size-3.5" /> Unclaimed, claim now
+                                  </Link>
+                                )}
                               </td>
                             </tr>
                           );
