@@ -84,6 +84,7 @@ function StatsPage() {
         const { data, error } = await supabase
           .from("game_results")
           .select("placement, leader_name, points, games!inner(game_version)")
+          .order("id", { ascending: true })
           .range(from, from + PAGE - 1);
         if (error || !data || data.length === 0) break;
         out.push(...(data as unknown as Row[]));
