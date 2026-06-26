@@ -3,10 +3,11 @@ import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
-import { Trophy, Search, UserPlus, BadgeCheck } from "lucide-react";
+import { Trophy, Search, UserPlus, BadgeCheck, ChevronLeft, ChevronRight } from "lucide-react";
 
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({ meta: [{ title: "Leaderboard · Strategy Arena" }] }),
@@ -24,33 +25,45 @@ type Row = {
   claimed_by: string | null;
 };
 
+const PAGE_SIZE = 50;
+
 function Leaderboard() {
-  const [version, setVersion] = useState<GameVersion>("base");
+  const [version, setVersion] = useState<GameVersion>("overall");
   const [rows, setRows] = useState<Row[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [minGames, setMinGames] = useState(3);
+  const [page, setPage] = useState(0);
+
+  useEffect(() => {
+    setPage(0);
+  }, [version, minGames, q]);
 
   useEffect(() => {
     setLoading(true);
-    supabase
+    let query = supabase
       .from("player_ratings")
-      .select("player_key, display_name, elo, games_played, wins, top2, total_points, claimed_by")
+      .select(
+        "player_key, display_name, elo, games_played, wins, top2, total_points, claimed_by",
+        { count: "exact" },
+      )
       .eq("game_version", version)
+      .gte("games_played", minGames)
       .order("elo", { ascending: false })
-      .limit(500)
-      .then(({ data }) => {
-        setRows((data as Row[]) ?? []);
-        setLoading(false);
-      });
-  }, [version]);
+      .order("player_key", { ascending: true });
+    if (q.trim()) query = query.ilike("display_name", `%${q.trim()}%`);
+    query = query.range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+    query.then(({ data, count }) => {
+      setRows((data as Row[]) ?? []);
+      setTotal(count ?? 0);
+      setLoading(false);
+    });
+  }, [version, minGames, q, page]);
 
-  const filtered = useMemo(() => {
-    const needle = q.toLowerCase().trim();
-    return rows
-      .filter((r) => r.games_played >= minGames)
-      .filter((r) => !needle || r.display_name.toLowerCase().includes(needle));
-  }, [rows, q, minGames]);
+  const filtered = rows;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const startRank = useMemo(() => page * PAGE_SIZE, [page]);
 
   return (
     <div className="min-h-screen">
@@ -61,13 +74,13 @@ function Leaderboard() {
           <h1 className="font-display text-3xl sm:text-4xl">Community Leaderboard</h1>
         </div>
         <p className="text-muted-foreground max-w-2xl mb-8">
-          Standard multiplayer ELO (start 1000, K=32). Pairwise scoring across each match — climb by finishing ahead of
-          stronger opponents.
+          Standard multiplayer ELO (start 1000, K=32). Every match counts twice: once in the lifetime{" "}
+          <span className="text-sand">Overall</span> track, and once in the matching expansion track.
         </p>
 
         <Tabs value={version} onValueChange={(v) => setVersion(v as GameVersion)}>
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between mb-4">
-            <TabsList className="bg-card/60 border border-border/60">
+            <TabsList className="bg-card/60 border border-border/60 flex-wrap h-auto">
               {GAME_VERSIONS.map((v) => (
                 <TabsTrigger key={v.value} value={v.value} className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground">
                   {v.label}
@@ -82,7 +95,7 @@ function Leaderboard() {
                   onChange={(e) => setMinGames(Number(e.target.value))}
                   className="bg-input border border-border rounded px-2 py-1 text-sm"
                 >
-                  {[1, 3, 5, 10, 20].map((n) => (
+                  {[0, 1, 3, 5, 10, 20].map((n) => (
                     <option key={n} value={n}>
                       {n}
                     </option>
@@ -136,19 +149,20 @@ function Leaderboard() {
                       {!loading &&
                         filtered.map((r, i) => {
                           const winPct = r.games_played ? (r.wins / r.games_played) * 100 : 0;
+                          const absoluteRank = startRank + i;
                           const medal =
-                            i === 0
+                            absoluteRank === 0
                               ? "bg-sand text-sand-foreground"
-                              : i === 1
+                              : absoluteRank === 1
                                 ? "bg-teal/80 text-background"
-                                : i === 2
+                                : absoluteRank === 2
                                   ? "bg-coral/90 text-white"
                                   : "bg-muted text-muted-foreground";
                           return (
                             <tr key={r.player_key} className="border-t border-border/40 hover:bg-secondary/30">
                               <td className="px-4 py-3">
                                 <span className={`inline-flex size-7 items-center justify-center rounded font-bold text-xs ${medal}`}>
-                                  {i + 1}
+                                  {absoluteRank + 1}
                                 </span>
                               </td>
                               <td className="px-4 py-3 font-medium">
@@ -191,9 +205,32 @@ function Leaderboard() {
                   </table>
                 </div>
               </Card>
-              <p className="text-xs text-muted-foreground mt-3">
-                Showing {filtered.length} of {rows.length} players for {v.label}.
-              </p>
+              <div className="flex items-center justify-between mt-3 gap-3 flex-wrap">
+                <p className="text-xs text-muted-foreground">
+                  Showing {filtered.length === 0 ? 0 : startRank + 1}–{startRank + filtered.length} of {total} players for {v.label}.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={page === 0 || loading}
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  >
+                    <ChevronLeft className="size-4" /> Prev
+                  </Button>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    Page {page + 1} / {pageCount}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={page + 1 >= pageCount || loading}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    Next <ChevronRight className="size-4" />
+                  </Button>
+                </div>
+              </div>
             </TabsContent>
           ))}
         </Tabs>
