@@ -152,47 +152,57 @@ export const saveGame = createServerFn({ method: "POST" })
     );
     if (rErr) throw new Error(rErr.message);
 
-    // Update ELO for each player in this version
     const keys = data.results.map((r) => r.player_name.toLowerCase().trim());
-    const { data: existing } = await supabaseAdmin
-      .from("player_ratings")
-      .select("player_key, elo, games_played, wins, top2, total_points, claimed_by")
-      .eq("game_version", game_version)
-      .in("player_key", keys);
-
-    const existingMap = new Map(existing?.map((r) => [r.player_key, r]) ?? []);
-    const currentElos = keys.map((k) => Number(existingMap.get(k)?.elo ?? 1000));
     const placements = data.results.map((r) => r.placement);
-    const newElos = recomputeElo(currentElos, placements);
 
-    const upserts = data.results.map((r, i) => {
-      const k = keys[i];
-      const prev = existingMap.get(k);
-      return {
-        player_key: k,
-        display_name: r.player_name,
-        game_version,
-        elo: Number(newElos[i].toFixed(2)),
-        games_played: (prev?.games_played ?? 0) + 1,
-        wins: (prev?.wins ?? 0) + (r.placement === 1 ? 1 : 0),
-        top2: (prev?.top2 ?? 0) + (r.placement <= 2 ? 1 : 0),
-        total_points: (prev?.total_points ?? 0) + r.points,
-        claimed_by: prev?.claimed_by ?? null,
-        updated_at: new Date().toISOString(),
-      };
-    });
+    // Helper: run ELO update against a given game_version bucket and return per-row deltas.
+    const applyTrack = async (track: "base" | "ix" | "uprising" | "overall") => {
+      const { data: existing } = await supabaseAdmin
+        .from("player_ratings")
+        .select("player_key, elo, games_played, wins, top2, total_points, claimed_by")
+        .eq("game_version", track)
+        .in("player_key", keys);
+      const existingMap = new Map(existing?.map((r) => [r.player_key, r]) ?? []);
+      const currentElos = keys.map((k) => Number(existingMap.get(k)?.elo ?? 1000));
+      const newElos = recomputeElo(currentElos, placements);
 
-    const { error: uErr } = await supabaseAdmin
-      .from("player_ratings")
-      .upsert(upserts, { onConflict: "player_key,game_version" });
-    if (uErr) throw new Error(uErr.message);
+      const upserts = data.results.map((r, i) => {
+        const k = keys[i];
+        const prev = existingMap.get(k);
+        return {
+          player_key: k,
+          display_name: r.player_name,
+          game_version: track,
+          elo: Number(newElos[i].toFixed(2)),
+          games_played: (prev?.games_played ?? 0) + 1,
+          wins: (prev?.wins ?? 0) + (r.placement === 1 ? 1 : 0),
+          top2: (prev?.top2 ?? 0) + (r.placement <= 2 ? 1 : 0),
+          total_points: (prev?.total_points ?? 0) + r.points,
+          claimed_by: prev?.claimed_by ?? null,
+          updated_at: new Date().toISOString(),
+        };
+      });
 
-    // Persist per-result ELO delta so deletions can revert ratings.
+      const { error: uErr } = await supabaseAdmin
+        .from("player_ratings")
+        .upsert(upserts, { onConflict: "player_key,game_version" });
+      if (uErr) throw new Error(uErr.message);
+
+      return newElos.map((e, i) => Number((e - currentElos[i]).toFixed(4)));
+    };
+
+    const versionDeltas = await applyTrack(game_version);
+    const overallDeltas = await applyTrack("overall");
+
+    // Persist per-result ELO deltas for both tracks so deletions can revert ratings.
     await Promise.all(
       data.results.map((r, i) =>
         supabaseAdmin
           .from("game_results")
-          .update({ elo_delta: Number((newElos[i] - currentElos[i]).toFixed(4)) })
+          .update({
+            elo_delta: versionDeltas[i],
+            elo_delta_overall: overallDeltas[i],
+          })
           .eq("game_id", gameRow.id)
           .eq("player_name", r.player_name)
           .eq("placement", r.placement),
@@ -228,35 +238,42 @@ export const deleteGame = createServerFn({ method: "POST" })
 
     const { data: results } = await supabaseAdmin
       .from("game_results")
-      .select("player_name, placement, points, elo_delta")
+      .select("player_name, placement, points, elo_delta, elo_delta_overall")
       .eq("game_id", data.game_id);
 
     const gv = game.game_version as "base" | "ix" | "uprising";
     if (results && results.length) {
       const keys = results.map((r) => r.player_name.toLowerCase().trim());
-      const { data: ratings } = await supabaseAdmin
-        .from("player_ratings")
-        .select("player_key, elo, games_played, wins, top2, total_points")
-        .eq("game_version", gv)
-        .in("player_key", keys);
-      const map = new Map(ratings?.map((r) => [r.player_key, r]) ?? []);
-      for (const r of results) {
-        const k = r.player_name.toLowerCase().trim();
-        const prev = map.get(k);
-        if (!prev) continue;
-        await supabaseAdmin
+      const revertTrack = async (
+        track: "base" | "ix" | "uprising" | "overall",
+        deltaField: "elo_delta" | "elo_delta_overall",
+      ) => {
+        const { data: ratings } = await supabaseAdmin
           .from("player_ratings")
-          .update({
-            elo: Number((Number(prev.elo) - Number(r.elo_delta ?? 0)).toFixed(2)),
-            games_played: Math.max(0, prev.games_played - 1),
-            wins: Math.max(0, prev.wins - (r.placement === 1 ? 1 : 0)),
-            top2: Math.max(0, prev.top2 - (r.placement <= 2 ? 1 : 0)),
-            total_points: Math.max(0, prev.total_points - r.points),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("player_key", k)
-          .eq("game_version", gv);
-      }
+          .select("player_key, elo, games_played, wins, top2, total_points")
+          .eq("game_version", track)
+          .in("player_key", keys);
+        const map = new Map(ratings?.map((r) => [r.player_key, r]) ?? []);
+        for (const r of results) {
+          const k = r.player_name.toLowerCase().trim();
+          const prev = map.get(k);
+          if (!prev) continue;
+          await supabaseAdmin
+            .from("player_ratings")
+            .update({
+              elo: Number((Number(prev.elo) - Number(r[deltaField] ?? 0)).toFixed(2)),
+              games_played: Math.max(0, prev.games_played - 1),
+              wins: Math.max(0, prev.wins - (r.placement === 1 ? 1 : 0)),
+              top2: Math.max(0, prev.top2 - (r.placement <= 2 ? 1 : 0)),
+              total_points: Math.max(0, prev.total_points - r.points),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("player_key", k)
+            .eq("game_version", track);
+        }
+      };
+      await revertTrack(gv, "elo_delta");
+      await revertTrack("overall", "elo_delta_overall");
     }
 
     const { error: dErr } = await supabaseAdmin.from("games").delete().eq("id", data.game_id);
