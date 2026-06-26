@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string
           elo_delta: number
+          elo_delta_overall: number
           game_id: string
           id: string
           leader_name: string | null
@@ -28,6 +29,7 @@ export type Database = {
         Insert: {
           created_at?: string
           elo_delta?: number
+          elo_delta_overall?: number
           game_id: string
           id?: string
           leader_name?: string | null
@@ -38,6 +40,7 @@ export type Database = {
         Update: {
           created_at?: string
           elo_delta?: number
+          elo_delta_overall?: number
           game_id?: string
           id?: string
           leader_name?: string | null
@@ -199,7 +202,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
-      game_version: "base" | "ix" | "uprising"
+      game_version: "base" | "ix" | "uprising" | "overall"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -328,7 +331,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
-      game_version: ["base", "ix", "uprising"],
+      game_version: ["base", "ix", "uprising", "overall"],
     },
   },
 } as const
