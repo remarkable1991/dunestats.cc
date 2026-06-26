@@ -6,7 +6,7 @@ import { Upload, Trophy, Sparkles, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import logoAsset from "@/assets/logo.png.asset.json";
-import { GAME_VERSIONS, versionLabel, type GameVersion } from "@/lib/game-version";
+import { GAME_VERSIONS, EXPANSION_VERSIONS, versionLabel, type GameVersion } from "@/lib/game-version";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -80,7 +80,7 @@ function Index() {
               </Button>
             </div>
             <div className="grid grid-cols-3 gap-4 max-w-md pt-4">
-              {GAME_VERSIONS.map((v) => (
+              {EXPANSION_VERSIONS.map((v) => (
                 <div key={v.value} className="rounded-lg border border-border/60 bg-card/60 p-3 text-center">
                   <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{v.label}</div>
                   <div className="font-display text-lg text-sand">{tops[v.value]?.[0]?.display_name ?? "—"}</div>
@@ -108,7 +108,7 @@ function Index() {
             Full leaderboard →
           </Link>
         </div>
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           {GAME_VERSIONS.map((v) => (
             <Card key={v.value} className="p-5 border-border/60 bg-card/70 backdrop-blur shadow-arena">
               <div className="flex items-center justify-between mb-4">

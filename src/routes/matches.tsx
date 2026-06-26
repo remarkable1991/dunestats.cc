@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteGame } from "@/lib/games.functions";
 import { toast } from "sonner";
-import { ListOrdered, Search, Trash2, Loader2, Shield } from "lucide-react";
+import { ListOrdered, Search, Trash2, Loader2, Shield, ChevronLeft, ChevronRight } from "lucide-react";
 
 export const Route = createFileRoute("/matches")({
   head: () => ({ meta: [{ title: "Matches · Strategy Arena" }] }),
@@ -40,15 +40,19 @@ const VERSIONS: Array<{ k: "all" | "base" | "ix" | "uprising"; label: string }> 
   { k: "uprising", label: "Uprising" },
 ];
 
+const PAGE_SIZE = 20;
+
 function MatchesPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [games, setGames] = useState<GameRow[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [version, setVersion] = useState<(typeof VERSIONS)[number]["k"]>("all");
   const [q, setQ] = useState("");
   const [onlyMine, setOnlyMine] = useState(false);
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -64,39 +68,46 @@ function MatchesPage() {
     });
   }, []);
 
+  useEffect(() => {
+    setPage(0);
+  }, [version, q, onlyMine]);
+
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase
+    let query = supabase
       .from("games")
       .select(
         "id, created_at, created_by, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, game_results(placement, player_name, leader_name, points)",
+        { count: "exact" },
       )
-      .order("created_at", { ascending: false })
-      .limit(300);
-    setGames((data as GameRow[]) ?? []);
+      .order("created_at", { ascending: false });
+    if (version !== "all") query = query.eq("game_version", version);
+    if (onlyMine && userId) query = query.eq("created_by", userId);
+    query = query.range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+    const { data, count } = await query;
+    let rows = (data as GameRow[]) ?? [];
+    const needle = q.trim().toLowerCase();
+    if (needle) {
+      rows = rows.filter((g) =>
+        g.game_results.some(
+          (r) =>
+            r.player_name.toLowerCase().includes(needle) ||
+            (r.leader_name ?? "").toLowerCase().includes(needle),
+        ),
+      );
+    }
+    setGames(rows);
+    setTotal(count ?? 0);
     setLoading(false);
   };
 
   useEffect(() => {
     void load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version, q, onlyMine, page, userId]);
 
-  const filtered = useMemo(() => {
-    const needle = q.toLowerCase().trim();
-    return games.filter((g) => {
-      if (version !== "all" && g.game_version !== version) return false;
-      if (onlyMine && g.created_by !== userId) return false;
-      if (needle) {
-        const hit = g.game_results.some(
-          (r) =>
-            r.player_name.toLowerCase().includes(needle) ||
-            (r.leader_name ?? "").toLowerCase().includes(needle),
-        );
-        if (!hit) return false;
-      }
-      return true;
-    });
-  }, [games, version, onlyMine, q, userId]);
+  const filtered = games;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this match? ELO and stats it contributed will be reverted.")) return;
@@ -235,6 +246,22 @@ function MatchesPage() {
             )}
           </div>
         )}
+
+        <div className="flex items-center justify-between mt-6 gap-3 flex-wrap">
+          <p className="text-xs text-muted-foreground">
+            {total} total matches{onlyMine ? " (yours)" : ""}
+            {version !== "all" ? ` · ${VERSIONS.find((v) => v.k === version)?.label}` : ""}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" disabled={page === 0 || loading} onClick={() => setPage((p) => Math.max(0, p - 1))}>
+              <ChevronLeft className="size-4" /> Prev
+            </Button>
+            <span className="text-xs text-muted-foreground tabular-nums">Page {page + 1} / {pageCount}</span>
+            <Button size="sm" variant="outline" disabled={page + 1 >= pageCount || loading} onClick={() => setPage((p) => p + 1)}>
+              Next <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

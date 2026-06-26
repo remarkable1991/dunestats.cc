@@ -70,22 +70,37 @@ function canonicalize(raw: string | null): { name: string; group: Agg["group"] }
 function StatsPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
-  const [version, setVersion] = useState<GameVersion>("base");
+  const [version, setVersion] = useState<GameVersion>("overall");
 
   useEffect(() => {
     setLoading(true);
-    supabase
-      .from("game_results")
-      .select("placement, leader_name, points, games!inner(game_version)")
-      .limit(20000)
-      .then(({ data }) => {
-        setRows((data as unknown as Row[]) ?? []);
-        setLoading(false);
-      });
+    (async () => {
+      const PAGE = 1000;
+      const out: Row[] = [];
+      let from = 0;
+      // Loop until we've fetched everything
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from("game_results")
+          .select("placement, leader_name, points, games!inner(game_version)")
+          .order("id", { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error || !data || data.length === 0) break;
+        out.push(...(data as unknown as Row[]));
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      setRows(out);
+      setLoading(false);
+    })();
   }, []);
 
   const { aggregates, totalGames } = useMemo(() => {
-    const filtered = rows.filter((r) => r.games?.game_version === version);
+    const filtered =
+      version === "overall"
+        ? rows
+        : rows.filter((r) => r.games?.game_version === version);
     // Count distinct games is tricky without IDs; pick count = total rows / avg players. Use sum/4 estimate via leader picks summing to total player slots.
     // For pick rate we use share of player-slots in this version.
     const totalSlots = filtered.length;

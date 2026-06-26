@@ -110,11 +110,14 @@ function ProfilePage() {
           <p className="text-muted-foreground">No data for this player.</p>
         ) : (
           <>
-            <div className="grid sm:grid-cols-3 gap-3 mb-8">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
               {GAME_VERSIONS.map((v) => {
                 const r = ratings.find((x) => x.game_version === v.value);
                 return (
-                  <Card key={v.value} className="p-4 border-border/60 bg-card/70">
+                  <Card
+                    key={v.value}
+                    className={`p-4 border-border/60 bg-card/70 ${v.value === "overall" ? "ring-1 ring-sand/40" : ""}`}
+                  >
                     <div className="text-xs uppercase tracking-wider text-muted-foreground">{v.label}</div>
                     <div className="font-display text-3xl text-sand mt-1">
                       {r ? Math.round(Number(r.elo)) : "—"}
