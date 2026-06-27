@@ -237,7 +237,7 @@ function Leaderboard() {
                             <tr
                               key={r.player_key}
                               className={`border-t border-border/40 hover:bg-secondary/30 ${
-                                isMe ? "bg-sand/10 ring-1 ring-inset ring-sand/60 shadow-[0_0_24px_-8px_hsl(var(--sand)/0.6)]" : ""
+                                isMe ? "bg-sand/10 ring-1 ring-inset ring-sand/60" : ""
                               }`}
                             >
                               <td className="px-4 py-3">
