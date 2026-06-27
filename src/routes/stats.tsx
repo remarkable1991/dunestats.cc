@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { LEADERS, classifyLeader } from "@/lib/leaders";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 export const Route = createFileRoute("/stats")({
   head: () => ({ meta: [{ title: "Leader stats · Strategy Arena" }] }),
@@ -71,6 +71,34 @@ function StatsPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState<GameVersion>("overall");
+  const [userLeaders, setUserLeaders] = useState<Set<string>>(new Set());
+  type SortKey = "picks" | "pickPct" | "wins" | "winPct" | "top2Pct" | "avgPts";
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<"desc" | "asc" | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u.user?.id;
+      if (!uid) return;
+      const { data: claims } = await supabase
+        .from("player_ratings")
+        .select("player_key")
+        .eq("claimed_by", uid);
+      const keys = Array.from(new Set((claims ?? []).map((c) => c.player_key)));
+      if (keys.length === 0) return;
+      const { data: mine } = await supabase
+        .from("game_results")
+        .select("leader_name")
+        .in("player_name", keys);
+      const set = new Set<string>();
+      for (const r of mine ?? []) {
+        const c = canonicalize(r.leader_name as string | null);
+        if (c) set.add(c.name);
+      }
+      setUserLeaders(set);
+    })();
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -127,6 +155,44 @@ function StatsPage() {
     return { aggregates, totalGames: totalSlots };
   }, [rows, version]);
 
+  const sorted = useMemo(() => {
+    if (!sortKey || !sortDir) return aggregates;
+    const dir = sortDir === "desc" ? -1 : 1;
+    const score = (a: Agg) => {
+      switch (sortKey) {
+        case "picks": return a.picks;
+        case "pickPct": return totalGames ? a.picks / totalGames : 0;
+        case "wins": return a.wins;
+        case "winPct": return a.picks ? a.wins / a.picks : 0;
+        case "top2Pct": return a.picks ? a.top2 / a.picks : 0;
+        case "avgPts": return a.picks ? a.totalPoints / a.picks : 0;
+      }
+    };
+    return [...aggregates].sort((a, b) => {
+      const av = score(a), bv = score(b);
+      if (av === bv) return a.leader.localeCompare(b.leader);
+      return av < bv ? dir : -dir;
+    });
+  }, [aggregates, sortKey, sortDir, totalGames]);
+
+  function cycleSort(k: SortKey) {
+    if (sortKey !== k) { setSortKey(k); setSortDir("desc"); }
+    else if (sortDir === "desc") setSortDir("asc");
+    else { setSortKey(null); setSortDir(null); }
+  }
+  function SortTh({ label, k, className = "" }: { label: string; k: SortKey; className?: string }) {
+    const active = sortKey === k;
+    const Icon = active ? (sortDir === "desc" ? ArrowDown : ArrowUp) : ArrowUpDown;
+    return (
+      <th className={`px-4 py-3 text-right ${className}`}>
+        <button type="button" onClick={() => cycleSort(k)}
+          className={`inline-flex items-center gap-1 ml-auto hover:text-sand transition-colors ${active ? "text-sand" : ""}`}>
+          {label}<Icon className={`size-3 ${active ? "opacity-100" : "opacity-40"}`} />
+        </button>
+      </th>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -161,12 +227,12 @@ function StatsPage() {
                       <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
                         <th className="px-4 py-3 text-left">Leader</th>
                         <th className="px-4 py-3 text-left">Group</th>
-                        <th className="px-4 py-3 text-right">Picks</th>
-                        <th className="px-4 py-3 text-right">Pick %</th>
-                        <th className="px-4 py-3 text-right">Wins</th>
-                        <th className="px-4 py-3 text-right">Win %</th>
-                        <th className="px-4 py-3 text-right hidden sm:table-cell">Top 2 %</th>
-                        <th className="px-4 py-3 text-right hidden md:table-cell">Avg pts</th>
+                        <SortTh label="Picks" k="picks" />
+                        <SortTh label="Pick %" k="pickPct" />
+                        <SortTh label="Wins" k="wins" />
+                        <SortTh label="Win %" k="winPct" />
+                        <SortTh label="Top 2 %" k="top2Pct" className="hidden sm:table-cell" />
+                        <SortTh label="Avg pts" k="avgPts" className="hidden md:table-cell" />
                       </tr>
                     </thead>
                     <tbody>
@@ -178,13 +244,14 @@ function StatsPage() {
                         </tr>
                       )}
                       {!loading &&
-                        aggregates.map((a) => {
+                        sorted.map((a) => {
                           const pickPct = totalGames ? (a.picks / totalGames) * 100 : 0;
                           const winPct = a.picks ? (a.wins / a.picks) * 100 : 0;
                           const top2Pct = a.picks ? (a.top2 / a.picks) * 100 : 0;
                           const avgPts = a.picks ? a.totalPoints / a.picks : 0;
+                          const mine = userLeaders.has(a.leader);
                           return (
-                            <tr key={a.leader} className="border-t border-border/40 hover:bg-secondary/30">
+                            <tr key={a.leader} className={`border-t border-border/40 hover:bg-secondary/30 ${mine ? "bg-sand/10 ring-1 ring-inset ring-sand/60" : ""}`}>
                               <td className="px-4 py-3 font-medium">{a.leader}</td>
                               <td className="px-4 py-3 text-xs uppercase tracking-wider text-muted-foreground">
                                 {a.group}

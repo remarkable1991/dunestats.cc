@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { parseScreenshot, saveGame } from "@/lib/games.functions";
 import { detectExpansions } from "@/lib/leaders";
 import { toast } from "sonner";
-import { Upload as UploadIcon, Loader2, Trash2, CheckCircle2 } from "lucide-react";
+import { Upload as UploadIcon, Loader2, Trash2, CheckCircle2, Maximize2 } from "lucide-react";
+import exampleMatch from "@/assets/example-match.png.asset.json";
 
 export const Route = createFileRoute("/upload")({
   head: () => ({ meta: [{ title: "Upload match · Strategy Arena" }] }),
@@ -20,6 +22,18 @@ export const Route = createFileRoute("/upload")({
 
 type Row = { placement: number; player_name: string; leader_name: string; points: number };
 
+const MIN_ROWS = 3;
+const MAX_ROWS = 4;
+const emptyRows = (): Row[] =>
+  Array.from({ length: MAX_ROWS }, (_, i) => ({ placement: i + 1, player_name: "", leader_name: "", points: 0 }));
+const clampRows = (rs: Row[]): Row[] => {
+  const trimmed = rs.slice(0, MAX_ROWS);
+  while (trimmed.length < MIN_ROWS) {
+    trimmed.push({ placement: trimmed.length + 1, player_name: "", leader_name: "", points: 0 });
+  }
+  return trimmed;
+};
+
 function UploadPage() {
   const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
@@ -27,7 +41,7 @@ function UploadPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [rows, setRows] = useState<Row[]>([]);
+  const [rows, setRows] = useState<Row[]>(emptyRows());
   const [board, setBoard] = useState<"base" | "uprising">("uprising");
   const [hasIx, setHasIx] = useState(false);
   const [hasEpic, setHasEpic] = useState(false);
@@ -41,9 +55,26 @@ function UploadPage() {
     });
   }, [navigate]);
 
+  // Paste-from-clipboard support
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const it of items) {
+        if (it.kind === "file" && it.type.startsWith("image/")) {
+          const f = it.getAsFile();
+          if (f) { e.preventDefault(); void onFile(f); return; }
+        }
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const onFile = async (f: File | null) => {
     setFile(f);
-    setRows([]);
+    setRows(emptyRows());
     if (preview) URL.revokeObjectURL(preview);
     setPreview(f ? URL.createObjectURL(f) : null);
     if (f) await analyze(f);
@@ -60,7 +91,7 @@ function UploadPage() {
         leader_name: r.leader_name ?? "",
         points: r.points,
       }));
-      setRows(detected);
+      setRows(clampRows(detected));
       const suggestion = detectExpansions(detected.map((d) => d.leader_name));
       setBoard(suggestion.board_version);
       setHasIx(suggestion.has_rise_of_ix);
@@ -106,9 +137,20 @@ function UploadPage() {
 
   const update = (i: number, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
-  const removeRow = (i: number) => setRows((rs) => rs.filter((_, idx) => idx !== i));
+  const removeRow = (i: number) =>
+    setRows((rs) => (rs.length <= MIN_ROWS ? rs : rs.filter((_, idx) => idx !== i)));
   const addRow = () =>
-    setRows((rs) => [...rs, { placement: rs.length + 1, player_name: "", leader_name: "", points: 0 }]);
+    setRows((rs) =>
+      rs.length >= MAX_ROWS
+        ? rs
+        : [...rs, { placement: rs.length + 1, player_name: "", leader_name: "", points: 0 }],
+    );
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const f = e.dataTransfer.files?.[0];
+    if (f && f.type.startsWith("image/")) void onFile(f);
+  };
 
   if (checking) return null;
 
@@ -129,6 +171,8 @@ function UploadPage() {
                 <Label htmlFor="file">Screenshot</Label>
                 <label
                   htmlFor="file"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={onDrop}
                   className="flex flex-col items-center justify-center border-2 border-dashed border-border/70 rounded-lg p-8 cursor-pointer hover:border-sand transition-colors bg-background/40"
                 >
                   {preview ? (
@@ -136,7 +180,9 @@ function UploadPage() {
                   ) : (
                     <>
                       <UploadIcon className="size-8 text-sand mb-2" />
-                      <span className="text-sm text-muted-foreground">Click to choose a screenshot (PNG / JPG)</span>
+                      <span className="text-sm text-muted-foreground text-center">
+                        Click, drag &amp; drop, or paste (Ctrl+V) a screenshot (PNG / JPG)
+                      </span>
                     </>
                   )}
                   <Input
@@ -147,6 +193,28 @@ function UploadPage() {
                     onChange={(e) => onFile(e.target.files?.[0] ?? null)}
                   />
                 </label>
+                <div className="mt-3 flex items-start gap-3 rounded-md border border-border/50 bg-background/30 p-2">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <button type="button" className="relative group shrink-0">
+                        <img
+                          src={exampleMatch.url}
+                          alt="Example end-screen layout"
+                          className="h-20 w-auto rounded border border-border/60 group-hover:border-sand transition"
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center bg-background/40 opacity-0 group-hover:opacity-100 rounded">
+                          <Maximize2 className="size-4 text-sand" />
+                        </span>
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl p-2">
+                      <img src={exampleMatch.url} alt="Example end-screen layout" className="w-full h-auto rounded" />
+                    </DialogContent>
+                  </Dialog>
+                  <p className="text-xs text-muted-foreground">
+                    Example screenshot — your end-screen should look like this. Click to expand.
+                  </p>
+                </div>
                 {parsing && (
                   <p className="text-sm text-sand mt-2 flex items-center gap-2">
                     <Loader2 className="size-4 animate-spin" /> Analysing screenshot with AI…
@@ -154,8 +222,7 @@ function UploadPage() {
                 )}
               </div>
 
-              {rows.length > 0 && (
-                <div className="space-y-4 pt-2">
+              <div className="space-y-4 pt-2">
                   <div>
                     <Label className="mb-2 block">Board version <span className="text-coral">*</span></Label>
                     <RadioGroup value={board} onValueChange={(v) => setBoard(v as "base" | "uprising")} className="grid grid-cols-2 gap-2">
@@ -188,22 +255,21 @@ function UploadPage() {
                       </label>
                     </div>
                   </div>
-                </div>
-              )}
+              </div>
             </div>
           </Card>
 
           <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-display text-lg">Detected results</h2>
-              <Button size="sm" variant="ghost" onClick={addRow}>+ Add row</Button>
+              <Button size="sm" variant="ghost" onClick={addRow} disabled={rows.length >= MAX_ROWS}>
+                + Add row
+              </Button>
             </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Matches must have between {MIN_ROWS} and {MAX_ROWS} players.
+            </p>
 
-            {rows.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-12 text-center">
-                Upload a screenshot — the AI fills the results in automatically.
-              </p>
-            ) : (
               <div className="space-y-2">
                 {rows
                   .slice()
@@ -235,7 +301,12 @@ function UploadPage() {
                         onChange={(e) => update(i, { points: Number(e.target.value) })}
                         className="text-center"
                       />
-                      <Button variant="ghost" size="icon" onClick={() => removeRow(i)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeRow(i)}
+                        disabled={rows.length <= MIN_ROWS}
+                      >
                         <Trash2 className="size-4 text-coral" />
                       </Button>
                     </div>
@@ -245,7 +316,6 @@ function UploadPage() {
                   {saving ? (<><Loader2 className="size-4 animate-spin" /> Submitting…</>) : (<><CheckCircle2 className="size-4" /> Submit match</>)}
                 </Button>
               </div>
-            )}
           </Card>
         </div>
       </div>

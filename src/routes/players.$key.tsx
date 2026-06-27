@@ -4,7 +4,7 @@ import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
-import { User as UserIcon, BadgeCheck, Trophy, Medal } from "lucide-react";
+import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 export const Route = createFileRoute("/players/$key")({
   head: ({ params }) => ({
@@ -80,6 +80,40 @@ function ProfilePage() {
     }
     return Array.from(map.values()).sort((a, b) => b.picks - a.picks);
   }, [matches]);
+
+  type MSortKey = "date" | "placement" | "points";
+  const [sortKey, setSortKey] = useState<MSortKey | null>("date");
+  const [sortDir, setSortDir] = useState<"desc" | "asc" | null>("desc");
+  function cycleSort(k: MSortKey) {
+    if (sortKey !== k) { setSortKey(k); setSortDir("desc"); }
+    else if (sortDir === "desc") setSortDir("asc");
+    else { setSortKey(null); setSortDir(null); }
+  }
+  const sortedMatches = useMemo(() => {
+    if (!sortKey || !sortDir) return matches;
+    const dir = sortDir === "desc" ? -1 : 1;
+    const score = (m: MatchRow) => {
+      if (sortKey === "date") return m.games ? new Date(m.games.created_at).getTime() : 0;
+      if (sortKey === "placement") return m.placement;
+      return m.points;
+    };
+    return [...matches].sort((a, b) => {
+      const av = score(a), bv = score(b);
+      return av < bv ? dir : av > bv ? -dir : 0;
+    });
+  }, [matches, sortKey, sortDir]);
+  function SortTh({ label, k, className = "" }: { label: string; k: MSortKey; className?: string }) {
+    const active = sortKey === k;
+    const Icon = active ? (sortDir === "desc" ? ArrowDown : ArrowUp) : ArrowUpDown;
+    return (
+      <th className={`px-4 py-2 text-left ${className}`}>
+        <button type="button" onClick={() => cycleSort(k)}
+          className={`inline-flex items-center gap-1 hover:text-sand transition-colors ${active ? "text-sand" : ""}`}>
+          {label}<Icon className={`size-3 ${active ? "opacity-100" : "opacity-40"}`} />
+        </button>
+      </th>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -168,24 +202,37 @@ function ProfilePage() {
             <h2 className="font-display text-xl mb-3 flex items-center gap-2">
               <Trophy className="size-5 text-sand" /> Recent matches
             </h2>
-            <div className="space-y-2">
-              {matches.map((m, i) => (
-                <Card key={i} className="p-3 border-border/60 bg-card/60 flex flex-wrap items-center gap-3">
-                  <span className="inline-flex size-7 items-center justify-center rounded font-bold bg-secondary/60">
-                    {m.placement}
-                  </span>
-                  <span className="font-medium">{m.leader_name ?? "—"}</span>
-                  <span className="text-sand font-display tabular-nums">{m.points} pts</span>
-                  <span className="text-xs text-muted-foreground ml-auto">
-                    {m.games ? new Date(m.games.created_at).toLocaleDateString() : ""} ·{" "}
-                    {m.games?.game_version}
-                  </span>
-                </Card>
-              ))}
-              {matches.length === 0 && (
-                <p className="text-muted-foreground text-sm">No matches recorded.</p>
-              )}
-            </div>
+            <Card className="p-0 overflow-hidden border-border/60 bg-card/70">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
+                    <SortTh label="Date" k="date" />
+                    <SortTh label="Placement" k="placement" />
+                    <th className="px-4 py-2 text-left">Leader</th>
+                    <SortTh label="Points" k="points" />
+                    <th className="px-4 py-2 text-left">Version</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedMatches.map((m, i) => (
+                    <tr key={i} className="border-t border-border/40 hover:bg-secondary/30">
+                      <td className="px-4 py-2 text-muted-foreground">
+                        {m.games ? new Date(m.games.created_at).toLocaleDateString() : ""}
+                      </td>
+                      <td className="px-4 py-2 tabular-nums">{m.placement}</td>
+                      <td className="px-4 py-2 font-medium">{m.leader_name ?? "—"}</td>
+                      <td className="px-4 py-2 text-sand font-display tabular-nums">{m.points}</td>
+                      <td className="px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground">
+                        {m.games?.game_version}
+                      </td>
+                    </tr>
+                  ))}
+                  {sortedMatches.length === 0 && (
+                    <tr><td colSpan={5} className="py-6 text-center text-muted-foreground">No matches recorded.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </Card>
           </>
         )}
       </div>
