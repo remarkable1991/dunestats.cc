@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
-import { Trophy, Search, UserPlus, BadgeCheck, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trophy, Search, UserPlus, BadgeCheck, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({ meta: [{ title: "Leaderboard · Strategy Arena" }] }),
@@ -27,43 +27,117 @@ type Row = {
 
 const PAGE_SIZE = 50;
 
+type SortKey = "elo" | "games_played" | "wins" | "top2" | "win_pct";
+type SortDir = "desc" | "asc" | null;
+
 function Leaderboard() {
   const [version, setVersion] = useState<GameVersion>("overall");
-  const [rows, setRows] = useState<Row[]>([]);
-  const [total, setTotal] = useState(0);
+  const [allRows, setAllRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [minGames, setMinGames] = useState(3);
   const [page, setPage] = useState(0);
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setUserId(s?.user?.id ?? null));
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     setPage(0);
-  }, [version, minGames, q]);
+  }, [version, minGames, q, sortKey, sortDir]);
 
   useEffect(() => {
     setLoading(true);
-    let query = supabase
-      .from("player_ratings")
-      .select(
-        "player_key, display_name, elo, games_played, wins, top2, total_points, claimed_by",
-        { count: "exact" },
-      )
-      .eq("game_version", version)
-      .gte("games_played", minGames)
-      .order("elo", { ascending: false })
-      .order("player_key", { ascending: true });
-    if (q.trim()) query = query.ilike("display_name", `%${q.trim()}%`);
-    query = query.range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
-    query.then(({ data, count }) => {
-      setRows((data as Row[]) ?? []);
-      setTotal(count ?? 0);
+    (async () => {
+      const PAGE = 1000;
+      const out: Row[] = [];
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from("player_ratings")
+          .select("player_key, display_name, elo, games_played, wins, top2, total_points, claimed_by")
+          .eq("game_version", version)
+          .order("elo", { ascending: false })
+          .order("player_key", { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error || !data || data.length === 0) break;
+        out.push(...(data as Row[]));
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      setAllRows(out);
       setLoading(false);
-    });
-  }, [version, minGames, q, page]);
+    })();
+  }, [version]);
 
-  const filtered = rows;
+  const processed = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    const filtered = allRows.filter(
+      (r) =>
+        r.games_played >= minGames &&
+        (!needle || r.display_name.toLowerCase().includes(needle)),
+    );
+    if (sortKey && sortDir) {
+      const dir = sortDir === "desc" ? -1 : 1;
+      filtered.sort((a, b) => {
+        const av = sortKey === "win_pct" ? (a.games_played ? a.wins / a.games_played : 0) : Number(a[sortKey]);
+        const bv = sortKey === "win_pct" ? (b.games_played ? b.wins / b.games_played : 0) : Number(b[sortKey]);
+        if (av === bv) return a.player_key.localeCompare(b.player_key);
+        return av < bv ? dir : -dir;
+      });
+    }
+    return filtered;
+  }, [allRows, q, minGames, sortKey, sortDir]);
+
+  const total = processed.length;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const startRank = useMemo(() => page * PAGE_SIZE, [page]);
+  const startRank = page * PAGE_SIZE;
+  const filtered = processed.slice(startRank, startRank + PAGE_SIZE);
+
+  function cycleSort(key: SortKey) {
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortDir("desc");
+    } else if (sortDir === "desc") {
+      setSortDir("asc");
+    } else {
+      setSortKey(null);
+      setSortDir(null);
+    }
+  }
+
+  function SortHeader({
+    label,
+    k,
+    className = "",
+  }: {
+    label: string;
+    k: SortKey;
+    className?: string;
+  }) {
+    const active = sortKey === k;
+    const Icon = active ? (sortDir === "desc" ? ArrowDown : ArrowUp) : ArrowUpDown;
+    return (
+      <th className={`px-4 py-3 text-right ${className}`}>
+        <button
+          type="button"
+          onClick={() => cycleSort(k)}
+          className={`inline-flex items-center gap-1 ml-auto hover:text-sand transition-colors ${
+            active ? "text-sand" : ""
+          }`}
+        >
+          {label}
+          <Icon className={`size-3 ${active ? "opacity-100" : "opacity-40"}`} />
+        </button>
+      </th>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -123,11 +197,11 @@ function Leaderboard() {
                       <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
                         <th className="px-4 py-3 text-left w-16">Rank</th>
                         <th className="px-4 py-3 text-left">Player</th>
-                        <th className="px-4 py-3 text-right">ELO</th>
-                        <th className="px-4 py-3 text-right">Games</th>
-                        <th className="px-4 py-3 text-right">Wins</th>
-                        <th className="px-4 py-3 text-right hidden sm:table-cell">Top 2</th>
-                        <th className="px-4 py-3 text-right hidden md:table-cell">Win %</th>
+                        <SortHeader label="ELO" k="elo" />
+                        <SortHeader label="Games" k="games_played" />
+                        <SortHeader label="Wins" k="wins" />
+                        <SortHeader label="Top 2" k="top2" className="hidden sm:table-cell" />
+                        <SortHeader label="Win %" k="win_pct" className="hidden md:table-cell" />
                         <th className="px-4 py-3 text-right">Status</th>
                       </tr>
                     </thead>
@@ -158,8 +232,14 @@ function Leaderboard() {
                                 : absoluteRank === 2
                                   ? "bg-coral/90 text-white"
                                   : "bg-muted text-muted-foreground";
+                          const isMe = !!userId && r.claimed_by === userId;
                           return (
-                            <tr key={r.player_key} className="border-t border-border/40 hover:bg-secondary/30">
+                            <tr
+                              key={r.player_key}
+                              className={`border-t border-border/40 hover:bg-secondary/30 ${
+                                isMe ? "bg-sand/10 ring-1 ring-inset ring-sand/60 shadow-[0_0_24px_-8px_hsl(var(--sand)/0.6)]" : ""
+                              }`}
+                            >
                               <td className="px-4 py-3">
                                 <span className={`inline-flex size-7 items-center justify-center rounded font-bold text-xs ${medal}`}>
                                   {absoluteRank + 1}
