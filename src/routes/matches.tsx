@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { deleteGame } from "@/lib/games.functions";
 import { toast } from "sonner";
 import { ListOrdered, Search, Trash2, Loader2, Shield, ChevronLeft, ChevronRight } from "lucide-react";
+import { ScreenshotButton } from "@/components/ScreenshotButton";
 
 export const Route = createFileRoute("/matches")({
   head: () => ({ meta: [{ title: "Matches · Strategy Arena" }] }),
@@ -30,6 +31,7 @@ type GameRow = {
   has_epic_mode: boolean;
   has_immortality: boolean;
   has_base_leaders: boolean;
+  image_url: string | null;
   game_results: ResultRow[];
 };
 
@@ -77,7 +79,7 @@ function MatchesPage() {
     let query = supabase
       .from("games")
       .select(
-        "id, created_at, created_by, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, game_results(placement, player_name, leader_name, points)",
+        "id, created_at, created_by, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, image_url, game_results(placement, player_name, leader_name, points)",
         { count: "exact" },
       )
       .order("created_at", { ascending: false });
@@ -198,7 +200,9 @@ function MatchesPage() {
                         {new Date(g.created_at).toLocaleString()}
                       </span>
                     </div>
-                    {canDelete && (
+                    <div className="flex items-center gap-1">
+                      {g.image_url && <ScreenshotButton url={g.image_url} />}
+                      {canDelete && (
                       <Button
                         size="sm"
                         variant="ghost"
@@ -211,7 +215,8 @@ function MatchesPage() {
                           <Trash2 className="size-4 text-coral" />
                         )}
                       </Button>
-                    )}
+                      )}
+                    </div>
                   </div>
                   <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
                     {sorted.map((r, i) => (
