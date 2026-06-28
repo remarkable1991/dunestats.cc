@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { ScreenshotButton } from "@/components/ScreenshotButton";
 
 export const Route = createFileRoute("/players/$key")({
   head: ({ params }) => ({
@@ -35,6 +36,7 @@ type MatchRow = {
     created_at: string;
     game_version: GameVersion;
     board_version: string | null;
+    image_url: string | null;
   } | null;
 };
 
@@ -54,7 +56,7 @@ function ProfilePage() {
         .eq("player_key", playerKey),
       supabase
         .from("game_results")
-        .select("placement, player_name, leader_name, points, games!inner(id, created_at, game_version, board_version)")
+        .select("placement, player_name, leader_name, points, games!inner(id, created_at, game_version, board_version, image_url)")
         .ilike("player_name", playerKey)
         .order("created_at", { foreignTable: "games", ascending: false })
         .limit(100),
@@ -211,6 +213,7 @@ function ProfilePage() {
                     <th className="px-4 py-2 text-left">Leader</th>
                     <SortTh label="Points" k="points" />
                     <th className="px-4 py-2 text-left">Version</th>
+                    <th className="px-4 py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -225,10 +228,13 @@ function ProfilePage() {
                       <td className="px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground">
                         {m.games?.game_version}
                       </td>
+                      <td className="px-2 py-1 text-right">
+                        {m.games?.image_url && <ScreenshotButton url={m.games.image_url} />}
+                      </td>
                     </tr>
                   ))}
                   {sortedMatches.length === 0 && (
-                    <tr><td colSpan={5} className="py-6 text-center text-muted-foreground">No matches recorded.</td></tr>
+                    <tr><td colSpan={6} className="py-6 text-center text-muted-foreground">No matches recorded.</td></tr>
                   )}
                 </tbody>
               </table>
