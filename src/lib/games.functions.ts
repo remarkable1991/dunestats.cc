@@ -20,6 +20,7 @@ const SaveInput = z.object({
   has_epic_mode: z.boolean().default(false),
   has_immortality: z.boolean().default(false),
   has_base_leaders: z.boolean().default(false),
+  match_screenshot_url: z.string().max(500).optional().nullable(),
   results: z.array(ResultRow).min(2).max(8),
 });
 
@@ -133,6 +134,7 @@ export const saveGame = createServerFn({ method: "POST" })
         has_epic_mode: data.has_epic_mode,
         has_immortality: data.has_immortality,
         has_base_leaders: data.has_base_leaders,
+        image_url: data.match_screenshot_url ?? null,
         source: "screenshot",
         created_by: userId,
       })
