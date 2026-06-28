@@ -163,6 +163,19 @@ export const saveGame = createServerFn({ method: "POST" })
         .eq("game_version", track)
         .in("player_key", keys);
       const existingMap = new Map(existing?.map((r) => [r.player_key, r]) ?? []);
+      // Inherit claim from any other version's row so claims apply across all leaderboards.
+      const missingClaim = keys.filter((k) => !existingMap.get(k)?.claimed_by);
+      const inherited = new Map<string, string>();
+      if (missingClaim.length) {
+        const { data: claimRows } = await supabaseAdmin
+          .from("player_ratings")
+          .select("player_key, claimed_by")
+          .in("player_key", missingClaim)
+          .not("claimed_by", "is", null);
+        for (const r of claimRows ?? []) {
+          if (r.claimed_by && !inherited.has(r.player_key)) inherited.set(r.player_key, r.claimed_by);
+        }
+      }
       const currentElos = keys.map((k) => Number(existingMap.get(k)?.elo ?? 1000));
       const newElos = recomputeElo(currentElos, placements);
 
@@ -178,7 +191,7 @@ export const saveGame = createServerFn({ method: "POST" })
           wins: (prev?.wins ?? 0) + (r.placement === 1 ? 1 : 0),
           top2: (prev?.top2 ?? 0) + (r.placement <= 2 ? 1 : 0),
           total_points: (prev?.total_points ?? 0) + r.points,
-          claimed_by: prev?.claimed_by ?? null,
+          claimed_by: prev?.claimed_by ?? inherited.get(k) ?? null,
           updated_at: new Date().toISOString(),
         };
       });
