@@ -37,6 +37,7 @@ const clampRows = (rs: Row[]): Row[] => {
 function UploadPage() {
   const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [parsing, setParsing] = useState(false);
@@ -51,7 +52,7 @@ function UploadPage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (!data.session) navigate({ to: "/auth" });
-      else setChecking(false);
+      else { setUserId(data.session.user.id); setChecking(false); }
     });
   }, [navigate]);
 
@@ -111,6 +112,16 @@ function UploadPage() {
     if (hasEpic && !hasIx) return toast.error("Epic Mode requires Rise of Ix.");
     setSaving(true);
     try {
+      let match_screenshot_url: string | null = null;
+      if (file && userId) {
+        const ext = (file.name.split(".").pop() || "png").toLowerCase();
+        const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("match-screenshots")
+          .upload(path, file, { contentType: file.type || "image/png", upsert: false });
+        if (upErr) throw upErr;
+        match_screenshot_url = path;
+      }
       await saveGame({
         data: {
           board_version: board,
@@ -118,6 +129,7 @@ function UploadPage() {
           has_epic_mode: hasEpic,
           has_immortality: hasImmortality,
           has_base_leaders: hasBaseLeaders,
+          match_screenshot_url,
           results: rows.map((r) => ({
             placement: r.placement,
             player_name: r.player_name.trim(),
