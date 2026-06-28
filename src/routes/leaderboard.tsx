@@ -40,12 +40,24 @@ function Leaderboard() {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [myKeys, setMyKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setUserId(s?.user?.id ?? null));
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!userId) { setMyKeys(new Set()); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("player_ratings")
+        .select("player_key")
+        .eq("claimed_by", userId);
+      setMyKeys(new Set((data ?? []).map((r) => r.player_key)));
+    })();
+  }, [userId]);
 
   useEffect(() => {
     setPage(0);
@@ -232,7 +244,8 @@ function Leaderboard() {
                                 : absoluteRank === 2
                                   ? "bg-coral/90 text-white"
                                   : "bg-muted text-muted-foreground";
-                          const isMe = !!userId && r.claimed_by === userId;
+                          const isMe = !!userId && (r.claimed_by === userId || myKeys.has(r.player_key));
+                          const claimedAnywhere = !!r.claimed_by || myKeys.has(r.player_key);
                           return (
                             <tr
                               key={r.player_key}
@@ -264,7 +277,7 @@ function Leaderboard() {
                                 {winPct.toFixed(0)}%
                               </td>
                               <td className="px-4 py-3 text-right">
-                                {r.claimed_by ? (
+                                {claimedAnywhere ? (
                                   <span className="inline-flex items-center gap-1 text-xs text-teal">
                                     <BadgeCheck className="size-3.5" /> Claimed
                                   </span>
