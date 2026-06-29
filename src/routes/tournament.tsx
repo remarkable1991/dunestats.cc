@@ -370,8 +370,9 @@ function TournamentPage() {
                       const rank = i + 1;
                       const gold = rank <= 2;
                       const silver = rank >= 3 && rank <= 10;
+                      const mine = isMine(s.player);
                       return (
-                        <tr key={s.player} className={`border-b border-border/20 ${gold ? "bg-amber-500/10 ring-1 ring-amber-400/60" : silver ? "bg-slate-400/5 ring-1 ring-slate-400/40" : ""}`}>
+                        <tr key={s.player} className={`border-b border-border/20 ${mine ? "bg-sand/15 ring-2 ring-sand" : gold ? "bg-amber-500/10 ring-1 ring-amber-400/60" : silver ? "bg-slate-400/5 ring-1 ring-slate-400/40" : ""}`}>
                           <td className="py-2 px-2 font-mono">{rank}</td>
                           <td className="py-2 px-2 font-medium">{displayMode === "discord" ? s.discord : s.player}</td>
                           <td className="py-2 px-2 text-right font-mono text-sand">{s.tp}</td>
