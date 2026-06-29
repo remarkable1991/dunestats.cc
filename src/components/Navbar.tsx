@@ -43,6 +43,12 @@ export function Navbar() {
               <span className="hidden sm:inline">Stats</span>
             </Link>
           </Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/tournament">
+              <Trophy className="size-4" />
+              <span className="hidden sm:inline">Tournament</span>
+            </Link>
+          </Button>
           {userId ? (
             <>
               <Button asChild variant="ghost" size="sm">
