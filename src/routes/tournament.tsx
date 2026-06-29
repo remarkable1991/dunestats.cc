@@ -419,13 +419,23 @@ function TournamentPage() {
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium">{ti}</span>
-                                  {shot && <ScreenshotLightbox path={shot.image_url} />}
                                 </div>
-                                <Button size="sm" variant="outline" onClick={() => openSubmitFor(rt, ti)}>Submit Table Results</Button>
+                                {shot ? (
+                                  <ScreenshotLightbox
+                                    path={shot.image_url}
+                                    trigger={
+                                      <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white">
+                                        <ImageIcon className="size-4 mr-1" /> See results
+                                      </Button>
+                                    }
+                                  />
+                                ) : (
+                                  <Button size="sm" variant="outline" onClick={() => openSubmitFor(rt, ti)}>Submit Table Results</Button>
+                                )}
                               </div>
                               <ul className="space-y-1 text-sm">
                                 {sorted.map((p) => (
-                                  <li key={p.id} className="flex justify-between gap-2">
+                                  <li key={p.id} className={`flex justify-between gap-2 px-2 py-0.5 rounded ${isMine(p.player_name) ? "bg-sand/15 ring-1 ring-sand/60" : ""}`}>
                                     <span><span className="font-mono text-muted-foreground mr-2">{p.placement ?? "—"}</span>{displayMode === "discord" ? (p.discord_username ?? p.player_name) : p.player_name}</span>
                                     <span className="font-mono text-sand">{p.points ?? "—"} VP</span>
                                   </li>
