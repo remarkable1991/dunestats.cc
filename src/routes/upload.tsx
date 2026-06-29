@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { parseScreenshot, saveGame } from "@/lib/games.functions";
+import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
 import { toast } from "sonner";
 import { Upload as UploadIcon, Loader2, Trash2, CheckCircle2, Maximize2 } from "lucide-react";
@@ -86,12 +87,13 @@ function UploadPage() {
     try {
       const b64 = await fileToBase64(f);
       const res = await parseScreenshot({ data: { imageBase64: b64, mimeType: f.type || "image/png" } });
-      const detected = res.results.map((r) => ({
+      const rawDetected = res.results.map((r) => ({
         placement: r.placement,
         player_name: r.player_name,
         leader_name: r.leader_name ?? "",
         points: r.points,
       }));
+      const detected = await normalizeNames(rawDetected);
       setRows(clampRows(detected));
       const suggestion = detectExpansions(detected.map((d) => d.leader_name));
       setBoard(suggestion.board_version);
