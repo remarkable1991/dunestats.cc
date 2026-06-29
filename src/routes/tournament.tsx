@@ -15,7 +15,7 @@ import { parseScreenshot, saveGame } from "@/lib/games.functions";
 import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
 import { toast } from "sonner";
-import { Image as ImageIcon, Loader2, Trophy, Upload as UploadIcon, CheckCircle2, Maximize2 } from "lucide-react";
+import { Image as ImageIcon, Loader2, Trophy, Upload as UploadIcon, CheckCircle2, Maximize2, HelpCircle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import exampleMatch from "@/assets/example-match.png.asset.json";
