@@ -69,6 +69,7 @@ function TournamentPage() {
   const [hasEpic, setHasEpic] = useState(false);
   const [hasImmortality, setHasImmortality] = useState(false);
   const [hasBaseLeaders, setHasBaseLeaders] = useState(false);
+  const [tpOpen, setTpOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
