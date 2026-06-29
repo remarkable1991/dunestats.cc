@@ -63,6 +63,7 @@ function TournamentPage() {
   const [saving, setSaving] = useState(false);
   const [parsedRows, setParsedRows] = useState<{ placement: number; player_name: string; leader_name: string; points: number }[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [myKeys, setMyKeys] = useState<Set<string>>(new Set());
   const [board, setBoard] = useState<"base" | "uprising">("uprising");
   const [hasIx, setHasIx] = useState(false);
   const [hasEpic, setHasEpic] = useState(false);
@@ -72,6 +73,19 @@ function TournamentPage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
   }, []);
+
+  useEffect(() => {
+    if (!userId) { setMyKeys(new Set()); return; }
+    void (async () => {
+      const { data } = await supabase
+        .from("player_ratings")
+        .select("player_key")
+        .eq("claimed_by", userId);
+      setMyKeys(new Set((data ?? []).map((r) => r.player_key)));
+    })();
+  }, [userId]);
+
+  const isMine = (name: string) => myKeys.has(name.toLowerCase().trim());
 
   const refresh = async () => {
     setLoading(true);
