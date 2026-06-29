@@ -8,14 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { parseScreenshot, saveGame } from "@/lib/games.functions";
 import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
 import { toast } from "sonner";
-import { Image as ImageIcon, Loader2, Trophy, Upload as UploadIcon, CheckCircle2, Maximize2 } from "lucide-react";
+import { Image as ImageIcon, Loader2, Trophy, Upload as UploadIcon, CheckCircle2, Maximize2, HelpCircle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import exampleMatch from "@/assets/example-match.png.asset.json";
@@ -69,6 +69,7 @@ function TournamentPage() {
   const [hasEpic, setHasEpic] = useState(false);
   const [hasImmortality, setHasImmortality] = useState(false);
   const [hasBaseLeaders, setHasBaseLeaders] = useState(false);
+  const [tpOpen, setTpOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
@@ -367,6 +368,20 @@ function TournamentPage() {
           </div>
         </header>
 
+        <Dialog open={tpOpen} onOpenChange={setTpOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">Tournament Points (TP) <HelpCircle className="size-5 text-coral" /></DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground pt-2 space-y-3">
+                <p>Your final Tournament Points (TP) are based on how you finish, adjusted by how close everyone was to the winner's score:</p>
+                <p><strong>1st Place (Base: 20 TP):</strong> Earns an extra +1 TP for every Victory Point they win by ahead of 2nd place.</p>
+                <p><strong>2nd, 3rd, &amp; 4th Place (Base: 15, 10, 5 TP):</strong> Lose -1 TP for every Victory Point they fall behind the winner (clamped to a minimum of 0).</p>
+                <p className="text-sand font-medium">In short: Winning by a lot gives you a massive bonus. If you lose, keeping the score close saves your tournament rank!</p>
+              </DialogDescription>
+            </DialogHeader>
+          </DialogContent>
+        </Dialog>
+
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="size-6 animate-spin text-sand" /></div>
         ) : (
@@ -400,7 +415,11 @@ function TournamentPage() {
                     <tr className="border-b border-border/40">
                       <th className="text-left py-2 px-2">#</th>
                       <th className="text-left py-2 px-2">Player</th>
-                      <th className="text-right py-2 px-2">TP</th>
+                      <th className="text-right py-2 px-2 cursor-pointer" onClick={() => setTpOpen(true)}>
+                        <span className="inline-flex items-center gap-1">
+                          TP <HelpCircle className="size-3.5 text-coral" />
+                        </span>
+                      </th>
                       <th className="text-right py-2 px-2">Wins</th>
                       <th className="text-right py-2 px-2">Avg Place</th>
                       <th className="text-right py-2 px-2">VP</th>
