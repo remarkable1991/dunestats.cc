@@ -165,6 +165,28 @@ function TournamentPage() {
     };
   }, [standings]);
 
+  const swissProgress = useMemo(() => {
+    const roundTables = new Map<string, Map<string, Row[]>>();
+    for (const r of rows) {
+      if (!SWISS_ROUNDS.includes(r.round_type as (typeof SWISS_ROUNDS)[number])) continue;
+      if (!roundTables.has(r.round_type)) roundTables.set(r.round_type, new Map());
+      const tables = roundTables.get(r.round_type)!;
+      if (!tables.has(r.table_identifier)) tables.set(r.table_identifier, []);
+      tables.get(r.table_identifier)!.push(r);
+    }
+    return SWISS_ROUNDS.map((rt) => {
+      const tables = roundTables.get(rt) ?? new Map<string, Row[]>();
+      const total = tables.size;
+      let completed = 0;
+      for (const tableRows of tables.values()) {
+        const ranked = tableRows.filter((r) => r.placement != null && r.points != null);
+        if (ranked.length >= 4) completed++;
+      }
+      const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+      return { round: rt, completed, total, pct };
+    });
+  }, [rows]);
+
   // Helper: get screenshot URL for a table
   const shotFor = (rt: string, ti: string) => shots.find((s) => s.round_type === rt && s.table_identifier === ti);
 
@@ -349,6 +371,26 @@ function TournamentPage() {
           <div className="flex justify-center py-12"><Loader2 className="size-6 animate-spin text-sand" /></div>
         ) : (
           <>
+            {/* League Phase Progress */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {swissProgress.map((p) => (
+                <Card key={p.round} className="p-4 border-border/60 bg-card/70 shadow-arena">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-display text-sm">{p.round}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {p.completed}/{p.total} played ({p.pct}%)
+                    </span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-sand transition-all duration-500"
+                      style={{ width: `${p.pct}%` }}
+                    />
+                  </div>
+                </Card>
+              ))}
+            </div>
+
             {/* Standings */}
             <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
               <h2 className="font-display text-xl mb-4">Live Standings</h2>
