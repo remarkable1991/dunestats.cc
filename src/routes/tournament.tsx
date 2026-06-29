@@ -63,6 +63,7 @@ function TournamentPage() {
   const [saving, setSaving] = useState(false);
   const [parsedRows, setParsedRows] = useState<{ placement: number; player_name: string; leader_name: string; points: number }[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [myKeys, setMyKeys] = useState<Set<string>>(new Set());
   const [board, setBoard] = useState<"base" | "uprising">("uprising");
   const [hasIx, setHasIx] = useState(false);
   const [hasEpic, setHasEpic] = useState(false);
@@ -72,6 +73,19 @@ function TournamentPage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
   }, []);
+
+  useEffect(() => {
+    if (!userId) { setMyKeys(new Set()); return; }
+    void (async () => {
+      const { data } = await supabase
+        .from("player_ratings")
+        .select("player_key")
+        .eq("claimed_by", userId);
+      setMyKeys(new Set((data ?? []).map((r) => r.player_key)));
+    })();
+  }, [userId]);
+
+  const isMine = (name: string) => myKeys.has(name.toLowerCase().trim());
 
   const refresh = async () => {
     setLoading(true);
@@ -356,8 +370,9 @@ function TournamentPage() {
                       const rank = i + 1;
                       const gold = rank <= 2;
                       const silver = rank >= 3 && rank <= 10;
+                      const mine = isMine(s.player);
                       return (
-                        <tr key={s.player} className={`border-b border-border/20 ${gold ? "bg-amber-500/10 ring-1 ring-amber-400/60" : silver ? "bg-slate-400/5 ring-1 ring-slate-400/40" : ""}`}>
+                        <tr key={s.player} className={`border-b border-border/20 ${mine ? "bg-sand/15 ring-2 ring-sand" : gold ? "bg-amber-500/10 ring-1 ring-amber-400/60" : silver ? "bg-slate-400/5 ring-1 ring-slate-400/40" : ""}`}>
                           <td className="py-2 px-2 font-mono">{rank}</td>
                           <td className="py-2 px-2 font-medium">{displayMode === "discord" ? s.discord : s.player}</td>
                           <td className="py-2 px-2 text-right font-mono text-sand">{s.tp}</td>
@@ -404,13 +419,23 @@ function TournamentPage() {
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium">{ti}</span>
-                                  {shot && <ScreenshotLightbox path={shot.image_url} />}
                                 </div>
-                                <Button size="sm" variant="outline" onClick={() => openSubmitFor(rt, ti)}>Submit Table Results</Button>
+                                {shot ? (
+                                  <ScreenshotLightbox
+                                    path={shot.image_url}
+                                    trigger={
+                                      <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white">
+                                        <ImageIcon className="size-4 mr-1" /> See results
+                                      </Button>
+                                    }
+                                  />
+                                ) : (
+                                  <Button size="sm" variant="outline" onClick={() => openSubmitFor(rt, ti)}>Submit Table Results</Button>
+                                )}
                               </div>
                               <ul className="space-y-1 text-sm">
                                 {sorted.map((p) => (
-                                  <li key={p.id} className="flex justify-between gap-2">
+                                  <li key={p.id} className={`flex justify-between gap-2 px-2 py-0.5 rounded ${isMine(p.player_name) ? "bg-sand/15 ring-1 ring-sand/60" : ""}`}>
                                     <span><span className="font-mono text-muted-foreground mr-2">{p.placement ?? "—"}</span>{displayMode === "discord" ? (p.discord_username ?? p.player_name) : p.player_name}</span>
                                     <span className="font-mono text-sand">{p.points ?? "—"} VP</span>
                                   </li>
@@ -559,7 +584,7 @@ function BracketCard({ title, players, accent }: { title: string; players: strin
   );
 }
 
-function ScreenshotLightbox({ path }: { path: string }) {
+function ScreenshotLightbox({ path, trigger }: { path: string; trigger?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
   const onOpen = async (next: boolean) => {
@@ -575,7 +600,7 @@ function ScreenshotLightbox({ path }: { path: string }) {
   return (
     <Dialog open={open} onOpenChange={onOpen}>
       <DialogTrigger asChild>
-        <button className="text-sand hover:text-sand/80" title="View screenshot"><ImageIcon className="size-4" /></button>
+        {trigger ?? <button className="text-sand hover:text-sand/80" title="View screenshot"><ImageIcon className="size-4" /></button>}
       </DialogTrigger>
       <DialogContent className="max-w-4xl p-2 bg-background/95 backdrop-blur-md">
         {url ? <img src={url} alt="Screenshot" className="w-full h-auto rounded max-h-[80vh] object-contain" /> : <div className="flex justify-center py-12"><Loader2 className="size-6 animate-spin" /></div>}
