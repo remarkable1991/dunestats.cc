@@ -87,12 +87,13 @@ function UploadPage() {
     try {
       const b64 = await fileToBase64(f);
       const res = await parseScreenshot({ data: { imageBase64: b64, mimeType: f.type || "image/png" } });
-      const detected = res.results.map((r) => ({
+      const rawDetected = res.results.map((r) => ({
         placement: r.placement,
         player_name: r.player_name,
         leader_name: r.leader_name ?? "",
         points: r.points,
       }));
+      const detected = await normalizeNames(rawDetected);
       setRows(clampRows(detected));
       const suggestion = detectExpansions(detected.map((d) => d.leader_name));
       setBoard(suggestion.board_version);
