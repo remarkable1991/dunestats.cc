@@ -11,9 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { parseScreenshot } from "@/lib/games.functions";
+import { parseScreenshot, saveGame } from "@/lib/games.functions";
+import { detectExpansions } from "@/lib/leaders";
 import { toast } from "sonner";
-import { Image as ImageIcon, Loader2, Trophy, Upload as UploadIcon, CheckCircle2 } from "lucide-react";
+import { Image as ImageIcon, Loader2, Trophy, Upload as UploadIcon, CheckCircle2, Maximize2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import exampleMatch from "@/assets/example-match.png.asset.json";
 
 export const Route = createFileRoute("/tournament")({
   head: () => ({ meta: [{ title: "Live Tournament · Strategy Arena" }] }),
@@ -58,6 +62,11 @@ function TournamentPage() {
   const [saving, setSaving] = useState(false);
   const [parsedRows, setParsedRows] = useState<{ placement: number; player_name: string; leader_name: string; points: number }[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [board, setBoard] = useState<"base" | "uprising">("uprising");
+  const [hasIx, setHasIx] = useState(false);
+  const [hasEpic, setHasEpic] = useState(false);
+  const [hasImmortality, setHasImmortality] = useState(false);
+  const [hasBaseLeaders, setHasBaseLeaders] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
@@ -169,10 +178,43 @@ function TournamentPage() {
     try {
       const b64 = await fileToBase64(f);
       const res = await parseScreenshot({ data: { imageBase64: b64, mimeType: f.type || "image/png" } });
-      setParsedRows(res.results.map((r) => ({
+      const detected = res.results.map((r) => ({
         placement: r.placement, player_name: r.player_name, leader_name: r.leader_name ?? "", points: r.points,
-      })));
-      toast.success(`Detected ${res.results.length} players.`);
+      }));
+      setParsedRows(detected);
+
+      // Auto-detect board version + expansions from leaders
+      const sug = detectExpansions(detected.map((d) => d.leader_name));
+      setBoard(sug.board_version);
+      setHasIx(sug.has_rise_of_ix);
+      setHasBaseLeaders(sug.has_base_leaders);
+      setHasEpic(false);
+      setHasImmortality(false);
+
+      // Auto-detect Round + Table by matching detected players to known tournament rows
+      const detectedKeys = detected.map((d) => d.player_name.toLowerCase().trim()).filter(Boolean);
+      const groups = new Map<string, { round: string; table: string; players: string[] }>();
+      for (const r of rows) {
+        const k = `${r.round_type}__${r.table_identifier}`;
+        if (!groups.has(k)) groups.set(k, { round: r.round_type, table: r.table_identifier, players: [] });
+        groups.get(k)!.players.push(r.player_name.toLowerCase().trim());
+      }
+      let best: { round: string; table: string } | null = null;
+      let bestScore = 0;
+      for (const g of groups.values()) {
+        const score = detectedKeys.reduce((acc, dk) => {
+          const hit = g.players.some((p) => p === dk || p.includes(dk) || dk.includes(p));
+          return acc + (hit ? 1 : 0);
+        }, 0);
+        if (score > bestScore) { bestScore = score; best = { round: g.round, table: g.table }; }
+      }
+      if (best && bestScore >= 2) {
+        setRound(best.round);
+        setTableId(best.table);
+        toast.success(`Detected ${detected.length} players · matched ${best.round} · ${best.table}`);
+      } else {
+        toast.success(`Detected ${detected.length} players. Pick Round/Table manually.`);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not read screenshot");
     } finally { setParsing(false); }
@@ -186,6 +228,7 @@ function TournamentPage() {
   const submitResults = async () => {
     if (!userId) return toast.error("Sign in to submit results.");
     if (parsedRows.length < 4) return toast.error("Need 4 detected players.");
+    if (hasEpic && !hasIx) return toast.error("Epic Mode requires Rise of Ix.");
     setSaving(true);
     try {
       // Upload screenshot
@@ -219,7 +262,49 @@ function TournamentPage() {
           updated_at: new Date().toISOString(),
         }).eq("id", target.id);
       }
-      toast.success("Results submitted!");
+
+      // Also submit to the global leaderboard, unless an identical match exists
+      // in the last 25 uploaded games (fingerprint = sorted player|points pairs).
+      const fingerprint = (rs: { player_name: string; points: number }[]) =>
+        rs
+          .map((r) => `${r.player_name.toLowerCase().trim()}|${r.points}`)
+          .sort()
+          .join("~");
+      const incomingFp = fingerprint(parsedRows);
+      const { data: recent } = await supabase
+        .from("games")
+        .select("id, created_at, game_results(player_name, points)")
+        .order("created_at", { ascending: false })
+        .limit(25);
+      const dup = (recent ?? []).some((g: any) =>
+        Array.isArray(g.game_results) && fingerprint(g.game_results) === incomingFp,
+      );
+      if (!dup) {
+        try {
+          await saveGame({
+            data: {
+              board_version: board,
+              has_rise_of_ix: hasIx,
+              has_epic_mode: hasEpic,
+              has_immortality: hasImmortality,
+              has_base_leaders: hasBaseLeaders,
+              match_screenshot_url: imagePath,
+              results: parsedRows.map((r) => ({
+                placement: r.placement,
+                player_name: r.player_name.trim(),
+                leader_name: r.leader_name?.trim() || null,
+                points: Number(r.points) || 0,
+              })),
+            },
+          });
+          toast.success("Results submitted to tournament + global leaderboard!");
+        } catch (e) {
+          toast.warning(`Tournament saved. Leaderboard skipped: ${e instanceof Error ? e.message : "unknown error"}`);
+        }
+      } else {
+        toast.success("Results submitted! (Already on leaderboard — skipped duplicate.)");
+      }
+
       setFile(null); setPreview(null); setParsedRows([]);
       await refresh();
     } catch (e) {
@@ -383,6 +468,60 @@ function TournamentPage() {
                 )}
                 <Input type="file" accept="image/*" className="hidden" onChange={(e) => void onFile(e.target.files?.[0] ?? null)} />
               </label>
+              <div className="mt-3 flex items-start gap-3 rounded-md border border-border/50 bg-background/30 p-2">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button type="button" className="relative group shrink-0">
+                      <img src={exampleMatch.url} alt="Example end-screen" className="h-16 w-auto rounded border border-border/60 group-hover:border-sand transition" />
+                      <span className="absolute inset-0 flex items-center justify-center bg-background/40 opacity-0 group-hover:opacity-100 rounded">
+                        <Maximize2 className="size-4 text-sand" />
+                      </span>
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl p-2">
+                    <img src={exampleMatch.url} alt="Example end-screen" className="w-full h-auto rounded" />
+                  </DialogContent>
+                </Dialog>
+                <p className="text-xs text-muted-foreground">
+                  Example end-screen — Round &amp; Table auto-detect from detected players. Click to expand.
+                </p>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4 mt-4">
+                <div>
+                  <Label className="mb-2 block">Board version <span className="text-coral">*</span></Label>
+                  <RadioGroup value={board} onValueChange={(v) => setBoard(v as "base" | "uprising")} className="grid grid-cols-2 gap-2">
+                    <label className="flex items-center gap-2 border border-border/60 rounded-md px-3 py-2 cursor-pointer hover:border-sand">
+                      <RadioGroupItem value="base" /> <span>Base Game</span>
+                    </label>
+                    <label className="flex items-center gap-2 border border-border/60 rounded-md px-3 py-2 cursor-pointer hover:border-sand">
+                      <RadioGroupItem value="uprising" /> <span>Uprising</span>
+                    </label>
+                  </RadioGroup>
+                </div>
+                <div>
+                  <Label className="mb-2 block">Expansions (optional)</Label>
+                  <div className="space-y-1.5 text-sm">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox checked={hasIx} onCheckedChange={(c) => { setHasIx(!!c); if (!c) setHasEpic(false); }} />
+                      Rise of Ix
+                    </label>
+                    <label className={`flex items-center gap-2 ${hasIx ? "cursor-pointer" : "opacity-40 cursor-not-allowed"}`}>
+                      <Checkbox checked={hasEpic} disabled={!hasIx} onCheckedChange={(c) => setHasEpic(!!c)} />
+                      Epic Mode
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox checked={hasImmortality} onCheckedChange={(c) => setHasImmortality(!!c)} />
+                      Immortality
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox checked={hasBaseLeaders} onCheckedChange={(c) => setHasBaseLeaders(!!c)} />
+                      Base Leaders
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               {parsing && <p className="text-sand text-sm mt-2 flex items-center gap-2"><Loader2 className="size-4 animate-spin" /> Analysing…</p>}
               {parsedRows.length > 0 && (
                 <div className="mt-3 text-sm">
