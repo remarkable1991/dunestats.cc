@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { parseScreenshot, saveGame } from "@/lib/games.functions";
+import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
 import { toast } from "sonner";
 import { Upload as UploadIcon, Loader2, Trash2, CheckCircle2, Maximize2 } from "lucide-react";
