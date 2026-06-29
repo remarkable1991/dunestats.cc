@@ -401,7 +401,11 @@ function TournamentPage() {
                     <tr className="border-b border-border/40">
                       <th className="text-left py-2 px-2">#</th>
                       <th className="text-left py-2 px-2">Player</th>
-                      <th className="text-right py-2 px-2">TP</th>
+                      <th className="text-right py-2 px-2 cursor-pointer" onClick={() => setTpOpen(true)}>
+                        <span className="inline-flex items-center gap-1">
+                          TP <HelpCircle className="size-3.5 text-coral" />
+                        </span>
+                      </th>
                       <th className="text-right py-2 px-2">Wins</th>
                       <th className="text-right py-2 px-2">Avg Place</th>
                       <th className="text-right py-2 px-2">VP</th>
