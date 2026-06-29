@@ -301,7 +301,7 @@ function TournamentPage() {
               <h2 className="font-display text-xl mb-4">Match Logs</h2>
               <Tabs value={logTab} onValueChange={(v) => setLogTab(v as "swiss" | "playoffs")}>
                 <TabsList>
-                  <TabsTrigger value="swiss">Swiss Phase</TabsTrigger>
+                  <TabsTrigger value="swiss">League Phase</TabsTrigger>
                   <TabsTrigger value="playoffs">Playoffs</TabsTrigger>
                 </TabsList>
                 <TabsContent value={logTab} className="mt-4 space-y-6">
