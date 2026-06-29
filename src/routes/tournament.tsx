@@ -368,6 +368,20 @@ function TournamentPage() {
           </div>
         </header>
 
+        <Dialog open={tpOpen} onOpenChange={setTpOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">Tournament Points (TP) <HelpCircle className="size-5 text-coral" /></DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground pt-2 space-y-3">
+                <p>Your final Tournament Points (TP) are based on how you finish, adjusted by how close everyone was to the winner's score:</p>
+                <p><strong>1st Place (Base: 20 TP):</strong> Earns an extra +1 TP for every Victory Point they win by ahead of 2nd place.</p>
+                <p><strong>2nd, 3rd, &amp; 4th Place (Base: 15, 10, 5 TP):</strong> Lose -1 TP for every Victory Point they fall behind the winner (clamped to a minimum of 0).</p>
+                <p className="text-sand font-medium">In short: Winning by a lot gives you a massive bonus. If you lose, keeping the score close saves your tournament rank!</p>
+              </DialogDescription>
+            </DialogHeader>
+          </DialogContent>
+        </Dialog>
+
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="size-6 animate-spin text-sand" /></div>
         ) : (
