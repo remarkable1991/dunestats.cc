@@ -166,6 +166,78 @@ export type Database = {
         }
         Relationships: []
       }
+      tournament_matches: {
+        Row: {
+          created_at: string
+          discord_username: string | null
+          id: string
+          leader_name: string | null
+          placement: number | null
+          player_name: string
+          points: number | null
+          round_type: string
+          table_identifier: string
+          tournament_num: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          discord_username?: string | null
+          id?: string
+          leader_name?: string | null
+          placement?: number | null
+          player_name: string
+          points?: number | null
+          round_type: string
+          table_identifier: string
+          tournament_num: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          discord_username?: string | null
+          id?: string
+          leader_name?: string | null
+          placement?: number | null
+          player_name?: string
+          points?: number | null
+          round_type?: string
+          table_identifier?: string
+          tournament_num?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tournament_table_screenshots: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          image_url: string
+          round_type: string
+          table_identifier: string
+          tournament_num: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          image_url: string
+          round_type: string
+          table_identifier: string
+          tournament_num: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          image_url?: string
+          round_type?: string
+          table_identifier?: string
+          tournament_num?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
