@@ -302,7 +302,7 @@ function TournamentPage() {
               <Tabs value={logTab} onValueChange={(v) => setLogTab(v as "swiss" | "playoffs")}>
                 <TabsList>
                   <TabsTrigger value="swiss">League Phase</TabsTrigger>
-                  <TabsTrigger value="playoffs">Playoffs</TabsTrigger>
+                  <TabsTrigger value="playoffs">Finals</TabsTrigger>
                 </TabsList>
                 <TabsContent value={logTab} className="mt-4 space-y-6">
                   {[...groupedLogs.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([rt, tables]) => (
