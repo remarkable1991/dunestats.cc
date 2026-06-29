@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { parseScreenshot } from "@/lib/games.functions";
 import { toast } from "sonner";
-import { Image as ImageIcon, Loader2, Trophy, Upload as UploadIcon, CheckCircle2, Maximize2 } from "lucide-react";
+import { Image as ImageIcon, Loader2, Trophy, Upload as UploadIcon, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/tournament")({
   head: () => ({ meta: [{ title: "Live Tournament · Strategy Arena" }] }),
