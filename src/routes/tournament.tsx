@@ -371,6 +371,26 @@ function TournamentPage() {
           <div className="flex justify-center py-12"><Loader2 className="size-6 animate-spin text-sand" /></div>
         ) : (
           <>
+            {/* League Phase Progress */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {swissProgress.map((p) => (
+                <Card key={p.round} className="p-4 border-border/60 bg-card/70 shadow-arena">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-display text-sm">{p.round}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {p.completed}/{p.total} played ({p.pct}%)
+                    </span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-sand transition-all duration-500"
+                      style={{ width: `${p.pct}%` }}
+                    />
+                  </div>
+                </Card>
+              ))}
+            </div>
+
             {/* Standings */}
             <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
               <h2 className="font-display text-xl mb-4">Live Standings</h2>
