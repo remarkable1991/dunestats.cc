@@ -584,7 +584,7 @@ function BracketCard({ title, players, accent }: { title: string; players: strin
   );
 }
 
-function ScreenshotLightbox({ path }: { path: string }) {
+function ScreenshotLightbox({ path, trigger }: { path: string; trigger?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
   const onOpen = async (next: boolean) => {
@@ -600,7 +600,7 @@ function ScreenshotLightbox({ path }: { path: string }) {
   return (
     <Dialog open={open} onOpenChange={onOpen}>
       <DialogTrigger asChild>
-        <button className="text-sand hover:text-sand/80" title="View screenshot"><ImageIcon className="size-4" /></button>
+        {trigger ?? <button className="text-sand hover:text-sand/80" title="View screenshot"><ImageIcon className="size-4" /></button>}
       </DialogTrigger>
       <DialogContent className="max-w-4xl p-2 bg-background/95 backdrop-blur-md">
         {url ? <img src={url} alt="Screenshot" className="w-full h-auto rounded max-h-[80vh] object-contain" /> : <div className="flex justify-center py-12"><Loader2 className="size-6 animate-spin" /></div>}
