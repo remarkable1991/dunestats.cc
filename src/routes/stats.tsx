@@ -9,6 +9,50 @@ import { LEADERS, classifyLeader } from "@/lib/leaders";
 import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
+type TriState = "any" | "true" | "false";
+
+function TriSelect({ label, value, onChange }: { label: string; value: TriState; onChange: (v: TriState) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
+      <Select value={value} onValueChange={(v) => onChange(v as TriState)}>
+        <SelectTrigger className="h-8 w-[110px] bg-card/60 border-border/60 text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="any">Any</SelectItem>
+          <SelectItem value="true">Yes</SelectItem>
+          <SelectItem value="false">No</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function FilterBar(props: {
+  version: GameVersion;
+  fImmortality: TriState; setFImmortality: (v: TriState) => void;
+  fEpic: TriState; setFEpic: (v: TriState) => void;
+  fRiseOfIx: TriState; setFRiseOfIx: (v: TriState) => void;
+  fBaseLeaders: TriState; setFBaseLeaders: (v: TriState) => void;
+}) {
+  const { version } = props;
+  return (
+    <div className="flex flex-wrap items-center gap-4 mb-4 p-3 rounded-md border border-border/60 bg-card/40">
+      <TriSelect label="Immortality" value={props.fImmortality} onChange={props.setFImmortality} />
+      {version === "ix" && (
+        <TriSelect label="Epic Mode" value={props.fEpic} onChange={props.setFEpic} />
+      )}
+      {version === "uprising" && (
+        <>
+          <TriSelect label="Rise of Ix" value={props.fRiseOfIx} onChange={props.setFRiseOfIx} />
+          <TriSelect label="Base Leaders" value={props.fBaseLeaders} onChange={props.setFBaseLeaders} />
+        </>
+      )}
+    </div>
+  );
+}
+
 export const Route = createFileRoute("/stats")({
   head: () => ({ meta: [{ title: "Leader stats · Strategy Arena" }] }),
   component: StatsPage,
@@ -79,7 +123,6 @@ function StatsPage() {
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState<GameVersion>("overall");
   const [userLeaders, setUserLeaders] = useState<Set<string>>(new Set());
-  type TriState = "any" | "true" | "false";
   const [fEpic, setFEpic] = useState<TriState>("any");
   const [fImmortality, setFImmortality] = useState<TriState>("any");
   const [fBaseLeaders, setFBaseLeaders] = useState<TriState>("any");
