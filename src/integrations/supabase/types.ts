@@ -100,6 +100,57 @@ export type Database = {
         }
         Relationships: []
       }
+      past_tournament_results: {
+        Row: {
+          board_version: string
+          created_at: string
+          filename: string | null
+          has_epic_mode: boolean
+          has_immortality: boolean
+          has_rise_of_ix: boolean
+          id: string
+          leader_name: string | null
+          placement: number
+          player_name: string
+          points: number
+          round_type: string
+          table_identifier: string
+          tournament_num: number
+        }
+        Insert: {
+          board_version?: string
+          created_at?: string
+          filename?: string | null
+          has_epic_mode?: boolean
+          has_immortality?: boolean
+          has_rise_of_ix?: boolean
+          id?: string
+          leader_name?: string | null
+          placement: number
+          player_name: string
+          points?: number
+          round_type: string
+          table_identifier: string
+          tournament_num: number
+        }
+        Update: {
+          board_version?: string
+          created_at?: string
+          filename?: string | null
+          has_epic_mode?: boolean
+          has_immortality?: boolean
+          has_rise_of_ix?: boolean
+          id?: string
+          leader_name?: string | null
+          placement?: number
+          player_name?: string
+          points?: number
+          round_type?: string
+          table_identifier?: string
+          tournament_num?: number
+        }
+        Relationships: []
+      }
       player_ratings: {
         Row: {
           claimed_by: string | null
