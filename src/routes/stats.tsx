@@ -7,6 +7,51 @@ import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { LEADERS, classifyLeader } from "@/lib/leaders";
 import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+
+type TriState = "any" | "true" | "false";
+
+function TriSelect({ label, value, onChange }: { label: string; value: TriState; onChange: (v: TriState) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
+      <Select value={value} onValueChange={(v) => onChange(v as TriState)}>
+        <SelectTrigger className="h-8 w-[110px] bg-card/60 border-border/60 text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="any">Any</SelectItem>
+          <SelectItem value="true">Yes</SelectItem>
+          <SelectItem value="false">No</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function FilterBar(props: {
+  version: GameVersion;
+  fImmortality: TriState; setFImmortality: (v: TriState) => void;
+  fEpic: TriState; setFEpic: (v: TriState) => void;
+  fRiseOfIx: TriState; setFRiseOfIx: (v: TriState) => void;
+  fBaseLeaders: TriState; setFBaseLeaders: (v: TriState) => void;
+}) {
+  const { version } = props;
+  return (
+    <div className="flex flex-wrap items-center gap-4 mb-4 p-3 rounded-md border border-border/60 bg-card/40">
+      <TriSelect label="Immortality" value={props.fImmortality} onChange={props.setFImmortality} />
+      {version === "ix" && (
+        <TriSelect label="Epic Mode" value={props.fEpic} onChange={props.setFEpic} />
+      )}
+      {version === "uprising" && (
+        <>
+          <TriSelect label="Rise of Ix" value={props.fRiseOfIx} onChange={props.setFRiseOfIx} />
+          <TriSelect label="Base Leaders" value={props.fBaseLeaders} onChange={props.setFBaseLeaders} />
+        </>
+      )}
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/stats")({
   head: () => ({ meta: [{ title: "Leader stats · Strategy Arena" }] }),
@@ -17,7 +62,13 @@ type Row = {
   placement: number;
   leader_name: string | null;
   points: number;
-  games: { game_version: GameVersion } | null;
+  games: {
+    game_version: GameVersion;
+    has_rise_of_ix: boolean | null;
+    has_epic_mode: boolean | null;
+    has_immortality: boolean | null;
+    has_base_leaders: boolean | null;
+  } | null;
 };
 
 type Agg = {
@@ -72,6 +123,18 @@ function StatsPage() {
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState<GameVersion>("overall");
   const [userLeaders, setUserLeaders] = useState<Set<string>>(new Set());
+  const [fEpic, setFEpic] = useState<TriState>("any");
+  const [fImmortality, setFImmortality] = useState<TriState>("any");
+  const [fBaseLeaders, setFBaseLeaders] = useState<TriState>("any");
+  const [fRiseOfIx, setFRiseOfIx] = useState<TriState>("any");
+
+  useEffect(() => {
+    if (version !== "ix") setFEpic("any");
+    if (version !== "uprising") {
+      setFRiseOfIx("any");
+      setFBaseLeaders("any");
+    }
+  }, [version]);
   type SortKey = "picks" | "pickPct" | "wins" | "winPct" | "top2Pct" | "avgPts";
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<"desc" | "asc" | null>(null);
@@ -111,7 +174,7 @@ function StatsPage() {
       while (true) {
         const { data, error } = await supabase
           .from("game_results")
-          .select("placement, leader_name, points, games!inner(game_version)")
+          .select("placement, leader_name, points, games!inner(game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders)")
           .order("id", { ascending: true })
           .range(from, from + PAGE - 1);
         if (error || !data || data.length === 0) break;
@@ -125,10 +188,20 @@ function StatsPage() {
   }, []);
 
   const { aggregates, totalGames } = useMemo(() => {
-    const filtered =
+    let filtered =
       version === "overall"
         ? rows
         : rows.filter((r) => r.games?.game_version === version);
+    const matchBool = (state: TriState, val: boolean | null | undefined) => {
+      if (state === "any") return true;
+      return Boolean(val) === (state === "true");
+    };
+    filtered = filtered.filter((r) =>
+      matchBool(fImmortality, r.games?.has_immortality) &&
+      (version === "ix" ? matchBool(fEpic, r.games?.has_epic_mode) : true) &&
+      (version === "uprising" ? matchBool(fRiseOfIx, r.games?.has_rise_of_ix) : true) &&
+      (version === "uprising" ? matchBool(fBaseLeaders, r.games?.has_base_leaders) : true),
+    );
     // Count distinct games is tricky without IDs; pick count = total rows / avg players. Use sum/4 estimate via leader picks summing to total player slots.
     // For pick rate we use share of player-slots in this version.
     const totalSlots = filtered.length;
@@ -153,7 +226,7 @@ function StatsPage() {
     }
     const aggregates = Array.from(map.values()).sort((a, b) => b.picks - a.picks);
     return { aggregates, totalGames: totalSlots };
-  }, [rows, version]);
+  }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx]);
 
   const sorted = useMemo(() => {
     if (!sortKey || !sortDir) return aggregates;
@@ -220,6 +293,13 @@ function StatsPage() {
 
           {GAME_VERSIONS.map((v) => (
             <TabsContent key={v.value} value={v.value}>
+              <FilterBar
+                version={version}
+                fImmortality={fImmortality} setFImmortality={setFImmortality}
+                fEpic={fEpic} setFEpic={setFEpic}
+                fRiseOfIx={fRiseOfIx} setFRiseOfIx={setFRiseOfIx}
+                fBaseLeaders={fBaseLeaders} setFBaseLeaders={setFBaseLeaders}
+              />
               <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
