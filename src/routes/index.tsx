@@ -51,15 +51,12 @@ function Index() {
 
   useEffect(() => {
     (async () => {
-      const [g, p, t] = await Promise.all([
+      const [g, p] = await Promise.all([
         supabase.from("games").select("*", { count: "exact", head: true }),
         supabase.from("player_ratings").select("player_key", { count: "exact", head: true }).eq("game_version", "overall"),
-        supabase.from("tournament_matches").select("tournament_id", { count: "exact", head: true }),
       ]);
-      // tournaments hosted = distinct tournament_ids; fall back to row-based count then dedupe client side
-      let tournamentsCount = t.count ?? 0;
-      const { data: tids } = await supabase.from("tournament_matches").select("tournament_id");
-      if (tids) tournamentsCount = new Set(tids.map((r: { tournament_id: string | number }) => r.tournament_id)).size;
+      const { data: tids } = await supabase.from("tournament_matches").select("tournament_num");
+      const tournamentsCount = tids ? new Set(tids.map((r) => r.tournament_num)).size : 0;
       setStats({ games: g.count ?? 0, players: p.count ?? 0, tournaments: tournamentsCount });
     })();
   }, []);
