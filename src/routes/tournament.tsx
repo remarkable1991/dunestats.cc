@@ -16,6 +16,9 @@ import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
 import { toast } from "sonner";
 import { Image as ImageIcon, Loader2, Trophy, Upload as UploadIcon, CheckCircle2, Maximize2, HelpCircle } from "lucide-react";
+import { Calendar, Sword, History, ExternalLink } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import exampleMatch from "@/assets/example-match.png.asset.json";
@@ -46,7 +49,7 @@ type Row = {
 };
 type Shot = { tournament_num: number; round_type: string; table_identifier: string; image_url: string };
 
-function TournamentPage() {
+function CurrentTournament() {
   const [rows, setRows] = useState<Row[]>([]);
   const [shots, setShots] = useState<Shot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -352,9 +355,7 @@ function TournamentPage() {
   };
 
   return (
-    <div className="min-h-screen">
-      <Navbar />
-      <div className="container mx-auto px-4 py-10 max-w-6xl space-y-8">
+      <div className="space-y-8">
         <header className="flex items-end justify-between flex-wrap gap-4">
           <div>
             <h1 className="font-display text-3xl flex items-center gap-2"><Trophy className="size-7 text-sand" /> Live Tournament #{TOURNAMENT_NUM}</h1>
@@ -628,7 +629,6 @@ function TournamentPage() {
           </>
         )}
       </div>
-    </div>
   );
 }
 
@@ -678,4 +678,238 @@ function fileToBase64(file: File): Promise<string> {
     r.onerror = reject;
     r.readAsDataURL(file);
   });
+}
+
+// ─── Top-level tournament page with 3 chronological tabs ───────────────────
+
+type TopTab = "future" | "current" | "previous";
+const TAB_ORDER: TopTab[] = ["future", "current", "previous"];
+
+function TournamentPage() {
+  const [tab, setTab] = useState<TopTab>("current");
+  const [prev, setPrev] = useState<TopTab>("current");
+  const dir = TAB_ORDER.indexOf(tab) - TAB_ORDER.indexOf(prev); // +1 right, -1 left
+
+  const switchTo = (next: TopTab) => {
+    if (next === tab) return;
+    setPrev(tab);
+    setTab(next);
+  };
+
+  const buttons: { id: TopTab; title: string; subtitle: string; icon: React.ReactNode }[] = [
+    { id: "future",   title: "Future Tournaments",   subtitle: "Register Now",        icon: <Calendar className="size-5" /> },
+    { id: "current",  title: "Current Tournaments",  subtitle: "Active Battlegrounds", icon: <Sword className="size-5" /> },
+    { id: "previous", title: "Previous Tournaments", subtitle: "Hall of Fame",        icon: <History className="size-5" /> },
+  ];
+
+  // animate-in slide direction: moving to higher idx → enter from right; lower idx → enter from left
+  const slideClass = dir >= 0
+    ? "animate-in slide-in-from-right-10 fade-in duration-300"
+    : "animate-in slide-in-from-left-10 fade-in duration-300";
+
+  return (
+    <div className="min-h-screen">
+      <Navbar />
+      <div className="container mx-auto px-4 py-6 max-w-6xl">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-8">
+          {buttons.map((b) => {
+            const active = b.id === tab;
+            return (
+              <button
+                key={b.id}
+                disabled={active}
+                onClick={() => switchTo(b.id)}
+                className={`group rounded-xl border px-4 py-3 text-left transition-all ${
+                  active
+                    ? "border-sand bg-sand/15 text-sand cursor-default shadow-inner"
+                    : "border-border bg-card/50 hover:bg-card hover:border-sand/60 cursor-pointer"
+                }`}
+              >
+                <div className="flex items-center gap-2 font-display text-sm">
+                  {b.icon}
+                  <span>{b.title}</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">{b.subtitle}</div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div key={tab} className={slideClass}>
+          {tab === "future" && <FutureTournaments />}
+          {tab === "current" && <CurrentTournament />}
+          {tab === "previous" && <PreviousTournaments />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FutureTournaments() {
+  const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSf0H20V1Kw36NGGBTB5E_bAuE6YxIIxUoPUwqATDDHNH9zuzQ/viewform";
+  return (
+    <div className="space-y-6">
+      <Card className="p-8 border-sand/40 bg-gradient-to-br from-card to-card/40">
+        <div className="flex items-center gap-3 mb-3">
+          <Calendar className="size-8 text-sand" />
+          <h2 className="font-display text-2xl">Next Tournament — Sign Up</h2>
+        </div>
+        <p className="text-muted-foreground mb-6 max-w-2xl">
+          Registration is open for the upcoming Strategy Arena Dune Imperium tournament.
+          Spots are limited — secure yours by filling out the registration form.
+        </p>
+        <Button
+          size="lg"
+          className="bg-sand text-background hover:bg-sand/90 font-display text-base gap-2"
+          onClick={() => window.open(formUrl, "_blank", "noopener,noreferrer")}
+        >
+          Register Now <ExternalLink className="size-4" />
+        </Button>
+      </Card>
+    </div>
+  );
+}
+
+type PastRow = {
+  id: string;
+  tournament_num: number;
+  round_type: string;
+  table_identifier: string;
+  player_name: string;
+  leader_name: string | null;
+  points: number;
+  placement: number;
+  board_version: string;
+  has_rise_of_ix: boolean;
+  has_epic_mode: boolean;
+  has_immortality: boolean;
+};
+
+function configBadge(r: { board_version: string; has_rise_of_ix: boolean; has_epic_mode: boolean; has_immortality: boolean }): string {
+  if (r.board_version === "uprising") {
+    return r.has_immortality ? "Uprising + Immortality" : "Uprising Base";
+  }
+  const ix = r.has_rise_of_ix, ep = r.has_epic_mode, im = r.has_immortality;
+  if (ix && ep && im) return "Base + Rise of Ix + Immortality (Epic Mode)";
+  if (ix && im) return "Base + Rise of Ix + Immortality";
+  if (ix && ep) return "Base + Rise of Ix (Epic Mode)";
+  if (ix) return "Base + Rise of Ix";
+  if (im) return "Base + Immortality";
+  return "Base Game";
+}
+
+function PreviousTournaments() {
+  const [rows, setRows] = useState<PastRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    void (async () => {
+      const all: PastRow[] = [];
+      const page = 1000;
+      for (let from = 0; ; from += page) {
+        const { data, error } = await supabase
+          .from("past_tournament_results")
+          .select("id, tournament_num, round_type, table_identifier, player_name, leader_name, points, placement, board_version, has_rise_of_ix, has_epic_mode, has_immortality")
+          .order("tournament_num", { ascending: false })
+          .order("round_type")
+          .order("table_identifier")
+          .order("placement")
+          .range(from, from + page - 1);
+        if (error) { console.error(error); break; }
+        all.push(...((data ?? []) as PastRow[]));
+        if (!data || data.length < page) break;
+      }
+      setRows(all);
+      setLoading(false);
+    })();
+  }, []);
+
+  const byTournament = useMemo(() => {
+    const m = new Map<number, PastRow[]>();
+    for (const r of rows) {
+      if (!m.has(r.tournament_num)) m.set(r.tournament_num, []);
+      m.get(r.tournament_num)!.push(r);
+    }
+    return [...m.entries()].sort((a, b) => b[0] - a[0]);
+  }, [rows]);
+
+  if (loading) {
+    return <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Loading archive…</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <header>
+        <h2 className="font-display text-2xl flex items-center gap-2"><History className="size-6 text-sand" /> Tournament Archive</h2>
+        <p className="text-muted-foreground text-sm">Expand any past tournament to view full results.</p>
+      </header>
+      <Accordion type="multiple" className="space-y-2">
+        {byTournament.map(([tnum, tRows]) => {
+          // group rows by round → table
+          const groups = new Map<string, Map<string, PastRow[]>>();
+          for (const r of tRows) {
+            if (!groups.has(r.round_type)) groups.set(r.round_type, new Map());
+            const g = groups.get(r.round_type)!;
+            if (!g.has(r.table_identifier)) g.set(r.table_identifier, []);
+            g.get(r.table_identifier)!.push(r);
+          }
+          return (
+            <AccordionItem key={tnum} value={`t-${tnum}`} className="border rounded-lg bg-card/40 px-4">
+              <AccordionTrigger className="hover:no-underline">
+                <div className="flex items-center gap-3">
+                  <Trophy className="size-5 text-sand" />
+                  <span className="font-display text-lg">Tournament #{tnum}</span>
+                  <Badge variant="outline" className="text-xs">{tRows.length} entries</Badge>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="space-y-6 pt-2">
+                {[...groups.entries()]
+                  .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
+                  .map(([round, tables]) => (
+                    <div key={round} className="space-y-3">
+                      <h3 className="font-display text-sand">{round}</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {[...tables.entries()]
+                          .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
+                          .map(([table, entries]) => {
+                            const sorted = [...entries].sort((a, b) => a.placement - b.placement);
+                            const badge = configBadge(sorted[0]);
+                            return (
+                              <Card key={table} className="p-3 bg-background/40">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="font-medium text-sm">{table}</span>
+                                  <Badge className="bg-sand/15 text-sand border-sand/40 text-[10px]" variant="outline">{badge}</Badge>
+                                </div>
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="h-7 w-10">#</TableHead>
+                                      <TableHead className="h-7">Player</TableHead>
+                                      <TableHead className="h-7">Leader</TableHead>
+                                      <TableHead className="h-7 w-12 text-right">VP</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {sorted.map((r) => (
+                                      <TableRow key={r.id}>
+                                        <TableCell className="py-1 font-medium">{r.placement}</TableCell>
+                                        <TableCell className="py-1">{r.player_name}</TableCell>
+                                        <TableCell className="py-1 text-muted-foreground text-xs">{r.leader_name ?? "—"}</TableCell>
+                                        <TableCell className="py-1 text-right">{r.points}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </Card>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  ))}
+              </AccordionContent>
+            </AccordionItem>
+          );
+        })}
+      </Accordion>
+    </div>
+  );
 }
