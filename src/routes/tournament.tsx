@@ -46,7 +46,7 @@ type Row = {
 };
 type Shot = { tournament_num: number; round_type: string; table_identifier: string; image_url: string };
 
-function TournamentPage() {
+function CurrentTournament() {
   const [rows, setRows] = useState<Row[]>([]);
   const [shots, setShots] = useState<Shot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -352,9 +352,7 @@ function TournamentPage() {
   };
 
   return (
-    <div className="min-h-screen">
-      <Navbar />
-      <div className="container mx-auto px-4 py-10 max-w-6xl space-y-8">
+      <div className="space-y-8">
         <header className="flex items-end justify-between flex-wrap gap-4">
           <div>
             <h1 className="font-display text-3xl flex items-center gap-2"><Trophy className="size-7 text-sand" /> Live Tournament #{TOURNAMENT_NUM}</h1>
@@ -628,7 +626,6 @@ function TournamentPage() {
           </>
         )}
       </div>
-    </div>
   );
 }
 
