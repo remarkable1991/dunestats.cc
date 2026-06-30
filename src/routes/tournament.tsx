@@ -391,7 +391,17 @@ function CurrentTournament() {
             {/* League Phase Progress */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {swissProgress.map((p) => (
-                <Card key={p.round} className="p-4 border-border/60 bg-card/70 shadow-arena">
+                <Card
+                  key={p.round}
+                  onClick={() => {
+                    setLogTab("swiss");
+                    requestAnimationFrame(() => {
+                      const el = document.getElementById(`round-${p.round.replace(/\s+/g, "-")}`);
+                      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    });
+                  }}
+                  className="p-4 border-border/60 bg-card/70 shadow-arena cursor-pointer hover:border-sand transition-colors"
+                >
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-display text-sm">{p.round}</span>
                     <span className="text-xs text-muted-foreground">
@@ -480,8 +490,8 @@ function CurrentTournament() {
                   <TabsTrigger value="playoffs">Finals</TabsTrigger>
                 </TabsList>
                 <TabsContent value={logTab} className="mt-4 space-y-6">
-                  {[...groupedLogs.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([rt, tables]) => (
-                    <div key={rt}>
+                   {[...groupedLogs.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([rt, tables]) => (
+                     <div key={rt} id={`round-${rt.replace(/\s+/g, "-")}`} className="scroll-mt-24">
                       <h3 className="font-display text-lg text-sand mb-2">{rt}</h3>
                       <div className="grid md:grid-cols-2 gap-3">
                         {[...tables.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([ti, players]) => {
