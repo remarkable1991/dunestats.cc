@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { ScreenshotButton } from "@/components/ScreenshotButton";
+import { useChampions, isChampion, winCount } from "@/lib/champions";
 
 export const Route = createFileRoute("/players/$key")({
   head: ({ params }) => ({
@@ -46,6 +47,10 @@ function ProfilePage() {
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [matches, setMatches] = useState<MatchRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const champions = useChampions();
+  const champion = isChampion(champions, playerKey);
+  const tournamentWins = winCount(champions, playerKey);
+  const wins = champions.get(playerKey) ?? [];
 
   useEffect(() => {
     setLoading(true);
@@ -123,7 +128,10 @@ function ProfilePage() {
       <div className="container mx-auto px-4 py-10 max-w-5xl">
         <div className="flex items-center gap-3 mb-2">
           <UserIcon className="size-7 text-sand" />
-          <h1 className="font-display text-3xl">{displayName}</h1>
+          <h1 className="font-display text-3xl flex items-center gap-2">
+            {champion && <Trophy className="size-6 text-sand" aria-label="Hall of Fame Champion" />}
+            {displayName}
+          </h1>
           {claimed ? (
             <span className="inline-flex items-center gap-1 text-xs text-teal border border-teal/40 rounded px-2 py-0.5">
               <BadgeCheck className="size-3" /> Claimed
@@ -139,6 +147,26 @@ function ProfilePage() {
           )}
         </div>
         <p className="text-muted-foreground mb-6">Personal stats across all leaderboard versions.</p>
+
+        {tournamentWins > 0 && (
+          <Card className="p-4 border-sand/40 bg-gradient-to-br from-card to-card/40 mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <Trophy className="size-5 text-sand" />
+              <h2 className="font-display text-lg">Tournament wins ({tournamentWins})</h2>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {wins.sort((a, b) => b.tournament_num - a.tournament_num).map((w) => (
+                <Link
+                  key={w.tournament_num}
+                  to="/tournament"
+                  className="inline-flex items-center gap-1 text-xs rounded-full border border-sand/40 bg-sand/10 text-sand px-3 py-1 hover:bg-sand/20 transition"
+                >
+                  <Trophy className="size-3.5" /> Tournament #{w.tournament_num}
+                </Link>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {loading ? (
           <p className="text-muted-foreground">Loading…</p>
