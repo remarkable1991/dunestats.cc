@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
@@ -424,6 +424,7 @@ function CurrentTournament() {
                       <th className="text-right py-2 px-2">Wins</th>
                       <th className="text-right py-2 px-2">Avg Place</th>
                       <th className="text-right py-2 px-2">VP</th>
+                      <th className="text-right py-2 px-2">Games</th>
                       <th className="text-left py-2 px-2">Status</th>
                     </tr>
                   </thead>
@@ -436,11 +437,20 @@ function CurrentTournament() {
                       return (
                         <tr key={s.player} className={`border-b border-border/20 ${mine ? "bg-sand/15 ring-2 ring-sand" : gold ? "bg-amber-500/10 ring-1 ring-amber-400/60" : silver ? "bg-slate-400/5 ring-1 ring-slate-400/40" : ""}`}>
                           <td className="py-2 px-2 font-mono">{rank}</td>
-                          <td className="py-2 px-2 font-medium">{displayMode === "discord" ? s.discord : s.player}</td>
+                          <td className="py-2 px-2 font-medium">
+                            <Link
+                              to="/players/$key"
+                              params={{ key: s.player.toLowerCase().trim() }}
+                              className="hover:text-sand hover:underline underline-offset-2 transition-colors"
+                            >
+                              {displayMode === "discord" ? s.discord : s.player}
+                            </Link>
+                          </td>
                           <td className="py-2 px-2 text-right font-mono text-sand">{s.tp}</td>
                           <td className="py-2 px-2 text-right font-mono">{s.wins}</td>
                           <td className="py-2 px-2 text-right font-mono">{s.placements.length ? s.avgPlacement.toFixed(2) : "—"}</td>
                           <td className="py-2 px-2 text-right font-mono">{s.vp}</td>
+                          <td className="py-2 px-2 text-right font-mono">{s.placements.length}</td>
                           <td className="py-2 px-2 text-xs">
                             {gold && <Badge className="bg-amber-500/80 text-black">Direct to Grand Finals</Badge>}
                             {silver && <Badge variant="outline" className="border-slate-300/60 text-slate-200">Qualified for Semi Finals</Badge>}
