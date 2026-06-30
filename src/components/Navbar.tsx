@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "./Logo";
 import { Button } from "@/components/ui/button";
-import { Trophy, Upload, LogOut, User as UserIcon, ListOrdered, BarChart3 } from "lucide-react";
+import { Trophy, Upload, LogOut, User as UserIcon, ListOrdered, BarChart3, Medal } from "lucide-react";
 
 export function Navbar() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -27,7 +27,7 @@ export function Navbar() {
         <nav className="flex items-center gap-1 sm:gap-2">
           <Button asChild variant="ghost" size="sm">
             <Link to="/leaderboard">
-              <Trophy className="size-4" />
+              <Medal className="size-4" />
               <span className="hidden sm:inline">Leaderboard</span>
             </Link>
           </Button>
