@@ -4,7 +4,8 @@ import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { User as UserIcon, UserPlus, BadgeCheck } from "lucide-react";
+import { User as UserIcon, UserPlus, BadgeCheck, Trophy } from "lucide-react";
+import { loadChampions, type ChampionMap } from "@/lib/champions";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({ meta: [{ title: "My profile · Strategy Arena" }] }),
@@ -18,6 +19,7 @@ function ProfileLanding() {
   const [checking, setChecking] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [claims, setClaims] = useState<Claim[]>([]);
+  const [champions, setChampions] = useState<ChampionMap>(new Map());
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -36,6 +38,10 @@ function ProfileLanding() {
     });
   }, [navigate]);
 
+  useEffect(() => {
+    void loadChampions().then((m) => setChampions(new Map(m)));
+  }, []);
+
   if (checking) return null;
 
   // Unique by player_key
@@ -46,17 +52,49 @@ function ProfileLanding() {
     return true;
   });
 
+  // Aggregate this user's tournament wins from the champions map.
+  const myWins: { tournament_num: number; player: string }[] = [];
+  for (const c of unique) {
+    const wins = champions.get(c.player_key) ?? [];
+    for (const w of wins) myWins.push({ tournament_num: w.tournament_num, player: c.display_name });
+  }
+  myWins.sort((a, b) => b.tournament_num - a.tournament_num);
+  const totalWins = myWins.length;
+
   return (
     <div className="min-h-screen">
       <Navbar />
       <div className="container mx-auto px-4 py-10 max-w-3xl">
         <div className="flex items-center gap-3 mb-2">
           <UserIcon className="size-7 text-sand" />
-          <h1 className="font-display text-3xl">My profile</h1>
+          <h1 className="font-display text-3xl flex items-center gap-2">
+            {totalWins >= 3 && <Trophy className="size-6 text-sand" aria-label="Hall of Fame Champion" />}
+            My profile
+          </h1>
         </div>
         <p className="text-muted-foreground mb-6">
           {userId ? "Your claimed in-game names appear below." : ""}
         </p>
+
+        {myWins.length > 0 && (
+          <Card className="p-5 border-sand/40 bg-gradient-to-br from-card to-card/40 mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Trophy className="size-5 text-sand" />
+              <h2 className="font-display text-lg">Tournament wins ({totalWins})</h2>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {myWins.map((w) => (
+                <Link
+                  key={`${w.tournament_num}-${w.player}`}
+                  to="/tournament"
+                  className="inline-flex items-center gap-1 text-xs rounded-full border border-sand/40 bg-sand/10 text-sand px-3 py-1 hover:bg-sand/20 transition"
+                >
+                  <Trophy className="size-3.5" /> Tournament #{w.tournament_num}
+                </Link>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {unique.length === 0 ? (
           <Card className="p-6 border-border/60 bg-card/70 text-center">
