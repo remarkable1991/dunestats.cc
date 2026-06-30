@@ -250,6 +250,13 @@ function StatsPage() {
 
           {GAME_VERSIONS.map((v) => (
             <TabsContent key={v.value} value={v.value}>
+              <FilterBar
+                version={version}
+                fImmortality={fImmortality} setFImmortality={setFImmortality}
+                fEpic={fEpic} setFEpic={setFEpic}
+                fRiseOfIx={fRiseOfIx} setFRiseOfIx={setFRiseOfIx}
+                fBaseLeaders={fBaseLeaders} setFBaseLeaders={setFBaseLeaders}
+              />
               <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
