@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { Trophy, Search, UserPlus, BadgeCheck, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { useChampions, isChampion } from "@/lib/champions";
 
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({ meta: [{ title: "Leaderboard · Strategy Arena" }] }),
@@ -41,6 +42,7 @@ function Leaderboard() {
   const [sortDir, setSortDir] = useState<SortDir>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [myKeys, setMyKeys] = useState<Set<string>>(new Set());
+  const champions = useChampions();
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -264,7 +266,12 @@ function Leaderboard() {
                                   params={{ key: r.player_key }}
                                   className="hover:text-sand"
                                 >
-                                  {r.display_name}
+                                  <span className="inline-flex items-center gap-1">
+                                    {isChampion(champions, r.player_key) && (
+                                      <Trophy className="size-3.5 text-sand" aria-label="Hall of Fame Champion" />
+                                    )}
+                                    {r.display_name}
+                                  </span>
                                 </Link>
                               </td>
                               <td className="px-4 py-3 text-right font-display text-sand tabular-nums">
