@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { parseScreenshot, saveGame } from "@/lib/games.functions";
 import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
+import { translateLeader } from "@/lib/leader-translate";
 import { toast } from "sonner";
 import { Image as ImageIcon, Loader2, Trophy, Upload as UploadIcon, CheckCircle2, Maximize2, HelpCircle } from "lucide-react";
 import { Calendar, Sword, History, ExternalLink } from "lucide-react";
@@ -220,7 +221,7 @@ function CurrentTournament() {
       const b64 = await fileToBase64(f);
       const res = await parseScreenshot({ data: { imageBase64: b64, mimeType: f.type || "image/png" } });
       const rawDetected = res.results.map((r) => ({
-        placement: r.placement, player_name: r.player_name, leader_name: r.leader_name ?? "", points: r.points,
+        placement: r.placement, player_name: r.player_name, leader_name: translateLeader(r.leader_name) ?? (r.leader_name ?? ""), points: r.points,
       }));
       const detected = await normalizeNames(rawDetected);
       setParsedRows(detected);
