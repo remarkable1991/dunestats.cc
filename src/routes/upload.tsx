@@ -8,10 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { parseScreenshot, saveGame } from "@/lib/games.functions";
 import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
+import { translateLeader, isCanonicalLeader, CANONICAL_LEADERS } from "@/lib/leader-translate";
 import { toast } from "sonner";
 import { Upload as UploadIcon, Loader2, Trash2, CheckCircle2, Maximize2 } from "lucide-react";
 import exampleMatch from "@/assets/example-match.png.asset.json";
@@ -90,7 +92,7 @@ function UploadPage() {
       const rawDetected = res.results.map((r) => ({
         placement: r.placement,
         player_name: r.player_name,
-        leader_name: r.leader_name ?? "",
+        leader_name: translateLeader(r.leader_name) ?? (r.leader_name ?? ""),
         points: r.points,
       }));
       const detected = await normalizeNames(rawDetected);
@@ -101,7 +103,12 @@ function UploadPage() {
       setHasBaseLeaders(suggestion.has_base_leaders);
       setHasEpic(false);
       setHasImmortality(false);
-      toast.success(`Detected ${res.results.length} players. Verify and submit.`);
+      const unknown = detected.filter((d) => !isCanonicalLeader(d.leader_name)).length;
+      if (unknown > 0) {
+        toast.warning(`Detected ${res.results.length} players — ${unknown} leader${unknown > 1 ? "s" : ""} need manual selection.`);
+      } else {
+        toast.success(`Detected ${res.results.length} players. Verify and submit.`);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not read screenshot");
     } finally {
@@ -112,6 +119,8 @@ function UploadPage() {
   const save = async () => {
     if (rows.length < 2) return toast.error("Need at least 2 players");
     if (hasEpic && !hasIx) return toast.error("Epic Mode requires Rise of Ix.");
+    const bad = rows.filter((r) => !isCanonicalLeader(r.leader_name));
+    if (bad.length) return toast.error("Unrecognized leader — pick a valid leader from the dropdown for the highlighted row(s).");
     setSaving(true);
     try {
       let match_screenshot_url: string | null = null;
