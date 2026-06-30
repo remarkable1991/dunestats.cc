@@ -297,8 +297,13 @@ function UploadPage() {
                 {rows
                   .slice()
                   .sort((a, b) => a.placement - b.placement)
-                  .map((r, i) => (
-                    <div key={i} className="grid grid-cols-[40px_1fr_1fr_60px_32px] gap-2 items-center">
+                  .map((r, i) => {
+                    const invalid = !isCanonicalLeader(r.leader_name);
+                    return (
+                    <div
+                      key={i}
+                      className={`grid grid-cols-[40px_1fr_1fr_60px_32px] gap-2 items-center rounded-md p-1 ${invalid ? "ring-1 ring-coral/70 bg-coral/5" : ""}`}
+                    >
                       <Input
                         type="number"
                         min={1}
@@ -312,11 +317,19 @@ function UploadPage() {
                         onChange={(e) => update(i, { player_name: e.target.value })}
                         placeholder="Player"
                       />
-                      <Input
-                        value={r.leader_name}
-                        onChange={(e) => update(i, { leader_name: e.target.value })}
-                        placeholder="Leader"
-                      />
+                      <Select
+                        value={isCanonicalLeader(r.leader_name) ? r.leader_name : ""}
+                        onValueChange={(v) => update(i, { leader_name: v })}
+                      >
+                        <SelectTrigger className={invalid ? "border-coral text-coral" : ""}>
+                          <SelectValue placeholder={r.leader_name ? `Unrecognized: ${r.leader_name}` : "Select leader…"} />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {CANONICAL_LEADERS.map((name) => (
+                            <SelectItem key={name} value={name}>{name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Input
                         type="number"
                         min={0}
@@ -333,9 +346,19 @@ function UploadPage() {
                         <Trash2 className="size-4 text-coral" />
                       </Button>
                     </div>
-                  ))}
+                    );
+                  })}
 
-                <Button onClick={save} disabled={saving} className="w-full mt-4">
+                {rows.some((r) => !isCanonicalLeader(r.leader_name)) && (
+                  <p className="text-xs text-coral mt-2">
+                    Unrecognized match layout — select a valid leader for the highlighted row(s) before submitting.
+                  </p>
+                )}
+                <Button
+                  onClick={save}
+                  disabled={saving || rows.some((r) => !isCanonicalLeader(r.leader_name))}
+                  className="w-full mt-4"
+                >
                   {saving ? (<><Loader2 className="size-4 animate-spin" /> Submitting…</>) : (<><CheckCircle2 className="size-4" /> Submit match</>)}
                 </Button>
               </div>
