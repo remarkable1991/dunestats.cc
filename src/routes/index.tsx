@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Navbar } from "@/components/Navbar";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
-import { Trophy, Upload, BarChart3, Sparkles } from "lucide-react";
+import { Trophy, Upload, BarChart3, Sparkles, Medal } from "lucide-react";
 import discordBanner from "@/assets/discord-banner.png.asset.json";
 
 export const Route = createFileRoute("/")({
