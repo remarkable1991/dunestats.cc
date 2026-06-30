@@ -23,6 +23,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import exampleMatch from "@/assets/example-match.png.asset.json";
+import ixIcon from "@/assets/ix.png.asset.json";
+import uprisingIcon from "@/assets/uprising.png.asset.json";
+import immoIcon from "@/assets/immo.png.asset.json";
+import epicIcon from "@/assets/epic.png.asset.json";
+import { ArrowLeft, Users as UsersIcon, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 export const Route = createFileRoute("/tournament")({
   head: () => ({ meta: [{ title: "Live Tournament · Strategy Arena" }] }),
