@@ -824,9 +824,54 @@ function configBadge(r: { board_version: string; has_rise_of_ix: boolean; has_ep
   return "Base Game";
 }
 
+// ─── Hall of Fame ───────────────────────────────────────────────────────────
+
+type ModeFlags = { hasIx: boolean; hasEpic: boolean; hasImmo: boolean; hasUprising: boolean };
+
+function detectTournamentModes(rows: PastRow[]): ModeFlags {
+  return {
+    hasIx: rows.some((r) => r.has_rise_of_ix),
+    hasEpic: rows.some((r) => r.has_epic_mode),
+    hasImmo: rows.some((r) => r.has_immortality),
+    hasUprising: rows.some((r) => r.board_version === "uprising"),
+  };
+}
+
+function ModeBadges({ flags, size = 28 }: { flags: ModeFlags; size?: number }) {
+  const items: Array<{ key: string; src: string; label: string }> = [];
+  if (flags.hasUprising) items.push({ key: "up", src: uprisingIcon.url, label: "Uprising" });
+  if (flags.hasIx) items.push({ key: "ix", src: ixIcon.url, label: "Rise of Ix" });
+  if (flags.hasEpic) items.push({ key: "epic", src: epicIcon.url, label: "Epic Mode" });
+  if (flags.hasImmo) items.push({ key: "immo", src: immoIcon.url, label: "Immortality" });
+  if (items.length === 0) {
+    return <span className="text-xs text-muted-foreground italic">Base Game</span>;
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {items.map((it) => (
+        <span key={it.key} className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-background/40 border border-border/60 rounded-full pl-1 pr-2 py-0.5">
+          <img src={it.src} alt={it.label} width={size} height={size} className="rounded-full" style={{ width: size, height: size }} />
+          <span>{it.label}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function PlayerLink({ name, className }: { name: string; className?: string }) {
+  const key = name.toLowerCase().trim();
+  return (
+    <Link to="/players/$key" params={{ key }} className={className ?? "hover:text-sand"}>
+      {name}
+    </Link>
+  );
+}
+
 function PreviousTournaments() {
   const [rows, setRows] = useState<PastRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<number | null>(null);
+
   useEffect(() => {
     void (async () => {
       const all: PastRow[] = [];
@@ -849,93 +894,472 @@ function PreviousTournaments() {
     })();
   }, []);
 
-  const byTournament = useMemo(() => {
+  const tournaments = useMemo(() => {
     const m = new Map<number, PastRow[]>();
     for (const r of rows) {
       if (!m.has(r.tournament_num)) m.set(r.tournament_num, []);
       m.get(r.tournament_num)!.push(r);
     }
-    return [...m.entries()].sort((a, b) => b[0] - a[0]);
+    return [...m.entries()]
+      .map(([num, tRows]) => {
+        const winnerRow = tRows.find(
+          (r) => r.round_type === "Finals" && /grand/i.test(r.table_identifier) && r.placement === 1,
+        );
+        const players = new Set(tRows.map((r) => r.player_name));
+        return {
+          num,
+          rows: tRows,
+          winner: winnerRow?.player_name ?? "—",
+          playerCount: players.size,
+          modes: detectTournamentModes(tRows),
+        };
+      })
+      .sort((a, b) => b.num - a.num);
   }, [rows]);
 
   if (loading) {
     return <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Loading archive…</div>;
   }
 
+  if (selected != null) {
+    const t = tournaments.find((x) => x.num === selected);
+    if (!t) {
+      setSelected(null);
+      return null;
+    }
+    return (
+      <TournamentDeepDive
+        tournament={t}
+        onBack={() => setSelected(null)}
+      />
+    );
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <header>
-        <h2 className="font-display text-2xl flex items-center gap-2"><History className="size-6 text-sand" /> Tournament Archive</h2>
-        <p className="text-muted-foreground text-sm">Expand any past tournament to view full results.</p>
+        <h2 className="font-display text-3xl flex items-center gap-2"><Trophy className="size-7 text-sand" /> Hall of Fame</h2>
+        <p className="text-muted-foreground text-sm">Twelve tournaments. Twelve champions. Tap any trophy to open the full bracket.</p>
       </header>
-      <Accordion type="multiple" className="space-y-2">
-        {byTournament.map(([tnum, tRows]) => {
-          // group rows by round → table
-          const groups = new Map<string, Map<string, PastRow[]>>();
-          for (const r of tRows) {
-            if (!groups.has(r.round_type)) groups.set(r.round_type, new Map());
-            const g = groups.get(r.round_type)!;
-            if (!g.has(r.table_identifier)) g.set(r.table_identifier, []);
-            g.get(r.table_identifier)!.push(r);
-          }
-          return (
-            <AccordionItem key={tnum} value={`t-${tnum}`} className="border rounded-lg bg-card/40 px-4">
-              <AccordionTrigger className="hover:no-underline">
-                <div className="flex items-center gap-3">
-                  <Trophy className="size-5 text-sand" />
-                  <span className="font-display text-lg">Tournament #{tnum}</span>
-                  <Badge variant="outline" className="text-xs">{tRows.length} entries</Badge>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {tournaments.map((t) => (
+          <button
+            key={t.num}
+            onClick={() => setSelected(t.num)}
+            className="text-left group rounded-xl border border-border bg-card/50 hover:bg-card hover:border-sand transition-all p-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-sand"
+          >
+            <div className="flex items-center gap-4">
+              <div className="relative flex items-center justify-center size-16 rounded-full bg-gradient-to-br from-sand/30 to-sand/5 border border-sand/40 shadow-inner">
+                <Trophy className="size-7 text-sand" />
+                <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center size-7 rounded-full bg-background text-sand font-display text-sm border border-sand/60">
+                  {t.num}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <div className="font-display text-lg leading-tight truncate" title={t.winner}>
+                  🏆 {t.winner}
                 </div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <UsersIcon className="size-3.5" /> {t.playerCount} players
+                </div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <ModeBadges flags={t.modes} size={22} />
+            </div>
+            <div className="mt-3 text-[11px] uppercase tracking-wide text-sand/80 opacity-0 group-hover:opacity-100 transition-opacity">
+              Open deep-dive →
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <HallOfFameMasterTable tournaments={tournaments} />
+    </div>
+  );
+}
+
+// ─── Tournament deep-dive ──────────────────────────────────────────────────
+
+type TournamentSummary = {
+  num: number;
+  rows: PastRow[];
+  winner: string;
+  playerCount: number;
+  modes: ModeFlags;
+};
+
+function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSummary; onBack: () => void }) {
+  const { num, rows, winner, playerCount, modes } = tournament;
+
+  const finalsByTable = useMemo(() => {
+    const m = new Map<string, PastRow[]>();
+    for (const r of rows) {
+      if (r.round_type !== "Finals") continue;
+      if (!m.has(r.table_identifier)) m.set(r.table_identifier, []);
+      m.get(r.table_identifier)!.push(r);
+    }
+    for (const arr of m.values()) arr.sort((a, b) => a.placement - b.placement);
+    return m;
+  }, [rows]);
+
+  const grandFinalKey = useMemo(
+    () => [...finalsByTable.keys()].find((k) => /grand/i.test(k)) ?? null,
+    [finalsByTable],
+  );
+  const semiKeys = useMemo(
+    () => [...finalsByTable.keys()].filter((k) => /semi/i.test(k)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+    [finalsByTable],
+  );
+
+  const qualRounds = useMemo(() => {
+    const m = new Map<string, Map<string, PastRow[]>>();
+    for (const r of rows) {
+      if (r.round_type === "Finals") continue;
+      if (!m.has(r.round_type)) m.set(r.round_type, new Map());
+      const inner = m.get(r.round_type)!;
+      if (!inner.has(r.table_identifier)) inner.set(r.table_identifier, []);
+      inner.get(r.table_identifier)!.push(r);
+    }
+    for (const inner of m.values())
+      for (const arr of inner.values()) arr.sort((a, b) => a.placement - b.placement);
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }));
+  }, [rows]);
+
+  // Per-tournament standings (TP / Wins / Avg / VP) — same formula as live.
+  const standings = useMemo(() => {
+    type Agg = { player: string; tp: number; wins: number; placements: number[]; vp: number };
+    const map = new Map<string, Agg>();
+    const tables = new Map<string, PastRow[]>();
+    for (const r of rows) {
+      const k = `${r.round_type}__${r.table_identifier}`;
+      if (!tables.has(k)) tables.set(k, []);
+      tables.get(k)!.push(r);
+    }
+    for (const tableRows of tables.values()) {
+      const ranked = [...tableRows]
+        .filter((r) => r.placement && r.points != null)
+        .sort((a, b) => a.placement - b.placement);
+      if (ranked.length < 4) continue;
+      const vps = ranked.map((r) => r.points);
+      const tps = [
+        20 + (vps[0] - vps[1]),
+        Math.max(0, 15 - (vps[0] - vps[1])),
+        Math.max(0, 10 - (vps[0] - vps[2])),
+        Math.max(0, 5 - (vps[0] - vps[3])),
+      ].map((v) => Math.max(0, v));
+      ranked.forEach((r, i) => {
+        const agg = map.get(r.player_name) ?? { player: r.player_name, tp: 0, wins: 0, placements: [], vp: 0 };
+        agg.tp += tps[i];
+        if (r.placement === 1) agg.wins += 1;
+        agg.placements.push(r.placement);
+        agg.vp += r.points;
+        map.set(r.player_name, agg);
+      });
+    }
+    return [...map.values()]
+      .map((a) => ({ ...a, avg: a.placements.length ? a.placements.reduce((s, n) => s + n, 0) / a.placements.length : 0 }))
+      .sort((a, b) => b.tp - a.tp || b.wins - a.wins || a.avg - b.avg || b.vp - a.vp);
+  }, [rows]);
+
+  return (
+    <div className="space-y-6">
+      <Button variant="ghost" size="sm" onClick={onBack} className="text-sand hover:text-sand">
+        <ArrowLeft className="size-4 mr-1" /> Back to Hall of Fame
+      </Button>
+
+      {/* Header card mirrors the Hall of Fame card */}
+      <Card className="p-6 border-sand/40 bg-gradient-to-br from-card to-card/40">
+        <div className="flex items-center gap-4">
+          <div className="relative flex items-center justify-center size-20 rounded-full bg-gradient-to-br from-sand/40 to-sand/10 border border-sand/50 shadow-inner">
+            <Trophy className="size-9 text-sand" />
+            <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center size-8 rounded-full bg-background text-sand font-display text-base border border-sand/60">
+              {num}
+            </span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Champion</div>
+            <div className="font-display text-2xl">
+              🏆 <PlayerLink name={winner} className="hover:text-sand" />
+            </div>
+            <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+              <UsersIcon className="size-3.5" /> {playerCount} players competed
+            </div>
+            <div className="mt-3"><ModeBadges flags={modes} size={24} /></div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Bracket */}
+      <section className="space-y-4">
+        <h3 className="font-display text-xl text-sand">Bracket</h3>
+        {grandFinalKey ? (
+          <BracketTable title="Grand Final" rows={finalsByTable.get(grandFinalKey)!} accent />
+        ) : (
+          <Card className="p-4 text-sm text-muted-foreground italic">No Grand Final data recorded.</Card>
+        )}
+        {semiKeys.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {semiKeys.map((k) => (
+              <BracketTable key={k} title={k} rows={finalsByTable.get(k)!} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Per-tournament leaderboard */}
+      <section className="space-y-3">
+        <h3 className="font-display text-xl text-sand">Tournament Leaderboard</h3>
+        <Card className="p-0 overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">#</TableHead>
+                <TableHead>Player</TableHead>
+                <TableHead className="text-right">TP</TableHead>
+                <TableHead className="text-right">Wins</TableHead>
+                <TableHead className="text-right">Avg Place</TableHead>
+                <TableHead className="text-right">VP</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {standings.map((s, i) => (
+                <TableRow key={s.player}>
+                  <TableCell className="font-medium text-muted-foreground">{i + 1}</TableCell>
+                  <TableCell className="font-medium">
+                    <PlayerLink name={s.player} />
+                  </TableCell>
+                  <TableCell className="text-right font-display text-sand tabular-nums">{s.tp}</TableCell>
+                  <TableCell className="text-right tabular-nums">{s.wins}</TableCell>
+                  <TableCell className="text-right tabular-nums">{s.avg.toFixed(2)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{s.vp}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      </section>
+
+      {/* Qualification rounds */}
+      <section className="space-y-3">
+        <h3 className="font-display text-xl text-sand">Qualification Rounds</h3>
+        <Accordion type="multiple" className="space-y-2">
+          {qualRounds.map(([round, tables]) => (
+            <AccordionItem key={round} value={round} className="border rounded-lg bg-card/40 px-4">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="font-display text-sand">{round}</span>
+                <span className="ml-2 text-xs text-muted-foreground">({tables.size} tables)</span>
               </AccordionTrigger>
-              <AccordionContent className="space-y-6 pt-2">
-                {[...groups.entries()]
-                  .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
-                  .map(([round, tables]) => (
-                    <div key={round} className="space-y-3">
-                      <h3 className="font-display text-sand">{round}</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {[...tables.entries()]
-                          .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
-                          .map(([table, entries]) => {
-                            const sorted = [...entries].sort((a, b) => a.placement - b.placement);
-                            const badge = configBadge(sorted[0]);
-                            return (
-                              <Card key={table} className="p-3 bg-background/40">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="font-medium text-sm">{table}</span>
-                                  <Badge className="bg-sand/15 text-sand border-sand/40 text-[10px]" variant="outline">{badge}</Badge>
-                                </div>
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead className="h-7 w-10">#</TableHead>
-                                      <TableHead className="h-7">Player</TableHead>
-                                      <TableHead className="h-7">Leader</TableHead>
-                                      <TableHead className="h-7 w-12 text-right">VP</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {sorted.map((r) => (
-                                      <TableRow key={r.id}>
-                                        <TableCell className="py-1 font-medium">{r.placement}</TableCell>
-                                        <TableCell className="py-1">{r.player_name}</TableCell>
-                                        <TableCell className="py-1 text-muted-foreground text-xs">{r.leader_name ?? "—"}</TableCell>
-                                        <TableCell className="py-1 text-right">{r.points}</TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                              </Card>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  ))}
+              <AccordionContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                  {[...tables.entries()]
+                    .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
+                    .map(([table, entries]) => (
+                      <BracketTable key={table} title={table} rows={entries} compact />
+                    ))}
+                </div>
               </AccordionContent>
             </AccordionItem>
-          );
-        })}
-      </Accordion>
+          ))}
+        </Accordion>
+      </section>
     </div>
+  );
+}
+
+function BracketTable({ title, rows, accent, compact }: { title: string; rows: PastRow[]; accent?: boolean; compact?: boolean }) {
+  return (
+    <Card className={`p-3 ${accent ? "border-sand/60 bg-gradient-to-br from-sand/5 to-card" : "bg-background/40"}`}>
+      <div className="flex items-center justify-between mb-2">
+        <span className={`font-display ${accent ? "text-base text-sand" : "text-sm"}`}>{title}</span>
+        {rows[0] && (
+          <Badge className="bg-sand/15 text-sand border-sand/40 text-[10px]" variant="outline">
+            {configBadge(rows[0])}
+          </Badge>
+        )}
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className={compact ? "h-7 w-10" : "w-10"}>#</TableHead>
+            <TableHead className={compact ? "h-7" : ""}>Player</TableHead>
+            <TableHead className={compact ? "h-7" : ""}>Leader</TableHead>
+            <TableHead className={`text-right ${compact ? "h-7 w-12" : "w-16"}`}>VP</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r) => (
+            <TableRow key={r.id}>
+              <TableCell className={`font-medium ${compact ? "py-1" : ""}`}>{r.placement}</TableCell>
+              <TableCell className={compact ? "py-1" : ""}>
+                <PlayerLink name={r.player_name} />
+              </TableCell>
+              <TableCell className={`text-muted-foreground text-xs ${compact ? "py-1" : ""}`}>{r.leader_name ?? "—"}</TableCell>
+              <TableCell className={`text-right tabular-nums ${compact ? "py-1" : ""}`}>{r.points}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+}
+
+// ─── Lifetime master stats table ───────────────────────────────────────────
+
+type LifetimeAgg = {
+  player: string;
+  wins: number;
+  grandFinals: number;
+  semiFinals: number;
+  played: number;
+  tp: number;
+};
+type LifeSortKey = "wins" | "grandFinals" | "semiFinals" | "played" | "tp" | "tpPer";
+
+function HallOfFameMasterTable({ tournaments }: { tournaments: TournamentSummary[] }) {
+  const [q, setQ] = useState("");
+  const [sortKey, setSortKey] = useState<LifeSortKey>("wins");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const lifetime = useMemo(() => {
+    const m = new Map<string, LifetimeAgg>();
+    const ensure = (name: string) => {
+      let a = m.get(name);
+      if (!a) {
+        a = { player: name, wins: 0, grandFinals: 0, semiFinals: 0, played: 0, tp: 0 };
+        m.set(name, a);
+      }
+      return a;
+    };
+    for (const t of tournaments) {
+      const playersInT = new Set<string>();
+      const grand = new Set<string>();
+      const semi = new Set<string>();
+      // group by (round, table)
+      const tables = new Map<string, PastRow[]>();
+      for (const r of t.rows) {
+        playersInT.add(r.player_name);
+        if (r.round_type === "Finals" && /grand/i.test(r.table_identifier)) grand.add(r.player_name);
+        if (r.round_type === "Finals" && /semi/i.test(r.table_identifier)) semi.add(r.player_name);
+        const k = `${r.round_type}__${r.table_identifier}`;
+        if (!tables.has(k)) tables.set(k, []);
+        tables.get(k)!.push(r);
+      }
+      // TP per table
+      for (const tr of tables.values()) {
+        const ranked = [...tr].filter((r) => r.placement && r.points != null).sort((a, b) => a.placement - b.placement);
+        if (ranked.length < 4) continue;
+        const vps = ranked.map((r) => r.points);
+        const tps = [
+          20 + (vps[0] - vps[1]),
+          Math.max(0, 15 - (vps[0] - vps[1])),
+          Math.max(0, 10 - (vps[0] - vps[2])),
+          Math.max(0, 5 - (vps[0] - vps[3])),
+        ].map((v) => Math.max(0, v));
+        ranked.forEach((r, i) => { ensure(r.player_name).tp += tps[i]; });
+      }
+      for (const p of playersInT) ensure(p).played += 1;
+      for (const p of semi) ensure(p).semiFinals += 1;
+      for (const p of grand) ensure(p).grandFinals += 1;
+      const winnerRow = t.rows.find((r) => r.round_type === "Finals" && /grand/i.test(r.table_identifier) && r.placement === 1);
+      if (winnerRow) ensure(winnerRow.player_name).wins += 1;
+    }
+    return [...m.values()];
+  }, [tournaments]);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    const arr = needle ? lifetime.filter((r) => r.player.toLowerCase().includes(needle)) : lifetime;
+    const valOf = (r: LifetimeAgg): number => {
+      switch (sortKey) {
+        case "wins": return r.wins;
+        case "grandFinals": return r.grandFinals;
+        case "semiFinals": return r.semiFinals;
+        case "played": return r.played;
+        case "tp": return r.tp;
+        case "tpPer": return r.played ? r.tp / r.played : 0;
+      }
+    };
+    const sorted = [...arr].sort((a, b) => {
+      const av = valOf(a), bv = valOf(b);
+      if (av === bv) return a.player.localeCompare(b.player);
+      return sortDir === "desc" ? bv - av : av - bv;
+    });
+    return sorted;
+  }, [lifetime, q, sortKey, sortDir]);
+
+  const headerCell = (key: LifeSortKey, label: string, align: "left" | "right" = "right") => {
+    const active = sortKey === key;
+    const Icon = !active ? ArrowUpDown : sortDir === "desc" ? ArrowDown : ArrowUp;
+    return (
+      <TableHead className={align === "right" ? "text-right" : ""}>
+        <button
+          type="button"
+          onClick={() => {
+            if (!active) { setSortKey(key); setSortDir("desc"); return; }
+            setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+          }}
+          className={`inline-flex items-center gap-1 hover:text-sand ${active ? "text-sand" : ""}`}
+        >
+          {label} <Icon className="size-3.5" />
+        </button>
+      </TableHead>
+    );
+  };
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="font-display text-2xl text-sand flex items-center gap-2"><Trophy className="size-5" /> Lifetime Hall of Fame</h3>
+          <p className="text-xs text-muted-foreground">Aggregated across every archived tournament.</p>
+        </div>
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search player…"
+          className="max-w-xs"
+        />
+      </div>
+      <Card className="p-0 overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Player</TableHead>
+              {headerCell("wins", "Wins")}
+              {headerCell("grandFinals", "GF reached")}
+              {headerCell("semiFinals", "SF reached")}
+              {headerCell("played", "Played")}
+              {headerCell("tp", "Total TP")}
+              {headerCell("tpPer", "TP / Tournament")}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map((r) => (
+              <TableRow key={r.player}>
+                <TableCell className="font-medium">
+                  <span className="inline-flex items-center gap-1">
+                    {r.wins >= 3 && <Trophy className="size-4 text-sand" aria-label="Hall of Fame Champion" />}
+                    <PlayerLink name={r.player} />
+                  </span>
+                </TableCell>
+                <TableCell className="text-right font-display text-sand tabular-nums">{r.wins}</TableCell>
+                <TableCell className="text-right tabular-nums">{r.grandFinals}</TableCell>
+                <TableCell className="text-right tabular-nums">{r.semiFinals}</TableCell>
+                <TableCell className="text-right tabular-nums">{r.played}</TableCell>
+                <TableCell className="text-right tabular-nums">{r.tp}</TableCell>
+                <TableCell className="text-right tabular-nums">{(r.played ? r.tp / r.played : 0).toFixed(1)}</TableCell>
+              </TableRow>
+            ))}
+            {filtered.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center text-muted-foreground italic py-6">No players match.</TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+    </section>
   );
 }
