@@ -30,7 +30,7 @@ const CARDS = [
   },
   {
     to: "/leaderboard",
-    icon: Trophy,
+    icon: Medal,
     title: "Global Player Standings",
     text: "Track your personal ELO progression, compare competitive win rates, and see who commands the top of the leaderboard.",
   },
