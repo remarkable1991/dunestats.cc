@@ -27,7 +27,7 @@ export function Navbar() {
         <nav className="flex items-center gap-1 sm:gap-2">
           <Button asChild variant="ghost" size="sm">
             <Link to="/leaderboard">
-              <Trophy className="size-4" />
+              <Medal className="size-4" />
               <span className="hidden sm:inline">Leaderboard</span>
             </Link>
           </Button>
