@@ -15,6 +15,7 @@ import { parseScreenshot, saveGame } from "@/lib/games.functions";
 import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
 import { translateLeader } from "@/lib/leader-translate";
+import { useChampions, isChampion } from "@/lib/champions";
 import { toast } from "sonner";
 import { Image as ImageIcon, Loader2, Trophy, Upload as UploadIcon, CheckCircle2, Maximize2, HelpCircle } from "lucide-react";
 import { Calendar, Sword, History, ExternalLink } from "lucide-react";
