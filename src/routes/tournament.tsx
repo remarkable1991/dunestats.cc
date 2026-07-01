@@ -15,6 +15,7 @@ import { parseScreenshot, saveGame } from "@/lib/games.functions";
 import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
 import { translateLeader } from "@/lib/leader-translate";
+import { useChampions, isChampion } from "@/lib/champions";
 import { toast } from "sonner";
 import { Image as ImageIcon, Loader2, Trophy, Upload as UploadIcon, CheckCircle2, Maximize2, HelpCircle } from "lucide-react";
 import { Calendar, Sword, History, ExternalLink } from "lucide-react";
@@ -96,6 +97,7 @@ function CurrentTournament() {
   }, [userId]);
 
   const isMine = (name: string) => myKeys.has(name.toLowerCase().trim());
+  const champions = useChampions();
 
   const refresh = async () => {
     setLoading(true);
@@ -461,6 +463,9 @@ function CurrentTournament() {
                             >
                               {displayMode === "discord" ? s.discord : s.player}
                             </Link>
+                            {isChampion(champions, s.player) && (
+                              <Trophy className="inline size-4 text-sand ml-1 -mt-0.5" aria-label="Hall of Fame Champion" />
+                            )}
                           </td>
                           <td className="py-2 px-2 text-right font-mono text-sand">{s.tp}</td>
                           <td className="py-2 px-2 text-right font-mono">{s.wins}</td>
