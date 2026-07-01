@@ -15,7 +15,7 @@ import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
 import { translateLeader, isCanonicalLeader, CANONICAL_LEADERS } from "@/lib/leader-translate";
 import { toast } from "sonner";
-import { Upload as UploadIcon, Loader2, Trash2, CheckCircle2, Maximize2 } from "lucide-react";
+import { Upload as UploadIcon, Loader2, Trash2, CheckCircle2, Maximize2, GripVertical } from "lucide-react";
 import exampleMatch from "@/assets/example-match.png.asset.json";
 
 export const Route = createFileRoute("/upload")({
@@ -192,13 +192,33 @@ function UploadPage() {
   const update = (i: number, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   const removeRow = (i: number) =>
-    setRows((rs) => (rs.length <= MIN_ROWS ? rs : rs.filter((_, idx) => idx !== i)));
+    setRows((rs) =>
+      rs.length <= MIN_ROWS
+        ? rs
+        : rs.filter((_, idx) => idx !== i).map((r, idx) => ({ ...r, placement: idx + 1 })),
+    );
   const addRow = () =>
     setRows((rs) =>
       rs.length >= MAX_ROWS
         ? rs
         : [...rs, { placement: rs.length + 1, player_name: "", leader_name: "", points: 0 }],
     );
+
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const reorder = (from: number, to: number) => {
+    if (from === to || from < 0 || to < 0) return;
+    setRows((rs) => {
+      const sorted = [...rs].sort((a, b) => a.placement - b.placement);
+      const [moved] = sorted.splice(from, 1);
+      sorted.splice(to, 0, moved);
+      return sorted.map((r, idx) => ({ ...r, placement: idx + 1 }));
+    });
+  };
+  const ordinal = (n: number) => {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  };
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -341,27 +361,31 @@ function UploadPage() {
                     return (
                     <div
                       key={i}
-                      className={`grid grid-cols-[40px_1fr_1fr_60px_32px] gap-2 items-center rounded-md p-1 ${invalid ? "ring-1 ring-coral/70 bg-coral/5" : ""}`}
+                      draggable
+                      onDragStart={() => setDragIdx(i)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => { e.preventDefault(); if (dragIdx !== null) reorder(dragIdx, i); setDragIdx(null); }}
+                      onDragEnd={() => setDragIdx(null)}
+                      className={`grid grid-cols-[auto_minmax(0,1.7fr)_minmax(0,1fr)_64px_32px] gap-3 items-center rounded-md px-1 py-1.5 ${invalid ? "ring-1 ring-coral/70 bg-coral/5" : ""} ${dragIdx === i ? "opacity-60" : ""}`}
                     >
-                      <Input
-                        type="number"
-                        min={1}
-                        max={8}
-                        value={r.placement}
-                        onChange={(e) => update(i, { placement: Number(e.target.value) })}
-                        className="text-center"
-                      />
+                      <div className="flex items-center gap-1 select-none">
+                        <GripVertical className="size-4 cursor-grab active:cursor-grabbing text-muted-foreground/70" />
+                        <span className="font-display text-sand text-sm w-9 tabular-nums">{ordinal(r.placement)}</span>
+                      </div>
                       <Input
                         value={r.player_name}
                         onChange={(e) => update(i, { player_name: e.target.value })}
                         placeholder="Player"
+                        className="w-full"
                       />
                       <Select
                         value={isCanonicalLeader(r.leader_name) ? r.leader_name : ""}
                         onValueChange={(v) => update(i, { leader_name: v })}
                       >
-                        <SelectTrigger className={invalid ? "border-coral text-coral" : ""}>
-                          <SelectValue placeholder={r.leader_name ? `Unrecognized: ${r.leader_name}` : "Select leader…"} />
+                        <SelectTrigger className={`min-w-0 ${invalid ? "border-coral text-coral" : ""}`}>
+                          <span className="truncate block text-left flex-1">
+                            <SelectValue placeholder={r.leader_name ? `Unrecognized: ${r.leader_name}` : "Select leader…"} />
+                          </span>
                         </SelectTrigger>
                         <SelectContent className="max-h-72">
                           {CANONICAL_LEADERS.map((name) => (
@@ -374,7 +398,7 @@ function UploadPage() {
                         min={0}
                         value={r.points}
                         onChange={(e) => update(i, { points: Number(e.target.value) })}
-                        className="text-center"
+                        className="text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                       <Button
                         variant="ghost"
