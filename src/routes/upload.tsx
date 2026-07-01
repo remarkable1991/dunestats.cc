@@ -51,6 +51,11 @@ function UploadPage() {
   const [hasEpic, setHasEpic] = useState(false);
   const [hasImmortality, setHasImmortality] = useState(false);
   const [hasBaseLeaders, setHasBaseLeaders] = useState(false);
+  const [scanned, setScanned] = useState(false);
+  const [adjusted, setAdjusted] = useState(false);
+  const [duplicateWarn, setDuplicateWarn] = useState(false);
+  const [confirmDuplicate, setConfirmDuplicate] = useState(false);
+  const [checkingDup, setCheckingDup] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -79,6 +84,10 @@ function UploadPage() {
   const onFile = async (f: File | null) => {
     setFile(f);
     setRows(emptyRows());
+    setScanned(false);
+    setAdjusted(false);
+    setDuplicateWarn(false);
+    setConfirmDuplicate(false);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(f ? URL.createObjectURL(f) : null);
     if (f) await analyze(f);
@@ -89,14 +98,24 @@ function UploadPage() {
     try {
       const b64 = await fileToBase64(f);
       const res = await parseScreenshot({ data: { imageBase64: b64, mimeType: f.type || "image/png" } });
-      const rawDetected = res.results.map((r) => ({
-        placement: r.placement,
-        player_name: r.player_name,
-        leader_name: translateLeader(r.leader_name) ?? (r.leader_name ?? ""),
-        points: r.points,
-      }));
+      let didAdjust = false;
+      const rawDetected = res.results.map((r) => {
+        const translated = translateLeader(r.leader_name);
+        if (translated && translated !== (r.leader_name ?? "").trim()) didAdjust = true;
+        return {
+          placement: r.placement,
+          player_name: r.player_name,
+          leader_name: translated ?? (r.leader_name ?? ""),
+          points: r.points,
+        };
+      });
       const detected = await normalizeNames(rawDetected);
+      for (let i = 0; i < detected.length; i++) {
+        if (detected[i].player_name !== rawDetected[i].player_name) { didAdjust = true; break; }
+      }
       setRows(clampRows(detected));
+      setScanned(true);
+      setAdjusted(didAdjust);
       const suggestion = detectExpansions(detected.map((d) => d.leader_name));
       setBoard(suggestion.board_version);
       setHasIx(suggestion.has_rise_of_ix);
@@ -121,6 +140,18 @@ function UploadPage() {
     if (hasEpic && !hasIx) return toast.error("Epic Mode requires Rise of Ix.");
     const bad = rows.filter((r) => !isCanonicalLeader(r.leader_name));
     if (bad.length) return toast.error("Unrecognized leader — pick a valid leader from the dropdown for the highlighted row(s).");
+    if (!confirmDuplicate) {
+      setCheckingDup(true);
+      try {
+        const dup = await checkRecentDuplicate(rows);
+        if (dup) {
+          setDuplicateWarn(true);
+          setCheckingDup(false);
+          return;
+        }
+      } catch { /* ignore */ }
+      setCheckingDup(false);
+    }
     setSaving(true);
     try {
       let match_screenshot_url: string | null = null;
@@ -176,6 +207,14 @@ function UploadPage() {
   };
 
   if (checking) return null;
+
+  const hasUnrecognized = scanned && rows.some((r) => !isCanonicalLeader(r.leader_name));
+  const nameCounts = new Map<string, number>();
+  for (const r of rows) {
+    const k = r.player_name.trim().toLowerCase();
+    if (k) nameCounts.set(k, (nameCounts.get(k) ?? 0) + 1);
+  }
+  const hasDupNames = scanned && Array.from(nameCounts.values()).some((n) => n > 1);
 
   return (
     <div className="min-h-screen">
@@ -298,7 +337,7 @@ function UploadPage() {
                   .slice()
                   .sort((a, b) => a.placement - b.placement)
                   .map((r, i) => {
-                    const invalid = !isCanonicalLeader(r.leader_name);
+                    const invalid = scanned && !isCanonicalLeader(r.leader_name);
                     return (
                     <div
                       key={i}
@@ -349,17 +388,51 @@ function UploadPage() {
                     );
                   })}
 
-                {rows.some((r) => !isCanonicalLeader(r.leader_name)) && (
-                  <p className="text-xs text-coral mt-2">
+                {hasUnrecognized && (
+                  <div className="mt-2 rounded-md border border-coral/60 bg-coral/10 text-coral text-xs px-3 py-2">
                     Unrecognized match layout — select a valid leader for the highlighted row(s) before submitting.
-                  </p>
+                  </div>
+                )}
+                {scanned && adjusted && (
+                  <div className="mt-2 rounded-md border border-orange-500/60 bg-orange-500/10 text-orange-300 text-xs px-3 py-2">
+                    Please double-check if all info is correct as what was parsed was slightly adjusted during translation normalization.
+                  </div>
+                )}
+                {hasDupNames && (
+                  <div className="mt-2 rounded-md border border-yellow-500/60 bg-yellow-500/10 text-yellow-200 text-xs px-3 py-2 space-y-2">
+                    <p>Duplicate player names detected at this table. How should this match be recorded?</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" disabled title="This upload page only records global leaderboard games.">
+                        Upload as a Tournament Game
+                      </Button>
+                      <Button size="sm" onClick={() => save()}>
+                        Upload for Global Leaderboard Only
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {duplicateWarn && (
+                  <div className="mt-2 rounded-md border border-red-500/70 bg-red-500/10 text-red-300 text-xs px-3 py-2 space-y-2">
+                    <p className="font-medium">This game appears to have been recently uploaded. Are you sure you want to submit it again?</p>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={confirmDuplicate}
+                        onCheckedChange={(c) => setConfirmDuplicate(!!c)}
+                      />
+                      <span>Yes, submit anyway (override duplicate protection)</span>
+                    </label>
+                  </div>
                 )}
                 <Button
                   onClick={save}
-                  disabled={saving || rows.some((r) => !isCanonicalLeader(r.leader_name))}
+                  disabled={saving || checkingDup || hasUnrecognized || (duplicateWarn && !confirmDuplicate)}
                   className="w-full mt-4"
                 >
-                  {saving ? (<><Loader2 className="size-4 animate-spin" /> Submitting…</>) : (<><CheckCircle2 className="size-4" /> Submit match</>)}
+                  {saving || checkingDup ? (
+                    <><Loader2 className="size-4 animate-spin" /> {checkingDup ? "Checking duplicates…" : "Submitting…"}</>
+                  ) : (
+                    <><CheckCircle2 className="size-4" /> {duplicateWarn ? "Confirm & submit" : "Submit match"}</>
+                  )}
                 </Button>
               </div>
           </Card>
@@ -379,4 +452,34 @@ function fileToBase64(file: File): Promise<string> {
     r.onerror = reject;
     r.readAsDataURL(file);
   });
+}
+
+/** Check the last 100 uploaded games for an identical fingerprint. */
+async function checkRecentDuplicate(rows: Row[]): Promise<boolean> {
+  const fp = fingerprint(rows);
+  const { data: recent } = await supabase
+    .from("games")
+    .select("id, game_results(placement, player_name, leader_name, points)")
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (!recent) return false;
+  for (const g of recent) {
+    const gr = (g as { game_results?: Array<{ placement: number; player_name: string; leader_name: string | null; points: number }> }).game_results ?? [];
+    if (gr.length !== rows.length) continue;
+    const other = gr.map((r) => ({
+      placement: r.placement,
+      player_name: r.player_name,
+      leader_name: r.leader_name ?? "",
+      points: r.points,
+    }));
+    if (fingerprint(other) === fp) return true;
+  }
+  return false;
+}
+
+function fingerprint(rows: Row[]): string {
+  return rows
+    .map((r) => `${r.placement}|${r.player_name.trim().toLowerCase()}|${(r.leader_name ?? "").trim().toLowerCase()}|${Number(r.points) || 0}`)
+    .sort()
+    .join("::");
 }
