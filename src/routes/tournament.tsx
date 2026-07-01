@@ -97,6 +97,7 @@ function CurrentTournament() {
   }, [userId]);
 
   const isMine = (name: string) => myKeys.has(name.toLowerCase().trim());
+  const champions = useChampions();
 
   const refresh = async () => {
     setLoading(true);
@@ -462,6 +463,9 @@ function CurrentTournament() {
                             >
                               {displayMode === "discord" ? s.discord : s.player}
                             </Link>
+                            {isChampion(champions, s.player) && (
+                              <Trophy className="inline size-4 text-sand ml-1 -mt-0.5" aria-label="Hall of Fame Champion" />
+                            )}
                           </td>
                           <td className="py-2 px-2 text-right font-mono text-sand">{s.tp}</td>
                           <td className="py-2 px-2 text-right font-mono">{s.wins}</td>
