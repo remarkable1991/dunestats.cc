@@ -15,7 +15,7 @@ import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
 import { translateLeader, isCanonicalLeader, CANONICAL_LEADERS } from "@/lib/leader-translate";
 import { toast } from "sonner";
-import { Upload as UploadIcon, Loader2, Trash2, CheckCircle2, Maximize2, GripVertical } from "lucide-react";
+import { Upload as UploadIcon, Loader2, CheckCircle2, Maximize2, GripVertical } from "lucide-react";
 import exampleMatch from "@/assets/example-match.png.asset.json";
 
 export const Route = createFileRoute("/upload")({
@@ -191,18 +191,15 @@ function UploadPage() {
 
   const update = (i: number, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
-  const removeRow = (i: number) =>
-    setRows((rs) =>
-      rs.length <= MIN_ROWS
-        ? rs
-        : rs.filter((_, idx) => idx !== i).map((r, idx) => ({ ...r, placement: idx + 1 })),
-    );
-  const addRow = () =>
-    setRows((rs) =>
-      rs.length >= MAX_ROWS
-        ? rs
-        : [...rs, { placement: rs.length + 1, player_name: "", leader_name: "", points: 0 }],
-    );
+  const setPlayerCount = (n: 3 | 4) =>
+    setRows((rs) => {
+      const sorted = [...rs].sort((a, b) => a.placement - b.placement);
+      if (sorted.length === n) return sorted;
+      if (sorted.length > n) return sorted.slice(0, n).map((r, idx) => ({ ...r, placement: idx + 1 }));
+      const next = [...sorted];
+      while (next.length < n) next.push({ placement: next.length + 1, player_name: "", leader_name: "", points: 0 });
+      return next.map((r, idx) => ({ ...r, placement: idx + 1 }));
+    });
 
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const reorder = (from: number, to: number) => {
@@ -213,11 +210,6 @@ function UploadPage() {
       sorted.splice(to, 0, moved);
       return sorted.map((r, idx) => ({ ...r, placement: idx + 1 }));
     });
-  };
-  const ordinal = (n: number) => {
-    const s = ["th", "st", "nd", "rd"];
-    const v = n % 100;
-    return n + (s[(v - 20) % 10] || s[v] || s[0]);
   };
 
   const onDrop = (e: React.DragEvent) => {
@@ -344,9 +336,22 @@ function UploadPage() {
           <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-display text-lg">Detected results</h2>
-              <Button size="sm" variant="ghost" onClick={addRow} disabled={rows.length >= MAX_ROWS}>
-                + Add row
-              </Button>
+              <div className="inline-flex rounded-md border border-border/60 overflow-hidden text-xs">
+                <button
+                  type="button"
+                  onClick={() => setPlayerCount(3)}
+                  className={`px-3 py-1.5 transition ${rows.length === 3 ? "bg-sand text-background" : "hover:bg-background/40 text-muted-foreground"}`}
+                >
+                  3 players
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlayerCount(4)}
+                  className={`px-3 py-1.5 transition border-l border-border/60 ${rows.length === 4 ? "bg-sand text-background" : "hover:bg-background/40 text-muted-foreground"}`}
+                >
+                  4 players
+                </button>
+              </div>
             </div>
             <p className="text-xs text-muted-foreground mb-3">
               Matches must have between {MIN_ROWS} and {MAX_ROWS} players.
@@ -366,11 +371,11 @@ function UploadPage() {
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={(e) => { e.preventDefault(); if (dragIdx !== null) reorder(dragIdx, i); setDragIdx(null); }}
                       onDragEnd={() => setDragIdx(null)}
-                      className={`grid grid-cols-[auto_minmax(0,1.7fr)_minmax(0,1fr)_64px_32px] gap-3 items-center rounded-md px-1 py-1.5 ${invalid ? "ring-1 ring-coral/70 bg-coral/5" : ""} ${dragIdx === i ? "opacity-60" : ""}`}
+                      className={`grid grid-cols-[auto_minmax(0,9fr)_minmax(0,19fr)_44px] gap-2 items-center rounded-md px-1 py-1.5 ${invalid ? "ring-1 ring-coral/70 bg-coral/5" : ""} ${dragIdx === i ? "opacity-60" : ""}`}
                     >
-                      <div className="flex items-center gap-1 select-none">
+                      <div className="flex items-center gap-0.5 select-none pr-1">
                         <GripVertical className="size-4 cursor-grab active:cursor-grabbing text-muted-foreground/70" />
-                        <span className="font-display text-sand text-sm w-9 tabular-nums">{ordinal(r.placement)}</span>
+                        <span className="font-display text-sand text-sm w-4 text-center tabular-nums">{r.placement}</span>
                       </div>
                       <Input
                         value={r.player_name}
@@ -396,18 +401,11 @@ function UploadPage() {
                       <Input
                         type="number"
                         min={0}
+                        maxLength={2}
                         value={r.points}
                         onChange={(e) => update(i, { points: Number(e.target.value) })}
-                        className="text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeRow(i)}
-                        disabled={rows.length <= MIN_ROWS}
-                      >
-                        <Trash2 className="size-4 text-coral" />
-                      </Button>
                     </div>
                     );
                   })}
