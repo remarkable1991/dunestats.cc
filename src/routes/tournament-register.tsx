@@ -533,8 +533,36 @@ function RegisterPage() {
               </div>
             </div>
 
+            {compact && (
+              <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-background/40 px-2 py-1.5">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setWeekIdx((w) => Math.max(0, w - 1))}
+                  disabled={weekIdx === 0}
+                >
+                  <ChevronLeft className="size-4" /> Prev
+                </Button>
+                <div className="text-xs font-medium text-sand">
+                  Week {weekIdx + 1} of 4 — {days[weekIdx * 7]?.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  {" – "}
+                  {days[Math.min(weekIdx * 7 + 6, DAYS - 1)]?.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setWeekIdx((w) => Math.min(3, w + 1))}
+                  disabled={weekIdx === 3}
+                >
+                  Next <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            )}
+
             <AvailabilityGrid
               days={days}
+              startDay={compact ? weekIdx * 7 : 0}
+              visibleDays={compact ? 7 : DAYS}
               selection={selection}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
