@@ -29,6 +29,7 @@ import uprisingIcon from "@/assets/uprising.png.asset.json";
 import immoIcon from "@/assets/immo.png.asset.json";
 import epicIcon from "@/assets/epic.png.asset.json";
 import { ArrowLeft, Users as UsersIcon, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { TournamentAnnouncement, TournamentCountdown } from "@/components/TournamentCountdown";
 
 export const Route = createFileRoute("/tournament")({
   head: () => ({ meta: [{ title: "Live Tournament · Strategy Arena" }] }),
@@ -777,26 +778,10 @@ function TournamentPage() {
 }
 
 function FutureTournaments() {
-  const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSf0H20V1Kw36NGGBTB5E_bAuE6YxIIxUoPUwqATDDHNH9zuzQ/viewform";
   return (
     <div className="space-y-6">
-      <Card className="p-8 border-sand/40 bg-gradient-to-br from-card to-card/40">
-        <div className="flex items-center gap-3 mb-3">
-          <Calendar className="size-8 text-sand" />
-          <h2 className="font-display text-2xl">Next Tournament — Sign Up</h2>
-        </div>
-        <p className="text-muted-foreground mb-6 max-w-2xl">
-          Registration is open for the upcoming Strategy Arena Dune Imperium tournament.
-          Spots are limited — secure yours by filling out the registration form.
-        </p>
-        <Button
-          size="lg"
-          className="bg-sand text-background hover:bg-sand/90 font-display text-base gap-2"
-          onClick={() => window.open(formUrl, "_blank", "noopener,noreferrer")}
-        >
-          Register Now <ExternalLink className="size-4" />
-        </Button>
-      </Card>
+      <TournamentAnnouncement />
+      <TournamentCountdown />
     </div>
   );
 }

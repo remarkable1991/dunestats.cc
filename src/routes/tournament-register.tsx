@@ -1,0 +1,545 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Navbar } from "@/components/Navbar";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
+import {
+  TOURNAMENT_NUMBER,
+  TOURNAMENT_START_DATE,
+  DISCORD_INVITE_URL,
+  firstMondayOfTournament,
+  tournamentGridStart,
+} from "@/lib/tournament-config";
+import discordHint from "@/assets/discord-hint.png.asset.json";
+
+export const Route = createFileRoute("/tournament-register")({
+  head: () => ({
+    meta: [
+      { title: `Register — Tournament ${TOURNAMENT_NUMBER} · Strategy Arena` },
+      { name: "description", content: "Sign up for the next Strategy Arena Dune Imperium tournament." },
+    ],
+  }),
+  component: RegisterPage,
+});
+
+// ---------- Grid math ----------
+const DAYS = 28;
+const SLOTS = 48; // 30-min blocks in 24h
+const TOTAL = DAYS * SLOTS;
+
+function blockId(day: number, slot: number) { return day * SLOTS + slot; }
+function dayOfBlock(id: number) { return Math.floor(id / SLOTS); }
+function slotOfBlock(id: number) { return id % SLOTS; }
+
+/** Convert a local (day-index, slot) to UTC ISO string using tournament start date. */
+function blockToUtcIso(day: number, slot: number): string {
+  const base = tournamentGridStart();
+  const d = new Date(base);
+  d.setDate(d.getDate() + day);
+  d.setMinutes(slot * 30);
+  return d.toISOString();
+}
+
+/** dayOfWeek where Monday=0..Sunday=6 for a JS Date */
+function mondayDow(date: Date): number {
+  return (date.getDay() + 6) % 7;
+}
+
+// ---------- Baseline template (relative to Monday) ----------
+type BaselineEntry = { dow: number; slot: number }; // dow 0=Mon..6=Sun
+
+function selectionToBaseline(sel: Set<number>): BaselineEntry[] {
+  // Keep only entries in the first 7 days from the first Monday within the grid.
+  const gridStart = tournamentGridStart();
+  const monday = firstMondayOfTournament();
+  const dayOffsetToMonday = Math.round((monday.getTime() - gridStart.getTime()) / 86400000);
+  const entries: BaselineEntry[] = [];
+  const seen = new Set<string>();
+  for (const id of sel) {
+    const dIdx = dayOfBlock(id) - dayOffsetToMonday;
+    if (dIdx < 0 || dIdx >= 7) continue;
+    const key = `${dIdx}:${slotOfBlock(id)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    entries.push({ dow: dIdx, slot: slotOfBlock(id) });
+  }
+  return entries;
+}
+
+function baselineToSelection(baseline: BaselineEntry[]): Set<number> {
+  const gridStart = tournamentGridStart();
+  const monday = firstMondayOfTournament();
+  const dayOffsetToMonday = Math.round((monday.getTime() - gridStart.getTime()) / 86400000);
+  const s = new Set<number>();
+  for (const b of baseline) {
+    for (let w = 0; w < 4; w++) {
+      const dIdx = dayOffsetToMonday + b.dow + w * 7;
+      if (dIdx >= 0 && dIdx < DAYS) s.add(blockId(dIdx, b.slot));
+    }
+  }
+  return s;
+}
+
+// ---------- Page ----------
+function RegisterPage() {
+  const navigate = useNavigate();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [checking, setChecking] = useState(true);
+
+  // Consent
+  const [ownsExpansions, setOwnsExpansions] = useState(false);
+  const [activeOnDiscord, setActiveOnDiscord] = useState(false);
+  const consented = ownsExpansions && activeOnDiscord;
+
+  // Identity
+  const [direwolf, setDirewolf] = useState("");
+  const [email, setEmail] = useState("");
+  const [discord, setDiscord] = useState("");
+  const [initialDiscord, setInitialDiscord] = useState("");
+
+  // Availability
+  const [selection, setSelection] = useState<Set<number>>(new Set());
+  const [saveBaseline, setSaveBaseline] = useState(false);
+
+  // Load session + prefill
+  useEffect(() => {
+    void (async () => {
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user.id ?? null;
+      setUserId(uid);
+      if (uid) {
+        const emailVal = sess.session?.user.email ?? "";
+        setEmail(emailVal);
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("username, discord_username, availability_baseline")
+          .eq("id", uid)
+          .maybeSingle();
+        if (prof) {
+          if (prof.username) setDirewolf(prof.username);
+          if (prof.discord_username) {
+            setDiscord(prof.discord_username);
+            setInitialDiscord(prof.discord_username);
+          }
+          if (prof.availability_baseline && Array.isArray(prof.availability_baseline)) {
+            setSelection(baselineToSelection(prof.availability_baseline as BaselineEntry[]));
+          }
+        }
+        // If they already have a registration for this tournament, hydrate it too
+        const { data: reg } = await supabase
+          .from("tournament_registrations")
+          .select("direwolf_name, email, discord_username, owns_expansions, active_on_discord, availability")
+          .eq("user_id", uid)
+          .eq("tournament_num", TOURNAMENT_NUMBER)
+          .maybeSingle();
+        if (reg) {
+          setDirewolf(reg.direwolf_name);
+          if (reg.email) setEmail(reg.email);
+          setDiscord(reg.discord_username);
+          setOwnsExpansions(reg.owns_expansions);
+          setActiveOnDiscord(reg.active_on_discord);
+          if (Array.isArray(reg.availability)) {
+            const s = new Set<number>();
+            const base = tournamentGridStart();
+            for (const iso of reg.availability as string[]) {
+              const d = new Date(iso);
+              const dayIdx = Math.floor((d.getTime() - base.getTime()) / 86400000);
+              const slot = d.getHours() * 2 + Math.floor(d.getMinutes() / 30);
+              if (dayIdx >= 0 && dayIdx < DAYS && slot >= 0 && slot < SLOTS) {
+                s.add(blockId(dayIdx, slot));
+              }
+            }
+            setSelection(s);
+          }
+        }
+      }
+      setChecking(false);
+    })();
+  }, []);
+
+  const days = useMemo(() => {
+    const base = tournamentGridStart();
+    return Array.from({ length: DAYS }).map((_, i) => {
+      const d = new Date(base);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }, []);
+
+  // ---------- Drag selection ----------
+  const dragMode = useRef<"add" | "remove" | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  const toggle = (id: number, mode: "add" | "remove") => {
+    setSelection((prev) => {
+      const next = new Set(prev);
+      if (mode === "add") next.add(id); else next.delete(id);
+      return next;
+    });
+  };
+
+  const cellIdFromEvent = (clientX: number, clientY: number): number | null => {
+    const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
+    if (!el) return null;
+    const cell = el.closest("[data-blockid]") as HTMLElement | null;
+    if (!cell) return null;
+    return Number(cell.dataset.blockid);
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    const id = cellIdFromEvent(e.clientX, e.clientY);
+    if (id == null) return;
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    dragMode.current = selection.has(id) ? "remove" : "add";
+    toggle(id, dragMode.current);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragMode.current) return;
+    const id = cellIdFromEvent(e.clientX, e.clientY);
+    if (id == null) return;
+    toggle(id, dragMode.current);
+  };
+
+  const onPointerUp = () => { dragMode.current = null; };
+
+  // ---------- Fast fill helpers ----------
+  const applyDayToRestOfWeek = (dayIdx: number) => {
+    const weekStart = dayIdx - (dayIdx % 7);
+    const daySlots: number[] = [];
+    for (let s = 0; s < SLOTS; s++) if (selection.has(blockId(dayIdx, s))) daySlots.push(s);
+    setSelection((prev) => {
+      const next = new Set(prev);
+      for (let d = weekStart; d < weekStart + 7 && d < DAYS; d++) {
+        if (d === dayIdx) continue;
+        for (let s = 0; s < SLOTS; s++) next.delete(blockId(d, s));
+        for (const s of daySlots) next.add(blockId(d, s));
+      }
+      return next;
+    });
+    toast.success("Copied day across the week");
+  };
+
+  const applyWeek1ToRest = () => {
+    setSelection((prev) => {
+      const next = new Set(prev);
+      for (let d = 0; d < 7; d++) {
+        const slotsForDay: number[] = [];
+        for (let s = 0; s < SLOTS; s++) if (next.has(blockId(d, s))) slotsForDay.push(s);
+        for (let w = 1; w < 4; w++) {
+          const targetDay = d + w * 7;
+          if (targetDay >= DAYS) continue;
+          for (let s = 0; s < SLOTS; s++) next.delete(blockId(targetDay, s));
+          for (const s of slotsForDay) next.add(blockId(targetDay, s));
+        }
+      }
+      return next;
+    });
+    toast.success("Copied Week 1 across all 4 weeks");
+  };
+
+  const clearAll = () => setSelection(new Set());
+
+  // ---------- Submit ----------
+  const [submitting, setSubmitting] = useState(false);
+  const submit = async () => {
+    if (!userId) {
+      toast.error("Please sign in to register.");
+      void navigate({ to: "/auth" });
+      return;
+    }
+    if (!consented) return;
+    if (!direwolf.trim()) { toast.error("Direwolf name required"); return; }
+    if (!discord.trim()) { toast.error("Discord username required"); return; }
+
+    setSubmitting(true);
+    try {
+      const availability = Array.from(selection)
+        .sort((a, b) => a - b)
+        .map((id) => blockToUtcIso(dayOfBlock(id), slotOfBlock(id)));
+
+      const { error: regErr } = await supabase
+        .from("tournament_registrations")
+        .upsert(
+          {
+            user_id: userId,
+            tournament_num: TOURNAMENT_NUMBER,
+            direwolf_name: direwolf.trim(),
+            email: email.trim() || null,
+            discord_username: discord.trim(),
+            owns_expansions: ownsExpansions,
+            active_on_discord: activeOnDiscord,
+            availability,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id,tournament_num" },
+        );
+      if (regErr) throw regErr;
+
+      // Persist discord + baseline to profile if changed / requested
+      const profileUpdates: {
+        discord_username?: string;
+        availability_baseline?: BaselineEntry[];
+      } = {};
+      if (discord.trim() && discord.trim() !== initialDiscord) {
+        profileUpdates.discord_username = discord.trim();
+      }
+      if (saveBaseline) {
+        profileUpdates.availability_baseline = selectionToBaseline(selection);
+      }
+      if (Object.keys(profileUpdates).length) {
+        await supabase.from("profiles").update(profileUpdates as never).eq("id", userId);
+      }
+
+      toast.success(`You're registered for Tournament ${TOURNAMENT_NUMBER}!`);
+      void navigate({ to: "/tournament" });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to register");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen">
+      <Navbar />
+      <div className="container mx-auto px-4 py-6 max-w-6xl space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="font-display text-2xl sm:text-3xl">
+            Register — Tournament {TOURNAMENT_NUMBER}
+          </h1>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/tournament"><ArrowLeft className="size-4 mr-1" />Back</Link>
+          </Button>
+        </div>
+
+        {!userId && !checking && (
+          <Card className="p-6 border-sand/40 bg-card/70">
+            <p className="text-sm text-muted-foreground mb-3">
+              You need to be signed in to register. Your Direwolf name, email, and Discord handle
+              will be pre-filled from your profile.
+            </p>
+            <Button asChild className="bg-sand text-background hover:bg-sand/90">
+              <Link to="/auth">Sign in to continue</Link>
+            </Button>
+          </Card>
+        )}
+
+        {/* Consent */}
+        <Card className="p-6 border-sand/40">
+          <h2 className="font-display text-lg mb-4">Profile & Platform Verification</h2>
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <Checkbox
+                checked={ownsExpansions}
+                onCheckedChange={(v) => setOwnsExpansions(v === true)}
+                className="mt-0.5"
+              />
+              <span className="text-sm leading-relaxed">
+                I confirm that I own <b>Dune Imperium Digital</b> and the required expansions
+                (<b>Uprising</b> and <b>Immortality</b>).
+              </span>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <Checkbox
+                checked={activeOnDiscord}
+                onCheckedChange={(v) => setActiveOnDiscord(v === true)}
+                className="mt-0.5"
+              />
+              <span className="text-sm leading-relaxed">
+                I confirm that I am active on our{" "}
+                <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer" className="text-sand underline">
+                  Strategy Arena Discord Server
+                </a>
+                , have played or am currently playing at least one game to demonstrate ASync
+                progress, and will check in during the July 13 – July 14 window.
+              </span>
+            </label>
+          </div>
+        </Card>
+
+        <fieldset disabled={!consented} className={!consented ? "opacity-60 pointer-events-none" : ""}>
+          {/* Identity */}
+          <Card className="p-6 border-sand/40 space-y-4">
+            <h2 className="font-display text-lg">Player Identity</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="direwolf">Direwolf Name <span className="text-destructive">*</span></Label>
+                <Input id="direwolf" value={direwolf} onChange={(e) => setDirewolf(e.target.value)} placeholder="Your in-game name" />
+              </div>
+              <div>
+                <Label htmlFor="email">Email Address (optional)</Label>
+                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+              </div>
+              <div className="sm:col-span-2">
+                <Label htmlFor="discord">Discord Username <span className="text-destructive">*</span></Label>
+                <Input
+                  id="discord"
+                  value={discord}
+                  onChange={(e) => setDiscord(e.target.value)}
+                  placeholder="remarkable91"
+                />
+                <div className="flex items-start gap-3 mt-2 p-3 rounded-md border border-border bg-background/40">
+                  <img src={discordHint.url} alt="Discord username example" className="h-8 rounded" />
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Enter your unique <b>lowercase Discord handle</b> (e.g. <code>remarkable91</code>),
+                    not your display nickname. This is what shows under your name on Discord.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Availability */}
+          <Card className="p-6 border-sand/40 space-y-4 mt-6">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 className="font-display text-lg">Availability</h2>
+                <p className="text-xs text-muted-foreground">
+                  Drag to select 30-minute blocks (works on touch). Shown in your local timezone.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <Button size="sm" variant="outline" onClick={applyWeek1ToRest}>Apply Week 1 to Weeks 2-4</Button>
+                <Button size="sm" variant="ghost" onClick={clearAll}>Clear</Button>
+                <label className="flex items-center gap-2 text-xs">
+                  <Switch checked={saveBaseline} onCheckedChange={setSaveBaseline} />
+                  Save as my baseline template
+                </label>
+              </div>
+            </div>
+
+            <AvailabilityGrid
+              days={days}
+              selection={selection}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              gridRef={gridRef}
+              onApplyDayToWeek={applyDayToRestOfWeek}
+            />
+          </Card>
+
+          <div className="mt-6 flex justify-end gap-3">
+            <Button
+              size="lg"
+              onClick={submit}
+              disabled={!consented || submitting || !userId}
+              className="bg-sand text-background hover:bg-sand/90 gap-2"
+            >
+              {submitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+              Register for Tournament {TOURNAMENT_NUMBER}
+            </Button>
+          </div>
+        </fieldset>
+
+        <p className="text-xs text-muted-foreground text-center pt-2">
+          Tournament begins {TOURNAMENT_START_DATE}. You can update your registration any time before check-in closes.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Grid component ----------
+function AvailabilityGrid({
+  days, selection, onPointerDown, onPointerMove, onPointerUp, gridRef, onApplyDayToWeek,
+}: {
+  days: Date[];
+  selection: Set<number>;
+  onPointerDown: (e: React.PointerEvent) => void;
+  onPointerMove: (e: React.PointerEvent) => void;
+  onPointerUp: (e: React.PointerEvent) => void;
+  gridRef: React.RefObject<HTMLDivElement | null>;
+  onApplyDayToWeek: (dayIdx: number) => void;
+}) {
+  const slotLabels = useMemo(() => {
+    const out: string[] = [];
+    for (let h = 0; h < 24; h++) {
+      out.push(`${h.toString().padStart(2, "0")}:00`);
+    }
+    return out;
+  }, []);
+
+  return (
+    <div className="border border-border rounded-md overflow-x-auto">
+      <div
+        ref={gridRef}
+        className="grid select-none"
+        style={{
+          gridTemplateColumns: `56px repeat(${DAYS}, minmax(38px, 1fr))`,
+          touchAction: "none",
+        }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
+        {/* Header row */}
+        <div className="sticky left-0 bg-background z-10 border-b border-r border-border" />
+        {days.map((d, i) => (
+          <div
+            key={i}
+            className="text-[10px] text-center border-b border-border py-1 leading-tight bg-background/70"
+          >
+            <div className="text-muted-foreground">
+              {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            </div>
+            <div className="text-sand font-medium">
+              {d.toLocaleDateString(undefined, { weekday: "short" })}
+            </div>
+            <button
+              onClick={(e) => { e.preventDefault(); onApplyDayToWeek(i); }}
+              className="text-[9px] text-muted-foreground hover:text-sand underline"
+              title="Apply this day's blocks to the rest of the week"
+              type="button"
+            >
+              copy→week
+            </button>
+          </div>
+        ))}
+
+        {/* Slot rows */}
+        {Array.from({ length: SLOTS }).map((_, slot) => {
+          const isHour = slot % 2 === 0;
+          return (
+            <RowFragment key={slot} slot={slot} isHour={isHour} label={isHour ? slotLabels[slot / 2] : ""} selection={selection} days={days.length} />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RowFragment({ slot, isHour, label, selection, days }: {
+  slot: number; isHour: boolean; label: string; selection: Set<number>; days: number;
+}) {
+  return (
+    <>
+      <div className={`sticky left-0 bg-background z-10 text-[10px] text-muted-foreground px-1 border-r border-border ${isHour ? "border-t" : ""} h-4 flex items-center`}>
+        {isHour ? label : ""}
+      </div>
+      {Array.from({ length: days }).map((_, day) => {
+        const id = blockId(day, slot);
+        const selected = selection.has(id);
+        return (
+          <div
+            key={day}
+            data-blockid={id}
+            className={`h-4 border-r border-border ${isHour ? "border-t" : "border-t border-dashed border-border/40"} ${
+              selected ? "bg-sand" : "bg-background hover:bg-sand/10"
+            }`}
+          />
+        );
+      })}
+    </>
+  );
+}

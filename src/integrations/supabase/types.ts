@@ -195,21 +195,27 @@ export type Database = {
       }
       profiles: {
         Row: {
+          availability_baseline: Json | null
           created_at: string
+          discord_username: string | null
           has_used_reset: boolean
           id: string
           updated_at: string
           username: string | null
         }
         Insert: {
+          availability_baseline?: Json | null
           created_at?: string
+          discord_username?: string | null
           has_used_reset?: boolean
           id: string
           updated_at?: string
           username?: string | null
         }
         Update: {
+          availability_baseline?: Json | null
           created_at?: string
+          discord_username?: string | null
           has_used_reset?: boolean
           id?: string
           updated_at?: string
@@ -256,6 +262,48 @@ export type Database = {
           table_identifier?: string
           tournament_num?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      tournament_registrations: {
+        Row: {
+          active_on_discord: boolean
+          availability: Json
+          created_at: string
+          direwolf_name: string
+          discord_username: string
+          email: string | null
+          id: string
+          owns_expansions: boolean
+          tournament_num: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active_on_discord?: boolean
+          availability?: Json
+          created_at?: string
+          direwolf_name: string
+          discord_username: string
+          email?: string | null
+          id?: string
+          owns_expansions?: boolean
+          tournament_num: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active_on_discord?: boolean
+          availability?: Json
+          created_at?: string
+          direwolf_name?: string
+          discord_username?: string
+          email?: string | null
+          id?: string
+          owns_expansions?: boolean
+          tournament_num?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
