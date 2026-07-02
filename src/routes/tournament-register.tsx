@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Copy, Loader2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import {
   TOURNAMENT_NUMBER,
   TOURNAMENT_START_DATE,
@@ -281,22 +281,6 @@ function RegisterPage() {
   }, []);
   const [weekIdx, setWeekIdx] = useState(0);
 
-  const applyDayToRestOfWeek = (dayIdx: number) => {
-    const weekStart = dayIdx - (dayIdx % 7);
-    const daySlots: number[] = [];
-    for (let s = 0; s < SLOTS; s++) if (selection.has(blockId(dayIdx, s))) daySlots.push(s);
-    setSelection((prev) => {
-      const next = new Set(prev);
-      for (let d = weekStart; d < weekStart + 7 && d < DAYS; d++) {
-        if (d === dayIdx) continue;
-        for (let s = 0; s < SLOTS; s++) next.delete(blockId(d, s));
-        for (const s of daySlots) next.add(blockId(d, s));
-      }
-      return next;
-    });
-    toast.success("Copied day across the week");
-  };
-
   const applyWeek1ToRest = () => {
     setSelection((prev) => {
       const next = new Set(prev);
@@ -341,6 +325,37 @@ function RegisterPage() {
     if (missingPairError) { toast.error(missingPairError); return; }
     if (!direwolf.trim()) { toast.error("Direwolf name required"); return; }
     if (!discord.trim()) { toast.error("Discord username required"); return; }
+
+    // Availability sanity checks
+    const filled = selection.size;
+    const pct = (filled / TOTAL) * 100;
+
+    // Detect first-week-only selection (nothing selected past day 7)
+    let onlyWeek1 = filled > 0;
+    for (const id of selection) {
+      if (dayOfBlock(id) >= 7) { onlyWeek1 = false; break; }
+    }
+    if (onlyWeek1) {
+      const ok = window.confirm(
+        "You only filled availability for Week 1. Copy Week 1 to all 4 weeks? You'll need to click Register again after.",
+      );
+      if (ok) applyWeek1ToRest();
+      else toast.error("Please fill availability for the remaining weeks before registering.");
+      return;
+    }
+
+    if (pct < 5) {
+      toast.error(
+        `Availability too low (${pct.toFixed(1)}%). At least 5% of the schedule is required to register.`,
+      );
+      return;
+    }
+    if (pct < 10) {
+      const ok = window.confirm(
+        `Warning: only ${pct.toFixed(1)}% availability filled. With this little overlap you may not be matched into games. Register anyway?`,
+      );
+      if (!ok) return;
+    }
 
     setSubmitting(true);
     try {
@@ -568,7 +583,6 @@ function RegisterPage() {
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               gridRef={gridRef}
-              onApplyDayToWeek={applyDayToRestOfWeek}
             />
           </Card>
 
@@ -595,7 +609,7 @@ function RegisterPage() {
 
 // ---------- Grid component ----------
 function AvailabilityGrid({
-  days, startDay = 0, visibleDays, selection, onPointerDown, onPointerMove, onPointerUp, gridRef, onApplyDayToWeek,
+  days, startDay = 0, visibleDays, selection, onPointerDown, onPointerMove, onPointerUp, gridRef,
 }: {
   days: Date[];
   startDay?: number;
@@ -605,7 +619,6 @@ function AvailabilityGrid({
   onPointerMove: (e: React.PointerEvent) => void;
   onPointerUp: (e: React.PointerEvent) => void;
   gridRef: React.RefObject<HTMLDivElement | null>;
-  onApplyDayToWeek: (dayIdx: number) => void;
 }) {
   const slotLabels = useMemo(() => {
     const out: string[] = [];
@@ -646,16 +659,6 @@ function AvailabilityGrid({
             <div className="text-sand font-medium">
               {d.toLocaleDateString(undefined, { weekday: "short" })}
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-5 px-1.5 text-[9px] gap-1"
-              onClick={(e) => { e.preventDefault(); onApplyDayToWeek(i); }}
-              title="Apply this day's blocks to the rest of the week"
-              type="button"
-            >
-              <Copy className="size-2.5" /> Copy to week
-            </Button>
           </div>
           );
         })}
