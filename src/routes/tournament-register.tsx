@@ -446,6 +446,23 @@ function RegisterPage() {
               <div>
                 <Label htmlFor="direwolf">Direwolf Name <span className="text-destructive">*</span></Label>
                 <Input id="direwolf" value={direwolf} onChange={(e) => setDirewolf(e.target.value)} placeholder="Your in-game name" />
+                {suggestedDirewolf && (
+                  <p className="text-xs text-destructive mt-1">
+                    Missing Direwolf name. Suggested match:{" "}
+                    <button
+                      type="button"
+                      className="underline font-medium"
+                      onClick={() => setDirewolf(suggestedDirewolf)}
+                    >
+                      {suggestedDirewolf}
+                    </button>
+                  </p>
+                )}
+                {discordFilled && !direwolfFilled && !suggestedDirewolf && (
+                  <p className="text-xs text-destructive mt-1">
+                    Direwolf name required — no match found for "{discord}" in the reference list.
+                  </p>
+                )}
               </div>
               <div>
                 <Label htmlFor="email">Email Address (optional)</Label>
@@ -459,6 +476,23 @@ function RegisterPage() {
                   onChange={(e) => setDiscord(e.target.value)}
                   placeholder="remarkable91"
                 />
+                {suggestedDiscord && (
+                  <p className="text-xs text-destructive mt-1">
+                    Missing Discord username. Suggested match:{" "}
+                    <button
+                      type="button"
+                      className="underline font-medium"
+                      onClick={() => setDiscord(suggestedDiscord)}
+                    >
+                      {suggestedDiscord}
+                    </button>
+                  </p>
+                )}
+                {direwolfFilled && !discordFilled && !suggestedDiscord && (
+                  <p className="text-xs text-destructive mt-1">
+                    Discord username required — no match found for "{direwolf}" in the reference list.
+                  </p>
+                )}
                 <div className="flex items-start gap-3 mt-2 p-3 rounded-md border border-border bg-background/40">
                   <img src={discordHint.url} alt="Discord username example" className="h-8 rounded" />
                   <p className="text-xs text-muted-foreground leading-relaxed">
