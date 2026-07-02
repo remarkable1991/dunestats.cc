@@ -143,18 +143,34 @@ function RegisterPage() {
         if (claimed?.display_name) resolvedName = claimed.display_name;
         if (resolvedName) setDirewolf(resolvedName);
 
-        // If no discord on profile, try to find one from past tournament matches
-        if (!prof?.discord_username && resolvedName) {
-          const { data: tm } = await supabase
-            .from("tournament_matches")
-            .select("discord_username")
-            .ilike("player_name", resolvedName)
-            .not("discord_username", "is", null)
-            .limit(1)
-            .maybeSingle();
-          if (tm?.discord_username) {
-            setDiscord(tm.discord_username);
-            setInitialDiscord(tm.discord_username);
+        // If no discord on profile, try to find one from previous tournaments
+        if (!prof?.discord_username) {
+          const candidates = Array.from(
+            new Set([resolvedName, prof?.username].filter((v): v is string => !!v && v.length > 0)),
+          );
+          let found: string | null = null;
+          for (const name of candidates) {
+            const { data: tm } = await supabase
+              .from("tournament_matches")
+              .select("discord_username")
+              .ilike("player_name", name)
+              .not("discord_username", "is", null)
+              .limit(1)
+              .maybeSingle();
+            if (tm?.discord_username) { found = tm.discord_username; break; }
+            const { data: reg2 } = await supabase
+              .from("tournament_registrations")
+              .select("discord_username")
+              .ilike("direwolf_name", name)
+              .not("discord_username", "is", null)
+              .order("tournament_num", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (reg2?.discord_username) { found = reg2.discord_username; break; }
+          }
+          if (found) {
+            setDiscord(found);
+            setInitialDiscord(found);
           }
         }
 
