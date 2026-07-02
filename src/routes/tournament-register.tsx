@@ -18,6 +18,7 @@ import {
   tournamentGridStart,
 } from "@/lib/tournament-config";
 import discordHint from "@/assets/discord-hint.png.asset.json";
+import { findByDiscord, findByPlayer } from "@/lib/player-discord-map";
 
 export const Route = createFileRoute("/tournament-register")({
   head: () => ({
@@ -308,8 +309,26 @@ function RegisterPage() {
 
   // ---------- Submit ----------
   const [submitting, setSubmitting] = useState(false);
+
+  // Cross-check: if only one of Direwolf / Discord is filled, suggest the other from reference.
+  const direwolfFilled = direwolf.trim().length > 0;
+  const discordFilled = discord.trim().length > 0;
+  const suggestedDiscord = direwolfFilled && !discordFilled ? findByPlayer(direwolf) : null;
+  const suggestedDirewolf = discordFilled && !direwolfFilled ? findByDiscord(discord) : null;
+  const missingPairError =
+    direwolfFilled !== discordFilled
+      ? direwolfFilled
+        ? suggestedDiscord
+          ? `Missing Discord username. Based on your Direwolf name, try: ${suggestedDiscord}`
+          : `Missing Discord username for "${direwolf}". Please enter it manually.`
+        : suggestedDirewolf
+          ? `Missing Direwolf name. Based on your Discord username, try: ${suggestedDirewolf}`
+          : `Missing Direwolf name for "${discord}". Please enter it manually.`
+      : null;
+
   const submit = async () => {
     if (!consented) return;
+    if (missingPairError) { toast.error(missingPairError); return; }
     if (!direwolf.trim()) { toast.error("Direwolf name required"); return; }
     if (!discord.trim()) { toast.error("Discord username required"); return; }
 
@@ -427,6 +446,23 @@ function RegisterPage() {
               <div>
                 <Label htmlFor="direwolf">Direwolf Name <span className="text-destructive">*</span></Label>
                 <Input id="direwolf" value={direwolf} onChange={(e) => setDirewolf(e.target.value)} placeholder="Your in-game name" />
+                {suggestedDirewolf && (
+                  <p className="text-xs text-destructive mt-1">
+                    Missing Direwolf name. Suggested match:{" "}
+                    <button
+                      type="button"
+                      className="underline font-medium"
+                      onClick={() => setDirewolf(suggestedDirewolf)}
+                    >
+                      {suggestedDirewolf}
+                    </button>
+                  </p>
+                )}
+                {discordFilled && !direwolfFilled && !suggestedDirewolf && (
+                  <p className="text-xs text-destructive mt-1">
+                    Direwolf name required — no match found for "{discord}" in the reference list.
+                  </p>
+                )}
               </div>
               <div>
                 <Label htmlFor="email">Email Address (optional)</Label>
@@ -440,6 +476,23 @@ function RegisterPage() {
                   onChange={(e) => setDiscord(e.target.value)}
                   placeholder="remarkable91"
                 />
+                {suggestedDiscord && (
+                  <p className="text-xs text-destructive mt-1">
+                    Missing Discord username. Suggested match:{" "}
+                    <button
+                      type="button"
+                      className="underline font-medium"
+                      onClick={() => setDiscord(suggestedDiscord)}
+                    >
+                      {suggestedDiscord}
+                    </button>
+                  </p>
+                )}
+                {direwolfFilled && !discordFilled && !suggestedDiscord && (
+                  <p className="text-xs text-destructive mt-1">
+                    Discord username required — no match found for "{direwolf}" in the reference list.
+                  </p>
+                )}
                 <div className="flex items-start gap-3 mt-2 p-3 rounded-md border border-border bg-background/40">
                   <img src={discordHint.url} alt="Discord username example" className="h-8 rounded" />
                   <p className="text-xs text-muted-foreground leading-relaxed">
