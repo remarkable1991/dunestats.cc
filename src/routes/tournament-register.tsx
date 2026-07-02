@@ -595,9 +595,11 @@ function RegisterPage() {
 
 // ---------- Grid component ----------
 function AvailabilityGrid({
-  days, selection, onPointerDown, onPointerMove, onPointerUp, gridRef, onApplyDayToWeek,
+  days, startDay = 0, visibleDays, selection, onPointerDown, onPointerMove, onPointerUp, gridRef, onApplyDayToWeek,
 }: {
   days: Date[];
+  startDay?: number;
+  visibleDays: number;
   selection: Set<number>;
   onPointerDown: (e: React.PointerEvent) => void;
   onPointerMove: (e: React.PointerEvent) => void;
@@ -613,13 +615,15 @@ function AvailabilityGrid({
     return out;
   }, []);
 
+  const visible = days.slice(startDay, startDay + visibleDays);
+
   return (
     <div className="border border-border rounded-md overflow-x-auto">
       <div
         ref={gridRef}
         className="grid select-none"
         style={{
-          gridTemplateColumns: `56px repeat(${DAYS}, minmax(38px, 1fr))`,
+          gridTemplateColumns: `56px repeat(${visible.length}, minmax(38px, 1fr))`,
           touchAction: "none",
         }}
         onPointerDown={onPointerDown}
@@ -629,10 +633,12 @@ function AvailabilityGrid({
       >
         {/* Header row */}
         <div className="sticky left-0 bg-background z-10 border-b border-r border-border" />
-        {days.map((d, i) => (
+        {visible.map((d, vi) => {
+          const i = startDay + vi;
+          return (
           <div
             key={i}
-            className="text-[10px] text-center border-b border-border py-1 leading-tight bg-background/70"
+            className="text-[10px] text-center border-b border-border py-1 leading-tight bg-background/70 flex flex-col items-center gap-1"
           >
             <div className="text-muted-foreground">
               {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
@@ -640,22 +646,25 @@ function AvailabilityGrid({
             <div className="text-sand font-medium">
               {d.toLocaleDateString(undefined, { weekday: "short" })}
             </div>
-            <button
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-5 px-1.5 text-[9px] gap-1"
               onClick={(e) => { e.preventDefault(); onApplyDayToWeek(i); }}
-              className="text-[9px] text-muted-foreground hover:text-sand underline"
               title="Apply this day's blocks to the rest of the week"
               type="button"
             >
-              copy→week
-            </button>
+              <Copy className="size-2.5" /> Copy to week
+            </Button>
           </div>
-        ))}
+          );
+        })}
 
         {/* Slot rows */}
         {Array.from({ length: SLOTS }).map((_, slot) => {
           const isHour = slot % 2 === 0;
           return (
-            <RowFragment key={slot} slot={slot} isHour={isHour} label={isHour ? slotLabels[slot / 2] : ""} selection={selection} days={days.length} />
+            <RowFragment key={slot} slot={slot} isHour={isHour} label={isHour ? slotLabels[slot / 2] : ""} selection={selection} startDay={startDay} visibleDays={visible.length} />
           );
         })}
       </div>
@@ -663,15 +672,16 @@ function AvailabilityGrid({
   );
 }
 
-function RowFragment({ slot, isHour, label, selection, days }: {
-  slot: number; isHour: boolean; label: string; selection: Set<number>; days: number;
+function RowFragment({ slot, isHour, label, selection, startDay, visibleDays }: {
+  slot: number; isHour: boolean; label: string; selection: Set<number>; startDay: number; visibleDays: number;
 }) {
   return (
     <>
       <div className={`sticky left-0 bg-background z-10 text-[10px] text-muted-foreground px-1 border-r border-border ${isHour ? "border-t" : ""} h-4 flex items-center`}>
         {isHour ? label : ""}
       </div>
-      {Array.from({ length: days }).map((_, day) => {
+      {Array.from({ length: visibleDays }).map((_, vd) => {
+        const day = startDay + vd;
         const id = blockId(day, slot);
         const selected = selection.has(id);
         return (
