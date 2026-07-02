@@ -143,18 +143,34 @@ function RegisterPage() {
         if (claimed?.display_name) resolvedName = claimed.display_name;
         if (resolvedName) setDirewolf(resolvedName);
 
-        // If no discord on profile, try to find one from past tournament matches
-        if (!prof?.discord_username && resolvedName) {
-          const { data: tm } = await supabase
-            .from("tournament_matches")
-            .select("discord_username")
-            .ilike("player_name", resolvedName)
-            .not("discord_username", "is", null)
-            .limit(1)
-            .maybeSingle();
-          if (tm?.discord_username) {
-            setDiscord(tm.discord_username);
-            setInitialDiscord(tm.discord_username);
+        // If no discord on profile, try to find one from previous tournaments
+        if (!prof?.discord_username) {
+          const candidates = Array.from(
+            new Set([resolvedName, prof?.username].filter((v): v is string => !!v && v.length > 0)),
+          );
+          let found: string | null = null;
+          for (const name of candidates) {
+            const { data: tm } = await supabase
+              .from("tournament_matches")
+              .select("discord_username")
+              .ilike("player_name", name)
+              .not("discord_username", "is", null)
+              .limit(1)
+              .maybeSingle();
+            if (tm?.discord_username) { found = tm.discord_username; break; }
+            const { data: reg2 } = await supabase
+              .from("tournament_registrations")
+              .select("discord_username")
+              .ilike("direwolf_name", name)
+              .not("discord_username", "is", null)
+              .order("tournament_num", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (reg2?.discord_username) { found = reg2.discord_username; break; }
+          }
+          if (found) {
+            setDiscord(found);
+            setInitialDiscord(found);
           }
         }
 
@@ -200,16 +216,11 @@ function RegisterPage() {
   }, []);
 
   // ---------- Drag selection ----------
+  // Rectangle-drag: from anchor cell to current cell, all cells in-between get set.
   const dragMode = useRef<"add" | "remove" | null>(null);
+  const anchorId = useRef<number | null>(null);
+  const baseSelection = useRef<Set<number>>(new Set());
   const gridRef = useRef<HTMLDivElement>(null);
-
-  const toggle = (id: number, mode: "add" | "remove") => {
-    setSelection((prev) => {
-      const next = new Set(prev);
-      if (mode === "add") next.add(id); else next.delete(id);
-      return next;
-    });
-  };
 
   const cellIdFromEvent = (clientX: number, clientY: number): number | null => {
     const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
@@ -219,23 +230,44 @@ function RegisterPage() {
     return Number(cell.dataset.blockid);
   };
 
+  const applyRect = (from: number, to: number, mode: "add" | "remove") => {
+    const d1 = dayOfBlock(from), s1 = slotOfBlock(from);
+    const d2 = dayOfBlock(to), s2 = slotOfBlock(to);
+    const dMin = Math.min(d1, d2), dMax = Math.max(d1, d2);
+    const sMin = Math.min(s1, s2), sMax = Math.max(s1, s2);
+    const next = new Set(baseSelection.current);
+    for (let d = dMin; d <= dMax; d++) {
+      for (let s = sMin; s <= sMax; s++) {
+        const id = blockId(d, s);
+        if (mode === "add") next.add(id);
+        else next.delete(id);
+      }
+    }
+    setSelection(next);
+  };
+
   const onPointerDown = (e: React.PointerEvent) => {
     const id = cellIdFromEvent(e.clientX, e.clientY);
     if (id == null) return;
     e.preventDefault();
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     dragMode.current = selection.has(id) ? "remove" : "add";
-    toggle(id, dragMode.current);
+    anchorId.current = id;
+    baseSelection.current = new Set(selection);
+    applyRect(id, id, dragMode.current);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragMode.current) return;
+    if (!dragMode.current || anchorId.current == null) return;
     const id = cellIdFromEvent(e.clientX, e.clientY);
     if (id == null) return;
-    toggle(id, dragMode.current);
+    applyRect(anchorId.current, id, dragMode.current);
   };
 
-  const onPointerUp = () => { dragMode.current = null; };
+  const onPointerUp = () => {
+    dragMode.current = null;
+    anchorId.current = null;
+  };
 
   // ---------- Fast fill helpers ----------
   const applyDayToRestOfWeek = (dayIdx: number) => {
