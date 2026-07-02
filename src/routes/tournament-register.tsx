@@ -309,8 +309,26 @@ function RegisterPage() {
 
   // ---------- Submit ----------
   const [submitting, setSubmitting] = useState(false);
+
+  // Cross-check: if only one of Direwolf / Discord is filled, suggest the other from reference.
+  const direwolfFilled = direwolf.trim().length > 0;
+  const discordFilled = discord.trim().length > 0;
+  const suggestedDiscord = direwolfFilled && !discordFilled ? findByPlayer(direwolf) : null;
+  const suggestedDirewolf = discordFilled && !direwolfFilled ? findByDiscord(discord) : null;
+  const missingPairError =
+    direwolfFilled !== discordFilled
+      ? direwolfFilled
+        ? suggestedDiscord
+          ? `Missing Discord username. Based on your Direwolf name, try: ${suggestedDiscord}`
+          : `Missing Discord username for "${direwolf}". Please enter it manually.`
+        : suggestedDirewolf
+          ? `Missing Direwolf name. Based on your Discord username, try: ${suggestedDirewolf}`
+          : `Missing Direwolf name for "${discord}". Please enter it manually.`
+      : null;
+
   const submit = async () => {
     if (!consented) return;
+    if (missingPairError) { toast.error(missingPairError); return; }
     if (!direwolf.trim()) { toast.error("Direwolf name required"); return; }
     if (!discord.trim()) { toast.error("Discord username required"); return; }
 
