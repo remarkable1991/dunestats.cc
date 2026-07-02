@@ -271,6 +271,16 @@ function RegisterPage() {
   };
 
   // ---------- Fast fill helpers ----------
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const on = () => setCompact(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  const [weekIdx, setWeekIdx] = useState(0);
+
   const applyDayToRestOfWeek = (dayIdx: number) => {
     const weekStart = dayIdx - (dayIdx % 7);
     const daySlots: number[] = [];
