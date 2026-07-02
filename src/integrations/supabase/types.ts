@@ -277,7 +277,7 @@ export type Database = {
           owns_expansions: boolean
           tournament_num: number
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           active_on_discord?: boolean
@@ -290,7 +290,7 @@ export type Database = {
           owns_expansions?: boolean
           tournament_num: number
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           active_on_discord?: boolean
@@ -303,7 +303,7 @@ export type Database = {
           owns_expansions?: boolean
           tournament_num?: number
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
