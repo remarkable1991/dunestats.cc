@@ -122,8 +122,9 @@ function RegisterPage() {
           .select("username, discord_username, availability_baseline")
           .eq("id", uid)
           .maybeSingle();
+        let resolvedName = "";
         if (prof) {
-          if (prof.username) setDirewolf(prof.username);
+          if (prof.username) resolvedName = prof.username;
           if (prof.discord_username) {
             setDiscord(prof.discord_username);
             setInitialDiscord(prof.discord_username);
@@ -132,6 +133,31 @@ function RegisterPage() {
             setSelection(baselineToSelection(prof.availability_baseline as BaselineEntry[]));
           }
         }
+        // Prefer the player_name they've claimed on the leaderboard
+        const { data: claimed } = await supabase
+          .from("player_ratings")
+          .select("display_name")
+          .eq("claimed_by", uid)
+          .limit(1)
+          .maybeSingle();
+        if (claimed?.display_name) resolvedName = claimed.display_name;
+        if (resolvedName) setDirewolf(resolvedName);
+
+        // If no discord on profile, try to find one from past tournament matches
+        if (!prof?.discord_username && resolvedName) {
+          const { data: tm } = await supabase
+            .from("tournament_matches")
+            .select("discord_username")
+            .ilike("player_name", resolvedName)
+            .not("discord_username", "is", null)
+            .limit(1)
+            .maybeSingle();
+          if (tm?.discord_username) {
+            setDiscord(tm.discord_username);
+            setInitialDiscord(tm.discord_username);
+          }
+        }
+
         // If they already have a registration for this tournament, hydrate it too
         const { data: reg } = await supabase
           .from("tournament_registrations")
@@ -251,11 +277,6 @@ function RegisterPage() {
   // ---------- Submit ----------
   const [submitting, setSubmitting] = useState(false);
   const submit = async () => {
-    if (!userId) {
-      toast.error("Please sign in to register.");
-      void navigate({ to: "/auth" });
-      return;
-    }
     if (!consented) return;
     if (!direwolf.trim()) { toast.error("Direwolf name required"); return; }
     if (!discord.trim()) { toast.error("Discord username required"); return; }
@@ -266,37 +287,39 @@ function RegisterPage() {
         .sort((a, b) => a - b)
         .map((id) => blockToUtcIso(dayOfBlock(id), slotOfBlock(id)));
 
-      const { error: regErr } = await supabase
-        .from("tournament_registrations")
-        .upsert(
-          {
-            user_id: userId,
-            tournament_num: TOURNAMENT_NUMBER,
-            direwolf_name: direwolf.trim(),
-            email: email.trim() || null,
-            discord_username: discord.trim(),
-            owns_expansions: ownsExpansions,
-            active_on_discord: activeOnDiscord,
-            availability,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_id,tournament_num" },
-        );
+      const payload = {
+        user_id: userId,
+        tournament_num: TOURNAMENT_NUMBER,
+        direwolf_name: direwolf.trim(),
+        email: email.trim() || null,
+        discord_username: discord.trim(),
+        owns_expansions: ownsExpansions,
+        active_on_discord: activeOnDiscord,
+        availability,
+        updated_at: new Date().toISOString(),
+      };
+      const { error: regErr } = userId
+        ? await supabase
+            .from("tournament_registrations")
+            .upsert(payload, { onConflict: "user_id,tournament_num" })
+        : await supabase.from("tournament_registrations").insert(payload);
       if (regErr) throw regErr;
 
-      // Persist discord + baseline to profile if changed / requested
-      const profileUpdates: {
-        discord_username?: string;
-        availability_baseline?: BaselineEntry[];
-      } = {};
-      if (discord.trim() && discord.trim() !== initialDiscord) {
-        profileUpdates.discord_username = discord.trim();
-      }
-      if (saveBaseline) {
-        profileUpdates.availability_baseline = selectionToBaseline(selection);
-      }
-      if (Object.keys(profileUpdates).length) {
-        await supabase.from("profiles").update(profileUpdates as never).eq("id", userId);
+      // Persist discord + baseline to profile if signed in
+      if (userId) {
+        const profileUpdates: {
+          discord_username?: string;
+          availability_baseline?: BaselineEntry[];
+        } = {};
+        if (discord.trim() && discord.trim() !== initialDiscord) {
+          profileUpdates.discord_username = discord.trim();
+        }
+        if (saveBaseline) {
+          profileUpdates.availability_baseline = selectionToBaseline(selection);
+        }
+        if (Object.keys(profileUpdates).length) {
+          await supabase.from("profiles").update(profileUpdates as never).eq("id", userId);
+        }
       }
 
       toast.success(`You're registered for Tournament ${TOURNAMENT_NUMBER}!`);
@@ -322,14 +345,12 @@ function RegisterPage() {
         </div>
 
         {!userId && !checking && (
-          <Card className="p-6 border-sand/40 bg-card/70">
-            <p className="text-sm text-muted-foreground mb-3">
-              You need to be signed in to register. Your Direwolf name, email, and Discord handle
-              will be pre-filled from your profile.
+          <Card className="p-4 border-sand/40 bg-card/70">
+            <p className="text-sm text-muted-foreground">
+              Registering as a guest.{" "}
+              <Link to="/auth" className="text-sand underline">Sign in</Link>{" "}
+              to auto-fill your Direwolf name, Discord handle, and saved availability baseline.
             </p>
-            <Button asChild className="bg-sand text-background hover:bg-sand/90">
-              <Link to="/auth">Sign in to continue</Link>
-            </Button>
           </Card>
         )}
 
@@ -432,7 +453,7 @@ function RegisterPage() {
             <Button
               size="lg"
               onClick={submit}
-              disabled={!consented || submitting || !userId}
+              disabled={!consented || submitting}
               className="bg-sand text-background hover:bg-sand/90 gap-2"
             >
               {submitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
