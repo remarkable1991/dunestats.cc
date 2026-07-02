@@ -285,7 +285,10 @@ function RegisterPage() {
       if (regErr) throw regErr;
 
       // Persist discord + baseline to profile if changed / requested
-      const profileUpdates: Record<string, unknown> = {};
+      const profileUpdates: {
+        discord_username?: string;
+        availability_baseline?: BaselineEntry[];
+      } = {};
       if (discord.trim() && discord.trim() !== initialDiscord) {
         profileUpdates.discord_username = discord.trim();
       }
@@ -293,7 +296,7 @@ function RegisterPage() {
         profileUpdates.availability_baseline = selectionToBaseline(selection);
       }
       if (Object.keys(profileUpdates).length) {
-        await supabase.from("profiles").update(profileUpdates).eq("id", userId);
+        await supabase.from("profiles").update(profileUpdates as never).eq("id", userId);
       }
 
       toast.success(`You're registered for Tournament ${TOURNAMENT_NUMBER}!`);
@@ -455,7 +458,7 @@ function AvailabilityGrid({
   onPointerDown: (e: React.PointerEvent) => void;
   onPointerMove: (e: React.PointerEvent) => void;
   onPointerUp: (e: React.PointerEvent) => void;
-  gridRef: React.RefObject<HTMLDivElement>;
+  gridRef: React.RefObject<HTMLDivElement | null>;
   onApplyDayToWeek: (dayIdx: number) => void;
 }) {
   const slotLabels = useMemo(() => {
