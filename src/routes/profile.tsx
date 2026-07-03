@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { User as UserIcon, UserPlus, BadgeCheck, Trophy, KeyRound, MessageCircle } from "lucide-react";
+import { lovable } from "@/integrations/lovable";
+import { User as UserIcon, UserPlus, BadgeCheck, Trophy, KeyRound, MessageCircle, Link2 } from "lucide-react";
 import { loadChampions, type ChampionMap } from "@/lib/champions";
 import { toast } from "sonner";
 
@@ -29,6 +30,8 @@ function ProfileLanding() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
+  const [identities, setIdentities] = useState<string[]>([]);
+  const [linkingGoogle, setLinkingGoogle] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -38,6 +41,7 @@ function ProfileLanding() {
         return;
       }
       setUserId(uid);
+      setIdentities((data.session?.user.identities ?? []).map((i) => i.provider));
       const { data: rows } = await supabase
         .from("player_ratings")
         .select("player_key, display_name, game_version, elo, games_played")
@@ -72,6 +76,15 @@ function ProfileLanding() {
     } finally {
       setSavingDiscord(false);
     }
+  };
+
+  const linkGoogle = async () => {
+    setLinkingGoogle(true);
+    const res = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: typeof window !== "undefined" ? window.location.origin + "/profile" : undefined,
+    });
+    setLinkingGoogle(false);
+    if ("error" in res && res.error) toast.error(res.error.message);
   };
 
   const updatePassword = async (e: React.FormEvent) => {
@@ -197,6 +210,28 @@ function ProfileLanding() {
             </div>
           </div>
         )}
+
+        <Card className="p-5 border-border/60 bg-card/70 mt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Link2 className="size-5 text-sand" />
+            <h2 className="font-display text-lg">Linked accounts</h2>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="text-sm">
+              <div className="font-medium">Google</div>
+              <div className="text-xs text-muted-foreground">
+                {identities.includes("google") ? "Linked" : "Not linked"}
+              </div>
+            </div>
+            {identities.includes("google") ? (
+              <span className="text-xs text-teal">✓ Connected</span>
+            ) : (
+              <Button onClick={linkGoogle} disabled={linkingGoogle} variant="outline" size="sm">
+                {linkingGoogle ? "Linking…" : "Link Google"}
+              </Button>
+            )}
+          </div>
+        </Card>
 
         <Card className="p-5 border-border/60 bg-card/70 mt-6">
           <div className="flex items-center gap-2 mb-3">
