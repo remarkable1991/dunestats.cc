@@ -129,6 +129,14 @@ function Auth() {
             </Button>
           </form>
 
+          {mode === "signin" && (
+            <p className="text-xs text-center mt-3">
+              <Link to="/forgot-password" className="text-sand hover:underline">
+                Forgot your password?
+              </Link>
+            </p>
+          )}
+
           <p className="text-sm text-center text-muted-foreground mt-4">
             {mode === "signin" ? (
               <>
