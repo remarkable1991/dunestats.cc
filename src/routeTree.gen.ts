@@ -13,9 +13,11 @@ import { Route as UploadRouteImport } from './routes/upload'
 import { Route as TournamentRegisterRouteImport } from './routes/tournament-register'
 import { Route as TournamentRouteImport } from './routes/tournament'
 import { Route as StatsRouteImport } from './routes/stats'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as MatchesRouteImport } from './routes/matches'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ClaimRouteImport } from './routes/claim'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
@@ -41,6 +43,11 @@ const StatsRoute = StatsRouteImport.update({
   path: '/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -54,6 +61,11 @@ const MatchesRoute = MatchesRouteImport.update({
 const LeaderboardRoute = LeaderboardRouteImport.update({
   id: '/leaderboard',
   path: '/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClaimRoute = ClaimRouteImport.update({
@@ -81,9 +93,11 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/claim': typeof ClaimRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/leaderboard': typeof LeaderboardRoute
   '/matches': typeof MatchesRoute
   '/profile': typeof ProfileRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/stats': typeof StatsRoute
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
@@ -94,9 +108,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/claim': typeof ClaimRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/leaderboard': typeof LeaderboardRoute
   '/matches': typeof MatchesRoute
   '/profile': typeof ProfileRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/stats': typeof StatsRoute
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
@@ -108,9 +124,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/claim': typeof ClaimRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/leaderboard': typeof LeaderboardRoute
   '/matches': typeof MatchesRoute
   '/profile': typeof ProfileRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/stats': typeof StatsRoute
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
@@ -123,9 +141,11 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/claim'
+    | '/forgot-password'
     | '/leaderboard'
     | '/matches'
     | '/profile'
+    | '/reset-password'
     | '/stats'
     | '/tournament'
     | '/tournament-register'
@@ -136,9 +156,11 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/claim'
+    | '/forgot-password'
     | '/leaderboard'
     | '/matches'
     | '/profile'
+    | '/reset-password'
     | '/stats'
     | '/tournament'
     | '/tournament-register'
@@ -149,9 +171,11 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/claim'
+    | '/forgot-password'
     | '/leaderboard'
     | '/matches'
     | '/profile'
+    | '/reset-password'
     | '/stats'
     | '/tournament'
     | '/tournament-register'
@@ -163,9 +187,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   ClaimRoute: typeof ClaimRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LeaderboardRoute: typeof LeaderboardRoute
   MatchesRoute: typeof MatchesRoute
   ProfileRoute: typeof ProfileRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   StatsRoute: typeof StatsRoute
   TournamentRoute: typeof TournamentRoute
   TournamentRegisterRoute: typeof TournamentRegisterRoute
@@ -203,6 +229,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StatsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -222,6 +255,13 @@ declare module '@tanstack/react-router' {
       path: '/leaderboard'
       fullPath: '/leaderboard'
       preLoaderRoute: typeof LeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/claim': {
@@ -259,9 +299,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   ClaimRoute: ClaimRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LeaderboardRoute: LeaderboardRoute,
   MatchesRoute: MatchesRoute,
   ProfileRoute: ProfileRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   StatsRoute: StatsRoute,
   TournamentRoute: TournamentRoute,
   TournamentRegisterRoute: TournamentRegisterRoute,

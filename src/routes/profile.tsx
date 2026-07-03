@@ -3,9 +3,12 @@ import { useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { User as UserIcon, UserPlus, BadgeCheck, Trophy } from "lucide-react";
+import { User as UserIcon, UserPlus, BadgeCheck, Trophy, KeyRound, MessageCircle } from "lucide-react";
 import { loadChampions, type ChampionMap } from "@/lib/champions";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({ meta: [{ title: "My profile · Strategy Arena" }] }),
@@ -20,6 +23,12 @@ function ProfileLanding() {
   const [userId, setUserId] = useState<string | null>(null);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [champions, setChampions] = useState<ChampionMap>(new Map());
+  const [discord, setDiscord] = useState("");
+  const [initialDiscord, setInitialDiscord] = useState("");
+  const [savingDiscord, setSavingDiscord] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -34,9 +43,60 @@ function ProfileLanding() {
         .select("player_key, display_name, game_version, elo, games_played")
         .eq("claimed_by", uid);
       setClaims((rows as Claim[]) ?? []);
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("discord_username")
+        .eq("id", uid)
+        .maybeSingle();
+      const d = prof?.discord_username ?? "";
+      setDiscord(d);
+      setInitialDiscord(d);
       setChecking(false);
     });
   }, [navigate]);
+
+  const saveDiscord = async () => {
+    if (!userId) return;
+    setSavingDiscord(true);
+    try {
+      const value = discord.trim();
+      const { error } = await supabase
+        .from("profiles")
+        .update({ discord_username: value || null })
+        .eq("id", userId);
+      if (error) throw error;
+      setInitialDiscord(value);
+      toast.success(value ? "Discord linked" : "Discord unlinked");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSavingDiscord(false);
+    }
+  };
+
+  const updatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords don't match");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success("Password updated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update password");
+    } finally {
+      setSavingPassword(false);
+    }
+  };
 
   useEffect(() => {
     void loadChampions().then((m) => setChampions(new Map(m)));
@@ -137,6 +197,65 @@ function ProfileLanding() {
             </div>
           </div>
         )}
+
+        <Card className="p-5 border-border/60 bg-card/70 mt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <MessageCircle className="size-5 text-sand" />
+            <h2 className="font-display text-lg">Discord</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-3">
+            Link your Discord username so tournament organisers can find you.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              value={discord}
+              onChange={(e) => setDiscord(e.target.value)}
+              placeholder="your-discord-handle"
+              className="flex-1"
+            />
+            <Button
+              onClick={saveDiscord}
+              disabled={savingDiscord || discord.trim() === initialDiscord.trim()}
+            >
+              {savingDiscord ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="p-5 border-border/60 bg-card/70 mt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <KeyRound className="size-5 text-sand" />
+            <h2 className="font-display text-lg">Change password</h2>
+          </div>
+          <form onSubmit={updatePassword} className="space-y-3">
+            <div>
+              <Label htmlFor="new-password">New password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                minLength={6}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="confirm-password">Confirm password</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                minLength={6}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={savingPassword || !newPassword || !confirmPassword}
+            >
+              {savingPassword ? "Updating…" : "Update password"}
+            </Button>
+          </form>
+        </Card>
       </div>
     </div>
   );
