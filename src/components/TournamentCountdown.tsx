@@ -9,6 +9,7 @@ import {
   TOURNAMENT_NUMBER,
   TOURNAMENT_START_DATE,
   checkinEndUtc,
+  tournamentStartUtc,
 } from "@/lib/tournament-config";
 
 type Phase = "pre" | "live" | "active";
@@ -63,6 +64,10 @@ export function TournamentCountdown({ showRegisterCta = true }: { showRegisterCt
     weekday: "short", year: "numeric", month: "short", day: "2-digit",
     hour: "2-digit", minute: "2-digit", timeZoneName: "short",
   });
+  const tournamentStartLocal = tournamentStartUtc().toLocaleString(undefined, {
+    weekday: "short", year: "numeric", month: "short", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", timeZoneName: "short",
+  });
 
   return (
     <Card className="p-6 sm:p-8 border-sand/40 bg-card/60">
@@ -72,6 +77,9 @@ export function TournamentCountdown({ showRegisterCta = true }: { showRegisterCt
             Check-in opens <span className="text-sand font-medium">{checkinLocal}</span>
           </div>
           <CountdownDisplay ms={checkinStart - now} label="Countdown to Check-In Open" />
+          <div className="text-sm text-muted-foreground pt-1">
+            Tournament starts <span className="text-sand font-medium">{tournamentStartLocal}</span>
+          </div>
           <div className="flex flex-wrap gap-3 pt-2">
             <Button asChild size="lg" className="bg-sand text-background hover:bg-sand/90 gap-2">
               <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
