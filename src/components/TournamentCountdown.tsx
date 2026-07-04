@@ -64,6 +64,10 @@ export function TournamentCountdown({ showRegisterCta = true }: { showRegisterCt
     weekday: "short", year: "numeric", month: "short", day: "2-digit",
     hour: "2-digit", minute: "2-digit", timeZoneName: "short",
   });
+  const tournamentStartLocal = tournamentStartUtc().toLocaleString(undefined, {
+    weekday: "short", year: "numeric", month: "short", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", timeZoneName: "short",
+  });
 
   return (
     <Card className="p-6 sm:p-8 border-sand/40 bg-card/60">
