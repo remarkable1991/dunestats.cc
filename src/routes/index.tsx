@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { Trophy, Upload, BarChart3, Sparkles, Medal } from "lucide-react";
 import discordBanner from "@/assets/discord-banner.png.asset.json";
+import { TournamentCountdown } from "@/components/TournamentCountdown";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -43,21 +44,34 @@ const CARDS = [
 ] as const;
 
 function Index() {
-  const [stats, setStats] = useState<{ games: number | null; players: number | null; tournaments: number | null }>({
-    games: null,
-    players: null,
-    tournaments: null,
-  });
+  const [stats, setStats] = useState<{
+    games: number | null;
+    players: number | null;
+    tournaments: number | null;
+    weekGames: number | null;
+  }>({ games: null, players: null, tournaments: null, weekGames: null });
 
   useEffect(() => {
     (async () => {
-      const [g, p] = await Promise.all([
+      const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+      const [g, p, w] = await Promise.all([
         supabase.from("games").select("*", { count: "exact", head: true }),
         supabase.from("player_ratings").select("player_key", { count: "exact", head: true }).eq("game_version", "overall"),
+        supabase.from("games").select("*", { count: "exact", head: true }).gte("created_at", weekAgo),
       ]);
-      const { data: tids } = await supabase.from("tournament_matches").select("tournament_num");
-      const tournamentsCount = tids ? new Set(tids.map((r) => r.tournament_num)).size : 0;
-      setStats({ games: g.count ?? 0, players: p.count ?? 0, tournaments: tournamentsCount });
+      const [{ data: tids }, { data: pastTids }] = await Promise.all([
+        supabase.from("tournament_matches").select("tournament_num"),
+        supabase.from("past_tournament_results").select("tournament_num"),
+      ]);
+      const nums = new Set<number>();
+      (tids ?? []).forEach((r) => nums.add(r.tournament_num));
+      (pastTids ?? []).forEach((r) => nums.add(r.tournament_num));
+      setStats({
+        games: g.count ?? 0,
+        players: p.count ?? 0,
+        tournaments: nums.size,
+        weekGames: w.count ?? 0,
+      });
     })();
   }, []);
 
@@ -106,9 +120,10 @@ function Index() {
           </div>
 
           {/* Stats strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 rounded-xl border border-border/60 bg-card/60 backdrop-blur p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 rounded-xl border border-border/60 bg-card/60 backdrop-blur p-6">
             {[
               { label: "Total Games Logged", value: stats.games },
+              { label: "Games Logged This Week", value: stats.weekGames },
               { label: "Active Competitors", value: stats.players },
               { label: "Tournaments Hosted", value: stats.tournaments },
             ].map((b) => (
@@ -120,6 +135,9 @@ function Index() {
               </div>
             ))}
           </div>
+
+          {/* Upcoming tournament countdown banner */}
+          <TournamentCountdown />
 
           {/* Discord banner */}
           <a
