@@ -188,7 +188,7 @@ function StatsPage() {
     })();
   }, []);
 
-  const { aggregates, totalGames } = useMemo(() => {
+  const { aggregates, totalGames, totalGamesCount } = useMemo(() => {
     let filtered =
       version === "overall"
         ? rows
@@ -365,7 +365,7 @@ function StatsPage() {
                 </div>
               </Card>
               <p className="text-xs text-muted-foreground mt-3">
-                Based on {totalGames} player-seat results in {v.label}.
+                Based on {totalGamesCount} games played in {v.label}.
               </p>
             </TabsContent>
           ))}
