@@ -63,6 +63,7 @@ type Row = {
   leader_name: string | null;
   points: number;
   games: {
+    id: string;
     game_version: GameVersion;
     has_rise_of_ix: boolean | null;
     has_epic_mode: boolean | null;
@@ -174,7 +175,7 @@ function StatsPage() {
       while (true) {
         const { data, error } = await supabase
           .from("game_results")
-          .select("placement, leader_name, points, games!inner(game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders)")
+          .select("placement, leader_name, points, games!inner(id, game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders)")
           .order("id", { ascending: true })
           .range(from, from + PAGE - 1);
         if (error || !data || data.length === 0) break;
@@ -205,6 +206,9 @@ function StatsPage() {
     // Count distinct games is tricky without IDs; pick count = total rows / avg players. Use sum/4 estimate via leader picks summing to total player slots.
     // For pick rate we use share of player-slots in this version.
     const totalSlots = filtered.length;
+    const gameIds = new Set<string>();
+    for (const r of filtered) if (r.games?.id) gameIds.add(r.games.id);
+    const totalGamesCount = gameIds.size;
     const map = new Map<string, Agg>();
     for (const r of filtered) {
       const c = canonicalize(r.leader_name);
@@ -225,7 +229,7 @@ function StatsPage() {
       map.set(key, a);
     }
     const aggregates = Array.from(map.values()).sort((a, b) => b.picks - a.picks);
-    return { aggregates, totalGames: totalSlots };
+    return { aggregates, totalGames: totalSlots, totalGamesCount };
   }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx]);
 
   const sorted = useMemo(() => {
