@@ -78,7 +78,7 @@ export function TournamentCountdown({ showRegisterCta = true }: { showRegisterCt
           </div>
           <CountdownDisplay ms={checkinStart - now} label="Countdown to Check-In Open" />
           <div className="text-sm text-muted-foreground pt-1">
-            Tournament starts <span className="text-sand font-medium">{tournamentStartLocal}</span>
+            Tournament starts 24 hours later at&nbsp;<span className="text-sand font-medium">{tournamentStartLocal}</span>
           </div>
           <div className="flex flex-wrap gap-3 pt-2">
             <Button asChild size="lg" className="bg-sand text-background hover:bg-sand/90 gap-2">
