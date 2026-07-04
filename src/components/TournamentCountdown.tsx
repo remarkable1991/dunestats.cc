@@ -9,6 +9,7 @@ import {
   TOURNAMENT_NUMBER,
   TOURNAMENT_START_DATE,
   checkinEndUtc,
+  tournamentStartUtc,
 } from "@/lib/tournament-config";
 
 type Phase = "pre" | "live" | "active";
