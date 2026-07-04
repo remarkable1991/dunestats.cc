@@ -114,7 +114,7 @@ function CurrentTournament() {
 
   // ===== TP scoring + standings =====
   const standings = useMemo(() => {
-    type Agg = { player: string; discord: string; tp: number; wins: number; placements: number[]; vp: number };
+    type Agg = { player: string; discord: string; tp: number; wins: number; placements: number[]; vp: number; vpShareSum: number };
     const map = new Map<string, Agg>();
     // Group rows by (round, table)
     const tables = new Map<string, Row[]>();
@@ -130,6 +130,7 @@ function CurrentTournament() {
         .sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9));
       if (ranked.length < 4) continue;
       const vps = ranked.map((r) => r.points ?? 0);
+      const tableVpTotal = vps.reduce((s, n) => s + n, 0);
       const tps = [
         20 + (vps[0] - vps[1]),
         Math.max(0, 15 - (vps[0] - vps[1])),
@@ -138,11 +139,12 @@ function CurrentTournament() {
       ].map((v) => Math.max(0, v));
       ranked.forEach((r, i) => {
         const key = r.player_name;
-        const agg = map.get(key) ?? { player: r.player_name, discord: r.discord_username ?? r.player_name, tp: 0, wins: 0, placements: [], vp: 0 };
+        const agg = map.get(key) ?? { player: r.player_name, discord: r.discord_username ?? r.player_name, tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0 };
         agg.tp += tps[i];
         if (r.placement === 1) agg.wins += 1;
         agg.placements.push(r.placement ?? 0);
         agg.vp += r.points ?? 0;
+        agg.vpShareSum += tableVpTotal > 0 ? (r.points ?? 0) / tableVpTotal : 0;
         if (r.discord_username) agg.discord = r.discord_username;
         map.set(key, agg);
       });
@@ -152,19 +154,21 @@ function CurrentTournament() {
       if (!map.has(row.player_name)) {
         map.set(row.player_name, {
           player: row.player_name, discord: row.discord_username ?? row.player_name,
-          tp: 0, wins: 0, placements: [], vp: 0,
+          tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0,
         });
       }
     }
     const list = [...map.values()].map((a) => ({
       ...a,
       avgPlacement: a.placements.length ? a.placements.reduce((s, n) => s + n, 0) / a.placements.length : 4,
+      vpPct: a.placements.length ? (a.vpShareSum / a.placements.length) * 100 : 0,
     }));
     list.sort((a, b) => {
       if (b.tp !== a.tp) return b.tp - a.tp;
       if (b.wins !== a.wins) return b.wins - a.wins;
       if (a.avgPlacement !== b.avgPlacement) return a.avgPlacement - b.avgPlacement;
-      return b.vp - a.vp;
+      if (b.vp !== a.vp) return b.vp - a.vp;
+      return b.vpPct - a.vpPct;
     });
     return list;
   }, [rows]);
@@ -443,6 +447,7 @@ function CurrentTournament() {
                       <th className="text-right py-2 px-2">Wins</th>
                       <th className="text-right py-2 px-2">Avg Place</th>
                       <th className="text-right py-2 px-2">VP</th>
+                      <th className="text-right py-2 px-2">VP %</th>
                       <th className="text-right py-2 px-2">Games</th>
                       <th className="text-left py-2 px-2">Status</th>
                     </tr>
@@ -472,6 +477,7 @@ function CurrentTournament() {
                           <td className="py-2 px-2 text-right font-mono">{s.wins}</td>
                           <td className="py-2 px-2 text-right font-mono">{s.placements.length ? s.avgPlacement.toFixed(2) : "—"}</td>
                           <td className="py-2 px-2 text-right font-mono">{s.vp}</td>
+                          <td className="py-2 px-2 text-right font-mono">{s.placements.length ? `${s.vpPct.toFixed(1)}%` : "—"}</td>
                           <td className="py-2 px-2 text-right font-mono">{s.placements.length}</td>
                           <td className="py-2 px-2 text-xs">
                             {gold && <Badge className="bg-amber-500/80 text-black">Direct to Grand Finals</Badge>}
