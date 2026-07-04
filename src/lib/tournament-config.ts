@@ -12,6 +12,11 @@ export function checkinEndUtc(): Date {
   return new Date(start.getTime() + CHECKIN_WINDOW_HOURS * 3600_000);
 }
 
+export function tournamentStartUtc(): Date {
+  const start = new Date(CHECKIN_START_TIME_UTC);
+  return new Date(start.getTime() + 24 * 3600_000);
+}
+
 /** First Monday on or after the tournament start date (local time). */
 export function firstMondayOfTournament(): Date {
   const [y, m, d] = TOURNAMENT_START_DATE.split("-").map(Number);
