@@ -7,6 +7,8 @@ import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { ScreenshotButton } from "@/components/ScreenshotButton";
 import { useChampions, isChampion, winCount } from "@/lib/champions";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 export const Route = createFileRoute("/players/$key")({
   head: ({ params }) => ({
@@ -38,8 +40,32 @@ type MatchRow = {
     game_version: GameVersion;
     board_version: string | null;
     image_url: string | null;
+    has_rise_of_ix: boolean | null;
+    has_immortality: boolean | null;
+    has_epic_mode: boolean | null;
+    has_base_leaders: boolean | null;
   } | null;
 };
+
+type TriState = "any" | "true" | "false";
+
+function TriSelect({ label, value, onChange }: { label: string; value: TriState; onChange: (v: TriState) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
+      <Select value={value} onValueChange={(v) => onChange(v as TriState)}>
+        <SelectTrigger className="h-8 w-[110px] bg-card/60 border-border/60 text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="any">Any</SelectItem>
+          <SelectItem value="true">Yes</SelectItem>
+          <SelectItem value="false">No</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
 
 function ProfilePage() {
   const { key } = Route.useParams();
@@ -61,7 +87,7 @@ function ProfilePage() {
         .eq("player_key", playerKey),
       supabase
         .from("game_results")
-        .select("placement, player_name, leader_name, points, games!inner(id, created_at, game_version, board_version, image_url)")
+        .select("placement, player_name, leader_name, points, games!inner(id, created_at, game_version, board_version, image_url, has_rise_of_ix, has_immortality, has_epic_mode, has_base_leaders)")
         .ilike("player_name", playerKey)
         .order("created_at", { foreignTable: "games", ascending: false })
         .limit(100),
@@ -75,9 +101,35 @@ function ProfilePage() {
   const displayName = ratings[0]?.display_name ?? playerKey;
   const claimed = ratings.some((r) => r.claimed_by);
 
+  const [version, setVersion] = useState<GameVersion>("overall");
+  const [fImmortality, setFImmortality] = useState<TriState>("any");
+  const [fEpic, setFEpic] = useState<TriState>("any");
+  const [fRiseOfIx, setFRiseOfIx] = useState<TriState>("any");
+  const [fBaseLeaders, setFBaseLeaders] = useState<TriState>("any");
+
+  useEffect(() => {
+    if (version !== "ix") setFEpic("any");
+    if (version !== "uprising") { setFRiseOfIx("any"); setFBaseLeaders("any"); }
+  }, [version]);
+
+  const filteredMatches = useMemo(() => {
+    const matchBool = (state: TriState, val: boolean | null | undefined) => {
+      if (state === "any") return true;
+      return Boolean(val) === (state === "true");
+    };
+    return matches.filter((m) => {
+      if (version !== "overall" && m.games?.game_version !== version) return false;
+      if (!matchBool(fImmortality, m.games?.has_immortality)) return false;
+      if (version === "ix" && !matchBool(fEpic, m.games?.has_epic_mode)) return false;
+      if (version === "uprising" && !matchBool(fRiseOfIx, m.games?.has_rise_of_ix)) return false;
+      if (version === "uprising" && !matchBool(fBaseLeaders, m.games?.has_base_leaders)) return false;
+      return true;
+    });
+  }, [matches, version, fImmortality, fEpic, fRiseOfIx, fBaseLeaders]);
+
   const leaderStats = useMemo(() => {
     const map = new Map<string, { leader: string; picks: number; wins: number; totalPoints: number }>();
-    for (const m of matches) {
+    for (const m of filteredMatches) {
       const lead = m.leader_name?.trim() || "Unknown";
       const a = map.get(lead) ?? { leader: lead, picks: 0, wins: 0, totalPoints: 0 };
       a.picks += 1;
@@ -85,8 +137,47 @@ function ProfilePage() {
       a.totalPoints += m.points;
       map.set(lead, a);
     }
-    return Array.from(map.values()).sort((a, b) => b.picks - a.picks);
-  }, [matches]);
+    return Array.from(map.values());
+  }, [filteredMatches]);
+
+  type LSortKey = "leader" | "picks" | "wins" | "winPct" | "avgPts";
+  const [lSortKey, setLSortKey] = useState<LSortKey | null>("picks");
+  const [lSortDir, setLSortDir] = useState<"desc" | "asc" | null>("desc");
+  function cycleLSort(k: LSortKey) {
+    if (lSortKey !== k) { setLSortKey(k); setLSortDir(k === "leader" ? "asc" : "desc"); }
+    else if (lSortDir === "desc") setLSortDir("asc");
+    else if (lSortDir === "asc") { setLSortKey(null); setLSortDir(null); }
+  }
+  const sortedLeaderStats = useMemo(() => {
+    if (!lSortKey || !lSortDir) return leaderStats;
+    const dir = lSortDir === "desc" ? -1 : 1;
+    const arr = [...leaderStats];
+    arr.sort((a, b) => {
+      if (lSortKey === "leader") return a.leader.localeCompare(b.leader) * (dir === -1 ? -1 : 1);
+      const score = (x: typeof a) => {
+        if (lSortKey === "picks") return x.picks;
+        if (lSortKey === "wins") return x.wins;
+        if (lSortKey === "winPct") return x.picks ? x.wins / x.picks : 0;
+        return x.picks ? x.totalPoints / x.picks : 0;
+      };
+      const av = score(a), bv = score(b);
+      if (av === bv) return a.leader.localeCompare(b.leader);
+      return av < bv ? dir : -dir;
+    });
+    return arr;
+  }, [leaderStats, lSortKey, lSortDir]);
+  function LSortTh({ label, k, align = "right", className = "" }: { label: string; k: LSortKey; align?: "left" | "right"; className?: string }) {
+    const active = lSortKey === k;
+    const Icon = active ? (lSortDir === "desc" ? ArrowDown : ArrowUp) : ArrowUpDown;
+    return (
+      <th className={`px-4 py-2 text-${align} ${className}`}>
+        <button type="button" onClick={() => cycleLSort(k)}
+          className={`inline-flex items-center gap-1 ${align === "right" ? "ml-auto" : ""} hover:text-sand transition-colors ${active ? "text-sand" : ""}`}>
+          {label}<Icon className={`size-3 ${active ? "opacity-100" : "opacity-40"}`} />
+        </button>
+      </th>
+    );
+  }
 
   type MSortKey = "date" | "placement" | "points";
   const [sortKey, setSortKey] = useState<MSortKey | null>("date");
@@ -197,19 +288,37 @@ function ProfilePage() {
             <h2 className="font-display text-xl mb-3 flex items-center gap-2">
               <Medal className="size-5 text-sand" /> Leaders played
             </h2>
+            <div className="flex flex-wrap items-center gap-3 mb-3">
+              <Tabs value={version} onValueChange={(v) => setVersion(v as GameVersion)}>
+                <TabsList className="bg-card/60 border border-border/60">
+                  {GAME_VERSIONS.map((v) => (
+                    <TabsTrigger key={v.value} value={v.value}
+                      className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">
+                      {v.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+              <div className="flex flex-wrap items-center gap-3 p-2 rounded-md border border-border/60 bg-card/40">
+                <TriSelect label="Immortality" value={fImmortality} onChange={setFImmortality} />
+                {version === "ix" && <TriSelect label="Epic Mode" value={fEpic} onChange={setFEpic} />}
+                {version === "uprising" && <TriSelect label="Rise of Ix" value={fRiseOfIx} onChange={setFRiseOfIx} />}
+                {version === "uprising" && <TriSelect label="Base Leaders" value={fBaseLeaders} onChange={setFBaseLeaders} />}
+              </div>
+            </div>
             <Card className="p-0 overflow-hidden mb-8 border-border/60 bg-card/70">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
-                    <th className="px-4 py-2 text-left">Leader</th>
-                    <th className="px-4 py-2 text-right">Picks</th>
-                    <th className="px-4 py-2 text-right">Wins</th>
-                    <th className="px-4 py-2 text-right">Win %</th>
-                    <th className="px-4 py-2 text-right">Avg pts</th>
+                    <LSortTh label="Leader" k="leader" align="left" />
+                    <LSortTh label="Picks" k="picks" />
+                    <LSortTh label="Wins" k="wins" />
+                    <LSortTh label="Win %" k="winPct" />
+                    <LSortTh label="Avg pts" k="avgPts" />
                   </tr>
                 </thead>
                 <tbody>
-                  {leaderStats.map((a) => (
+                  {sortedLeaderStats.map((a) => (
                     <tr key={a.leader} className="border-t border-border/40">
                       <td className="px-4 py-2 font-medium">{a.leader}</td>
                       <td className="px-4 py-2 text-right tabular-nums">{a.picks}</td>
@@ -222,7 +331,7 @@ function ProfilePage() {
                       </td>
                     </tr>
                   ))}
-                  {leaderStats.length === 0 && (
+                  {sortedLeaderStats.length === 0 && (
                     <tr><td colSpan={5} className="py-6 text-center text-muted-foreground">No matches recorded.</td></tr>
                   )}
                 </tbody>
