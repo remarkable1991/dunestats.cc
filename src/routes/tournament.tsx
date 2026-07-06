@@ -336,7 +336,7 @@ function CurrentTournament() {
       );
       if (!dup) {
         try {
-          await saveGame({
+          const res = await saveGame({
             data: {
               board_version: board,
               has_rise_of_ix: hasIx,
@@ -344,6 +344,7 @@ function CurrentTournament() {
               has_immortality: hasImmortality,
               has_base_leaders: hasBaseLeaders,
               match_screenshot_url: imagePath,
+              tournament_num: TOURNAMENT_NUM,
               results: parsedRows.map((r) => ({
                 placement: r.placement,
                 player_name: r.player_name.trim(),
@@ -352,6 +353,7 @@ function CurrentTournament() {
               })),
             },
           });
+          setLastSave(res);
           toast.success("Results submitted to tournament + global leaderboard!");
         } catch (e) {
           toast.warning(`Tournament saved. Leaderboard skipped: ${e instanceof Error ? e.message : "unknown error"}`);
