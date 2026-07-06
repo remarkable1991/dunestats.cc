@@ -21,6 +21,7 @@ const SaveInput = z.object({
   has_immortality: z.boolean().default(false),
   has_base_leaders: z.boolean().default(false),
   match_screenshot_url: z.string().max(500).optional().nullable(),
+  tournament_num: z.number().int().positive().optional().nullable(),
   results: z.array(ResultRow).min(2).max(8),
 });
 
@@ -137,6 +138,7 @@ export const saveGame = createServerFn({ method: "POST" })
         image_url: data.match_screenshot_url ?? null,
         source: "screenshot",
         created_by: userId,
+        tournament_num: data.tournament_num ?? null,
       })
       .select("id")
       .single();
@@ -224,7 +226,18 @@ export const saveGame = createServerFn({ method: "POST" })
       ),
     );
 
-    return { game_id: gameRow.id, game_version };
+    const deltas = data.results.map((r, i) => ({
+      player_name: r.player_name,
+      placement: r.placement,
+      version_delta: versionDeltas[i],
+      overall_delta: overallDeltas[i],
+    }));
+    return {
+      game_id: gameRow.id,
+      game_version,
+      tournament_num: data.tournament_num ?? null,
+      deltas,
+    };
   });
 
 /** Delete a match and revert the ELO / counters it contributed. */

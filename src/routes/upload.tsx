@@ -17,6 +17,7 @@ import { translateLeader, isCanonicalLeader, CANONICAL_LEADERS } from "@/lib/lea
 import { toast } from "sonner";
 import { Upload as UploadIcon, Loader2, CheckCircle2, Maximize2, GripVertical } from "lucide-react";
 import exampleMatch from "@/assets/example-match.png.asset.json";
+import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 
 export const Route = createFileRoute("/upload")({
   head: () => ({ meta: [{ title: "Upload match · Strategy Arena" }] }),
@@ -56,6 +57,8 @@ function UploadPage() {
   const [duplicateWarn, setDuplicateWarn] = useState(false);
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
   const [checkingDup, setCheckingDup] = useState(false);
+  type SaveResult = Awaited<ReturnType<typeof saveGame>>;
+  const [lastSave, setLastSave] = useState<SaveResult | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -164,7 +167,7 @@ function UploadPage() {
         if (upErr) throw upErr;
         match_screenshot_url = path;
       }
-      await saveGame({
+      const res = await saveGame({
         data: {
           board_version: board,
           has_rise_of_ix: hasIx,
@@ -180,8 +183,8 @@ function UploadPage() {
           })),
         },
       });
+      setLastSave(res);
       toast.success("Match submitted! ELO updated.");
-      navigate({ to: "/leaderboard" });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -459,6 +462,32 @@ function UploadPage() {
               </div>
           </Card>
         </div>
+        {lastSave && (
+          <Card className="p-4 mt-6 border-sand/40 bg-card/70">
+            <div className="flex items-center gap-2 mb-3">
+              <CheckCircle2 className="size-5 text-emerald-400" />
+              <h2 className="font-display text-lg">Match saved</h2>
+              <TournamentTag num={lastSave.tournament_num} />
+              <Button
+                size="sm"
+                variant="outline"
+                className="ml-auto"
+                onClick={() => navigate({ to: "/leaderboard" })}
+              >
+                Go to leaderboard
+              </Button>
+            </div>
+            <ul className="space-y-1 text-sm">
+              {[...lastSave.deltas].sort((a, b) => a.placement - b.placement).map((d, i) => (
+                <li key={i} className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex size-5 items-center justify-center rounded bg-secondary/60 text-[10px] font-bold">{d.placement}</span>
+                  <span className="font-medium">{d.player_name}</span>
+                  <EloDeltaLine version={lastSave.game_version} overall={d.overall_delta} versionDelta={d.version_delta} />
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
       </div>
     </div>
   );

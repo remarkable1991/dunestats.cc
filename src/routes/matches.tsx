@@ -9,6 +9,7 @@ import { deleteGame } from "@/lib/games.functions";
 import { toast } from "sonner";
 import { ListOrdered, Search, Trash2, Loader2, Shield, ChevronLeft, ChevronRight } from "lucide-react";
 import { ScreenshotButton } from "@/components/ScreenshotButton";
+import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 
 export const Route = createFileRoute("/matches")({
   head: () => ({ meta: [{ title: "Matches · Strategy Arena" }] }),
@@ -20,6 +21,8 @@ type ResultRow = {
   player_name: string;
   leader_name: string | null;
   points: number;
+  elo_delta: number | null;
+  elo_delta_overall: number | null;
 };
 type GameRow = {
   id: string;
@@ -32,6 +35,7 @@ type GameRow = {
   has_immortality: boolean;
   has_base_leaders: boolean;
   image_url: string | null;
+  tournament_num: number | null;
   game_results: ResultRow[];
 };
 
@@ -79,7 +83,7 @@ function MatchesPage() {
     let query = supabase
       .from("games")
       .select(
-        "id, created_at, created_by, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, image_url, game_results(placement, player_name, leader_name, points)",
+        "id, created_at, created_by, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, image_url, tournament_num, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall)",
         { count: "exact" },
       )
       .order("created_at", { ascending: false });
@@ -191,6 +195,7 @@ function MatchesPage() {
                 <Card key={g.id} className="p-4 border-border/60 bg-card/70">
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                     <div className="flex flex-wrap items-center gap-2">
+                      <TournamentTag num={g.tournament_num} />
                       {tags.map((t) => (
                         <span key={t} className="text-xs px-2 py-0.5 rounded bg-secondary/60 text-secondary-foreground">
                           {t}
@@ -237,6 +242,7 @@ function MatchesPage() {
                               {r.player_name}
                             </Link>
                             <div className="text-xs text-muted-foreground truncate">{r.leader_name}</div>
+                            <EloDeltaLine version={g.game_version} overall={r.elo_delta_overall} versionDelta={r.elo_delta} />
                           </div>
                         </div>
                         <span className="font-display text-sand tabular-nums">{r.points}</span>

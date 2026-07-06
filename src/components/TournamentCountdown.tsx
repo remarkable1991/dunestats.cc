@@ -51,7 +51,9 @@ export function TournamentAnnouncement() {
 
 export function TournamentCountdown({ showRegisterCta = true }: { showRegisterCta?: boolean }) {
   const [now, setNow] = useState(() => Date.now());
+  const [mounted, setMounted] = useState(false);
   useEffect(() => {
+    setMounted(true);
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, []);
@@ -60,14 +62,18 @@ export function TournamentCountdown({ showRegisterCta = true }: { showRegisterCt
   const checkinEnd = checkinEndUtc().getTime();
   const phase: Phase = now < checkinStart ? "pre" : now < checkinEnd ? "live" : "active";
 
-  const checkinLocal = new Date(CHECKIN_START_TIME_UTC).toLocaleString(undefined, {
-    weekday: "short", year: "numeric", month: "short", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", timeZoneName: "short",
-  });
-  const tournamentStartLocal = tournamentStartUtc().toLocaleString(undefined, {
-    weekday: "short", year: "numeric", month: "short", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", timeZoneName: "short",
-  });
+  const fmt = (d: Date) =>
+    mounted
+      ? d.toLocaleString(undefined, {
+          weekday: "short", year: "numeric", month: "short", day: "2-digit",
+          hour: "2-digit", minute: "2-digit", timeZoneName: "short",
+        })
+      : d.toLocaleString("en-US", {
+          weekday: "short", year: "numeric", month: "short", day: "2-digit",
+          hour: "2-digit", minute: "2-digit", timeZone: "UTC", timeZoneName: "short",
+        });
+  const checkinLocal = fmt(new Date(CHECKIN_START_TIME_UTC));
+  const tournamentStartLocal = fmt(tournamentStartUtc());
 
   return (
     <Card className="p-6 sm:p-8 border-sand/40 bg-card/60">

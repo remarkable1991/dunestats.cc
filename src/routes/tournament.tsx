@@ -23,6 +23,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 import exampleMatch from "@/assets/example-match.png.asset.json";
 import ixIcon from "@/assets/ix.png.asset.json";
 import uprisingIcon from "@/assets/uprising.png.asset.json";
@@ -81,6 +82,8 @@ function CurrentTournament() {
   const [hasImmortality, setHasImmortality] = useState(false);
   const [hasBaseLeaders, setHasBaseLeaders] = useState(false);
   const [tpOpen, setTpOpen] = useState(false);
+  type SaveResult = Awaited<ReturnType<typeof saveGame>>;
+  const [lastSave, setLastSave] = useState<SaveResult | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
@@ -336,7 +339,7 @@ function CurrentTournament() {
       );
       if (!dup) {
         try {
-          await saveGame({
+          const res = await saveGame({
             data: {
               board_version: board,
               has_rise_of_ix: hasIx,
@@ -344,6 +347,7 @@ function CurrentTournament() {
               has_immortality: hasImmortality,
               has_base_leaders: hasBaseLeaders,
               match_screenshot_url: imagePath,
+              tournament_num: TOURNAMENT_NUM,
               results: parsedRows.map((r) => ({
                 placement: r.placement,
                 player_name: r.player_name.trim(),
@@ -352,6 +356,7 @@ function CurrentTournament() {
               })),
             },
           });
+          setLastSave(res);
           toast.success("Results submitted to tournament + global leaderboard!");
         } catch (e) {
           toast.warning(`Tournament saved. Leaderboard skipped: ${e instanceof Error ? e.message : "unknown error"}`);
@@ -666,6 +671,24 @@ function CurrentTournament() {
               <Button onClick={submitResults} disabled={saving || !userId || parsedRows.length === 0} className="mt-4">
                 {saving ? <><Loader2 className="size-4 animate-spin" /> Submitting…</> : <><CheckCircle2 className="size-4" /> Submit to {round} · {tableId}</>}
               </Button>
+              {lastSave && (
+                <div className="mt-4 rounded-md border border-sand/30 bg-background/40 p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="size-4 text-emerald-400" />
+                    <span className="text-sm font-medium">Saved to leaderboard</span>
+                    <TournamentTag num={lastSave.tournament_num} />
+                  </div>
+                  <ul className="space-y-1 text-sm">
+                    {[...lastSave.deltas].sort((a, b) => a.placement - b.placement).map((d, i) => (
+                      <li key={i} className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex size-5 items-center justify-center rounded bg-secondary/60 text-[10px] font-bold">{d.placement}</span>
+                        <span className="font-medium">{d.player_name}</span>
+                        <EloDeltaLine version={lastSave.game_version} overall={d.overall_delta} versionDelta={d.version_delta} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </Card>
           </>
         )}
