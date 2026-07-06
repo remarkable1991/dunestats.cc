@@ -671,6 +671,24 @@ function CurrentTournament() {
               <Button onClick={submitResults} disabled={saving || !userId || parsedRows.length === 0} className="mt-4">
                 {saving ? <><Loader2 className="size-4 animate-spin" /> Submitting…</> : <><CheckCircle2 className="size-4" /> Submit to {round} · {tableId}</>}
               </Button>
+              {lastSave && (
+                <div className="mt-4 rounded-md border border-sand/30 bg-background/40 p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="size-4 text-emerald-400" />
+                    <span className="text-sm font-medium">Saved to leaderboard</span>
+                    <TournamentTag num={lastSave.tournament_num} />
+                  </div>
+                  <ul className="space-y-1 text-sm">
+                    {[...lastSave.deltas].sort((a, b) => a.placement - b.placement).map((d, i) => (
+                      <li key={i} className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex size-5 items-center justify-center rounded bg-secondary/60 text-[10px] font-bold">{d.placement}</span>
+                        <span className="font-medium">{d.player_name}</span>
+                        <EloDeltaLine version={lastSave.game_version} overall={d.overall_delta} versionDelta={d.version_delta} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </Card>
           </>
         )}
