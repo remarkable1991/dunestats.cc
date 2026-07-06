@@ -367,7 +367,17 @@ function ProfilePage() {
                       <td className="px-4 py-2 font-medium">{m.leader_name ?? "—"}</td>
                       <td className="px-4 py-2 text-sand font-display tabular-nums">{m.points}</td>
                       <td className="px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground">
-                        {m.games?.game_version}
+                        <div className="flex flex-col gap-1 items-start">
+                          <span>{m.games?.game_version}</span>
+                          {m.games && (
+                            <EloDeltaLine
+                              version={m.games.game_version as "base" | "ix" | "uprising"}
+                              overall={m.elo_delta_overall}
+                              versionDelta={m.elo_delta}
+                            />
+                          )}
+                          <TournamentTag num={m.games?.tournament_num ?? null} />
+                        </div>
                       </td>
                       <td className="px-2 py-1 text-right">
                         {m.games?.image_url && <ScreenshotButton url={m.games.image_url} />}
