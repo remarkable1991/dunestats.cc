@@ -71,6 +71,7 @@ export type Database = {
           id: string
           image_url: string | null
           source: string
+          tournament_num: number | null
         }
         Insert: {
           board_version?: string | null
@@ -84,6 +85,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           source?: string
+          tournament_num?: number | null
         }
         Update: {
           board_version?: string | null
@@ -97,6 +99,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           source?: string
+          tournament_num?: number | null
         }
         Relationships: []
       }
