@@ -23,6 +23,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 import exampleMatch from "@/assets/example-match.png.asset.json";
 import ixIcon from "@/assets/ix.png.asset.json";
 import uprisingIcon from "@/assets/uprising.png.asset.json";
@@ -81,6 +82,8 @@ function CurrentTournament() {
   const [hasImmortality, setHasImmortality] = useState(false);
   const [hasBaseLeaders, setHasBaseLeaders] = useState(false);
   const [tpOpen, setTpOpen] = useState(false);
+  type SaveResult = Awaited<ReturnType<typeof saveGame>>;
+  const [lastSave, setLastSave] = useState<SaveResult | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
