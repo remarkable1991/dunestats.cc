@@ -17,6 +17,7 @@ import { translateLeader, isCanonicalLeader, CANONICAL_LEADERS } from "@/lib/lea
 import { toast } from "sonner";
 import { Upload as UploadIcon, Loader2, CheckCircle2, Maximize2, GripVertical } from "lucide-react";
 import exampleMatch from "@/assets/example-match.png.asset.json";
+import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 
 export const Route = createFileRoute("/upload")({
   head: () => ({ meta: [{ title: "Upload match · Strategy Arena" }] }),
@@ -56,6 +57,8 @@ function UploadPage() {
   const [duplicateWarn, setDuplicateWarn] = useState(false);
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
   const [checkingDup, setCheckingDup] = useState(false);
+  type SaveResult = Awaited<ReturnType<typeof saveGame>>;
+  const [lastSave, setLastSave] = useState<SaveResult | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -164,7 +167,7 @@ function UploadPage() {
         if (upErr) throw upErr;
         match_screenshot_url = path;
       }
-      await saveGame({
+      const res = await saveGame({
         data: {
           board_version: board,
           has_rise_of_ix: hasIx,
@@ -180,8 +183,8 @@ function UploadPage() {
           })),
         },
       });
+      setLastSave(res);
       toast.success("Match submitted! ELO updated.");
-      navigate({ to: "/leaderboard" });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
     } finally {
