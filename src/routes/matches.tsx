@@ -52,6 +52,7 @@ function MatchesPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [games, setGames] = useState<GameRow[]>([]);
+  const [uploaders, setUploaders] = useState<Record<string, string>>({});
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -104,6 +105,22 @@ function MatchesPage() {
     }
     setGames(rows);
     setTotal(count ?? 0);
+    const ids = Array.from(
+      new Set(rows.map((g) => g.created_by).filter((v): v is string => !!v)),
+    );
+    if (ids.length) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, username")
+        .in("id", ids);
+      const map: Record<string, string> = {};
+      (profs ?? []).forEach((p) => {
+        if (p.username) map[p.id] = p.username;
+      });
+      setUploaders(map);
+    } else {
+      setUploaders({});
+    }
     setLoading(false);
   };
 
@@ -204,6 +221,22 @@ function MatchesPage() {
                       <span className="text-xs text-muted-foreground">
                         {new Date(g.created_at).toLocaleString()}
                       </span>
+                      {g.created_by && (
+                        <span className="text-xs text-muted-foreground">
+                          · Uploaded by{" "}
+                          {uploaders[g.created_by] ? (
+                            <Link
+                              to="/players/$key"
+                              params={{ key: uploaders[g.created_by].toLowerCase().trim() }}
+                              className="hover:text-sand"
+                            >
+                              {uploaders[g.created_by]}
+                            </Link>
+                          ) : (
+                            <span>unknown</span>
+                          )}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1">
                       {g.image_url && <ScreenshotButton url={g.image_url} />}
