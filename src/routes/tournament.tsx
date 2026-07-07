@@ -380,6 +380,16 @@ function CurrentTournament() {
             <p className="text-muted-foreground">Live standings update as match screenshots are uploaded.</p>
           </div>
           <div className="flex items-center gap-3">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+              className="border-sand/60 text-sand hover:bg-sand/10"
+            >
+              <UploadIcon className="size-4 mr-1" /> Upload now
+            </Button>
             <Label className="text-xs text-muted-foreground">Display:</Label>
             <span className={displayMode === "player" ? "text-sand" : "text-muted-foreground text-sm"}>Direwolf</span>
             <Switch checked={displayMode === "discord"} onCheckedChange={(c) => setDisplayMode(c ? "discord" : "player")} />
