@@ -570,122 +570,166 @@ function CurrentTournament() {
             </Card>
 
             {/* Inline submission panel */}
-            <Card ref={uploadRef as any} className="p-6 border-border/60 bg-card/70 shadow-arena">
-              <h2 className="font-display text-xl mb-4 flex items-center gap-2"><UploadIcon className="size-5 text-sand" /> Submit Table Results</h2>
+            <div ref={uploadRef as any} className="scroll-mt-24">
+              <div className="flex items-center gap-2 mb-4">
+                <UploadIcon className="size-6 text-sand" />
+                <h2 className="font-display text-2xl">Submit Table Results</h2>
+              </div>
+              <p className="text-muted-foreground mb-6 text-sm">
+                Drop your Dune Imperium Digital end-screen screenshot — Round &amp; Table auto-detect from the detected players.
+                Confirm the board version + expansions, then submit.
+              </p>
               {!userId && <p className="text-coral text-sm mb-3">Sign in to submit results.</p>}
-              <div className="grid md:grid-cols-3 gap-3 mb-4">
-                <div>
-                  <Label>Tournament</Label>
-                  <Select value={String(TOURNAMENT_NUM)} disabled>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value={String(TOURNAMENT_NUM)}>{TOURNAMENT_NUM}</SelectItem></SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Round Type</Label>
-                  <Select value={round} onValueChange={setRound}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {[...SWISS_ROUNDS, ...PLAYOFF_ROUNDS].map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Table Identifier</Label>
-                  <Select value={tableId} onValueChange={setTableId}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {TABLE_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <label
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f && f.type.startsWith("image/")) void onFile(f); }}
-                className="flex flex-col items-center justify-center border-2 border-dashed border-border/70 rounded-lg p-6 cursor-pointer hover:border-sand transition-colors bg-background/40"
-              >
-                {preview ? <img src={preview} alt="preview" className="max-h-60 rounded" /> : (
-                  <>
-                    <UploadIcon className="size-6 text-sand mb-2" />
-                    <span className="text-sm text-muted-foreground">Click or drop a screenshot</span>
-                  </>
-                )}
-                <Input type="file" accept="image/*" className="hidden" onChange={(e) => void onFile(e.target.files?.[0] ?? null)} />
-              </label>
-              <div className="mt-3 flex items-start gap-3 rounded-md border border-border/50 bg-background/30 p-2">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <button type="button" className="relative group shrink-0">
-                      <img src={exampleMatch.url} alt="Example end-screen" className="h-16 w-auto rounded border border-border/60 group-hover:border-sand transition" />
-                      <span className="absolute inset-0 flex items-center justify-center bg-background/40 opacity-0 group-hover:opacity-100 rounded">
-                        <Maximize2 className="size-4 text-sand" />
-                      </span>
-                    </button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-4xl p-2">
-                    <img src={exampleMatch.url} alt="Example end-screen" className="w-full h-auto rounded" />
-                  </DialogContent>
-                </Dialog>
-                <p className="text-xs text-muted-foreground">
-                  Example end-screen — Round &amp; Table auto-detect from detected players. Click to expand.
-                </p>
-              </div>
 
-              <div className="grid md:grid-cols-2 gap-4 mt-4">
-                <div>
-                  <Label className="mb-2 block">Board version <span className="text-coral">*</span></Label>
-                  <RadioGroup value={board} onValueChange={(v) => setBoard(v as "base" | "uprising")} className="grid grid-cols-2 gap-2">
-                    <label className="flex items-center gap-2 border border-border/60 rounded-md px-3 py-2 cursor-pointer hover:border-sand">
-                      <RadioGroupItem value="base" /> <span>Base Game</span>
-                    </label>
-                    <label className="flex items-center gap-2 border border-border/60 rounded-md px-3 py-2 cursor-pointer hover:border-sand">
-                      <RadioGroupItem value="uprising" /> <span>Uprising</span>
-                    </label>
-                  </RadioGroup>
-                </div>
-                <div>
-                  <Label className="mb-2 block">Expansions (optional)</Label>
-                  <div className="space-y-1.5 text-sm">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox checked={hasIx} onCheckedChange={(c) => { setHasIx(!!c); if (!c) setHasEpic(false); }} />
-                      Rise of Ix
-                    </label>
-                    <label className={`flex items-center gap-2 ${hasIx ? "cursor-pointer" : "opacity-40 cursor-not-allowed"}`}>
-                      <Checkbox checked={hasEpic} disabled={!hasIx} onCheckedChange={(c) => setHasEpic(!!c)} />
-                      Epic Mode
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox checked={hasImmortality} onCheckedChange={(c) => setHasImmortality(!!c)} />
-                      Immortality
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox checked={hasBaseLeaders} onCheckedChange={(c) => setHasBaseLeaders(!!c)} />
-                      Base Leaders
-                    </label>
+              <div className="grid lg:grid-cols-2 gap-6">
+                <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Screenshot</Label>
+                      <label
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f && f.type.startsWith("image/")) void onFile(f); }}
+                        className="flex flex-col items-center justify-center border-2 border-dashed border-border/70 rounded-lg p-8 cursor-pointer hover:border-sand transition-colors bg-background/40"
+                      >
+                        {preview ? (
+                          <img src={preview} alt="preview" className="max-h-72 rounded shadow-arena" />
+                        ) : (
+                          <>
+                            <UploadIcon className="size-8 text-sand mb-2" />
+                            <span className="text-sm text-muted-foreground text-center">
+                              Click, drag &amp; drop a screenshot (PNG / JPG)
+                            </span>
+                          </>
+                        )}
+                        <Input type="file" accept="image/*" className="hidden" onChange={(e) => void onFile(e.target.files?.[0] ?? null)} />
+                      </label>
+                      <div className="mt-3 flex items-start gap-3 rounded-md border border-border/50 bg-background/30 p-2">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <button type="button" className="relative group shrink-0">
+                              <img src={exampleMatch.url} alt="Example end-screen" className="h-20 w-auto rounded border border-border/60 group-hover:border-sand transition" />
+                              <span className="absolute inset-0 flex items-center justify-center bg-background/40 opacity-0 group-hover:opacity-100 rounded">
+                                <Maximize2 className="size-4 text-sand" />
+                              </span>
+                            </button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-4xl p-2">
+                            <img src={exampleMatch.url} alt="Example end-screen" className="w-full h-auto rounded" />
+                          </DialogContent>
+                        </Dialog>
+                        <p className="text-xs text-muted-foreground">
+                          Example end-screen — your screenshot should look like this. Click to expand.
+                        </p>
+                      </div>
+                      {parsing && (
+                        <p className="text-sm text-sand mt-2 flex items-center gap-2">
+                          <Loader2 className="size-4 animate-spin" /> Analysing screenshot with AI…
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-4 pt-2">
+                      <div>
+                        <Label className="mb-2 block">Board version <span className="text-coral">*</span></Label>
+                        <RadioGroup value={board} onValueChange={(v) => setBoard(v as "base" | "uprising")} className="grid grid-cols-2 gap-2">
+                          <label className="flex items-center gap-2 border border-border/60 rounded-md px-3 py-2 cursor-pointer hover:border-sand">
+                            <RadioGroupItem value="base" /> <span>Base Game</span>
+                          </label>
+                          <label className="flex items-center gap-2 border border-border/60 rounded-md px-3 py-2 cursor-pointer hover:border-sand">
+                            <RadioGroupItem value="uprising" /> <span>Uprising</span>
+                          </label>
+                        </RadioGroup>
+                      </div>
+                      <div>
+                        <Label className="mb-2 block">Expansions (optional)</Label>
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <Checkbox checked={hasIx} onCheckedChange={(c) => { setHasIx(!!c); if (!c) setHasEpic(false); }} />
+                            Rise of Ix
+                          </label>
+                          <label className={`flex items-center gap-2 ${hasIx ? "cursor-pointer" : "opacity-40 cursor-not-allowed"}`}>
+                            <Checkbox checked={hasEpic} disabled={!hasIx} onCheckedChange={(c) => setHasEpic(!!c)} />
+                            Epic Mode <span className="text-xs text-muted-foreground">(requires Rise of Ix)</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <Checkbox checked={hasImmortality} onCheckedChange={(c) => setHasImmortality(!!c)} />
+                            Immortality
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <Checkbox checked={hasBaseLeaders} onCheckedChange={(c) => setHasBaseLeaders(!!c)} />
+                            Base Leaders
+                          </label>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </Card>
+
+                <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
+                  <h2 className="font-display text-lg mb-3">Detected results</h2>
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    <div>
+                      <Label className="text-xs">Tournament</Label>
+                      <Select value={String(TOURNAMENT_NUM)} disabled>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value={String(TOURNAMENT_NUM)}>{TOURNAMENT_NUM}</SelectItem></SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Round Type</Label>
+                      <Select value={round} onValueChange={setRound}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {[...SWISS_ROUNDS, ...PLAYOFF_ROUNDS].map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Table</Label>
+                      <Select value={tableId} onValueChange={setTableId}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {TABLE_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {parsedRows.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">
+                      Upload a screenshot to see detected players here.
+                    </p>
+                  ) : (
+                    <ul className="space-y-1.5 text-sm">
+                      {parsedRows.slice().sort((a, b) => a.placement - b.placement).map((r, i) => (
+                        <li
+                          key={i}
+                          className="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_44px] gap-2 items-center rounded-md px-1 py-1.5"
+                        >
+                          <span className="font-display text-sand text-sm w-4 text-center tabular-nums">{r.placement}</span>
+                          <span className="truncate font-medium">{r.player_name}</span>
+                          <span className="truncate text-muted-foreground">{r.leader_name || "?"}</span>
+                          <span className="text-center font-mono text-sand tabular-nums">{r.points}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <Button
+                    onClick={submitResults}
+                    disabled={saving || !userId || parsedRows.length === 0}
+                    className="w-full mt-4"
+                  >
+                    {saving ? <><Loader2 className="size-4 animate-spin" /> Submitting…</> : <><CheckCircle2 className="size-4" /> Submit to {round} · {tableId}</>}
+                  </Button>
+                </Card>
               </div>
 
-              {parsing && <p className="text-sand text-sm mt-2 flex items-center gap-2"><Loader2 className="size-4 animate-spin" /> Analysing…</p>}
-              {parsedRows.length > 0 && (
-                <div className="mt-3 text-sm">
-                  <p className="text-muted-foreground mb-2">Detected:</p>
-                  <ul className="space-y-1">
-                    {parsedRows.sort((a, b) => a.placement - b.placement).map((r, i) => (
-                      <li key={i} className="font-mono">#{r.placement} — {r.player_name} ({r.leader_name || "?"}) → {r.points} VP</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <Button onClick={submitResults} disabled={saving || !userId || parsedRows.length === 0} className="mt-4">
-                {saving ? <><Loader2 className="size-4 animate-spin" /> Submitting…</> : <><CheckCircle2 className="size-4" /> Submit to {round} · {tableId}</>}
-              </Button>
               {lastSave && (
-                <div className="mt-4 rounded-md border border-sand/30 bg-background/40 p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle2 className="size-4 text-emerald-400" />
-                    <span className="text-sm font-medium">Saved to leaderboard</span>
+                <Card className="p-4 mt-6 border-sand/40 bg-card/70">
+                  <div className="flex items-center gap-2 mb-3">
+                    <CheckCircle2 className="size-5 text-emerald-400" />
+                    <h2 className="font-display text-lg">Match saved</h2>
                     <TournamentTag num={lastSave.tournament_num} />
                   </div>
                   <ul className="space-y-1 text-sm">
@@ -697,9 +741,9 @@ function CurrentTournament() {
                       </li>
                     ))}
                   </ul>
-                </div>
+                </Card>
               )}
-            </Card>
+            </div>
           </>
         )}
       </div>
