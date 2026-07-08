@@ -51,12 +51,24 @@ export function TournamentAnnouncement() {
 
 export function TournamentCountdown({ showRegisterCta = true }: { showRegisterCta?: boolean }) {
   const [mounted, setMounted] = useState(false);
+  const [now, setNow] = useState(0);
   useEffect(() => {
     setMounted(true);
+    setNow(Date.now());
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
   }, []);
 
   const checkinStart = new Date(CHECKIN_START_TIME_UTC).getTime();
   const checkinEnd = checkinEndUtc().getTime();
+  // Before mount, force phase to "pre" so server/client match for future tournaments
+  const phase: Phase = !mounted
+    ? "pre"
+    : now < checkinStart
+      ? "pre"
+      : now < checkinEnd
+        ? "live"
+        : "active";
 
   const checkinLocal = new Date(CHECKIN_START_TIME_UTC).toLocaleString(undefined, {
     weekday: "short", year: "numeric", month: "short", day: "2-digit",
@@ -74,7 +86,11 @@ export function TournamentCountdown({ showRegisterCta = true }: { showRegisterCt
           <div className="text-sm text-muted-foreground">
             Check-in opens <span className="text-sand font-medium">{checkinLocal}</span>
           </div>
-          <CountdownDisplay ms={checkinStart - now} label="Countdown to Check-In Open" />
+          {mounted ? (
+            <CountdownDisplay ms={checkinStart - now} label="Countdown to Check-In Open" />
+          ) : (
+            <div className="text-sm text-muted-foreground italic">Loading countdown…</div>
+          )}
           <div className="text-sm text-muted-foreground pt-1">
             Tournament starts 24 hours later at&nbsp;<span className="text-sand font-medium">{tournamentStartLocal}</span>
           </div>
@@ -101,11 +117,15 @@ export function TournamentCountdown({ showRegisterCta = true }: { showRegisterCt
             <ShieldAlert className="size-5" />
             🚨 CHECK-IN IS NOW LIVE ON OUR DISCORD!
           </div>
-          <CountdownDisplay
-            ms={checkinEnd - now}
-            label="Tournament Matches Begin In"
-            compact
-          />
+          {mounted ? (
+            <CountdownDisplay
+              ms={checkinEnd - now}
+              label="Tournament Matches Begin In"
+              compact
+            />
+          ) : (
+            <div className="text-sm text-muted-foreground italic">Loading countdown…</div>
+          )}
           <div className="flex flex-wrap gap-3 pt-2">
             <Button asChild size="lg" className="bg-sand text-background hover:bg-sand/90 gap-2">
               <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
