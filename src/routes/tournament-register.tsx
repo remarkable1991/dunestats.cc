@@ -400,7 +400,11 @@ function RegisterPage() {
         }
       }
 
-      toast.success(`You're registered for Tournament ${TOURNAMENT_NUMBER}!`);
+      toast.success(
+        alreadyRegistered
+          ? `Registration updated for Tournament ${TOURNAMENT_NUMBER}!`
+          : `You're registered for Tournament ${TOURNAMENT_NUMBER}!`,
+      );
       void navigate({ to: "/tournament" });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to register");
