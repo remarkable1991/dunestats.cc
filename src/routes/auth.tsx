@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
@@ -77,6 +76,7 @@ function Auth() {
 
   const handleGoogle = async () => {
     setLoading(true);
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -88,12 +88,6 @@ function Auth() {
 
     if (error) {
       toast.error(error.message);
-    }
-    setLoading(false);
-    if ("error" in res && res.error) {
-      toast.error(res.error.message);
-    } else if (!("redirected" in res) || !res.redirected) {
-      redirectAfter();
     }
   };
 
