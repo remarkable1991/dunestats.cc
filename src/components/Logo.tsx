@@ -13,8 +13,8 @@ export function Logo({ size = 40, withText = true }: { size?: number; withText?:
       />
       {withText && (
         <div className="hidden sm:flex flex-col leading-tight">
-          <span className="font-display text-lg font-bold tracking-wider text-foreground">
-            STRATEGY <span className="text-coral">A</span><span className="text-teal">RENA</span>
+          <span className="font-display text-lg font-bold tracking-wider">
+            <span className="text-coral">STRATEGY</span> <span className="text-teal">ARENA</span>
           </span>
           <span className="text-[10px] uppercase tracking-[0.2em] text-sand">Where great minds compete</span>
         </div>
