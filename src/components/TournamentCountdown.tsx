@@ -70,14 +70,16 @@ export function TournamentCountdown({ showRegisterCta = true }: { showRegisterCt
         ? "live"
         : "active";
 
-  const checkinLocal = new Date(CHECKIN_START_TIME_UTC).toLocaleString(undefined, {
+  const dateFmt: Intl.DateTimeFormatOptions = {
     weekday: "short", year: "numeric", month: "short", day: "2-digit",
     hour: "2-digit", minute: "2-digit", timeZoneName: "short",
-  });
-  const tournamentStartLocal = tournamentStartUtc().toLocaleString(undefined, {
-    weekday: "short", year: "numeric", month: "short", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", timeZoneName: "short",
-  });
+  };
+  const checkinLocal = mounted
+    ? new Date(CHECKIN_START_TIME_UTC).toLocaleString(undefined, dateFmt)
+    : new Date(CHECKIN_START_TIME_UTC).toLocaleString("en-US", { ...dateFmt, timeZone: "UTC" });
+  const tournamentStartLocal = mounted
+    ? tournamentStartUtc().toLocaleString(undefined, dateFmt)
+    : tournamentStartUtc().toLocaleString("en-US", { ...dateFmt, timeZone: "UTC" });
 
   return (
     <Card className="p-6 sm:p-8 border-sand/40 bg-card/60">
