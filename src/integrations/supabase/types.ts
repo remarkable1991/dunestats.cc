@@ -366,6 +366,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_player_name: {
+        Args: { p_player_key: string; p_reset?: boolean }
+        Returns: Json
+      }
+      delete_game_with_rating_revert: {
+        Args: { p_game_id: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
