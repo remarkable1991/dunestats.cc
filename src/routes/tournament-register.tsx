@@ -108,6 +108,7 @@ function RegisterPage() {
   // Availability
   const [selection, setSelection] = useState<Set<number>>(new Set());
   const [saveBaseline, setSaveBaseline] = useState(false);
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
 
   // Load session + prefill
   useEffect(() => {
@@ -183,6 +184,7 @@ function RegisterPage() {
           .eq("tournament_num", TOURNAMENT_NUMBER)
           .maybeSingle();
         if (reg) {
+          setAlreadyRegistered(true);
           setDirewolf(reg.direwolf_name);
           if (reg.email) setEmail(reg.email);
           setDiscord(reg.discord_username);
@@ -398,7 +400,11 @@ function RegisterPage() {
         }
       }
 
-      toast.success(`You're registered for Tournament ${TOURNAMENT_NUMBER}!`);
+      toast.success(
+        alreadyRegistered
+          ? `Registration updated for Tournament ${TOURNAMENT_NUMBER}!`
+          : `You're registered for Tournament ${TOURNAMENT_NUMBER}!`,
+      );
       void navigate({ to: "/tournament" });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to register");
@@ -594,7 +600,9 @@ function RegisterPage() {
               className="bg-sand text-background hover:bg-sand/90 gap-2"
             >
               {submitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-              Register for Tournament {TOURNAMENT_NUMBER}
+              {alreadyRegistered
+                ? `Update Registration for Tournament ${TOURNAMENT_NUMBER}`
+                : `Register for Tournament ${TOURNAMENT_NUMBER}`}
             </Button>
           </div>
         </fieldset>
