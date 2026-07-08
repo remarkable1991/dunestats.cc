@@ -110,26 +110,6 @@ Rules:
     return out.data;
   });
 
-/** Standard multiplayer ELO update across pairwise placements. K=32 / (N-1). */
-function recomputeElo(
-  current: number[],
-  placements: number[],
-  k = 32,
-): number[] {
-  const n = current.length;
-  const next = [...current];
-  const kp = k / Math.max(1, n - 1);
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n; j++) {
-      if (i === j) continue;
-      const ea = 1 / (1 + Math.pow(10, (current[j] - current[i]) / 400));
-      const sa = placements[i] < placements[j] ? 1 : placements[i] === placements[j] ? 0.5 : 0;
-      next[i] += kp * (sa - ea);
-    }
-  }
-  return next;
-}
-
 export const saveGame = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => SaveInput.parse(d))
