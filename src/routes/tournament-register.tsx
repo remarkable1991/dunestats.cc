@@ -184,6 +184,7 @@ function RegisterPage() {
           .eq("tournament_num", TOURNAMENT_NUMBER)
           .maybeSingle();
         if (reg) {
+          setAlreadyRegistered(true);
           setDirewolf(reg.direwolf_name);
           if (reg.email) setEmail(reg.email);
           setDiscord(reg.discord_username);
