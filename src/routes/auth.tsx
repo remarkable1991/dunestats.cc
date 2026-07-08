@@ -78,7 +78,7 @@ function Auth() {
   const handleGoogle = async () => {
     setLoading(true);
     const res = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: absoluteRedirect,
+      redirect_uri: typeof window === "undefined" ? "/" : new URL("/auth", window.location.origin).toString(),
     });
     setLoading(false);
     if ("error" in res && res.error) {
@@ -96,16 +96,16 @@ function Auth() {
           <h1 className="font-display text-2xl text-center mb-1">
             {mode === "signin" ? "Enter the Arena" : "Join the Arena"}
           </h1>
-          <p className="text-sm text-muted-foreground text-center mb-6">
-            Track your Dune Imperium matches.
-          </p>
+          <p className="text-sm text-muted-foreground text-center mb-6">Track your Dune Imperium matches.</p>
 
           <Button onClick={handleGoogle} disabled={loading} variant="outline" className="w-full mb-4">
             Continue with Google
           </Button>
 
           <div className="relative my-4 text-center">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/60" /></div>
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border/60" />
+            </div>
             <span className="relative bg-card px-2 text-xs uppercase tracking-widest text-muted-foreground">or</span>
           </div>
 
@@ -113,7 +113,12 @@ function Auth() {
             {mode === "signup" && (
               <div>
                 <Label htmlFor="username">Display name</Label>
-                <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Your in-game name" />
+                <Input
+                  id="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Your in-game name"
+                />
               </div>
             )}
             <div>
@@ -122,7 +127,14 @@ function Auth() {
             </div>
             <div>
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Input
+                id="password"
+                type="password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
