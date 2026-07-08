@@ -25,6 +25,27 @@ const SaveInput = z.object({
   results: z.array(ResultRow).min(2).max(8),
 });
 
+const SaveOutput = z.object({
+  game_id: z.string().uuid(),
+  game_version: z.enum(["base", "ix", "uprising"]),
+  tournament_num: z.number().int().positive().nullable(),
+  deltas: z.array(
+    z.object({
+      player_name: z.string(),
+      placement: z.number().int(),
+      version_delta: z.number(),
+      overall_delta: z.number(),
+    }),
+  ),
+});
+
+type SupabaseRpcClient = {
+  rpc: (
+    fn: string,
+    args: Record<string, unknown>,
+  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
+};
+
 /** Call Lovable AI Gateway (Gemini) to OCR the Dune Imperium results card. */
 export const parseScreenshot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -113,131 +134,26 @@ export const saveGame = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => SaveInput.parse(d))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const userId = context.userId;
-
-    // Derive the leaderboard bucket (existing enum: base / ix / uprising)
-    // from the new board + expansion flags.
-    const game_version: "base" | "ix" | "uprising" =
-      data.board_version === "uprising"
-        ? "uprising"
-        : data.has_rise_of_ix
-          ? "ix"
-          : "base";
-
-    // Insert game
-    const { data: gameRow, error: gErr } = await supabaseAdmin
-      .from("games")
-      .insert({
-        game_version,
-        board_version: data.board_version,
-        has_rise_of_ix: data.has_rise_of_ix,
-        has_epic_mode: data.has_epic_mode,
-        has_immortality: data.has_immortality,
-        has_base_leaders: data.has_base_leaders,
-        image_url: data.match_screenshot_url ?? null,
-        source: "screenshot",
-        created_by: userId,
-        tournament_num: data.tournament_num ?? null,
-      })
-      .select("id")
-      .single();
-    if (gErr || !gameRow) throw new Error(gErr?.message ?? "Failed to save game");
-
-    // Insert results
-    const { error: rErr } = await supabaseAdmin.from("game_results").insert(
-      data.results.map((r) => ({
-        game_id: gameRow.id,
-        placement: r.placement,
-        player_name: r.player_name,
-        leader_name: r.leader_name ?? null,
-        points: r.points,
-      })),
-    );
-    if (rErr) throw new Error(rErr.message);
-
-    const keys = data.results.map((r) => r.player_name.toLowerCase().trim());
-    const placements = data.results.map((r) => r.placement);
-
-    // Helper: run ELO update against a given game_version bucket and return per-row deltas.
-    const applyTrack = async (track: "base" | "ix" | "uprising" | "overall") => {
-      const { data: existing } = await supabaseAdmin
-        .from("player_ratings")
-        .select("player_key, elo, games_played, wins, top2, total_points, claimed_by")
-        .eq("game_version", track)
-        .in("player_key", keys);
-      const existingMap = new Map(existing?.map((r) => [r.player_key, r]) ?? []);
-      // Inherit claim from any other version's row so claims apply across all leaderboards.
-      const missingClaim = keys.filter((k) => !existingMap.get(k)?.claimed_by);
-      const inherited = new Map<string, string>();
-      if (missingClaim.length) {
-        const { data: claimRows } = await supabaseAdmin
-          .from("player_ratings")
-          .select("player_key, claimed_by")
-          .in("player_key", missingClaim)
-          .not("claimed_by", "is", null);
-        for (const r of claimRows ?? []) {
-          if (r.claimed_by && !inherited.has(r.player_key)) inherited.set(r.player_key, r.claimed_by);
-        }
-      }
-      const currentElos = keys.map((k) => Number(existingMap.get(k)?.elo ?? 1000));
-      const newElos = recomputeElo(currentElos, placements);
-
-      const upserts = data.results.map((r, i) => {
-        const k = keys[i];
-        const prev = existingMap.get(k);
-        return {
-          player_key: k,
-          display_name: r.player_name,
-          game_version: track,
-          elo: Number(newElos[i].toFixed(2)),
-          games_played: (prev?.games_played ?? 0) + 1,
-          wins: (prev?.wins ?? 0) + (r.placement === 1 ? 1 : 0),
-          top2: (prev?.top2 ?? 0) + (r.placement <= 2 ? 1 : 0),
-          total_points: (prev?.total_points ?? 0) + r.points,
-          claimed_by: prev?.claimed_by ?? inherited.get(k) ?? null,
-          updated_at: new Date().toISOString(),
-        };
-      });
-
-      const { error: uErr } = await supabaseAdmin
-        .from("player_ratings")
-        .upsert(upserts, { onConflict: "player_key,game_version" });
-      if (uErr) throw new Error(uErr.message);
-
-      return newElos.map((e, i) => Number((e - currentElos[i]).toFixed(4)));
-    };
-
-    const versionDeltas = await applyTrack(game_version);
-    const overallDeltas = await applyTrack("overall");
-
-    // Persist per-result ELO deltas for both tracks so deletions can revert ratings.
-    await Promise.all(
-      data.results.map((r, i) =>
-        supabaseAdmin
-          .from("game_results")
-          .update({
-            elo_delta: versionDeltas[i],
-            elo_delta_overall: overallDeltas[i],
-          })
-          .eq("game_id", gameRow.id)
-          .eq("player_name", r.player_name)
-          .eq("placement", r.placement),
-      ),
+    const { data: saved, error } = await (context.supabase as unknown as SupabaseRpcClient).rpc(
+      "save_game_with_ratings",
+      {
+        p_board_version: data.board_version,
+        p_has_rise_of_ix: data.has_rise_of_ix,
+        p_has_epic_mode: data.has_epic_mode,
+        p_has_immortality: data.has_immortality,
+        p_has_base_leaders: data.has_base_leaders,
+        p_match_screenshot_url: data.match_screenshot_url ?? null,
+        p_tournament_num: data.tournament_num ?? null,
+        p_results: data.results,
+      },
     );
 
-    const deltas = data.results.map((r, i) => ({
-      player_name: r.player_name,
-      placement: r.placement,
-      version_delta: versionDeltas[i],
-      overall_delta: overallDeltas[i],
-    }));
-    return {
-      game_id: gameRow.id,
-      game_version,
-      tournament_num: data.tournament_num ?? null,
-      deltas,
-    };
+    if (error) throw new Error(error.message);
+
+    const parsed = SaveOutput.safeParse(saved);
+    if (!parsed.success) throw new Error("Saved match returned an unexpected response.");
+
+    return parsed.data;
   });
 
 /** Delete a match and revert the ELO / counters it contributed. */

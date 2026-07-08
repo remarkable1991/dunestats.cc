@@ -373,6 +373,19 @@ export type Database = {
         }
         Returns: boolean
       }
+      save_game_with_ratings: {
+        Args: {
+          p_board_version: string
+          p_has_base_leaders: boolean
+          p_has_epic_mode: boolean
+          p_has_immortality: boolean
+          p_has_rise_of_ix: boolean
+          p_match_screenshot_url: string
+          p_results: Json
+          p_tournament_num: number
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
