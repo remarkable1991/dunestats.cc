@@ -10,7 +10,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Strategy Arena — Dune Imperium ELO" },
-      { name: "description", content: "Upload screenshots, climb the leaderboard." },
+      { name: "description", content: "Where great minds compete. Dune Imperium tournaments, stats and leaderboards all in one place!" },
     ],
   }),
   component: Index,
