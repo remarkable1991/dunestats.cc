@@ -600,7 +600,9 @@ function RegisterPage() {
               className="bg-sand text-background hover:bg-sand/90 gap-2"
             >
               {submitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-              Register for Tournament {TOURNAMENT_NUMBER}
+              {alreadyRegistered
+                ? `Update Registration for Tournament ${TOURNAMENT_NUMBER}`
+                : `Register for Tournament ${TOURNAMENT_NUMBER}`}
             </Button>
           </div>
         </fieldset>
