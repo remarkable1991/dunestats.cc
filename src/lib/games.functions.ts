@@ -43,7 +43,7 @@ type SupabaseRpcClient = {
   rpc: (
     fn: string,
     args: Record<string, unknown>,
-  ) => Promise<{ data: unknown; error: { message: string } | null }>;
+  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
 };
 
 /** Call Lovable AI Gateway (Gemini) to OCR the Dune Imperium results card. */
@@ -134,7 +134,7 @@ export const saveGame = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => SaveInput.parse(d))
   .handler(async ({ data, context }) => {
-    const { data: saved, error } = await (context.supabase as SupabaseRpcClient).rpc(
+    const { data: saved, error } = await (context.supabase as unknown as SupabaseRpcClient).rpc(
       "save_game_with_ratings",
       {
         p_board_version: data.board_version,
