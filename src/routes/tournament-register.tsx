@@ -18,7 +18,7 @@ import {
   tournamentGridStart,
 } from "@/lib/tournament-config";
 import discordHint from "@/assets/discord-hint.png.asset.json";
-import { findByDiscord, findByPlayer } from "@/lib/player-discord-map";
+
 
 export const Route = createFileRoute("/tournament-register")({
   head: () => ({
