@@ -109,6 +109,8 @@ function RegisterPage() {
   const [selection, setSelection] = useState<Set<number>>(new Set());
   const [saveBaseline, setSaveBaseline] = useState(false);
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  const [discordLinked, setDiscordLinked] = useState(false);
+
 
   // Load session + prefill
   useEffect(() => {
@@ -117,6 +119,11 @@ function RegisterPage() {
       const uid = sess.session?.user.id ?? null;
       setUserId(uid);
       if (uid) {
+        const { data: idData } = await supabase.auth.getUserIdentities();
+        if (idData?.identities?.some((i) => i.provider === "discord")) {
+          setDiscordLinked(true);
+        }
+
         const emailVal = sess.session?.user.email ?? "";
         setEmail(emailVal);
         const { data: prof } = await supabase
@@ -329,15 +336,20 @@ function RegisterPage() {
 
   const linkDiscord = async () => {
     setLinkingDiscord(true);
-    const { error } = await supabase.auth.linkIdentity({
-      provider: "discord",
-      options: {
-        redirectTo: typeof window !== "undefined" ? window.location.href : undefined,
-      },
-    });
+    const redirectTo = typeof window !== "undefined" ? window.location.href : undefined;
+    const { error } = userId
+      ? await supabase.auth.linkIdentity({
+          provider: "discord",
+          options: { redirectTo },
+        })
+      : await supabase.auth.signInWithOAuth({
+          provider: "discord",
+          options: { redirectTo },
+        });
     setLinkingDiscord(false);
     if (error) toast.error(error.message);
   };
+
 
   const submit = async () => {
     if (!consented) return;
@@ -508,7 +520,14 @@ function RegisterPage() {
                   onChange={(e) => setDiscord(e.target.value)}
                   placeholder="remarkable91"
                 />
-                {userId && (
+                {discordLinked ? (
+                  <div className="mt-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1 text-xs font-medium text-green-500">
+                      <CheckCircle2 className="size-3.5" />
+                      Discord linked
+                    </span>
+                  </div>
+                ) : (
                   <div className="mt-2">
                     <Button
                       type="button"
@@ -517,10 +536,11 @@ function RegisterPage() {
                       onClick={linkDiscord}
                       disabled={linkingDiscord}
                     >
-                      {linkingDiscord ? "Linking…" : "Link Discord account"}
+                      {linkingDiscord ? "Linking…" : userId ? "Link Discord account" : "Sign in with Discord"}
                     </Button>
                   </div>
                 )}
+
                 <div className="flex items-start gap-3 mt-2 p-3 rounded-md border border-border bg-background/40">
                   <img src={discordHint.url} alt="Discord username example" className="h-8 rounded" />
                   <p className="text-xs text-muted-foreground leading-relaxed">
