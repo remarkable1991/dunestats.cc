@@ -524,22 +524,18 @@ function RegisterPage() {
                   onChange={(e) => setDiscord(e.target.value)}
                   placeholder="remarkable91"
                 />
-                {suggestedDiscord && (
-                  <p className="text-xs text-destructive mt-1">
-                    Missing Discord username. Suggested match:{" "}
-                    <button
+                {userId && (
+                  <div className="mt-2">
+                    <Button
                       type="button"
-                      className="underline font-medium"
-                      onClick={() => setDiscord(suggestedDiscord)}
+                      variant="outline"
+                      size="sm"
+                      onClick={linkDiscord}
+                      disabled={linkingDiscord}
                     >
-                      {suggestedDiscord}
-                    </button>
-                  </p>
-                )}
-                {direwolfFilled && !discordFilled && !suggestedDiscord && (
-                  <p className="text-xs text-destructive mt-1">
-                    Discord username required — no match found for "{direwolf}" in the reference list.
-                  </p>
+                      {linkingDiscord ? "Linking…" : "Link Discord account"}
+                    </Button>
+                  </div>
                 )}
                 <div className="flex items-start gap-3 mt-2 p-3 rounded-md border border-border bg-background/40">
                   <img src={discordHint.url} alt="Discord username example" className="h-8 rounded" />
@@ -549,6 +545,7 @@ function RegisterPage() {
                   </p>
                 </div>
               </div>
+
             </div>
           </Card>
 
