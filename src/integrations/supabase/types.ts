@@ -154,6 +154,42 @@ export type Database = {
         }
         Relationships: []
       }
+      player_discord_map: {
+        Row: {
+          claimed_by: string | null
+          created_at: string
+          discord_username: string | null
+          display_name: string | null
+          id: number
+          player_key: string | null
+          source: string
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          claimed_by?: string | null
+          created_at?: string
+          discord_username?: string | null
+          display_name?: string | null
+          id?: number
+          player_key?: string | null
+          source?: string
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          claimed_by?: string | null
+          created_at?: string
+          discord_username?: string | null
+          display_name?: string | null
+          id?: number
+          player_key?: string | null
+          source?: string
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
       player_ratings: {
         Row: {
           claimed_by: string | null
