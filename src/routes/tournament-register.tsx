@@ -305,28 +305,45 @@ function RegisterPage() {
 
   // ---------- Submit ----------
   const [submitting, setSubmitting] = useState(false);
+  const [linkingDiscord, setLinkingDiscord] = useState(false);
 
-  // Cross-check: if only one of Direwolf / Discord is filled, suggest the other from reference.
-  const direwolfFilled = direwolf.trim().length > 0;
-  const discordFilled = discord.trim().length > 0;
-  const suggestedDiscord = direwolfFilled && !discordFilled ? findByPlayer(direwolf) : null;
-  const suggestedDirewolf = discordFilled && !direwolfFilled ? findByDiscord(discord) : null;
-  const missingPairError =
-    direwolfFilled !== discordFilled
-      ? direwolfFilled
-        ? suggestedDiscord
-          ? `Missing Discord username. Based on your Direwolf name, try: ${suggestedDiscord}`
-          : `Missing Discord username for "${direwolf}". Please enter it manually.`
-        : suggestedDirewolf
-          ? `Missing Direwolf name. Based on your Discord username, try: ${suggestedDirewolf}`
-          : `Missing Direwolf name for "${discord}". Please enter it manually.`
-      : null;
+  // Auto-fill Discord from player_discord_map when Direwolf is set and Discord is empty
+  useEffect(() => {
+    const name = direwolf.trim();
+    if (!name) return;
+    if (discord.trim()) return;
+    let cancelled = false;
+    void (async () => {
+      const key = name.toLowerCase();
+      const { data, error } = await supabase
+        .from("player_discord_map")
+        .select("discord_username")
+        .or(`player_key.eq.${key},display_name.ilike.${name}`)
+        .limit(2);
+      if (cancelled || error || !data || data.length !== 1) return;
+      const d = (data[0] as { discord_username?: string | null }).discord_username;
+      if (d && !discord.trim()) setDiscord(d);
+    })();
+    return () => { cancelled = true; };
+  }, [direwolf, discord]);
+
+  const linkDiscord = async () => {
+    setLinkingDiscord(true);
+    const { error } = await supabase.auth.linkIdentity({
+      provider: "discord",
+      options: {
+        redirectTo: typeof window !== "undefined" ? window.location.href : undefined,
+      },
+    });
+    setLinkingDiscord(false);
+    if (error) toast.error(error.message);
+  };
 
   const submit = async () => {
     if (!consented) return;
-    if (missingPairError) { toast.error(missingPairError); return; }
     if (!direwolf.trim()) { toast.error("Direwolf name required"); return; }
     if (!discord.trim()) { toast.error("Discord username required"); return; }
+
 
     // Availability sanity checks
     const filled = selection.size;
