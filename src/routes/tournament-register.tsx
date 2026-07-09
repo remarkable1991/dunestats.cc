@@ -119,6 +119,11 @@ function RegisterPage() {
       const uid = sess.session?.user.id ?? null;
       setUserId(uid);
       if (uid) {
+        const { data: idData } = await supabase.auth.getUserIdentities();
+        if (idData?.identities?.some((i) => i.provider === "discord")) {
+          setDiscordLinked(true);
+        }
+
         const emailVal = sess.session?.user.email ?? "";
         setEmail(emailVal);
         const { data: prof } = await supabase
