@@ -91,6 +91,18 @@ function Auth() {
     }
   };
 
+  const handleDiscord = async () => {
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "discord",
+      options: {
+        redirectTo: typeof window === "undefined" ? "/" : absoluteRedirect,
+      },
+    });
+    setLoading(false);
+    if (error) toast.error(error.message);
+  };
+
   return (
     <div className="min-h-screen">
       <Navbar />
