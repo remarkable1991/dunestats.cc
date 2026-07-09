@@ -109,6 +109,8 @@ function RegisterPage() {
   const [selection, setSelection] = useState<Set<number>>(new Set());
   const [saveBaseline, setSaveBaseline] = useState(false);
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  const [discordLinked, setDiscordLinked] = useState(false);
+
 
   // Load session + prefill
   useEffect(() => {
