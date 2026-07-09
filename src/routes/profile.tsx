@@ -274,27 +274,35 @@ function ProfileLanding() {
 
         <Card className="p-5 border-border/60 bg-card/70 mt-6">
           <div className="flex items-center gap-2 mb-3">
-            <MessageCircle className="size-5 text-sand" />
+            <Link2 className="size-5 text-sand" />
             <h2 className="font-display text-lg">Discord</h2>
           </div>
-          <p className="text-sm text-muted-foreground mb-3">
-            Link your Discord username so tournament organisers can find you.
-          </p>
-          <div className="flex gap-2">
-            <Input
-              value={discord}
-              onChange={(e) => setDiscord(e.target.value)}
-              placeholder="your-discord-handle"
-              className="flex-1"
-            />
-            <Button
-              onClick={saveDiscord}
-              disabled={savingDiscord || discord.trim() === initialDiscord.trim()}
-            >
-              {savingDiscord ? "Saving…" : "Save"}
-            </Button>
+          <div className="flex items-center justify-between">
+            <div className="text-sm">
+              <div className="font-medium">Discord</div>
+              <div className="text-xs text-muted-foreground">
+                {discordIdentityId
+                  ? discordUsername
+                    ? `Linked as ${discordUsername}`
+                    : "Linked"
+                  : "Not linked"}
+              </div>
+            </div>
+            {discordIdentityId ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-teal">✓ Connected</span>
+                <Button onClick={unlinkDiscord} disabled={unlinkingDiscord} variant="outline" size="sm">
+                  {unlinkingDiscord ? "Unlinking…" : "Unlink"}
+                </Button>
+              </div>
+            ) : (
+              <Button onClick={linkDiscord} disabled={linkingDiscord} variant="outline" size="sm">
+                {linkingDiscord ? "Linking…" : "Link Discord"}
+              </Button>
+            )}
           </div>
         </Card>
+
 
         <Card className="p-5 border-border/60 bg-card/70 mt-6">
           <div className="flex items-center gap-2 mb-3">
