@@ -34,6 +34,33 @@ function ProfileLanding() {
   const [identities, setIdentities] = useState<string[]>([]);
   const [linkingGoogle, setLinkingGoogle] = useState(false);
 
+  const refreshDiscordIdentity = async (uid: string) => {
+    const { data: ids } = await supabase.auth.getUserIdentities();
+    const list = ids?.identities ?? [];
+    setIdentities(list.map((i) => i.provider));
+    const discord = list.find((i) => i.provider === "discord");
+    if (discord) {
+      const idata = (discord.identity_data ?? {}) as Record<string, unknown>;
+      const uname =
+        (idata.user_name as string | undefined) ||
+        (idata.preferred_username as string | undefined) ||
+        (idata.full_name as string | undefined) ||
+        (idata.name as string | undefined) ||
+        null;
+      setDiscordIdentityId(discord.id);
+      setDiscordUsername(uname);
+      if (uname) {
+        await supabase
+          .from("profiles")
+          .update({ discord_username: uname })
+          .eq("id", uid);
+      }
+    } else {
+      setDiscordIdentityId(null);
+      setDiscordUsername(null);
+    }
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       const uid = data.session?.user.id ?? null;
@@ -42,42 +69,15 @@ function ProfileLanding() {
         return;
       }
       setUserId(uid);
-      setIdentities((data.session?.user.identities ?? []).map((i) => i.provider));
       const { data: rows } = await supabase
         .from("player_ratings")
         .select("player_key, display_name, game_version, elo, games_played")
         .eq("claimed_by", uid);
       setClaims((rows as Claim[]) ?? []);
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("discord_username")
-        .eq("id", uid)
-        .maybeSingle();
-      const d = prof?.discord_username ?? "";
-      setDiscord(d);
-      setInitialDiscord(d);
+      await refreshDiscordIdentity(uid);
       setChecking(false);
     });
   }, [navigate]);
-
-  const saveDiscord = async () => {
-    if (!userId) return;
-    setSavingDiscord(true);
-    try {
-      const value = discord.trim();
-      const { error } = await supabase
-        .from("profiles")
-        .update({ discord_username: value || null })
-        .eq("id", userId);
-      if (error) throw error;
-      setInitialDiscord(value);
-      toast.success(value ? "Discord linked" : "Discord unlinked");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save");
-    } finally {
-      setSavingDiscord(false);
-    }
-  };
 
   const linkGoogle = async () => {
     setLinkingGoogle(true);
@@ -87,6 +87,44 @@ function ProfileLanding() {
     setLinkingGoogle(false);
     if ("error" in res && res.error) toast.error(res.error.message);
   };
+
+  const linkDiscord = async () => {
+    setLinkingDiscord(true);
+    const { error } = await supabase.auth.linkIdentity({
+      provider: "discord",
+      options: {
+        redirectTo: typeof window !== "undefined" ? window.location.origin + "/profile" : undefined,
+      },
+    });
+    setLinkingDiscord(false);
+    if (error) {
+      toast.error(
+        error.message.toLowerCase().includes("already")
+          ? "This Discord account is already linked to another profile."
+          : error.message,
+      );
+    }
+  };
+
+  const unlinkDiscord = async () => {
+    if (!userId) return;
+    const { data: ids } = await supabase.auth.getUserIdentities();
+    const discord = ids?.identities?.find((i) => i.provider === "discord");
+    if (!discord) return;
+    setUnlinkingDiscord(true);
+    try {
+      const { error } = await supabase.auth.unlinkIdentity(discord);
+      if (error) throw error;
+      await supabase.from("profiles").update({ discord_username: null }).eq("id", userId);
+      await refreshDiscordIdentity(userId);
+      toast.success("Discord unlinked");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to unlink");
+    } finally {
+      setUnlinkingDiscord(false);
+    }
+  };
+
 
   const updatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
