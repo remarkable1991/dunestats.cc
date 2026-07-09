@@ -494,24 +494,8 @@ function RegisterPage() {
               <div>
                 <Label htmlFor="direwolf">Direwolf Name <span className="text-destructive">*</span></Label>
                 <Input id="direwolf" value={direwolf} onChange={(e) => setDirewolf(e.target.value)} placeholder="Your in-game name" />
-                {suggestedDirewolf && (
-                  <p className="text-xs text-destructive mt-1">
-                    Missing Direwolf name. Suggested match:{" "}
-                    <button
-                      type="button"
-                      className="underline font-medium"
-                      onClick={() => setDirewolf(suggestedDirewolf)}
-                    >
-                      {suggestedDirewolf}
-                    </button>
-                  </p>
-                )}
-                {discordFilled && !direwolfFilled && !suggestedDirewolf && (
-                  <p className="text-xs text-destructive mt-1">
-                    Direwolf name required — no match found for "{discord}" in the reference list.
-                  </p>
-                )}
               </div>
+
               <div>
                 <Label htmlFor="email">Email Address (optional)</Label>
                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
