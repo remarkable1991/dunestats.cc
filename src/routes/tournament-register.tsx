@@ -336,15 +336,20 @@ function RegisterPage() {
 
   const linkDiscord = async () => {
     setLinkingDiscord(true);
-    const { error } = await supabase.auth.linkIdentity({
-      provider: "discord",
-      options: {
-        redirectTo: typeof window !== "undefined" ? window.location.href : undefined,
-      },
-    });
+    const redirectTo = typeof window !== "undefined" ? window.location.href : undefined;
+    const { error } = userId
+      ? await supabase.auth.linkIdentity({
+          provider: "discord",
+          options: { redirectTo },
+        })
+      : await supabase.auth.signInWithOAuth({
+          provider: "discord",
+          options: { redirectTo },
+        });
     setLinkingDiscord(false);
     if (error) toast.error(error.message);
   };
+
 
   const submit = async () => {
     if (!consented) return;
