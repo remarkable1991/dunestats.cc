@@ -520,7 +520,14 @@ function RegisterPage() {
                   onChange={(e) => setDiscord(e.target.value)}
                   placeholder="remarkable91"
                 />
-                {userId && (
+                {discordLinked ? (
+                  <div className="mt-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1 text-xs font-medium text-green-500">
+                      <CheckCircle2 className="size-3.5" />
+                      Discord linked
+                    </span>
+                  </div>
+                ) : (
                   <div className="mt-2">
                     <Button
                       type="button"
@@ -529,10 +536,11 @@ function RegisterPage() {
                       onClick={linkDiscord}
                       disabled={linkingDiscord}
                     >
-                      {linkingDiscord ? "Linking…" : "Link Discord account"}
+                      {linkingDiscord ? "Linking…" : userId ? "Link Discord account" : "Sign in with Discord"}
                     </Button>
                   </div>
                 )}
+
                 <div className="flex items-start gap-3 mt-2 p-3 rounded-md border border-border bg-background/40">
                   <img src={discordHint.url} alt="Discord username example" className="h-8 rounded" />
                   <p className="text-xs text-muted-foreground leading-relaxed">
