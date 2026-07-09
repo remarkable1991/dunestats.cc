@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
-import { User as UserIcon, UserPlus, BadgeCheck, Trophy, KeyRound, MessageCircle, Link2 } from "lucide-react";
+import { User as UserIcon, UserPlus, BadgeCheck, Trophy, KeyRound, Link2 } from "lucide-react";
 import { loadChampions, type ChampionMap } from "@/lib/champions";
 import { toast } from "sonner";
 
