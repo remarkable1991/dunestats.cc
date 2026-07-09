@@ -18,7 +18,7 @@ import {
   tournamentGridStart,
 } from "@/lib/tournament-config";
 import discordHint from "@/assets/discord-hint.png.asset.json";
-import { findByDiscord, findByPlayer } from "@/lib/player-discord-map";
+
 
 export const Route = createFileRoute("/tournament-register")({
   head: () => ({
@@ -305,28 +305,45 @@ function RegisterPage() {
 
   // ---------- Submit ----------
   const [submitting, setSubmitting] = useState(false);
+  const [linkingDiscord, setLinkingDiscord] = useState(false);
 
-  // Cross-check: if only one of Direwolf / Discord is filled, suggest the other from reference.
-  const direwolfFilled = direwolf.trim().length > 0;
-  const discordFilled = discord.trim().length > 0;
-  const suggestedDiscord = direwolfFilled && !discordFilled ? findByPlayer(direwolf) : null;
-  const suggestedDirewolf = discordFilled && !direwolfFilled ? findByDiscord(discord) : null;
-  const missingPairError =
-    direwolfFilled !== discordFilled
-      ? direwolfFilled
-        ? suggestedDiscord
-          ? `Missing Discord username. Based on your Direwolf name, try: ${suggestedDiscord}`
-          : `Missing Discord username for "${direwolf}". Please enter it manually.`
-        : suggestedDirewolf
-          ? `Missing Direwolf name. Based on your Discord username, try: ${suggestedDirewolf}`
-          : `Missing Direwolf name for "${discord}". Please enter it manually.`
-      : null;
+  // Auto-fill Discord from player_discord_map when Direwolf is set and Discord is empty
+  useEffect(() => {
+    const name = direwolf.trim();
+    if (!name) return;
+    if (discord.trim()) return;
+    let cancelled = false;
+    void (async () => {
+      const key = name.toLowerCase();
+      const { data, error } = await supabase
+        .from("player_discord_map")
+        .select("discord_username")
+        .or(`player_key.eq.${key},display_name.ilike.${name}`)
+        .limit(2);
+      if (cancelled || error || !data || data.length !== 1) return;
+      const d = (data[0] as { discord_username?: string | null }).discord_username;
+      if (d && !discord.trim()) setDiscord(d);
+    })();
+    return () => { cancelled = true; };
+  }, [direwolf, discord]);
+
+  const linkDiscord = async () => {
+    setLinkingDiscord(true);
+    const { error } = await supabase.auth.linkIdentity({
+      provider: "discord",
+      options: {
+        redirectTo: typeof window !== "undefined" ? window.location.href : undefined,
+      },
+    });
+    setLinkingDiscord(false);
+    if (error) toast.error(error.message);
+  };
 
   const submit = async () => {
     if (!consented) return;
-    if (missingPairError) { toast.error(missingPairError); return; }
     if (!direwolf.trim()) { toast.error("Direwolf name required"); return; }
     if (!discord.trim()) { toast.error("Discord username required"); return; }
+
 
     // Availability sanity checks
     const filled = selection.size;
@@ -477,24 +494,8 @@ function RegisterPage() {
               <div>
                 <Label htmlFor="direwolf">Direwolf Name <span className="text-destructive">*</span></Label>
                 <Input id="direwolf" value={direwolf} onChange={(e) => setDirewolf(e.target.value)} placeholder="Your in-game name" />
-                {suggestedDirewolf && (
-                  <p className="text-xs text-destructive mt-1">
-                    Missing Direwolf name. Suggested match:{" "}
-                    <button
-                      type="button"
-                      className="underline font-medium"
-                      onClick={() => setDirewolf(suggestedDirewolf)}
-                    >
-                      {suggestedDirewolf}
-                    </button>
-                  </p>
-                )}
-                {discordFilled && !direwolfFilled && !suggestedDirewolf && (
-                  <p className="text-xs text-destructive mt-1">
-                    Direwolf name required — no match found for "{discord}" in the reference list.
-                  </p>
-                )}
               </div>
+
               <div>
                 <Label htmlFor="email">Email Address (optional)</Label>
                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
@@ -507,22 +508,18 @@ function RegisterPage() {
                   onChange={(e) => setDiscord(e.target.value)}
                   placeholder="remarkable91"
                 />
-                {suggestedDiscord && (
-                  <p className="text-xs text-destructive mt-1">
-                    Missing Discord username. Suggested match:{" "}
-                    <button
+                {userId && (
+                  <div className="mt-2">
+                    <Button
                       type="button"
-                      className="underline font-medium"
-                      onClick={() => setDiscord(suggestedDiscord)}
+                      variant="outline"
+                      size="sm"
+                      onClick={linkDiscord}
+                      disabled={linkingDiscord}
                     >
-                      {suggestedDiscord}
-                    </button>
-                  </p>
-                )}
-                {direwolfFilled && !discordFilled && !suggestedDiscord && (
-                  <p className="text-xs text-destructive mt-1">
-                    Discord username required — no match found for "{direwolf}" in the reference list.
-                  </p>
+                      {linkingDiscord ? "Linking…" : "Link Discord account"}
+                    </Button>
+                  </div>
                 )}
                 <div className="flex items-start gap-3 mt-2 p-3 rounded-md border border-border bg-background/40">
                   <img src={discordHint.url} alt="Discord username example" className="h-8 rounded" />
@@ -532,6 +529,7 @@ function RegisterPage() {
                   </p>
                 </div>
               </div>
+
             </div>
           </Card>
 
