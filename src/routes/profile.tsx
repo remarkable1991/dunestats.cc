@@ -24,9 +24,10 @@ function ProfileLanding() {
   const [userId, setUserId] = useState<string | null>(null);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [champions, setChampions] = useState<ChampionMap>(new Map());
-  const [discord, setDiscord] = useState("");
-  const [initialDiscord, setInitialDiscord] = useState("");
-  const [savingDiscord, setSavingDiscord] = useState(false);
+  const [discordUsername, setDiscordUsername] = useState<string | null>(null);
+  const [discordIdentityId, setDiscordIdentityId] = useState<string | null>(null);
+  const [linkingDiscord, setLinkingDiscord] = useState(false);
+  const [unlinkingDiscord, setUnlinkingDiscord] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
