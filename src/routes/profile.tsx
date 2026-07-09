@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
-import { User as UserIcon, UserPlus, BadgeCheck, Trophy, KeyRound, MessageCircle, Link2 } from "lucide-react";
+import { User as UserIcon, UserPlus, BadgeCheck, Trophy, KeyRound, Link2 } from "lucide-react";
 import { loadChampions, type ChampionMap } from "@/lib/champions";
 import { toast } from "sonner";
 
@@ -24,14 +24,42 @@ function ProfileLanding() {
   const [userId, setUserId] = useState<string | null>(null);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [champions, setChampions] = useState<ChampionMap>(new Map());
-  const [discord, setDiscord] = useState("");
-  const [initialDiscord, setInitialDiscord] = useState("");
-  const [savingDiscord, setSavingDiscord] = useState(false);
+  const [discordUsername, setDiscordUsername] = useState<string | null>(null);
+  const [discordIdentityId, setDiscordIdentityId] = useState<string | null>(null);
+  const [linkingDiscord, setLinkingDiscord] = useState(false);
+  const [unlinkingDiscord, setUnlinkingDiscord] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
   const [identities, setIdentities] = useState<string[]>([]);
   const [linkingGoogle, setLinkingGoogle] = useState(false);
+
+  const refreshDiscordIdentity = async (uid: string) => {
+    const { data: ids } = await supabase.auth.getUserIdentities();
+    const list = ids?.identities ?? [];
+    setIdentities(list.map((i) => i.provider));
+    const discord = list.find((i) => i.provider === "discord");
+    if (discord) {
+      const idata = (discord.identity_data ?? {}) as Record<string, unknown>;
+      const uname =
+        (idata.user_name as string | undefined) ||
+        (idata.preferred_username as string | undefined) ||
+        (idata.full_name as string | undefined) ||
+        (idata.name as string | undefined) ||
+        null;
+      setDiscordIdentityId(discord.id);
+      setDiscordUsername(uname);
+      if (uname) {
+        await supabase
+          .from("profiles")
+          .update({ discord_username: uname })
+          .eq("id", uid);
+      }
+    } else {
+      setDiscordIdentityId(null);
+      setDiscordUsername(null);
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -41,42 +69,15 @@ function ProfileLanding() {
         return;
       }
       setUserId(uid);
-      setIdentities((data.session?.user.identities ?? []).map((i) => i.provider));
       const { data: rows } = await supabase
         .from("player_ratings")
         .select("player_key, display_name, game_version, elo, games_played")
         .eq("claimed_by", uid);
       setClaims((rows as Claim[]) ?? []);
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("discord_username")
-        .eq("id", uid)
-        .maybeSingle();
-      const d = prof?.discord_username ?? "";
-      setDiscord(d);
-      setInitialDiscord(d);
+      await refreshDiscordIdentity(uid);
       setChecking(false);
     });
   }, [navigate]);
-
-  const saveDiscord = async () => {
-    if (!userId) return;
-    setSavingDiscord(true);
-    try {
-      const value = discord.trim();
-      const { error } = await supabase
-        .from("profiles")
-        .update({ discord_username: value || null })
-        .eq("id", userId);
-      if (error) throw error;
-      setInitialDiscord(value);
-      toast.success(value ? "Discord linked" : "Discord unlinked");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save");
-    } finally {
-      setSavingDiscord(false);
-    }
-  };
 
   const linkGoogle = async () => {
     setLinkingGoogle(true);
@@ -86,6 +87,44 @@ function ProfileLanding() {
     setLinkingGoogle(false);
     if ("error" in res && res.error) toast.error(res.error.message);
   };
+
+  const linkDiscord = async () => {
+    setLinkingDiscord(true);
+    const { error } = await supabase.auth.linkIdentity({
+      provider: "discord",
+      options: {
+        redirectTo: typeof window !== "undefined" ? window.location.origin + "/profile" : undefined,
+      },
+    });
+    setLinkingDiscord(false);
+    if (error) {
+      toast.error(
+        error.message.toLowerCase().includes("already")
+          ? "This Discord account is already linked to another profile."
+          : error.message,
+      );
+    }
+  };
+
+  const unlinkDiscord = async () => {
+    if (!userId) return;
+    const { data: ids } = await supabase.auth.getUserIdentities();
+    const discord = ids?.identities?.find((i) => i.provider === "discord");
+    if (!discord) return;
+    setUnlinkingDiscord(true);
+    try {
+      const { error } = await supabase.auth.unlinkIdentity(discord);
+      if (error) throw error;
+      await supabase.from("profiles").update({ discord_username: null }).eq("id", userId);
+      await refreshDiscordIdentity(userId);
+      toast.success("Discord unlinked");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to unlink");
+    } finally {
+      setUnlinkingDiscord(false);
+    }
+  };
+
 
   const updatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,27 +274,35 @@ function ProfileLanding() {
 
         <Card className="p-5 border-border/60 bg-card/70 mt-6">
           <div className="flex items-center gap-2 mb-3">
-            <MessageCircle className="size-5 text-sand" />
+            <Link2 className="size-5 text-sand" />
             <h2 className="font-display text-lg">Discord</h2>
           </div>
-          <p className="text-sm text-muted-foreground mb-3">
-            Link your Discord username so tournament organisers can find you.
-          </p>
-          <div className="flex gap-2">
-            <Input
-              value={discord}
-              onChange={(e) => setDiscord(e.target.value)}
-              placeholder="your-discord-handle"
-              className="flex-1"
-            />
-            <Button
-              onClick={saveDiscord}
-              disabled={savingDiscord || discord.trim() === initialDiscord.trim()}
-            >
-              {savingDiscord ? "Saving…" : "Save"}
-            </Button>
+          <div className="flex items-center justify-between">
+            <div className="text-sm">
+              <div className="font-medium">Discord</div>
+              <div className="text-xs text-muted-foreground">
+                {discordIdentityId
+                  ? discordUsername
+                    ? `Linked as ${discordUsername}`
+                    : "Linked"
+                  : "Not linked"}
+              </div>
+            </div>
+            {discordIdentityId ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-teal">✓ Connected</span>
+                <Button onClick={unlinkDiscord} disabled={unlinkingDiscord} variant="outline" size="sm">
+                  {unlinkingDiscord ? "Unlinking…" : "Unlink"}
+                </Button>
+              </div>
+            ) : (
+              <Button onClick={linkDiscord} disabled={linkingDiscord} variant="outline" size="sm">
+                {linkingDiscord ? "Linking…" : "Link Discord"}
+              </Button>
+            )}
           </div>
         </Card>
+
 
         <Card className="p-5 border-border/60 bg-card/70 mt-6">
           <div className="flex items-center gap-2 mb-3">

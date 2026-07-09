@@ -91,6 +91,18 @@ function Auth() {
     }
   };
 
+  const handleDiscord = async () => {
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "discord",
+      options: {
+        redirectTo: typeof window === "undefined" ? "/" : absoluteRedirect,
+      },
+    });
+    setLoading(false);
+    if (error) toast.error(error.message);
+  };
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -101,8 +113,11 @@ function Auth() {
           </h1>
           <p className="text-sm text-muted-foreground text-center mb-6">Track your Dune Imperium matches.</p>
 
-          <Button onClick={handleGoogle} disabled={loading} variant="outline" className="w-full mb-4">
+          <Button onClick={handleGoogle} disabled={loading} variant="outline" className="w-full mb-2">
             Continue with Google
+          </Button>
+          <Button onClick={handleDiscord} disabled={loading} variant="outline" className="w-full mb-4">
+            Continue with Discord
           </Button>
 
           <div className="relative my-4 text-center">
