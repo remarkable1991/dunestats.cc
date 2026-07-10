@@ -158,6 +158,7 @@ export type Database = {
         Row: {
           claimed_by: string | null
           created_at: string
+          discord_user_id: string | null
           discord_username: string | null
           display_name: string | null
           id: number
@@ -169,6 +170,7 @@ export type Database = {
         Insert: {
           claimed_by?: string | null
           created_at?: string
+          discord_user_id?: string | null
           discord_username?: string | null
           display_name?: string | null
           id?: number
@@ -180,6 +182,7 @@ export type Database = {
         Update: {
           claimed_by?: string | null
           created_at?: string
+          discord_user_id?: string | null
           discord_username?: string | null
           display_name?: string | null
           id?: number
@@ -409,6 +412,30 @@ export type Database = {
       delete_game_with_rating_revert: {
         Args: { p_game_id: string }
         Returns: Json
+      }
+      get_player_favorite_leaders_for_stats: {
+        Args: { p_player_key: string }
+        Returns: {
+          game_version: string
+          leader_name: string
+          plays: number
+          wins: number
+        }[]
+      }
+      get_player_ranks_for_stats: {
+        Args: { p_player_key: string }
+        Returns: {
+          game_version: string
+          rank: number
+        }[]
+      }
+      get_player_top_opponents_for_stats: {
+        Args: { p_player_key: string }
+        Returns: {
+          game_version: string
+          games_played: number
+          opponent_name: string
+        }[]
       }
       has_role: {
         Args: {
