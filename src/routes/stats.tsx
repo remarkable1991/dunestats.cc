@@ -1,12 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { LEADERS, classifyLeader } from "@/lib/leaders";
-import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown, UserCheck } from "lucide-react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 type TriState = "any" | "true" | "false";
@@ -35,6 +37,7 @@ function FilterBar(props: {
   fEpic: TriState; setFEpic: (v: TriState) => void;
   fRiseOfIx: TriState; setFRiseOfIx: (v: TriState) => void;
   fBaseLeaders: TriState; setFBaseLeaders: (v: TriState) => void;
+  compare: boolean; onCompareChange: (v: boolean) => void;
 }) {
   const { version } = props;
   return (
@@ -49,6 +52,13 @@ function FilterBar(props: {
           <TriSelect label="Base Leaders" value={props.fBaseLeaders} onChange={props.setFBaseLeaders} />
         </>
       )}
+      <div className="flex items-center gap-2 ml-auto">
+        <UserCheck className="size-4 text-sand" />
+        <Label htmlFor="compare-personal" className="text-xs uppercase tracking-wider text-muted-foreground cursor-pointer">
+          Compare with my stats
+        </Label>
+        <Switch id="compare-personal" checked={props.compare} onCheckedChange={props.onCompareChange} />
+      </div>
     </div>
   );
 }
@@ -61,6 +71,7 @@ export const Route = createFileRoute("/stats")({
 type Row = {
   placement: number;
   leader_name: string | null;
+  player_name: string | null;
   points: number;
   games: {
     id: string;
@@ -102,13 +113,11 @@ function canonicalize(raw: string | null): { name: string; group: Agg["group"] }
   if (!raw) return null;
   const n = normalize(raw);
   if (!n) return null;
-  // Try exact match first
   if (CANON.has(n)) {
     const name = CANON.get(n)!;
     const g = classifyLeader(name);
     return { name, group: g ?? "other" };
   }
-  // Substring against canonical lower-case
   for (const [key, name] of CANON) {
     if (n.includes(key) || key.includes(n)) {
       const g = classifyLeader(name);
@@ -119,11 +128,22 @@ function canonicalize(raw: string | null): { name: string; group: Agg["group"] }
   return { name: raw, group: g ?? "other" };
 }
 
+function toneClass(personal: number | null, global: number, epsilon = 0.0001) {
+  if (personal === null) return "text-muted-foreground";
+  const diff = personal - global;
+  if (Math.abs(diff) < epsilon) return "text-muted-foreground";
+  return diff > 0 ? "text-emerald-400" : "text-red-400";
+}
+
 function StatsPage() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState<GameVersion>("overall");
   const [userLeaders, setUserLeaders] = useState<Set<string>>(new Set());
+  const [playerKeys, setPlayerKeys] = useState<string[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [compare, setCompare] = useState(false);
   const [fEpic, setFEpic] = useState<TriState>("any");
   const [fImmortality, setFImmortality] = useState<TriState>("any");
   const [fBaseLeaders, setFBaseLeaders] = useState<TriState>("any");
@@ -143,13 +163,15 @@ function StatsPage() {
   useEffect(() => {
     (async () => {
       const { data: u } = await supabase.auth.getUser();
-      const uid = u.user?.id;
+      const uid = u.user?.id ?? null;
+      setUserId(uid);
       if (!uid) return;
       const { data: claims } = await supabase
         .from("player_ratings")
         .select("player_key")
         .eq("claimed_by", uid);
       const keys = Array.from(new Set((claims ?? []).map((c) => c.player_key)));
+      setPlayerKeys(keys);
       if (keys.length === 0) return;
       const { data: mine } = await supabase
         .from("game_results")
@@ -164,18 +186,25 @@ function StatsPage() {
     })();
   }, []);
 
+  function handleCompareToggle(next: boolean) {
+    if (next && !userId) {
+      navigate({ to: "/profile" });
+      return;
+    }
+    setCompare(next);
+  }
+
   useEffect(() => {
     setLoading(true);
     (async () => {
       const PAGE = 1000;
       const out: Row[] = [];
       let from = 0;
-      // Loop until we've fetched everything
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const { data, error } = await supabase
           .from("game_results")
-          .select("placement, leader_name, points, games!inner(id, game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders)")
+          .select("placement, leader_name, player_name, points, games!inner(id, game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders)")
           .order("id", { ascending: true })
           .range(from, from + PAGE - 1);
         if (error || !data || data.length === 0) break;
@@ -188,7 +217,10 @@ function StatsPage() {
     })();
   }, []);
 
-  const { aggregates, totalGames, totalGamesCount } = useMemo(() => {
+  const showPersonal = compare && !!userId && playerKeys.length > 0;
+  const playerKeySet = useMemo(() => new Set(playerKeys.map((k) => k.toLowerCase())), [playerKeys]);
+
+  const { aggregates, personalAgg, totalGames, personalTotalSlots, totalGamesCount } = useMemo(() => {
     let filtered =
       version === "overall"
         ? rows
@@ -203,34 +235,37 @@ function StatsPage() {
       (version === "uprising" ? matchBool(fRiseOfIx, r.games?.has_rise_of_ix) : true) &&
       (version === "uprising" ? matchBool(fBaseLeaders, r.games?.has_base_leaders) : true),
     );
-    // Count distinct games is tricky without IDs; pick count = total rows / avg players. Use sum/4 estimate via leader picks summing to total player slots.
-    // For pick rate we use share of player-slots in this version.
     const totalSlots = filtered.length;
     const gameIds = new Set<string>();
     for (const r of filtered) if (r.games?.id) gameIds.add(r.games.id);
     const totalGamesCount = gameIds.size;
     const map = new Map<string, Agg>();
+    const pmap = new Map<string, Agg>();
+    let personalSlots = 0;
     for (const r of filtered) {
       const c = canonicalize(r.leader_name);
       if (!c) continue;
       const key = c.name;
-      const a = map.get(key) ?? {
-        leader: c.name,
-        group: c.group,
-        picks: 0,
-        wins: 0,
-        top2: 0,
-        totalPoints: 0,
-      };
+      const a = map.get(key) ?? { leader: c.name, group: c.group, picks: 0, wins: 0, top2: 0, totalPoints: 0 };
       a.picks += 1;
       if (r.placement === 1) a.wins += 1;
       if (r.placement <= 2) a.top2 += 1;
       a.totalPoints += r.points;
       map.set(key, a);
+
+      if (showPersonal && r.player_name && playerKeySet.has(r.player_name.toLowerCase())) {
+        personalSlots += 1;
+        const p = pmap.get(key) ?? { leader: c.name, group: c.group, picks: 0, wins: 0, top2: 0, totalPoints: 0 };
+        p.picks += 1;
+        if (r.placement === 1) p.wins += 1;
+        if (r.placement <= 2) p.top2 += 1;
+        p.totalPoints += r.points;
+        pmap.set(key, p);
+      }
     }
     const aggregates = Array.from(map.values()).sort((a, b) => b.picks - a.picks);
-    return { aggregates, totalGames: totalSlots, totalGamesCount };
-  }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx]);
+    return { aggregates, personalAgg: pmap, totalGames: totalSlots, personalTotalSlots: personalSlots, totalGamesCount };
+  }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx, showPersonal, playerKeySet]);
 
   const sorted = useMemo(() => {
     if (!sortKey || !sortDir) return aggregates;
@@ -270,6 +305,13 @@ function StatsPage() {
     );
   }
 
+  const personalCell = (personal: number | null, global: number, suffix = "", digits = 1) => {
+    if (personal === null) {
+      return <span className="text-muted-foreground/60">—</span>;
+    }
+    return <span className={toneClass(personal, global)}>{personal.toFixed(digits)}{suffix}</span>;
+  };
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -303,7 +345,13 @@ function StatsPage() {
                 fEpic={fEpic} setFEpic={setFEpic}
                 fRiseOfIx={fRiseOfIx} setFRiseOfIx={setFRiseOfIx}
                 fBaseLeaders={fBaseLeaders} setFBaseLeaders={setFBaseLeaders}
+                compare={compare} onCompareChange={handleCompareToggle}
               />
+              {compare && userId && playerKeys.length === 0 && (
+                <div className="mb-4 p-3 rounded-md border border-sand/40 bg-sand/10 text-sm text-muted-foreground">
+                  You haven't claimed a player name yet. Visit your <a href="/profile" className="text-sand underline">profile</a> to link one.
+                </div>
+              )}
               <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -312,17 +360,23 @@ function StatsPage() {
                         <th className="px-4 py-3 text-left">Leader</th>
                         <th className="px-4 py-3 text-left">Group</th>
                         <SortTh label="Picks" k="picks" />
+                        {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                         <SortTh label="Pick %" k="pickPct" />
+                        {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                         <SortTh label="Wins" k="wins" />
+                        {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                         <SortTh label="Win %" k="winPct" />
+                        {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                         <SortTh label="Top 2 %" k="top2Pct" className="hidden sm:table-cell" />
+                        {showPersonal && <th className="px-4 py-3 text-right hidden sm:table-cell">You</th>}
                         <SortTh label="Avg pts" k="avgPts" className="hidden md:table-cell" />
+                        {showPersonal && <th className="px-4 py-3 text-right hidden md:table-cell">You</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {loading && (
                         <tr>
-                          <td colSpan={8} className="py-10 text-center text-muted-foreground">
+                          <td colSpan={showPersonal ? 14 : 8} className="py-10 text-center text-muted-foreground">
                             Loading stats…
                           </td>
                         </tr>
@@ -334,6 +388,11 @@ function StatsPage() {
                           const top2Pct = a.picks ? (a.top2 / a.picks) * 100 : 0;
                           const avgPts = a.picks ? a.totalPoints / a.picks : 0;
                           const mine = userLeaders.has(a.leader);
+                          const p = personalAgg.get(a.leader);
+                          const pPickPct = p && personalTotalSlots ? (p.picks / personalTotalSlots) * 100 : null;
+                          const pWinPct = p && p.picks ? (p.wins / p.picks) * 100 : null;
+                          const pTop2Pct = p && p.picks ? (p.top2 / p.picks) * 100 : null;
+                          const pAvgPts = p && p.picks ? p.totalPoints / p.picks : null;
                           return (
                             <tr key={a.leader} className={`border-t border-border/40 hover:bg-secondary/30 ${mine ? "bg-sand/10 ring-1 ring-inset ring-sand/60" : ""}`}>
                               <td className="px-4 py-3 font-medium">{a.leader}</td>
@@ -341,21 +400,27 @@ function StatsPage() {
                                 {a.group}
                               </td>
                               <td className="px-4 py-3 text-right tabular-nums">{a.picks}</td>
+                              {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{p ? <span className={toneClass(p.picks, 0)}>{p.picks}</span> : <span className="text-muted-foreground/60">—</span>}</td>}
                               <td className="px-4 py-3 text-right tabular-nums text-sand">{pickPct.toFixed(1)}%</td>
+                              {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{personalCell(pPickPct, pickPct, "%")}</td>}
                               <td className="px-4 py-3 text-right tabular-nums">{a.wins}</td>
+                              {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{p ? <span className={toneClass(p.wins, 0)}>{p.wins}</span> : <span className="text-muted-foreground/60">—</span>}</td>}
                               <td className="px-4 py-3 text-right tabular-nums text-coral">{winPct.toFixed(1)}%</td>
+                              {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{personalCell(pWinPct, winPct, "%")}</td>}
                               <td className="px-4 py-3 text-right tabular-nums hidden sm:table-cell">
                                 {top2Pct.toFixed(1)}%
                               </td>
+                              {showPersonal && <td className="px-4 py-3 text-right tabular-nums hidden sm:table-cell">{personalCell(pTop2Pct, top2Pct, "%")}</td>}
                               <td className="px-4 py-3 text-right tabular-nums hidden md:table-cell">
                                 {avgPts.toFixed(1)}
                               </td>
+                              {showPersonal && <td className="px-4 py-3 text-right tabular-nums hidden md:table-cell">{personalCell(pAvgPts, avgPts, "")}</td>}
                             </tr>
                           );
                         })}
                       {!loading && aggregates.length === 0 && (
                         <tr>
-                          <td colSpan={8} className="py-10 text-center text-muted-foreground">
+                          <td colSpan={showPersonal ? 14 : 8} className="py-10 text-center text-muted-foreground">
                             No data for {v.label} yet.
                           </td>
                         </tr>
@@ -366,6 +431,7 @@ function StatsPage() {
               </Card>
               <p className="text-xs text-muted-foreground mt-3">
                 Based on {totalGamesCount} games played in {v.label}.
+                {showPersonal && personalTotalSlots > 0 && ` Your personal sample: ${personalTotalSlots} seats.`}
               </p>
             </TabsContent>
           ))}
