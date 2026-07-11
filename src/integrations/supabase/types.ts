@@ -235,6 +235,50 @@ export type Database = {
         }
         Relationships: []
       }
+      player_sp: {
+        Row: {
+          claimed_by: string | null
+          created_at: string
+          display_name: string
+          is_claimed: boolean
+          lifetime_sp: number
+          player_key: string
+          season_id: number
+          seasonal_sp: number
+          updated_at: string
+        }
+        Insert: {
+          claimed_by?: string | null
+          created_at?: string
+          display_name: string
+          is_claimed?: boolean
+          lifetime_sp?: number
+          player_key: string
+          season_id?: number
+          seasonal_sp?: number
+          updated_at?: string
+        }
+        Update: {
+          claimed_by?: string | null
+          created_at?: string
+          display_name?: string
+          is_claimed?: boolean
+          lifetime_sp?: number
+          player_key?: string
+          season_id?: number
+          seasonal_sp?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_sp_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "sp_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           availability_baseline: Json | null
@@ -262,6 +306,80 @@ export type Database = {
           id?: string
           updated_at?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      sp_events: {
+        Row: {
+          action_type: string
+          amount: number
+          created_at: string
+          id: string
+          is_legacy: boolean
+          metadata: Json | null
+          player_key: string
+          ref_game_id: string | null
+          ref_tournament_num: number | null
+          season_id: number | null
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          amount: number
+          created_at?: string
+          id?: string
+          is_legacy?: boolean
+          metadata?: Json | null
+          player_key: string
+          ref_game_id?: string | null
+          ref_tournament_num?: number | null
+          season_id?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          is_legacy?: boolean
+          metadata?: Json | null
+          player_key?: string
+          ref_game_id?: string | null
+          ref_tournament_num?: number | null
+          season_id?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sp_events_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "sp_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sp_seasons: {
+        Row: {
+          created_at: string
+          ends_at: string
+          id: number
+          name: string
+          starts_at: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          id: number
+          name: string
+          starts_at: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          id?: number
+          name?: string
+          starts_at?: string
         }
         Relationships: []
       }
@@ -457,6 +575,20 @@ export type Database = {
         }
         Returns: Json
       }
+      sp_award: {
+        Args: {
+          p_action_type: string
+          p_amount: number
+          p_at: string
+          p_metadata?: Json
+          p_player_name: string
+          p_ref_game_id?: string
+          p_ref_tournament_num?: number
+        }
+        Returns: undefined
+      }
+      sp_backfill: { Args: never; Returns: Json }
+      sp_season_for: { Args: { ts: string }; Returns: number }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
