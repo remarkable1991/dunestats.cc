@@ -44,6 +44,12 @@ export function Navbar() {
             </Link>
           </Button>
           <Button asChild variant="ghost" size="sm">
+            <Link to="/ledger">
+              <Sparkles className="size-4" />
+              <span className="hidden sm:inline">SP</span>
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
             <Link to="/tournament">
               <Trophy className="size-4" />
               <span className="hidden sm:inline">Tournament</span>
