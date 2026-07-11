@@ -17,6 +17,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as MatchesRouteImport } from './routes/matches'
+import { Route as LedgerRouteImport } from './routes/ledger'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ClaimRouteImport } from './routes/claim'
@@ -64,6 +65,11 @@ const MatchesRoute = MatchesRouteImport.update({
   path: '/matches',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LedgerRoute = LedgerRouteImport.update({
+  id: '/ledger',
+  path: '/ledger',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LeaderboardRoute = LeaderboardRouteImport.update({
   id: '/leaderboard',
   path: '/leaderboard',
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/claim': typeof ClaimRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/ledger': typeof LedgerRoute
   '/matches': typeof MatchesRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -117,6 +124,7 @@ export interface FileRoutesByTo {
   '/claim': typeof ClaimRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/ledger': typeof LedgerRoute
   '/matches': typeof MatchesRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/claim': typeof ClaimRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/ledger': typeof LedgerRoute
   '/matches': typeof MatchesRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -152,6 +161,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/forgot-password'
     | '/leaderboard'
+    | '/ledger'
     | '/matches'
     | '/profile'
     | '/reset-password'
@@ -168,6 +178,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/forgot-password'
     | '/leaderboard'
+    | '/ledger'
     | '/matches'
     | '/profile'
     | '/reset-password'
@@ -184,6 +195,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/forgot-password'
     | '/leaderboard'
+    | '/ledger'
     | '/matches'
     | '/profile'
     | '/reset-password'
@@ -201,6 +213,7 @@ export interface RootRouteChildren {
   ClaimRoute: typeof ClaimRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LeaderboardRoute: typeof LeaderboardRoute
+  LedgerRoute: typeof LedgerRoute
   MatchesRoute: typeof MatchesRoute
   ProfileRoute: typeof ProfileRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -270,6 +283,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MatchesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ledger': {
+      id: '/ledger'
+      path: '/ledger'
+      fullPath: '/ledger'
+      preLoaderRoute: typeof LedgerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/leaderboard': {
       id: '/leaderboard'
       path: '/leaderboard'
@@ -321,6 +341,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClaimRoute: ClaimRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LeaderboardRoute: LeaderboardRoute,
+  LedgerRoute: LedgerRoute,
   MatchesRoute: MatchesRoute,
   ProfileRoute: ProfileRoute,
   ResetPasswordRoute: ResetPasswordRoute,
