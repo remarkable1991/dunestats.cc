@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { FloatingBubbles } from "@/components/FloatingBubbles";
+import { useSpDailyCheckin } from "@/hooks/use-sp-daily-checkin";
 
 function NotFoundComponent() {
   return (
