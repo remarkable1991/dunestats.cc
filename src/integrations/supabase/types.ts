@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      active_async_matches: {
+        Row: {
+          board_type: string | null
+          channel_id: string
+          created_at: string
+          expansions: string[] | null
+          guild_id: string
+          host_id: string
+          id: number
+          last_prompted_at: string | null
+          lobby_password: string | null
+          message_id: string
+          message_text: string
+          notify_user_ids: string[] | null
+          player_ids: string[] | null
+          status: string
+        }
+        Insert: {
+          board_type?: string | null
+          channel_id: string
+          created_at?: string
+          expansions?: string[] | null
+          guild_id: string
+          host_id: string
+          id?: number
+          last_prompted_at?: string | null
+          lobby_password?: string | null
+          message_id: string
+          message_text: string
+          notify_user_ids?: string[] | null
+          player_ids?: string[] | null
+          status?: string
+        }
+        Update: {
+          board_type?: string | null
+          channel_id?: string
+          created_at?: string
+          expansions?: string[] | null
+          guild_id?: string
+          host_id?: string
+          id?: number
+          last_prompted_at?: string | null
+          lobby_password?: string | null
+          message_id?: string
+          message_text?: string
+          notify_user_ids?: string[] | null
+          player_ids?: string[] | null
+          status?: string
+        }
+        Relationships: []
+      }
       game_results: {
         Row: {
           created_at: string
