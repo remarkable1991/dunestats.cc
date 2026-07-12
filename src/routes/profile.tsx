@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
-import { User as UserIcon, UserPlus, BadgeCheck, Trophy, KeyRound, Link2 } from "lucide-react";
+import { User as UserIcon, UserPlus, BadgeCheck, Trophy, KeyRound, Link2, Gift, Copy } from "lucide-react";
 import { loadChampions, type ChampionMap } from "@/lib/champions";
 import { toast } from "sonner";
 
@@ -249,6 +249,41 @@ function ProfileLanding() {
             </div>
           </div>
         )}
+
+        {unique.length > 0 && (
+          <Card className="p-5 border-sand/40 bg-gradient-to-br from-card to-card/40 mt-6">
+            <div className="flex items-center gap-2 mb-2">
+              <Gift className="size-5 text-sand" />
+              <h2 className="font-display text-lg">Your referral link</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Share this link. When a friend signs up you get <span className="text-foreground">+100 SP</span>, they get <span className="text-foreground">+50 SP</span>, and you get a <span className="text-foreground">+500 SP</span> jackpot once they reach 100 lifetime SP.
+            </p>
+            {(() => {
+              const origin = typeof window !== "undefined" ? window.location.origin : "";
+              const link = `${origin}/r/${unique[0].player_key}`;
+              return (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input readOnly value={link} className="font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(link);
+                        toast.success("Referral link copied");
+                      } catch {
+                        toast.error("Couldn't copy — select the link and copy manually.");
+                      }
+                    }}
+                  >
+                    <Copy className="size-4" /> Copy
+                  </Button>
+                </div>
+              );
+            })()}
+          </Card>
+        )}
+
 
         <Card className="p-5 border-border/60 bg-card/70 mt-6">
           <div className="flex items-center gap-2 mb-3">
