@@ -23,6 +23,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ClaimRouteImport } from './routes/claim'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RUsernameRouteImport } from './routes/r.$username'
 import { Route as PlayersKeyRouteImport } from './routes/players.$key'
 
 const UploadRoute = UploadRouteImport.update({
@@ -95,6 +96,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RUsernameRoute = RUsernameRouteImport.update({
+  id: '/r/$username',
+  path: '/r/$username',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlayersKeyRoute = PlayersKeyRouteImport.update({
   id: '/players/$key',
   path: '/players/$key',
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/tournament-register': typeof TournamentRegisterRoute
   '/upload': typeof UploadRoute
   '/players/$key': typeof PlayersKeyRoute
+  '/r/$username': typeof RUsernameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/tournament-register': typeof TournamentRegisterRoute
   '/upload': typeof UploadRoute
   '/players/$key': typeof PlayersKeyRoute
+  '/r/$username': typeof RUsernameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -152,6 +160,7 @@ export interface FileRoutesById {
   '/tournament-register': typeof TournamentRegisterRoute
   '/upload': typeof UploadRoute
   '/players/$key': typeof PlayersKeyRoute
+  '/r/$username': typeof RUsernameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
     | '/tournament-register'
     | '/upload'
     | '/players/$key'
+    | '/r/$username'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
     | '/tournament-register'
     | '/upload'
     | '/players/$key'
+    | '/r/$username'
   id:
     | '__root__'
     | '/'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/tournament-register'
     | '/upload'
     | '/players/$key'
+    | '/r/$username'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -223,6 +235,7 @@ export interface RootRouteChildren {
   TournamentRegisterRoute: typeof TournamentRegisterRoute
   UploadRoute: typeof UploadRoute
   PlayersKeyRoute: typeof PlayersKeyRoute
+  RUsernameRoute: typeof RUsernameRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -325,6 +338,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/r/$username': {
+      id: '/r/$username'
+      path: '/r/$username'
+      fullPath: '/r/$username'
+      preLoaderRoute: typeof RUsernameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/players/$key': {
       id: '/players/$key'
       path: '/players/$key'
@@ -351,6 +371,7 @@ const rootRouteChildren: RootRouteChildren = {
   TournamentRegisterRoute: TournamentRegisterRoute,
   UploadRoute: UploadRoute,
   PlayersKeyRoute: PlayersKeyRoute,
+  RUsernameRoute: RUsernameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
