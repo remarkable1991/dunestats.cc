@@ -10,6 +10,8 @@ import { lovable } from "@/integrations/lovable";
 import { User as UserIcon, UserPlus, BadgeCheck, Trophy, KeyRound, Link2, Gift, Copy } from "lucide-react";
 import { loadChampions, type ChampionMap } from "@/lib/champions";
 import { toast } from "sonner";
+import { SpProgress } from "@/components/SpProgress";
+import { SpHistory } from "@/components/SpHistory";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({ meta: [{ title: "My profile · Strategy Arena" }] }),
