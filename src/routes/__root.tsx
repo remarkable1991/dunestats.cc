@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { FloatingBubbles } from "@/components/FloatingBubbles";
+import { useSpDailyCheckin } from "@/hooks/use-sp-daily-checkin";
 
 function NotFoundComponent() {
   return (
@@ -127,6 +128,8 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useSpDailyCheckin();
+
 
   return (
     <QueryClientProvider client={queryClient}>
