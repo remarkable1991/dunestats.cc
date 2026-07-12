@@ -190,6 +190,9 @@ function ProfileLanding() {
           {userId ? "Your claimed in-game names appear below." : ""}
         </p>
 
+        {userId && <SpProgress userId={userId} />}
+
+
         {myWins.length > 0 && (
           <Card className="p-5 border-sand/40 bg-gradient-to-br from-card to-card/40 mb-6">
             <div className="flex items-center gap-2 mb-3">
