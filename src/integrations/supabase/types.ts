@@ -338,6 +338,10 @@ export type Database = {
           has_used_reset: boolean
           id: string
           last_sp_checkin_at: string | null
+          pending_signup_sp: number
+          referral_phase1_paid: boolean
+          referral_phase2_paid: boolean
+          referred_by_player_key: string | null
           updated_at: string
           username: string | null
         }
@@ -348,6 +352,10 @@ export type Database = {
           has_used_reset?: boolean
           id: string
           last_sp_checkin_at?: string | null
+          pending_signup_sp?: number
+          referral_phase1_paid?: boolean
+          referral_phase2_paid?: boolean
+          referred_by_player_key?: string | null
           updated_at?: string
           username?: string | null
         }
@@ -358,6 +366,10 @@ export type Database = {
           has_used_reset?: boolean
           id?: string
           last_sp_checkin_at?: string | null
+          pending_signup_sp?: number
+          referral_phase1_paid?: boolean
+          referral_phase2_paid?: boolean
+          referred_by_player_key?: string | null
           updated_at?: string
           username?: string | null
         }
@@ -643,6 +655,7 @@ export type Database = {
       }
       sp_backfill: { Args: never; Returns: Json }
       sp_daily_checkin: { Args: never; Returns: Json }
+      sp_register_referral: { Args: { p_referrer_key: string }; Returns: Json }
       sp_season_for: { Args: { ts: string }; Returns: number }
     }
     Enums: {
