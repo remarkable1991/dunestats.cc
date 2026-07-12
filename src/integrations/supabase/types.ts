@@ -337,6 +337,7 @@ export type Database = {
           discord_username: string | null
           has_used_reset: boolean
           id: string
+          last_sp_checkin_at: string | null
           updated_at: string
           username: string | null
         }
@@ -346,6 +347,7 @@ export type Database = {
           discord_username?: string | null
           has_used_reset?: boolean
           id: string
+          last_sp_checkin_at?: string | null
           updated_at?: string
           username?: string | null
         }
@@ -355,6 +357,7 @@ export type Database = {
           discord_username?: string | null
           has_used_reset?: boolean
           id?: string
+          last_sp_checkin_at?: string | null
           updated_at?: string
           username?: string | null
         }
@@ -639,6 +642,7 @@ export type Database = {
         Returns: undefined
       }
       sp_backfill: { Args: never; Returns: Json }
+      sp_daily_checkin: { Args: never; Returns: Json }
       sp_season_for: { Args: { ts: string }; Returns: number }
     }
     Enums: {
