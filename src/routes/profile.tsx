@@ -10,6 +10,8 @@ import { lovable } from "@/integrations/lovable";
 import { User as UserIcon, UserPlus, BadgeCheck, Trophy, KeyRound, Link2, Gift, Copy } from "lucide-react";
 import { loadChampions, type ChampionMap } from "@/lib/champions";
 import { toast } from "sonner";
+import { SpProgress } from "@/components/SpProgress";
+import { SpHistory } from "@/components/SpHistory";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({ meta: [{ title: "My profile · Strategy Arena" }] }),
@@ -187,6 +189,9 @@ function ProfileLanding() {
         <p className="text-muted-foreground mb-6">
           {userId ? "Your claimed in-game names appear below." : ""}
         </p>
+
+        {userId && <SpProgress userId={userId} />}
+
 
         {myWins.length > 0 && (
           <Card className="p-5 border-sand/40 bg-gradient-to-br from-card to-card/40 mb-6">
@@ -373,6 +378,8 @@ function ProfileLanding() {
             </Button>
           </form>
         </Card>
+
+        {userId && <SpHistory userId={userId} />}
       </div>
     </div>
   );
