@@ -378,6 +378,8 @@ function ProfileLanding() {
             </Button>
           </form>
         </Card>
+
+        {userId && <SpHistory userId={userId} />}
       </div>
     </div>
   );
