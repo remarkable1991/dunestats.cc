@@ -192,18 +192,24 @@ function ProfilePage() {
     else { setSortKey(null); setSortDir(null); }
   }
   const sortedMatches = useMemo(() => {
-    if (!sortKey || !sortDir) return matches;
+    if (!sortKey || !sortDir) return filteredMatches;
     const dir = sortDir === "desc" ? -1 : 1;
     const score = (m: MatchRow) => {
       if (sortKey === "date") return m.games ? new Date(m.games.created_at).getTime() : 0;
       if (sortKey === "placement") return m.placement;
       return m.points;
     };
-    return [...matches].sort((a, b) => {
+    return [...filteredMatches].sort((a, b) => {
       const av = score(a), bv = score(b);
       return av < bv ? dir : av > bv ? -dir : 0;
     });
-  }, [matches, sortKey, sortDir]);
+  }, [filteredMatches, sortKey, sortDir]);
+
+  const PAGE_SIZE = 100;
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [version, fImmortality, fEpic, fRiseOfIx, fBaseLeaders, sortKey, sortDir]);
+  const totalPages = Math.max(1, Math.ceil(sortedMatches.length / PAGE_SIZE));
+  const pagedMatches = sortedMatches.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   function SortTh({ label, k, className = "" }: { label: string; k: MSortKey; className?: string }) {
     const active = sortKey === k;
     const Icon = active ? (sortDir === "desc" ? ArrowDown : ArrowUp) : ArrowUpDown;
