@@ -166,13 +166,13 @@ function ProfilePage() {
       };
       const av = score(a), bv = score(b);
       if (av === bv) return a.leader.localeCompare(b.leader);
-      return av < bv ? dir : -dir;
+      return av < bv ? -dir : av > bv ? dir : 0;
     });
     return arr;
   }, [leaderStats, lSortKey, lSortDir]);
   function LSortTh({ label, k, align = "right", className = "" }: { label: string; k: LSortKey; align?: "left" | "right"; className?: string }) {
     const active = lSortKey === k;
-    const Icon = active ? (lSortDir === "desc" ? ArrowDown : ArrowUp) : ArrowUpDown;
+    const Icon = active ? (lSortDir === "desc" ? ArrowUp : ArrowDown) : ArrowUpDown;
     return (
       <th className={`px-4 py-2 text-${align} ${className}`}>
         <button type="button" onClick={() => cycleLSort(k)}
@@ -201,7 +201,7 @@ function ProfilePage() {
     };
     return [...filteredMatches].sort((a, b) => {
       const av = score(a), bv = score(b);
-      return av < bv ? dir : av > bv ? -dir : 0;
+      return av < bv ? -dir : av > bv ? dir : 0;
     });
   }, [filteredMatches, sortKey, sortDir]);
 
@@ -212,7 +212,7 @@ function ProfilePage() {
   const pagedMatches = sortedMatches.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   function SortTh({ label, k, className = "" }: { label: string; k: MSortKey; className?: string }) {
     const active = sortKey === k;
-    const Icon = active ? (sortDir === "desc" ? ArrowDown : ArrowUp) : ArrowUpDown;
+    const Icon = active ? (sortDir === "desc" ? ArrowUp : ArrowDown) : ArrowUpDown;
     return (
       <th className={`px-4 py-2 text-left ${className}`}>
         <button type="button" onClick={() => cycleSort(k)}
