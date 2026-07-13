@@ -185,7 +185,7 @@ function ProfilePage() {
 
   type MSortKey = "date" | "placement" | "points";
   const [sortKey, setSortKey] = useState<MSortKey | null>("date");
-  const [sortDir, setSortDir] = useState<"desc" | "asc" | null>("desc");
+  const [sortDir, setSortDir] = useState<"desc" | "asc" | null>("asc");
   function cycleSort(k: MSortKey) {
     if (sortKey !== k) { setSortKey(k); setSortDir("desc"); }
     else if (sortDir === "desc") setSortDir("asc");
