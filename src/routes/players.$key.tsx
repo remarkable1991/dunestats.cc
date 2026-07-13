@@ -166,7 +166,7 @@ function ProfilePage() {
       };
       const av = score(a), bv = score(b);
       if (av === bv) return a.leader.localeCompare(b.leader);
-      return av < bv ? dir : -dir;
+      return av < bv ? -dir : av > bv ? dir : 0;
     });
     return arr;
   }, [leaderStats, lSortKey, lSortDir]);
