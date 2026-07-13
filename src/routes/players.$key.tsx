@@ -94,7 +94,7 @@ function ProfilePage() {
         .select("placement, player_name, leader_name, points, elo_delta, elo_delta_overall, games!inner(id, created_at, game_version, board_version, image_url, tournament_num, has_rise_of_ix, has_immortality, has_epic_mode, has_base_leaders)")
         .ilike("player_name", playerKey)
         .order("created_at", { foreignTable: "games", ascending: false })
-        .limit(100),
+        .limit(1000),
     ]).then(([r, m]) => {
       setRatings((r.data as Rating[]) ?? []);
       setMatches((m.data as unknown as MatchRow[]) ?? []);
@@ -192,18 +192,24 @@ function ProfilePage() {
     else { setSortKey(null); setSortDir(null); }
   }
   const sortedMatches = useMemo(() => {
-    if (!sortKey || !sortDir) return matches;
+    if (!sortKey || !sortDir) return filteredMatches;
     const dir = sortDir === "desc" ? -1 : 1;
     const score = (m: MatchRow) => {
       if (sortKey === "date") return m.games ? new Date(m.games.created_at).getTime() : 0;
       if (sortKey === "placement") return m.placement;
       return m.points;
     };
-    return [...matches].sort((a, b) => {
+    return [...filteredMatches].sort((a, b) => {
       const av = score(a), bv = score(b);
       return av < bv ? dir : av > bv ? -dir : 0;
     });
-  }, [matches, sortKey, sortDir]);
+  }, [filteredMatches, sortKey, sortDir]);
+
+  const PAGE_SIZE = 100;
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [version, fImmortality, fEpic, fRiseOfIx, fBaseLeaders, sortKey, sortDir]);
+  const totalPages = Math.max(1, Math.ceil(sortedMatches.length / PAGE_SIZE));
+  const pagedMatches = sortedMatches.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   function SortTh({ label, k, className = "" }: { label: string; k: MSortKey; className?: string }) {
     const active = sortKey === k;
     const Icon = active ? (sortDir === "desc" ? ArrowDown : ArrowUp) : ArrowUpDown;
@@ -358,7 +364,7 @@ function ProfilePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedMatches.map((m, i) => (
+                  {pagedMatches.map((m, i) => (
                     <tr key={i} className="border-t border-border/40 hover:bg-secondary/30">
                       <td className="px-4 py-2 text-muted-foreground">
                         {m.games ? new Date(m.games.created_at).toLocaleDateString() : ""}
@@ -389,6 +395,32 @@ function ProfilePage() {
                   )}
                 </tbody>
               </table>
+              {sortedMatches.length > PAGE_SIZE && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-border/40 text-sm">
+                  <span className="text-muted-foreground text-xs">
+                    Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, sortedMatches.length)} of {sortedMatches.length}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="px-2 py-1 rounded border border-border/60 hover:bg-secondary/40 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Prev
+                    </button>
+                    <span className="text-xs text-muted-foreground tabular-nums">Page {page} / {totalPages}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages}
+                      className="px-2 py-1 rounded border border-border/60 hover:bg-secondary/40 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </Card>
           </>
         )}
