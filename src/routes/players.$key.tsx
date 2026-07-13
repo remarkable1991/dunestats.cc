@@ -94,7 +94,7 @@ function ProfilePage() {
         .select("placement, player_name, leader_name, points, elo_delta, elo_delta_overall, games!inner(id, created_at, game_version, board_version, image_url, tournament_num, has_rise_of_ix, has_immortality, has_epic_mode, has_base_leaders)")
         .ilike("player_name", playerKey)
         .order("created_at", { foreignTable: "games", ascending: false })
-        .limit(100),
+        .limit(1000),
     ]).then(([r, m]) => {
       setRatings((r.data as Rating[]) ?? []);
       setMatches((m.data as unknown as MatchRow[]) ?? []);
