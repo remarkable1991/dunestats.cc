@@ -364,7 +364,7 @@ function ProfilePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedMatches.map((m, i) => (
+                  {pagedMatches.map((m, i) => (
                     <tr key={i} className="border-t border-border/40 hover:bg-secondary/30">
                       <td className="px-4 py-2 text-muted-foreground">
                         {m.games ? new Date(m.games.created_at).toLocaleDateString() : ""}
@@ -395,6 +395,32 @@ function ProfilePage() {
                   )}
                 </tbody>
               </table>
+              {sortedMatches.length > PAGE_SIZE && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-border/40 text-sm">
+                  <span className="text-muted-foreground text-xs">
+                    Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, sortedMatches.length)} of {sortedMatches.length}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="px-2 py-1 rounded border border-border/60 hover:bg-secondary/40 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Prev
+                    </button>
+                    <span className="text-xs text-muted-foreground tabular-nums">Page {page} / {totalPages}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages}
+                      className="px-2 py-1 rounded border border-border/60 hover:bg-secondary/40 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </Card>
           </>
         )}
