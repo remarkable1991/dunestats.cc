@@ -185,7 +185,7 @@ function ProfilePage() {
 
   type MSortKey = "date" | "placement" | "points";
   const [sortKey, setSortKey] = useState<MSortKey | null>("date");
-  const [sortDir, setSortDir] = useState<"desc" | "asc" | null>("asc");
+  const [sortDir, setSortDir] = useState<"desc" | "asc" | null>("desc");
   function cycleSort(k: MSortKey) {
     if (sortKey !== k) { setSortKey(k); setSortDir("desc"); }
     else if (sortDir === "desc") setSortDir("asc");
@@ -201,7 +201,7 @@ function ProfilePage() {
     };
     return [...filteredMatches].sort((a, b) => {
       const av = score(a), bv = score(b);
-      return av < bv ? dir : av > bv ? -dir : 0;
+      return av < bv ? -dir : av > bv ? dir : 0;
     });
   }, [filteredMatches, sortKey, sortDir]);
 
