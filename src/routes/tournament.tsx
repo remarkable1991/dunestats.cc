@@ -377,6 +377,9 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
 
   return (
       <div className="space-y-8">
+        <Button variant="ghost" size="sm" onClick={onBack} className="text-sand hover:text-sand -mb-4">
+          <ArrowLeft className="size-4 mr-1" /> Back to Current Tournaments
+        </Button>
         <header className="flex items-end justify-between flex-wrap gap-4">
           <div>
             <h1 className="font-display text-3xl flex items-center gap-2"><Trophy className="size-7 text-sand" /> Live Tournament #{tournamentNum}</h1>
