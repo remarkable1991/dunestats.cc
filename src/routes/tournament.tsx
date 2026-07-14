@@ -29,15 +29,15 @@ import ixIcon from "@/assets/ix.png.asset.json";
 import uprisingIcon from "@/assets/uprising.png.asset.json";
 import immoIcon from "@/assets/immo.png.asset.json";
 import epicIcon from "@/assets/epic.png.asset.json";
-import { ArrowLeft, Users as UsersIcon, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { ArrowLeft, Users as UsersIcon, ArrowUp, ArrowDown, ArrowUpDown, Sparkles } from "lucide-react";
 import { TournamentAnnouncement, TournamentCountdown } from "@/components/TournamentCountdown";
+import { AvailabilityHeatmap, type HeatmapPlayer } from "@/components/AvailabilityHeatmap";
 
 export const Route = createFileRoute("/tournament")({
   head: () => ({ meta: [{ title: "Live Tournament · Strategy Arena" }] }),
   component: TournamentPage,
 });
 
-const TOURNAMENT_NUM = 13;
 const SWISS_ROUNDS = ["Game 1", "Game 2", "Game 3"] as const;
 const PLAYOFF_ROUNDS = ["Finals"] as const;
 const TABLE_OPTIONS = [
