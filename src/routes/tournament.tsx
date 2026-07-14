@@ -543,8 +543,18 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                           return (
                             <div key={ti} className="border border-border/40 rounded-md p-3 bg-background/40">
                               <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-medium">{ti}</span>
+                                  {isT14 && players[0]?.table_score != null && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setHeatmapKey(`${rt}__${ti}`)}
+                                      className="inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-[11px] text-sand hover:bg-sand/25 transition"
+                                      title="View availability heatmap"
+                                    >
+                                      <Sparkles className="size-3" /> Match Quality {players[0].table_score}
+                                    </button>
+                                  )}
                                 </div>
                                 {shot ? (
                                   <ScreenshotLightbox
