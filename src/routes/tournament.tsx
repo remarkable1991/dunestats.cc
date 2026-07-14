@@ -892,7 +892,7 @@ function TournamentPage() {
 
         <div key={tab} className={slideClass}>
           {tab === "future" && <FutureTournaments />}
-          {tab === "current" && <CurrentTournament />}
+          {tab === "current" && <CurrentTournamentsHub />}
           {tab === "previous" && <PreviousTournaments />}
         </div>
       </div>
