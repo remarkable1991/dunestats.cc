@@ -109,8 +109,8 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
   const refresh = async () => {
     setLoading(true);
     const [r, s] = await Promise.all([
-      supabase.from("tournament_matches").select("*").eq("tournament_num", TOURNAMENT_NUM),
-      supabase.from("tournament_table_screenshots").select("*").eq("tournament_num", TOURNAMENT_NUM),
+      supabase.from("tournament_matches").select("*").eq("tournament_num", tournamentNum),
+      supabase.from("tournament_table_screenshots").select("*").eq("tournament_num", tournamentNum),
     ]);
     setRows((r.data ?? []) as Row[]);
     setShots((s.data ?? []) as Shot[]);
@@ -302,7 +302,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
           .upload(imagePath, file, { contentType: file.type || "image/png", upsert: false });
         if (upErr) throw upErr;
         await supabase.from("tournament_table_screenshots").upsert(
-          { tournament_num: TOURNAMENT_NUM, round_type: round, table_identifier: tableId, image_url: imagePath, created_by: userId },
+          { tournament_num: tournamentNum, round_type: round, table_identifier: tableId, image_url: imagePath, created_by: userId },
           { onConflict: "tournament_num,round_type,table_identifier" },
         );
       }
@@ -350,7 +350,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
               has_immortality: hasImmortality,
               has_base_leaders: hasBaseLeaders,
               match_screenshot_url: imagePath,
-              tournament_num: TOURNAMENT_NUM,
+              tournament_num: tournamentNum,
               results: parsedRows.map((r) => ({
                 placement: r.placement,
                 player_name: r.player_name.trim(),
@@ -379,7 +379,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
       <div className="space-y-8">
         <header className="flex items-end justify-between flex-wrap gap-4">
           <div>
-            <h1 className="font-display text-3xl flex items-center gap-2"><Trophy className="size-7 text-sand" /> Live Tournament #{TOURNAMENT_NUM}</h1>
+            <h1 className="font-display text-3xl flex items-center gap-2"><Trophy className="size-7 text-sand" /> Live Tournament #{tournamentNum}</h1>
             <p className="text-muted-foreground">Live standings update as match screenshots are uploaded.</p>
           </div>
           <div className="flex items-center gap-3">
@@ -673,9 +673,9 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                   <div className="grid grid-cols-3 gap-2 mb-4">
                     <div>
                       <Label className="text-xs">Tournament</Label>
-                      <Select value={String(TOURNAMENT_NUM)} disabled>
+                      <Select value={String(tournamentNum)} disabled>
                         <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent><SelectItem value={String(TOURNAMENT_NUM)}>{TOURNAMENT_NUM}</SelectItem></SelectContent>
+                        <SelectContent><SelectItem value={String(tournamentNum)}>{tournamentNum}</SelectItem></SelectContent>
                       </Select>
                     </div>
                     <div>
