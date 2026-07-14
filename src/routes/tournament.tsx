@@ -85,6 +85,10 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
   const [hasImmortality, setHasImmortality] = useState(false);
   const [hasBaseLeaders, setHasBaseLeaders] = useState(false);
   const [tpOpen, setTpOpen] = useState(false);
+  const [heatmapKey, setHeatmapKey] = useState<string | null>(null); // "round__table"
+  const isT14 = tournamentNum === 14;
+  const [board, setBoardImmediate] = useState<"base" | "uprising">("uprising");
+  void board; void setBoardImmediate;
   type SaveResult = Awaited<ReturnType<typeof saveGame>>;
   const [lastSave, setLastSave] = useState<SaveResult | null>(null);
 
