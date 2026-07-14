@@ -653,6 +653,7 @@ export type Database = {
         }
         Returns: Json
       }
+      seed_tournament_from_bitmap: { Args: { p: Json }; Returns: number }
       sp_award: {
         Args: {
           p_action_type: string
