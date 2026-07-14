@@ -764,6 +764,25 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
             </div>
           </>
         )}
+        {isT14 && heatmapKey && (() => {
+          const [rt, ti] = heatmapKey.split("__");
+          const tableRows = rows.filter((r) => r.round_type === rt && r.table_identifier === ti);
+          const players: HeatmapPlayer[] = tableRows.map((r) => ({
+            player_name: r.player_name,
+            discord_username: r.discord_username,
+            player_compatibility_score: r.player_compatibility_score,
+            player_availability: r.player_availability,
+          }));
+          return (
+            <AvailabilityHeatmap
+              open={true}
+              onOpenChange={(v) => { if (!v) setHeatmapKey(null); }}
+              tableId={`${rt} · ${ti}`}
+              matchQuality={tableRows[0]?.table_score ?? null}
+              players={players}
+            />
+          );
+        })()}
       </div>
   );
 }
