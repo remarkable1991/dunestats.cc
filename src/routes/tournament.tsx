@@ -55,10 +55,13 @@ type Row = {
   leader_name: string | null;
   placement: number | null;
   points: number | null;
+  table_score: number | null;
+  player_compatibility_score: number | null;
+  player_availability: string[] | null;
 };
 type Shot = { tournament_num: number; round_type: string; table_identifier: string; image_url: string };
 
-function CurrentTournament() {
+function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; onBack: () => void }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [shots, setShots] = useState<Shot[]>([]);
   const [loading, setLoading] = useState(true);
