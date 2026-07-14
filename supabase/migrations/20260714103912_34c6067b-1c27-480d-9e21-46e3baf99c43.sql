@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.seed_tournament_from_bitmap(jsonb);

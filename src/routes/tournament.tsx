@@ -29,15 +29,15 @@ import ixIcon from "@/assets/ix.png.asset.json";
 import uprisingIcon from "@/assets/uprising.png.asset.json";
 import immoIcon from "@/assets/immo.png.asset.json";
 import epicIcon from "@/assets/epic.png.asset.json";
-import { ArrowLeft, Users as UsersIcon, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { ArrowLeft, Users as UsersIcon, ArrowUp, ArrowDown, ArrowUpDown, Sparkles } from "lucide-react";
 import { TournamentAnnouncement, TournamentCountdown } from "@/components/TournamentCountdown";
+import { AvailabilityHeatmap, type HeatmapPlayer } from "@/components/AvailabilityHeatmap";
 
 export const Route = createFileRoute("/tournament")({
   head: () => ({ meta: [{ title: "Live Tournament · Strategy Arena" }] }),
   component: TournamentPage,
 });
 
-const TOURNAMENT_NUM = 13;
 const SWISS_ROUNDS = ["Game 1", "Game 2", "Game 3"] as const;
 const PLAYOFF_ROUNDS = ["Finals"] as const;
 const TABLE_OPTIONS = [
@@ -55,10 +55,13 @@ type Row = {
   leader_name: string | null;
   placement: number | null;
   points: number | null;
+  table_score: number | null;
+  player_compatibility_score: number | null;
+  player_availability: string[] | null;
 };
 type Shot = { tournament_num: number; round_type: string; table_identifier: string; image_url: string };
 
-function CurrentTournament() {
+function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; onBack: () => void }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [shots, setShots] = useState<Shot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,6 +85,8 @@ function CurrentTournament() {
   const [hasImmortality, setHasImmortality] = useState(false);
   const [hasBaseLeaders, setHasBaseLeaders] = useState(false);
   const [tpOpen, setTpOpen] = useState(false);
+  const [heatmapKey, setHeatmapKey] = useState<string | null>(null); // "round__table"
+  const isT14 = tournamentNum === 14;
   type SaveResult = Awaited<ReturnType<typeof saveGame>>;
   const [lastSave, setLastSave] = useState<SaveResult | null>(null);
 
@@ -106,8 +111,8 @@ function CurrentTournament() {
   const refresh = async () => {
     setLoading(true);
     const [r, s] = await Promise.all([
-      supabase.from("tournament_matches").select("*").eq("tournament_num", TOURNAMENT_NUM),
-      supabase.from("tournament_table_screenshots").select("*").eq("tournament_num", TOURNAMENT_NUM),
+      supabase.from("tournament_matches").select("*").eq("tournament_num", tournamentNum),
+      supabase.from("tournament_table_screenshots").select("*").eq("tournament_num", tournamentNum),
     ]);
     setRows((r.data ?? []) as Row[]);
     setShots((s.data ?? []) as Shot[]);
@@ -299,7 +304,7 @@ function CurrentTournament() {
           .upload(imagePath, file, { contentType: file.type || "image/png", upsert: false });
         if (upErr) throw upErr;
         await supabase.from("tournament_table_screenshots").upsert(
-          { tournament_num: TOURNAMENT_NUM, round_type: round, table_identifier: tableId, image_url: imagePath, created_by: userId },
+          { tournament_num: tournamentNum, round_type: round, table_identifier: tableId, image_url: imagePath, created_by: userId },
           { onConflict: "tournament_num,round_type,table_identifier" },
         );
       }
@@ -347,7 +352,7 @@ function CurrentTournament() {
               has_immortality: hasImmortality,
               has_base_leaders: hasBaseLeaders,
               match_screenshot_url: imagePath,
-              tournament_num: TOURNAMENT_NUM,
+              tournament_num: tournamentNum,
               results: parsedRows.map((r) => ({
                 placement: r.placement,
                 player_name: r.player_name.trim(),
@@ -374,9 +379,12 @@ function CurrentTournament() {
 
   return (
       <div className="space-y-8">
+        <Button variant="ghost" size="sm" onClick={onBack} className="text-sand hover:text-sand -mb-4">
+          <ArrowLeft className="size-4 mr-1" /> Back to Current Tournaments
+        </Button>
         <header className="flex items-end justify-between flex-wrap gap-4">
           <div>
-            <h1 className="font-display text-3xl flex items-center gap-2"><Trophy className="size-7 text-sand" /> Live Tournament #{TOURNAMENT_NUM}</h1>
+            <h1 className="font-display text-3xl flex items-center gap-2"><Trophy className="size-7 text-sand" /> Live Tournament #{tournamentNum}</h1>
             <p className="text-muted-foreground">Live standings update as match screenshots are uploaded.</p>
           </div>
           <div className="flex items-center gap-3">
@@ -535,8 +543,18 @@ function CurrentTournament() {
                           return (
                             <div key={ti} className="border border-border/40 rounded-md p-3 bg-background/40">
                               <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-medium">{ti}</span>
+                                  {isT14 && players[0]?.table_score != null && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setHeatmapKey(`${rt}__${ti}`)}
+                                      className="inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-[11px] text-sand hover:bg-sand/25 transition"
+                                      title="View availability heatmap"
+                                    >
+                                      <Sparkles className="size-3" /> Match Quality {players[0].table_score}
+                                    </button>
+                                  )}
                                 </div>
                                 {shot ? (
                                   <ScreenshotLightbox
@@ -670,9 +688,9 @@ function CurrentTournament() {
                   <div className="grid grid-cols-3 gap-2 mb-4">
                     <div>
                       <Label className="text-xs">Tournament</Label>
-                      <Select value={String(TOURNAMENT_NUM)} disabled>
+                      <Select value={String(tournamentNum)} disabled>
                         <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent><SelectItem value={String(TOURNAMENT_NUM)}>{TOURNAMENT_NUM}</SelectItem></SelectContent>
+                        <SelectContent><SelectItem value={String(tournamentNum)}>{tournamentNum}</SelectItem></SelectContent>
                       </Select>
                     </div>
                     <div>
@@ -746,6 +764,25 @@ function CurrentTournament() {
             </div>
           </>
         )}
+        {isT14 && heatmapKey && (() => {
+          const [rt, ti] = heatmapKey.split("__");
+          const tableRows = rows.filter((r) => r.round_type === rt && r.table_identifier === ti);
+          const players: HeatmapPlayer[] = tableRows.map((r) => ({
+            player_name: r.player_name,
+            discord_username: r.discord_username,
+            player_compatibility_score: r.player_compatibility_score,
+            player_availability: r.player_availability,
+          }));
+          return (
+            <AvailabilityHeatmap
+              open={true}
+              onOpenChange={(v) => { if (!v) setHeatmapKey(null); }}
+              tableId={`${rt} · ${ti}`}
+              matchQuality={tableRows[0]?.table_score ?? null}
+              players={players}
+            />
+          );
+        })()}
       </div>
   );
 }
@@ -855,7 +892,7 @@ function TournamentPage() {
 
         <div key={tab} className={slideClass}>
           {tab === "future" && <FutureTournaments />}
-          {tab === "current" && <CurrentTournament />}
+          {tab === "current" && <CurrentTournamentsHub />}
           {tab === "previous" && <PreviousTournaments />}
         </div>
       </div>
@@ -868,6 +905,114 @@ function FutureTournaments() {
     <div className="space-y-6">
       <TournamentAnnouncement />
       <TournamentCountdown />
+    </div>
+  );
+}
+
+type TournamentSummaryCard = {
+  num: number;
+  title: string;
+  subtitle: string;
+  modes: { hasIx: boolean; hasEpic: boolean; hasImmo: boolean; hasUprising: boolean };
+  progressPct: number;
+  totalCells: number;
+  completedCells: number;
+  phase: string;
+};
+
+const ACTIVE_TOURNAMENTS = [13, 14];
+
+function CurrentTournamentsHub() {
+  const [selected, setSelected] = useState<number | null>(null);
+  const [cards, setCards] = useState<TournamentSummaryCard[] | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const summaries: TournamentSummaryCard[] = [];
+      for (const num of ACTIVE_TOURNAMENTS) {
+        const { data } = await supabase
+          .from("tournament_matches")
+          .select("placement, points, round_type, table_identifier")
+          .eq("tournament_num", num);
+        const rows = (data ?? []) as { placement: number | null; points: number | null; round_type: string; table_identifier: string }[];
+        const total = rows.length;
+        const completed = rows.filter((r) => r.placement != null && r.points != null).length;
+        const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+        const hasGrand = rows.some((r) => /grand/i.test(r.table_identifier) && r.placement != null);
+        const hasSemi = rows.some((r) => /semi/i.test(r.table_identifier) && r.placement != null);
+        const phase = hasGrand ? "Grand Finals" : hasSemi ? "Semi Finals" : "League Phase";
+        const isT14 = num === 14;
+        summaries.push({
+          num,
+          title: `Tournament #${num}`,
+          subtitle: isT14 ? "Uprising + Immortality · 11 VP" : "Uprising · 11 VP",
+          modes: { hasIx: false, hasEpic: false, hasImmo: isT14, hasUprising: true },
+          progressPct: pct,
+          totalCells: total,
+          completedCells: completed,
+          phase,
+        });
+      }
+      setCards(summaries);
+    })();
+  }, []);
+
+  if (selected != null) {
+    return <CurrentTournament tournamentNum={selected} onBack={() => setSelected(null)} />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <header>
+        <h1 className="font-display text-3xl flex items-center gap-2">
+          <Sword className="size-7 text-sand" /> Active Tournaments
+        </h1>
+        <p className="text-muted-foreground text-sm">Two concurrent cycles are live. Pick one to jump in.</p>
+      </header>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {(cards ?? []).map((c) => (
+          <button
+            key={c.num}
+            onClick={() => setSelected(c.num)}
+            className="text-left group rounded-xl border border-border bg-card/50 hover:bg-card hover:border-sand transition-all p-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-sand"
+          >
+            <div className="flex items-center gap-4">
+              <div className="relative flex items-center justify-center size-16 rounded-full bg-gradient-to-br from-sand/30 to-sand/5 border border-sand/40 shadow-inner">
+                <Trophy className="size-7 text-sand" />
+                <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center size-7 rounded-full bg-background text-sand font-display text-sm border border-sand/60">
+                  {c.num}
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-display text-xl leading-tight">{c.title}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{c.subtitle}</div>
+                <div className="mt-2 text-[11px] uppercase tracking-wide text-sand/80">{c.phase}</div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <ModeBadges flags={c.modes} size={22} />
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="text-muted-foreground">Progress</span>
+                <span className="text-sand font-mono">{c.completedCells}/{c.totalCells} · {c.progressPct}%</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div className="h-full bg-sand transition-all duration-500" style={{ width: `${c.progressPct}%` }} />
+              </div>
+            </div>
+            <div className="mt-3 text-[11px] uppercase tracking-wide text-sand/80 opacity-0 group-hover:opacity-100 transition-opacity">
+              Enter tournament →
+            </div>
+          </button>
+        ))}
+        {cards === null && (
+          <div className="col-span-full flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" /> Loading tournaments…
+          </div>
+        )}
+      </div>
     </div>
   );
 }
