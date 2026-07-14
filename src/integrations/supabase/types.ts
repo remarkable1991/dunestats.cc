@@ -27,6 +27,7 @@ export type Database = {
           lobby_password: string | null
           message_id: string
           message_text: string
+          modules: string[] | null
           notify_user_ids: string[] | null
           player_ids: string[] | null
           status: string
@@ -43,6 +44,7 @@ export type Database = {
           lobby_password?: string | null
           message_id: string
           message_text: string
+          modules?: string[] | null
           notify_user_ids?: string[] | null
           player_ids?: string[] | null
           status?: string
@@ -59,6 +61,7 @@ export type Database = {
           lobby_password?: string | null
           message_id?: string
           message_text?: string
+          modules?: string[] | null
           notify_user_ids?: string[] | null
           player_ids?: string[] | null
           status?: string
@@ -456,10 +459,13 @@ export type Database = {
           id: string
           leader_name: string | null
           placement: number | null
+          player_availability: Json | null
+          player_compatibility_score: number | null
           player_name: string
           points: number | null
           round_type: string
           table_identifier: string
+          table_score: number | null
           tournament_num: number
           updated_at: string
         }
@@ -469,10 +475,13 @@ export type Database = {
           id?: string
           leader_name?: string | null
           placement?: number | null
+          player_availability?: Json | null
+          player_compatibility_score?: number | null
           player_name: string
           points?: number | null
           round_type: string
           table_identifier: string
+          table_score?: number | null
           tournament_num: number
           updated_at?: string
         }
@@ -482,10 +491,13 @@ export type Database = {
           id?: string
           leader_name?: string | null
           placement?: number | null
+          player_availability?: Json | null
+          player_compatibility_score?: number | null
           player_name?: string
           points?: number | null
           round_type?: string
           table_identifier?: string
+          table_score?: number | null
           tournament_num?: number
           updated_at?: string
         }
