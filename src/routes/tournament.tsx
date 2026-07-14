@@ -909,6 +909,114 @@ function FutureTournaments() {
   );
 }
 
+type TournamentSummaryCard = {
+  num: number;
+  title: string;
+  subtitle: string;
+  modes: { hasIx: boolean; hasEpic: boolean; hasImmo: boolean; hasUprising: boolean };
+  progressPct: number;
+  totalCells: number;
+  completedCells: number;
+  phase: string;
+};
+
+const ACTIVE_TOURNAMENTS = [13, 14];
+
+function CurrentTournamentsHub() {
+  const [selected, setSelected] = useState<number | null>(null);
+  const [cards, setCards] = useState<TournamentSummaryCard[] | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const summaries: TournamentSummaryCard[] = [];
+      for (const num of ACTIVE_TOURNAMENTS) {
+        const { data } = await supabase
+          .from("tournament_matches")
+          .select("placement, points, round_type, table_identifier")
+          .eq("tournament_num", num);
+        const rows = (data ?? []) as { placement: number | null; points: number | null; round_type: string; table_identifier: string }[];
+        const total = rows.length;
+        const completed = rows.filter((r) => r.placement != null && r.points != null).length;
+        const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+        const hasGrand = rows.some((r) => /grand/i.test(r.table_identifier) && r.placement != null);
+        const hasSemi = rows.some((r) => /semi/i.test(r.table_identifier) && r.placement != null);
+        const phase = hasGrand ? "Grand Finals" : hasSemi ? "Semi Finals" : "League Phase";
+        const isT14 = num === 14;
+        summaries.push({
+          num,
+          title: `Tournament #${num}`,
+          subtitle: isT14 ? "Uprising + Immortality · 11 VP" : "Uprising · 11 VP",
+          modes: { hasIx: false, hasEpic: false, hasImmo: isT14, hasUprising: true },
+          progressPct: pct,
+          totalCells: total,
+          completedCells: completed,
+          phase,
+        });
+      }
+      setCards(summaries);
+    })();
+  }, []);
+
+  if (selected != null) {
+    return <CurrentTournament tournamentNum={selected} onBack={() => setSelected(null)} />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <header>
+        <h1 className="font-display text-3xl flex items-center gap-2">
+          <Sword className="size-7 text-sand" /> Active Tournaments
+        </h1>
+        <p className="text-muted-foreground text-sm">Two concurrent cycles are live. Pick one to jump in.</p>
+      </header>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {(cards ?? []).map((c) => (
+          <button
+            key={c.num}
+            onClick={() => setSelected(c.num)}
+            className="text-left group rounded-xl border border-border bg-card/50 hover:bg-card hover:border-sand transition-all p-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-sand"
+          >
+            <div className="flex items-center gap-4">
+              <div className="relative flex items-center justify-center size-16 rounded-full bg-gradient-to-br from-sand/30 to-sand/5 border border-sand/40 shadow-inner">
+                <Trophy className="size-7 text-sand" />
+                <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center size-7 rounded-full bg-background text-sand font-display text-sm border border-sand/60">
+                  {c.num}
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-display text-xl leading-tight">{c.title}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{c.subtitle}</div>
+                <div className="mt-2 text-[11px] uppercase tracking-wide text-sand/80">{c.phase}</div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <ModeBadges flags={c.modes} size={22} />
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="text-muted-foreground">Progress</span>
+                <span className="text-sand font-mono">{c.completedCells}/{c.totalCells} · {c.progressPct}%</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div className="h-full bg-sand transition-all duration-500" style={{ width: `${c.progressPct}%` }} />
+              </div>
+            </div>
+            <div className="mt-3 text-[11px] uppercase tracking-wide text-sand/80 opacity-0 group-hover:opacity-100 transition-opacity">
+              Enter tournament →
+            </div>
+          </button>
+        ))}
+        {cards === null && (
+          <div className="col-span-full flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" /> Loading tournaments…
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 type PastRow = {
   id: string;
   tournament_num: number;
