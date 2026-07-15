@@ -640,6 +640,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      promote_to_semifinals: {
+        Args: { p_semi1: string[]; p_semi2: string[]; p_tournament_num: number }
+        Returns: Json
+      }
       save_game_with_ratings: {
         Args: {
           p_board_version: string
