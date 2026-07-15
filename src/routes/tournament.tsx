@@ -964,9 +964,10 @@ function CurrentTournamentsHub() {
         const total = rows.length;
         const completed = rows.filter((r) => r.placement != null && r.points != null).length;
         const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-        const hasGrand = rows.some((r) => /grand/i.test(r.table_identifier) && r.placement != null);
-        const hasSemi = rows.some((r) => /semi/i.test(r.table_identifier) && r.placement != null);
-        const phase = hasGrand ? "Grand Finals" : hasSemi ? "Semi Finals" : "League Phase";
+        const hasGrand = rows.some((r) => /grand/i.test(r.table_identifier));
+        const grandComplete = rows.some((r) => /grand/i.test(r.table_identifier) && r.placement != null);
+        const hasSemi = rows.some((r) => /semi/i.test(r.table_identifier));
+        const phase = grandComplete ? "Champion Crowned" : hasGrand ? "Grand Finals" : hasSemi ? "Semi Finals" : "League Phase";
         const isT14 = num === 14;
         summaries.push({
           num,
