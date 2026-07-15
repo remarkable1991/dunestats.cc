@@ -961,8 +961,15 @@ function CurrentTournamentsHub() {
           .select("placement, points, round_type, table_identifier")
           .eq("tournament_num", num);
         const rows = (data ?? []) as { placement: number | null; points: number | null; round_type: string; table_identifier: string }[];
-        const total = rows.length;
-        const completed = rows.filter((r) => r.placement != null && r.points != null).length;
+        const tables = new Map<string, { filled: number }>();
+        for (const r of rows) {
+          const key = `${r.round_type}__${r.table_identifier}`;
+          const t = tables.get(key) ?? { filled: 0 };
+          if (r.placement != null && r.points != null) t.filled += 1;
+          tables.set(key, t);
+        }
+        const total = tables.size;
+        const completed = [...tables.values()].filter((t) => t.filled >= 4).length;
         const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
         const hasGrand = rows.some((r) => /grand/i.test(r.table_identifier));
         const grandComplete = rows.some((r) => /grand/i.test(r.table_identifier) && r.placement != null);
