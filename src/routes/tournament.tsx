@@ -542,7 +542,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
 
             {/* Playoff bracket */}
             <p className="text-xs text-muted-foreground italic">
-              Projected Semi Finals based on current standings.
+              {semisPublished ? "Semi Final tables published." : "Projected Semi Finals based on current standings."}
             </p>
             <div className="grid md:grid-cols-3 gap-4">
               <BracketCard title="Semi Final 1" players={playoffs.semi1.map((p) => displayMode === "discord" ? p.discord : p.player)} accent="slate" />
