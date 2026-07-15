@@ -212,6 +212,32 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
     });
   }, [rows]);
 
+  // Auto-publish Semi Finals once League Phase is fully complete.
+  const semisPublished = useMemo(
+    () => rows.some((r) => r.round_type === "Finals" && /^Semi Final/i.test(r.table_identifier)),
+    [rows],
+  );
+  const leagueComplete = useMemo(
+    () => swissProgress.length > 0 && swissProgress.every((r) => r.total > 0 && r.completed === r.total),
+    [swissProgress],
+  );
+  const promoteTriedRef = useRef(false);
+  useEffect(() => {
+    if (!userId) return;
+    if (!leagueComplete || semisPublished) return;
+    if (playoffs.semi1.length !== 4 || playoffs.semi2.length !== 4) return;
+    if (promoteTriedRef.current) return;
+    promoteTriedRef.current = true;
+    (async () => {
+      const { error } = await supabase.rpc("promote_to_semifinals", {
+        p_tournament_num: tournamentNum,
+        p_semi1: playoffs.semi1.map((p) => p.player),
+        p_semi2: playoffs.semi2.map((p) => p.player),
+      });
+      if (!error) await refresh();
+    })();
+  }, [userId, leagueComplete, semisPublished, playoffs, tournamentNum]);
+
   // Helper: get screenshot URL for a table
   const shotFor = (rt: string, ti: string) => shots.find((s) => s.round_type === rt && s.table_identifier === ti);
 
