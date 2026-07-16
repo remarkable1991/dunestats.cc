@@ -7,6 +7,49 @@ export const CHECKIN_START_TIME_UTC = "2026-07-13T08:00:00Z"; // 10:00 CET / 11:
 export const CHECKIN_WINDOW_HOURS = 24;
 export const DISCORD_INVITE_URL = "https://discord.gg/WHKV5n7d6a";
 
+// ============================================================
+// TOURNAMENT MODE PROFILES
+// The active board/expansion configuration for each tournament.
+// Used by:
+//   - the /tournament landing cards (subtitle + mode badges)
+//   - the /upload flow to auto-apply expansions when a match is
+//     detected as belonging to a tournament.
+// Add a new entry here for every future tournament so uploads auto-tag.
+// ============================================================
+export type TournamentModeProfile = {
+  board_version: "base" | "uprising";
+  has_rise_of_ix: boolean;
+  has_epic_mode: boolean;
+  has_immortality: boolean;
+  has_base_leaders: boolean;
+  /** Short human-readable subtitle for the landing card, e.g. "Uprising + Immortality · 11 VP". */
+  subtitle: string;
+};
+
+export const TOURNAMENT_MODES: Record<number, TournamentModeProfile> = {
+  13: {
+    board_version: "uprising",
+    has_rise_of_ix: false,
+    has_epic_mode: false,
+    has_immortality: false,
+    has_base_leaders: false,
+    subtitle: "Uprising · 11 VP",
+  },
+  14: {
+    board_version: "uprising",
+    has_rise_of_ix: false,
+    has_epic_mode: false,
+    has_immortality: true,
+    has_base_leaders: false,
+    subtitle: "Uprising + Immortality · 11 VP",
+  },
+};
+
+export function tournamentModes(num: number | null | undefined): TournamentModeProfile | null {
+  if (num == null) return null;
+  return TOURNAMENT_MODES[num] ?? null;
+}
+
 export function checkinEndUtc(): Date {
   const start = new Date(CHECKIN_START_TIME_UTC);
   return new Date(start.getTime() + CHECKIN_WINDOW_HOURS * 3600_000);
