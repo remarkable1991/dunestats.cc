@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { parseScreenshot, saveGame } from "@/lib/games.functions";
 import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
+import { detectTournamentFromPlayers } from "@/lib/tournament-detect";
+import { tournamentModes } from "@/lib/tournament-config";
 import { translateLeader, isCanonicalLeader, CANONICAL_LEADERS } from "@/lib/leader-translate";
 import { toast } from "sonner";
 import { Upload as UploadIcon, Loader2, CheckCircle2, Maximize2, GripVertical } from "lucide-react";
@@ -57,6 +59,7 @@ function UploadPage() {
   const [duplicateWarn, setDuplicateWarn] = useState(false);
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
   const [checkingDup, setCheckingDup] = useState(false);
+  const [detectedTournamentNum, setDetectedTournamentNum] = useState<number | null>(null);
   type SaveResult = Awaited<ReturnType<typeof saveGame>>;
   const [lastSave, setLastSave] = useState<SaveResult | null>(null);
 
@@ -91,6 +94,7 @@ function UploadPage() {
     setAdjusted(false);
     setDuplicateWarn(false);
     setConfirmDuplicate(false);
+    setDetectedTournamentNum(null);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(f ? URL.createObjectURL(f) : null);
     if (f) await analyze(f);
@@ -125,9 +129,25 @@ function UploadPage() {
       setHasBaseLeaders(suggestion.has_base_leaders);
       setHasEpic(false);
       setHasImmortality(false);
+
+      // Auto-tag tournament + apply that tournament's mode profile
+      // (e.g. T14 forces Immortality on). Config lives in tournament-config.ts.
+      const tNum = await detectTournamentFromPlayers(detected.map((d) => d.player_name));
+      setDetectedTournamentNum(tNum);
+      const profile = tournamentModes(tNum);
+      if (profile) {
+        setBoard(profile.board_version);
+        setHasIx(profile.has_rise_of_ix);
+        setHasEpic(profile.has_epic_mode);
+        setHasImmortality(profile.has_immortality);
+        setHasBaseLeaders(profile.has_base_leaders);
+      }
+
       const unknown = detected.filter((d) => !isCanonicalLeader(d.leader_name)).length;
       if (unknown > 0) {
         toast.warning(`Detected ${res.results.length} players — ${unknown} leader${unknown > 1 ? "s" : ""} need manual selection.`);
+      } else if (profile) {
+        toast.success(`Detected Tournament #${tNum} — applied ${profile.subtitle}.`);
       } else {
         toast.success(`Detected ${res.results.length} players. Verify and submit.`);
       }
@@ -175,6 +195,7 @@ function UploadPage() {
           has_immortality: hasImmortality,
           has_base_leaders: hasBaseLeaders,
           match_screenshot_url,
+          tournament_num: detectedTournamentNum,
           results: rows.map((r) => ({
             placement: r.placement,
             player_name: r.player_name.trim(),

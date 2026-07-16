@@ -16,6 +16,7 @@ import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
 import { translateLeader } from "@/lib/leader-translate";
 import { useChampions, isChampion } from "@/lib/champions";
+import { tournamentModes } from "@/lib/tournament-config";
 import { toast } from "sonner";
 import { Image as ImageIcon, Loader2, Trophy, Upload as UploadIcon, CheckCircle2, Maximize2, HelpCircle } from "lucide-react";
 import { Calendar, Sword, History, ExternalLink } from "lucide-react";
@@ -975,12 +976,17 @@ function CurrentTournamentsHub() {
         const grandComplete = rows.some((r) => /grand/i.test(r.table_identifier) && r.placement != null);
         const hasSemi = rows.some((r) => /semi/i.test(r.table_identifier));
         const phase = grandComplete ? "Champion Crowned" : hasGrand ? "Grand Finals" : hasSemi ? "Semi Finals" : "League Phase";
-        const isT14 = num === 14;
+        const profile = tournamentModes(num);
         summaries.push({
           num,
           title: `Tournament #${num}`,
-          subtitle: isT14 ? "Uprising + Immortality · 11 VP" : "Uprising · 11 VP",
-          modes: { hasIx: false, hasEpic: false, hasImmo: isT14, hasUprising: true },
+          subtitle: profile?.subtitle ?? "Uprising · 11 VP",
+          modes: {
+            hasIx: profile?.has_rise_of_ix ?? false,
+            hasEpic: profile?.has_epic_mode ?? false,
+            hasImmo: profile?.has_immortality ?? false,
+            hasUprising: (profile?.board_version ?? "uprising") === "uprising",
+          },
           progressPct: pct,
           totalCells: total,
           completedCells: completed,

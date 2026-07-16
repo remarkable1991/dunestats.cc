@@ -20,6 +20,8 @@ export type Database = {
           channel_id: string
           created_at: string
           expansions: string[] | null
+          expires_at: string | null
+          guest_players: string[] | null
           guild_id: string
           host_id: string
           id: number
@@ -37,6 +39,8 @@ export type Database = {
           channel_id: string
           created_at?: string
           expansions?: string[] | null
+          expires_at?: string | null
+          guest_players?: string[] | null
           guild_id: string
           host_id: string
           id?: number
@@ -54,6 +58,8 @@ export type Database = {
           channel_id?: string
           created_at?: string
           expansions?: string[] | null
+          expires_at?: string | null
+          guest_players?: string[] | null
           guild_id?: string
           host_id?: string
           id?: number
