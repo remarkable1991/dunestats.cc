@@ -195,6 +195,7 @@ function UploadPage() {
           has_immortality: hasImmortality,
           has_base_leaders: hasBaseLeaders,
           match_screenshot_url,
+          tournament_num: detectedTournamentNum,
           results: rows.map((r) => ({
             placement: r.placement,
             player_name: r.player_name.trim(),
