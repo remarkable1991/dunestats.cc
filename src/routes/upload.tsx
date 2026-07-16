@@ -129,9 +129,25 @@ function UploadPage() {
       setHasBaseLeaders(suggestion.has_base_leaders);
       setHasEpic(false);
       setHasImmortality(false);
+
+      // Auto-tag tournament + apply that tournament's mode profile
+      // (e.g. T14 forces Immortality on). Config lives in tournament-config.ts.
+      const tNum = await detectTournamentFromPlayers(detected.map((d) => d.player_name));
+      setDetectedTournamentNum(tNum);
+      const profile = tournamentModes(tNum);
+      if (profile) {
+        setBoard(profile.board_version);
+        setHasIx(profile.has_rise_of_ix);
+        setHasEpic(profile.has_epic_mode);
+        setHasImmortality(profile.has_immortality);
+        setHasBaseLeaders(profile.has_base_leaders);
+      }
+
       const unknown = detected.filter((d) => !isCanonicalLeader(d.leader_name)).length;
       if (unknown > 0) {
         toast.warning(`Detected ${res.results.length} players — ${unknown} leader${unknown > 1 ? "s" : ""} need manual selection.`);
+      } else if (profile) {
+        toast.success(`Detected Tournament #${tNum} — applied ${profile.subtitle}.`);
       } else {
         toast.success(`Detected ${res.results.length} players. Verify and submit.`);
       }
