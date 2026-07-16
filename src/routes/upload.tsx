@@ -94,6 +94,7 @@ function UploadPage() {
     setAdjusted(false);
     setDuplicateWarn(false);
     setConfirmDuplicate(false);
+    setDetectedTournamentNum(null);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(f ? URL.createObjectURL(f) : null);
     if (f) await analyze(f);
