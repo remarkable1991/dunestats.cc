@@ -59,6 +59,7 @@ function UploadPage() {
   const [duplicateWarn, setDuplicateWarn] = useState(false);
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
   const [checkingDup, setCheckingDup] = useState(false);
+  const [detectedTournamentNum, setDetectedTournamentNum] = useState<number | null>(null);
   type SaveResult = Awaited<ReturnType<typeof saveGame>>;
   const [lastSave, setLastSave] = useState<SaveResult | null>(null);
 
