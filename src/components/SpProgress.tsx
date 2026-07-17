@@ -97,18 +97,6 @@ export function SpProgress({ userId }: { userId: string }) {
           />
         </div>
 
-        <div>
-          <div className="flex justify-between text-xs mb-1.5">
-            <span className="text-muted-foreground">Seasonal progress</span>
-            <span className="text-foreground font-mono">
-              {seasonal.toLocaleString()} / {SEASONAL_GOAL.toLocaleString()} SP
-            </span>
-          </div>
-          <Progress
-            value={animate ? seasonPct : 0}
-            className="h-2 transition-all duration-1000 ease-out"
-          />
-        </div>
       </div>
     </Card>
   );
