@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,21 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { SpLearnMore } from "@/components/SpLearnMore";
 import { Sparkles, CheckCircle2, HelpCircle } from "lucide-react";
+
+const TITLE_TIERS: { name: string; min: number; color: string }[] = [
+  { name: "Spiceworker", min: 0, color: "#a37a5c" },
+  { name: "Trooper", min: 250, color: "#607d8b" },
+  { name: "Fedaykin", min: 1000, color: "#1abc9c" },
+  { name: "Mentat", min: 2500, color: "#9b59b6" },
+  { name: "Swordmaster", min: 5000, color: "#961a0c" },
+  { name: "Kwisatz Haderach", min: 10000, color: "#f1c40f" },
+];
+
+function titleColor(lifetime: number): string {
+  let color = TITLE_TIERS[0].color;
+  for (const t of TITLE_TIERS) if (lifetime >= t.min) color = t.color;
+  return color;
+}
 
 export const Route = createFileRoute("/ledger")({
   head: () => ({
@@ -53,14 +68,23 @@ function LedgerPage() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [{ data: sp }, { data: ss }] = await Promise.all([
+      const [{ data: sp }, { data: ss }, { data: pr }] = await Promise.all([
         supabase
           .from("player_sp")
           .select("player_key, display_name, lifetime_sp, seasonal_sp, season_id, is_claimed")
           .limit(1000),
         supabase.from("sp_seasons").select("*").order("id"),
+        supabase.from("player_ratings").select("player_key, display_name").eq("game_version", "overall"),
       ]);
-      setRows((sp as SpRow[]) ?? []);
+      const nameMap = new Map<string, string>();
+      for (const r of (pr as { player_key: string; display_name: string }[] | null) ?? []) {
+        nameMap.set(r.player_key, r.display_name);
+      }
+      const merged = ((sp as SpRow[]) ?? []).map((r) => ({
+        ...r,
+        display_name: nameMap.get(r.player_key) ?? r.display_name,
+      }));
+      setRows(merged);
       setSeasons((ss as Season[]) ?? []);
       setLoading(false);
     })();
@@ -190,7 +214,17 @@ function LedgerTable({
               rows.map((r, i) => (
                 <tr key={r.player_key} className="border-t border-border/40 hover:bg-secondary/30">
                   <td className="px-4 py-3 tabular-nums text-muted-foreground">{i + 1}</td>
-                  <td className="px-4 py-3 font-medium">{r.display_name}</td>
+                  <td className="px-4 py-3 font-medium">
+                    <Link
+                      to="/players/$key"
+                      params={{ key: r.player_key }}
+                      className="hover:underline underline-offset-2"
+                      style={{ color: titleColor(r.lifetime_sp) }}
+                      title={`Lifetime: ${r.lifetime_sp.toLocaleString()} SP`}
+                    >
+                      {r.display_name}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3">
                     {r.is_claimed ? (
                       <span className="inline-flex items-center gap-1 text-emerald-400 text-xs">
