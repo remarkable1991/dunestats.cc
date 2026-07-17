@@ -37,7 +37,7 @@ export function SpProgress({ userId }: { userId: string }) {
     (async () => {
       const { data } = await supabase
         .from("player_sp")
-        .select("lifetime_sp, seasonal_sp")
+        .select("lifetime_sp")
         .eq("claimed_by", userId);
       if (cancelled) return;
       const life = (data ?? []).reduce((s, r) => s + (r.lifetime_sp ?? 0), 0);
