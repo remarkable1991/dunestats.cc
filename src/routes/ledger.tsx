@@ -68,14 +68,23 @@ function LedgerPage() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [{ data: sp }, { data: ss }] = await Promise.all([
+      const [{ data: sp }, { data: ss }, { data: pr }] = await Promise.all([
         supabase
           .from("player_sp")
           .select("player_key, display_name, lifetime_sp, seasonal_sp, season_id, is_claimed")
           .limit(1000),
         supabase.from("sp_seasons").select("*").order("id"),
+        supabase.from("player_ratings").select("player_key, display_name").eq("game_version", "overall"),
       ]);
-      setRows((sp as SpRow[]) ?? []);
+      const nameMap = new Map<string, string>();
+      for (const r of (pr as { player_key: string; display_name: string }[] | null) ?? []) {
+        nameMap.set(r.player_key, r.display_name);
+      }
+      const merged = ((sp as SpRow[]) ?? []).map((r) => ({
+        ...r,
+        display_name: nameMap.get(r.player_key) ?? r.display_name,
+      }));
+      setRows(merged);
       setSeasons((ss as Season[]) ?? []);
       setLoading(false);
     })();
