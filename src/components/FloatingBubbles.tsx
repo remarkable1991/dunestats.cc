@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MessageCircle, Loader2, Send } from "lucide-react";
+import { MessageCircle, Loader2, Send, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { sendFeedback } from "@/lib/feedback.functions";
 
 const DISCORD_URL = "https://discord.gg/XuvUmtcSDQ";
+const DISCORD_DISMISS_KEY = "sa:hideDiscordBubble";
+const FEEDBACK_DISMISS_KEY = "sa:hideFeedbackBubble";
 
 function DiscordIcon({ className }: { className?: string }) {
   return (
@@ -26,13 +28,71 @@ function DiscordIcon({ className }: { className?: string }) {
   );
 }
 
+function DismissX({
+  onClick,
+  label,
+  className,
+}: {
+  onClick: () => void;
+  label: string;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick();
+      }}
+      aria-label={label}
+      className={
+        "absolute -top-1 -right-1 inline-flex size-5 items-center justify-center rounded-full bg-background text-foreground shadow-md ring-1 ring-border transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+        (className ?? "")
+      }
+    >
+      <X className="size-3" />
+    </button>
+  );
+}
+
 export function FloatingBubbles() {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [emailLocked, setEmailLocked] = useState(false);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [hasDiscordLinked, setHasDiscordLinked] = useState(false);
+  const [discordDismissed, setDiscordDismissed] = useState(false);
+  const [feedbackDismissed, setFeedbackDismissed] = useState(false);
   const send = useServerFn(sendFeedback);
+
+  // Hydration-safe: read localStorage after mount
+  useEffect(() => {
+    try {
+      setDiscordDismissed(localStorage.getItem(DISCORD_DISMISS_KEY) === "1");
+      setFeedbackDismissed(localStorage.getItem(FEEDBACK_DISMISS_KEY) === "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const readAuth = async () => {
+    const { data } = await supabase.auth.getUser();
+    const user = data.user;
+    setIsLoggedIn(!!user);
+    const identities = user?.identities ?? [];
+    setHasDiscordLinked(identities.some((i) => i.provider === "discord"));
+  };
+
+  useEffect(() => {
+    readAuth();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      readAuth();
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -65,26 +125,61 @@ export function FloatingBubbles() {
     }
   };
 
+  const dismissDiscord = () => {
+    setDiscordDismissed(true);
+    try {
+      localStorage.setItem(DISCORD_DISMISS_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const dismissFeedback = () => {
+    setFeedbackDismissed(true);
+    try {
+      localStorage.setItem(FEEDBACK_DISMISS_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const hideDiscord = (isLoggedIn && hasDiscordLinked) || discordDismissed;
+  const canDismissDiscord = isLoggedIn && !hasDiscordLinked;
+
   return (
     <>
-      <a
-        href={DISCORD_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Join our Discord"
-        className="fixed bottom-6 left-6 z-50 inline-flex size-14 items-center justify-center rounded-full bg-[#5865F2] text-white shadow-lg shadow-black/30 transition-transform hover:scale-110 hover:bg-[#4752c4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      >
-        <DiscordIcon className="size-7" />
-      </a>
+      {!hideDiscord && (
+        <div className="fixed bottom-6 left-6 z-50">
+          <a
+            href={DISCORD_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Join our Discord"
+            className="relative inline-flex size-14 items-center justify-center rounded-full bg-[#5865F2] text-white shadow-lg shadow-black/30 transition-transform hover:scale-110 hover:bg-[#4752c4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <DiscordIcon className="size-7" />
+          </a>
+          {canDismissDiscord && (
+            <DismissX onClick={dismissDiscord} label="Hide Discord button" />
+          )}
+        </div>
+      )}
 
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Send feedback"
-        className="fixed bottom-6 right-6 z-50 inline-flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-black/30 transition-transform hover:scale-110 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      >
-        <MessageCircle className="size-6" />
-      </button>
+      {!feedbackDismissed && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Send feedback"
+            className="relative inline-flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-black/30 transition-transform hover:scale-110 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <MessageCircle className="size-6" />
+          </button>
+          {isLoggedIn && (
+            <DismissX onClick={dismissFeedback} label="Hide feedback button" />
+          )}
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
