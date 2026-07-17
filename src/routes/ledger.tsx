@@ -214,7 +214,17 @@ function LedgerTable({
               rows.map((r, i) => (
                 <tr key={r.player_key} className="border-t border-border/40 hover:bg-secondary/30">
                   <td className="px-4 py-3 tabular-nums text-muted-foreground">{i + 1}</td>
-                  <td className="px-4 py-3 font-medium">{r.display_name}</td>
+                  <td className="px-4 py-3 font-medium">
+                    <Link
+                      to="/players/$key"
+                      params={{ key: r.player_key }}
+                      className="hover:underline underline-offset-2"
+                      style={{ color: titleColor(r.lifetime_sp) }}
+                      title={`Lifetime: ${r.lifetime_sp.toLocaleString()} SP`}
+                    >
+                      {r.display_name}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3">
                     {r.is_claimed ? (
                       <span className="inline-flex items-center gap-1 text-emerald-400 text-xs">
