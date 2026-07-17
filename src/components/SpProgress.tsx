@@ -14,7 +14,7 @@ const TITLES = [
   { name: "Kwisatz Haderach", min: 10000 },
 ];
 
-const SEASONAL_GOAL = 1000;
+
 
 function titleFor(lifetime: number) {
   let current = TITLES[0];
@@ -30,7 +30,6 @@ function titleFor(lifetime: number) {
 
 export function SpProgress({ userId }: { userId: string }) {
   const [lifetime, setLifetime] = useState(0);
-  const [seasonal, setSeasonal] = useState(0);
   const [animate, setAnimate] = useState(false);
 
   useEffect(() => {
@@ -42,9 +41,7 @@ export function SpProgress({ userId }: { userId: string }) {
         .eq("claimed_by", userId);
       if (cancelled) return;
       const life = (data ?? []).reduce((s, r) => s + (r.lifetime_sp ?? 0), 0);
-      const seas = (data ?? []).reduce((s, r) => s + (r.seasonal_sp ?? 0), 0);
       setLifetime(life);
-      setSeasonal(seas);
       requestAnimationFrame(() => setAnimate(true));
     })();
     return () => {
@@ -58,7 +55,6 @@ export function SpProgress({ userId }: { userId: string }) {
   const tierPct = next
     ? Math.min(100, Math.max(0, ((lifetime - tierFloor) / (tierCeil - tierFloor)) * 100))
     : 100;
-  const seasonPct = Math.min(100, (seasonal / SEASONAL_GOAL) * 100);
 
   return (
     <Card className="p-5 border-sand/40 bg-gradient-to-br from-card to-card/40 mt-6">
@@ -75,7 +71,7 @@ export function SpProgress({ userId }: { userId: string }) {
           <Trophy className="size-4" /> {current.name}
         </span>
         <span className="text-xs text-muted-foreground">
-          {lifetime.toLocaleString()} lifetime SP · {seasonal.toLocaleString()} seasonal SP
+          {lifetime.toLocaleString()} lifetime SP
         </span>
       </div>
 
