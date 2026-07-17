@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,21 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { SpLearnMore } from "@/components/SpLearnMore";
 import { Sparkles, CheckCircle2, HelpCircle } from "lucide-react";
+
+const TITLE_TIERS: { name: string; min: number; color: string }[] = [
+  { name: "Spiceworker", min: 0, color: "#a37a5c" },
+  { name: "Trooper", min: 250, color: "#607d8b" },
+  { name: "Fedaykin", min: 1000, color: "#1abc9c" },
+  { name: "Mentat", min: 2500, color: "#9b59b6" },
+  { name: "Swordmaster", min: 5000, color: "#961a0c" },
+  { name: "Kwisatz Haderach", min: 10000, color: "#f1c40f" },
+];
+
+function titleColor(lifetime: number): string {
+  let color = TITLE_TIERS[0].color;
+  for (const t of TITLE_TIERS) if (lifetime >= t.min) color = t.color;
+  return color;
+}
 
 export const Route = createFileRoute("/ledger")({
   head: () => ({
