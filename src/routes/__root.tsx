@@ -94,6 +94,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:description", content: "Where great minds compete. Dune Imperium tournaments, stats and leaderboards all in one place!" },
       { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/sCTnIQjXKQN7y7KIi38nQhzNp6b2/social-images/social-1782411561290-1.webp" },
       { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/sCTnIQjXKQN7y7KIi38nQhzNp6b2/social-images/social-1782411561290-1.webp" },
+      { name: "google-site-verification", content: "3nhKJ0UAlbCX68y4jvxa76pHbSTj8RR2-GePZxRm7YQ" },
     ],
     links: [
       {
