@@ -44,10 +44,37 @@ function TermsPage() {
               </p>
 
               {/* PLACEHOLDER: Paste your legal text below this line */}
-              <div className="my-8 rounded-lg border-2 border-dashed border-border/40 bg-background/50 p-6 text-center">
-                <p className="text-foreground font-medium">[Your Terms of Service text goes here]</p>
-                <p className="mt-2">
-                  Replace this placeholder section with the full legal text for your Terms of Service.
+              <div className="space-y-6 text-muted-foreground whitespace-pre-wrap">
+                <h2 className="text-xl font-bold text-foreground mt-8">Terms of Service for Strategy Arena</h2>
+
+                <p>
+                  <strong>Effective Date:</strong> July 1, 2026
+                </p>
+
+                <p>
+                  Welcome to Strategy Arena (dunestats.cc). By accessing or uploading data to our platform, you agree to comply with the following terms.
+                </p>
+
+                <h3 className="text-lg font-bold text-foreground mt-6">1. Acceptable Use</h3>
+                <ul className="list-disc pl-6 space-y-2">
+                  <li>You agree to only upload valid, unaltered screenshots of your completed Dune: Imperium Digital matches.</li>
+                  <li>Submitting fraudulent data, manipulating points, or intentionally engineering duplicate matches to spoof ELO tracking is strictly prohibited.</li>
+                </ul>
+
+                <h3 className="text-lg font-bold text-foreground mt-6">2. User-Generated Content</h3>
+                <ul className="list-disc pl-6 space-y-2">
+                  <li>By uploading a match screenshot, you grant Strategy Arena a non-exclusive, royalty-free license to store, process, and display the match data publicly on our leaderboards.</li>
+                  <li>You are responsible for ensuring that your uploaded content does not violate anyone else's privacy or rights.</li>
+                </ul>
+
+                <h3 className="text-lg font-bold text-foreground mt-6">3. Tournament Data</h3>
+                <p>
+                  Tournament match placements and schedules are synchronized with our official systems. The platform reserves the right to strip tournament tags or adjust ELO anomalies resulting from false-flag match detections.
+                </p>
+
+                <h3 className="text-lg font-bold text-foreground mt-6">4. Limitation of Liability</h3>
+                <p>
+                  Strategy Arena is provided "as is" for hobby and community tracking purposes. We are not responsible for any temporary data loss, leaderboard inaccuracies, or service interruptions.
                 </p>
               </div>
               {/* PLACEHOLDER: Paste your legal text above this line */}
