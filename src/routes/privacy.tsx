@@ -44,10 +44,39 @@ function PrivacyPage() {
               </p>
 
               {/* PLACEHOLDER: Paste your legal text below this line */}
-              <div className="my-8 rounded-lg border-2 border-dashed border-border/40 bg-background/50 p-6 text-center">
-                <p className="text-foreground font-medium">[Your Privacy Policy text goes here]</p>
-                <p className="mt-2">
-                  Replace this placeholder section with the full legal text for your Privacy Policy.
+              <div className="space-y-6 text-muted-foreground whitespace-pre-wrap">
+                <h2 className="text-xl font-bold text-foreground mt-8">Privacy Policy for Strategy Arena</h2>
+
+                <p>
+                  <strong>Effective Date:</strong> July 1, 2026
+                </p>
+
+                <p>
+                  At Strategy Arena (dunestats.cc), we value your privacy. This policy outlines how we collect, use, and protect your information.
+                </p>
+
+                <h3 className="text-lg font-bold text-foreground mt-6">1. Information We Collect</h3>
+                <ul className="list-disc pl-6 space-y-2">
+                  <li><strong>Account Data:</strong> When you sign in via Discord or email, we collect your basic profile information (such as your User ID and username) to manage your account and track your leaderboard statistics.</li>
+                  <li><strong>Uploaded Content:</strong> When you upload match screenshots, these images are stored in our secure cloud storage bucket to parse game results.</li>
+                  <li><strong>Game Statistics:</strong> We record player names, leader choices, match placements, points, and ELO history associated with submitted games.</li>
+                </ul>
+
+                <h3 className="text-lg font-bold text-foreground mt-6">2. How We Use Your Information</h3>
+                <ul className="list-disc pl-6 space-y-2">
+                  <li>To maintain the global leaderboard and calculate accurate tournament/casual ELO ratings.</li>
+                  <li>To verify match validity and prevent duplicate submissions.</li>
+                  <li>To display game histories publicly on the platform.</li>
+                </ul>
+
+                <h3 className="text-lg font-bold text-foreground mt-6">3. Data Storage & Security</h3>
+                <p>
+                  Your data is securely hosted using Supabase. Uploaded screenshots are protected and accessible via signed URLs. We do not sell or share your personal data with third-party advertisers.
+                </p>
+
+                <h3 className="text-lg font-bold text-foreground mt-6">4. Your Rights</h3>
+                <p>
+                  You can request the deletion of your account or uploaded match data at any time by contacting the administrator via our Discord community.
                 </p>
               </div>
               {/* PLACEHOLDER: Paste your legal text above this line */}
