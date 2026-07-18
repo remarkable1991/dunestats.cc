@@ -151,9 +151,6 @@ function Index() {
         </div>
       </section>
 
-      <footer className="border-t border-border/40 py-6 text-center text-xs text-muted-foreground">
-        Strategy Arena · Where great minds compete · Fan-made tracker, not affiliated with Dire Wolf Digital.
-      </footer>
     </div>
   );
 }
