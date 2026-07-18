@@ -103,7 +103,7 @@ function Auth() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "discord",
       options: {
-        redirectTo: typeof window === "undefined" ? "/" : absoluteRedirect,
+        redirectTo: oauthRedirect,
       },
     });
     setLoading(false);
