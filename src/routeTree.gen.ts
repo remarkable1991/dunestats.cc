@@ -27,6 +27,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RUsernameRouteImport } from './routes/r.$username'
 import { Route as PlayersKeyRouteImport } from './routes/players.$key'
+import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
 
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',
@@ -118,6 +119,11 @@ const PlayersKeyRoute = PlayersKeyRouteImport.update({
   path: '/players/$key',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth_/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
   '/upload': typeof UploadRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
 }
@@ -156,6 +163,7 @@ export interface FileRoutesByTo {
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
   '/upload': typeof UploadRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
 }
@@ -177,6 +185,7 @@ export interface FileRoutesById {
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
   '/upload': typeof UploadRoute
+  '/auth_/callback': typeof AuthCallbackRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
 }
@@ -199,6 +208,7 @@ export interface FileRouteTypes {
     | '/tournament'
     | '/tournament-register'
     | '/upload'
+    | '/auth/callback'
     | '/players/$key'
     | '/r/$username'
   fileRoutesByTo: FileRoutesByTo
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/tournament'
     | '/tournament-register'
     | '/upload'
+    | '/auth/callback'
     | '/players/$key'
     | '/r/$username'
   id:
@@ -239,6 +250,7 @@ export interface FileRouteTypes {
     | '/tournament'
     | '/tournament-register'
     | '/upload'
+    | '/auth_/callback'
     | '/players/$key'
     | '/r/$username'
   fileRoutesById: FileRoutesById
@@ -260,6 +272,7 @@ export interface RootRouteChildren {
   TournamentRoute: typeof TournamentRoute
   TournamentRegisterRoute: typeof TournamentRegisterRoute
   UploadRoute: typeof UploadRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
   PlayersKeyRoute: typeof PlayersKeyRoute
   RUsernameRoute: typeof RUsernameRoute
 }
@@ -392,6 +405,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayersKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth_/callback': {
+      id: '/auth_/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -412,6 +432,7 @@ const rootRouteChildren: RootRouteChildren = {
   TournamentRoute: TournamentRoute,
   TournamentRegisterRoute: TournamentRegisterRoute,
   UploadRoute: UploadRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
   PlayersKeyRoute: PlayersKeyRoute,
   RUsernameRoute: RUsernameRoute,
 }
