@@ -87,7 +87,7 @@ function Auth() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: typeof window === "undefined" ? "/" : new URL("/auth", window.location.origin).toString(),
+        redirectTo: oauthRedirect,
       },
     });
 
