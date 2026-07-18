@@ -15,6 +15,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { FloatingBubbles } from "@/components/FloatingBubbles";
 import { useSpDailyCheckin } from "@/hooks/use-sp-daily-checkin";
 import { useSpReferralRedeem } from "@/hooks/use-sp-referral";
+import { Footer } from "@/components/Footer";
 
 function NotFoundComponent() {
   return (
@@ -138,6 +139,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <Footer />
       <FloatingBubbles />
       <Toaster />
     </QueryClientProvider>
