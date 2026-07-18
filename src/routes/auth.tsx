@@ -33,6 +33,13 @@ function Auth() {
     if (search.player) url.searchParams.set("player", search.player);
     return url.toString();
   })();
+  const oauthRedirect = (() => {
+    if (typeof window === "undefined") return "/auth/callback";
+    const url = new URL("/auth/callback", window.location.origin);
+    if (search.next) url.searchParams.set("next", search.next);
+    if (search.player) url.searchParams.set("player", search.player);
+    return url.toString();
+  })();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
