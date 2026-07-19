@@ -25,6 +25,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
+import { usePlayerTitles, colorForKey } from "@/lib/player-title";
+
 import exampleMatch from "@/assets/example-match.png.asset.json";
 import ixIcon from "@/assets/ix.png.asset.json";
 import uprisingIcon from "@/assets/uprising.png.asset.json";
