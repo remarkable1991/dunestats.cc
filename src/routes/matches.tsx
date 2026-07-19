@@ -62,6 +62,8 @@ function MatchesPage() {
   const [q, setQ] = useState("");
   const [onlyMine, setOnlyMine] = useState(false);
   const [page, setPage] = useState(0);
+  const titles = usePlayerTitles();
+
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
