@@ -519,7 +519,8 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                             <Link
                               to="/players/$key"
                               params={{ key: s.player.toLowerCase().trim() }}
-                              className="hover:text-sand hover:underline underline-offset-2 transition-colors"
+                              className="hover:underline underline-offset-2 transition-colors"
+                              style={{ color: colorForKey(titles, s.player) }}
                             >
                               {displayMode === "discord" ? s.discord : s.player}
                             </Link>
