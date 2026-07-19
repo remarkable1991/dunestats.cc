@@ -278,7 +278,8 @@ function StatsPage() {
   const sorted = useMemo(() => {
     if (!sortKey || !sortDir) return aggregates;
     const dir = sortDir === "desc" ? -1 : 1;
-    const score = (a: Agg) => {
+    const score = (a: Agg): number => {
+      const p = personalAgg.get(a.leader);
       switch (sortKey) {
         case "picks": return a.picks;
         case "pickPct": return totalGames ? a.picks / totalGames : 0;
@@ -286,6 +287,12 @@ function StatsPage() {
         case "winPct": return a.picks ? a.wins / a.picks : 0;
         case "top2Pct": return a.picks ? a.top2 / a.picks : 0;
         case "avgPts": return a.picks ? a.totalPoints / a.picks : 0;
+        case "youPicks": return p?.picks ?? -1;
+        case "youPickPct": return p && personalTotalSlots ? p.picks / personalTotalSlots : -1;
+        case "youWins": return p?.wins ?? -1;
+        case "youWinPct": return p && p.picks ? p.wins / p.picks : -1;
+        case "youTop2Pct": return p && p.picks ? p.top2 / p.picks : -1;
+        case "youAvgPts": return p && p.picks ? p.totalPoints / p.picks : -1;
       }
     };
     return [...aggregates].sort((a, b) => {
@@ -293,7 +300,7 @@ function StatsPage() {
       if (av === bv) return a.leader.localeCompare(b.leader);
       return av < bv ? dir : -dir;
     });
-  }, [aggregates, sortKey, sortDir, totalGames]);
+  }, [aggregates, sortKey, sortDir, totalGames, personalAgg, personalTotalSlots]);
 
   function cycleSort(k: SortKey) {
     if (sortKey !== k) { setSortKey(k); setSortDir("desc"); }
