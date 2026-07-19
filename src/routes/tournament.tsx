@@ -1123,8 +1123,14 @@ function ModeBadges({ flags, size = 28 }: { flags: ModeFlags; size?: number }) {
 
 function PlayerLink({ name, className }: { name: string; className?: string }) {
   const key = name.toLowerCase().trim();
+  const titles = usePlayerTitles();
   return (
-    <Link to="/players/$key" params={{ key }} className={className ?? "hover:text-sand"}>
+    <Link
+      to="/players/$key"
+      params={{ key }}
+      className={className ?? "hover:underline underline-offset-2"}
+      style={{ color: colorForKey(titles, key) }}
+    >
       {name}
     </Link>
   );
