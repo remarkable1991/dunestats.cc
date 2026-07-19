@@ -156,7 +156,15 @@ function StatsPage() {
       setFBaseLeaders("any");
     }
   }, [version]);
-  type SortKey = "picks" | "pickPct" | "wins" | "winPct" | "top2Pct" | "avgPts";
+  type SortKey =
+    | "picks" | "pickPct" | "wins" | "winPct" | "top2Pct" | "avgPts"
+    | "youPicks" | "youPickPct" | "youWins" | "youWinPct" | "youTop2Pct" | "youAvgPts";
+  const GROUP_COLOR: Record<Agg["group"], string> = {
+    base: "text-[#D4A373]",
+    ix: "text-[#4A90E2]",
+    uprising: "text-[#A94444]",
+    other: "",
+  };
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<"desc" | "asc" | null>(null);
 
