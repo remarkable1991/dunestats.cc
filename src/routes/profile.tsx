@@ -12,6 +12,8 @@ import { loadChampions, type ChampionMap } from "@/lib/champions";
 import { toast } from "sonner";
 import { SpProgress } from "@/components/SpProgress";
 import { SpHistory } from "@/components/SpHistory";
+import { usePlayerTitles, colorForKey } from "@/lib/player-title";
+
 
 export const Route = createFileRoute("/profile")({
   head: () => ({ meta: [{ title: "My profile · Strategy Arena" }] }),
@@ -35,6 +37,8 @@ function ProfileLanding() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [identities, setIdentities] = useState<string[]>([]);
   const [linkingGoogle, setLinkingGoogle] = useState(false);
+  const titles = usePlayerTitles();
+
 
   const refreshDiscordIdentity = async (uid: string) => {
     const { data: ids } = await supabase.auth.getUserIdentities();
@@ -237,7 +241,7 @@ function ProfileLanding() {
                   <div className="flex items-center gap-3">
                     <BadgeCheck className="size-5 text-teal" />
                     <div>
-                      <div className="font-medium">{c.display_name}</div>
+                      <div className="font-medium" style={{ color: colorForKey(titles, c.player_key) }}>{c.display_name}</div>
                       <div className="text-xs text-muted-foreground">View personal stats</div>
                     </div>
                   </div>

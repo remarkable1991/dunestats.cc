@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { ListOrdered, Search, Trash2, Loader2, Shield, ChevronLeft, ChevronRight } from "lucide-react";
 import { ScreenshotButton } from "@/components/ScreenshotButton";
 import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
+import { usePlayerTitles, colorForKey } from "@/lib/player-title";
+
 
 export const Route = createFileRoute("/matches")({
   head: () => ({ meta: [{ title: "Matches · Strategy Arena" }] }),
@@ -60,6 +62,8 @@ function MatchesPage() {
   const [q, setQ] = useState("");
   const [onlyMine, setOnlyMine] = useState(false);
   const [page, setPage] = useState(0);
+  const titles = usePlayerTitles();
+
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -231,7 +235,8 @@ function MatchesPage() {
                             <Link
                               to="/players/$key"
                               params={{ key: uploaders[g.created_by].toLowerCase().trim() }}
-                              className="hover:text-sand"
+                              className="hover:underline underline-offset-2"
+                              style={{ color: colorForKey(titles, uploaders[g.created_by]) }}
                             >
                               {uploaders[g.created_by]}
                             </Link>
@@ -273,7 +278,8 @@ function MatchesPage() {
                             <Link
                               to="/players/$key"
                               params={{ key: r.player_name.toLowerCase().trim() }}
-                              className="block truncate font-medium hover:text-sand"
+                              className="block truncate font-medium hover:underline underline-offset-2"
+                              style={{ color: colorForKey(titles, r.player_name) }}
                             >
                               {r.player_name}
                             </Link>

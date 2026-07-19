@@ -25,6 +25,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
+import { usePlayerTitles, colorForKey } from "@/lib/player-title";
+
 import exampleMatch from "@/assets/example-match.png.asset.json";
 import ixIcon from "@/assets/ix.png.asset.json";
 import uprisingIcon from "@/assets/uprising.png.asset.json";
@@ -108,6 +110,8 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
 
   const isMine = (name: string) => myKeys.has(name.toLowerCase().trim());
   const champions = useChampions();
+  const titles = usePlayerTitles();
+
 
   const refresh = async () => {
     setLoading(true);
@@ -515,7 +519,8 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                             <Link
                               to="/players/$key"
                               params={{ key: s.player.toLowerCase().trim() }}
-                              className="hover:text-sand hover:underline underline-offset-2 transition-colors"
+                              className="hover:underline underline-offset-2 transition-colors"
+                              style={{ color: colorForKey(titles, s.player) }}
                             >
                               {displayMode === "discord" ? s.discord : s.player}
                             </Link>
@@ -1121,8 +1126,14 @@ function ModeBadges({ flags, size = 28 }: { flags: ModeFlags; size?: number }) {
 
 function PlayerLink({ name, className }: { name: string; className?: string }) {
   const key = name.toLowerCase().trim();
+  const titles = usePlayerTitles();
   return (
-    <Link to="/players/$key" params={{ key }} className={className ?? "hover:text-sand"}>
+    <Link
+      to="/players/$key"
+      params={{ key }}
+      className={className ?? "hover:underline underline-offset-2"}
+      style={{ color: colorForKey(titles, key) }}
+    >
       {name}
     </Link>
   );

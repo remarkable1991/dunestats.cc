@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { Trophy, Search, UserPlus, BadgeCheck, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { useChampions, isChampion } from "@/lib/champions";
+import { usePlayerTitles, colorForKey } from "@/lib/player-title";
+
 
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({ meta: [{ title: "Leaderboard · Strategy Arena" }] }),
@@ -43,6 +45,8 @@ function Leaderboard() {
   const [userId, setUserId] = useState<string | null>(null);
   const [myKeys, setMyKeys] = useState<Set<string>>(new Set());
   const champions = useChampions();
+  const titles = usePlayerTitles();
+
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -264,8 +268,10 @@ function Leaderboard() {
                                 <Link
                                   to="/players/$key"
                                   params={{ key: r.player_key }}
-                                  className="hover:text-sand"
+                                  className="hover:underline underline-offset-2"
+                                  style={{ color: colorForKey(titles, r.player_key) }}
                                 >
+
                                   <span className="inline-flex items-center gap-1">
                                     {isChampion(champions, r.player_key) && (
                                       <Trophy className="size-3.5 text-sand" aria-label="Hall of Fame Champion" />
