@@ -156,7 +156,15 @@ function StatsPage() {
       setFBaseLeaders("any");
     }
   }, [version]);
-  type SortKey = "picks" | "pickPct" | "wins" | "winPct" | "top2Pct" | "avgPts";
+  type SortKey =
+    | "picks" | "pickPct" | "wins" | "winPct" | "top2Pct" | "avgPts"
+    | "youPicks" | "youPickPct" | "youWins" | "youWinPct" | "youTop2Pct" | "youAvgPts";
+  const GROUP_COLOR: Record<Agg["group"], string> = {
+    base: "text-[#D4A373]",
+    ix: "text-[#4A90E2]",
+    uprising: "text-[#A94444]",
+    other: "",
+  };
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<"desc" | "asc" | null>(null);
 
@@ -270,7 +278,8 @@ function StatsPage() {
   const sorted = useMemo(() => {
     if (!sortKey || !sortDir) return aggregates;
     const dir = sortDir === "desc" ? -1 : 1;
-    const score = (a: Agg) => {
+    const score = (a: Agg): number => {
+      const p = personalAgg.get(a.leader);
       switch (sortKey) {
         case "picks": return a.picks;
         case "pickPct": return totalGames ? a.picks / totalGames : 0;
@@ -278,6 +287,12 @@ function StatsPage() {
         case "winPct": return a.picks ? a.wins / a.picks : 0;
         case "top2Pct": return a.picks ? a.top2 / a.picks : 0;
         case "avgPts": return a.picks ? a.totalPoints / a.picks : 0;
+        case "youPicks": return p?.picks ?? -1;
+        case "youPickPct": return p && personalTotalSlots ? p.picks / personalTotalSlots : -1;
+        case "youWins": return p?.wins ?? -1;
+        case "youWinPct": return p && p.picks ? p.wins / p.picks : -1;
+        case "youTop2Pct": return p && p.picks ? p.top2 / p.picks : -1;
+        case "youAvgPts": return p && p.picks ? p.totalPoints / p.picks : -1;
       }
     };
     return [...aggregates].sort((a, b) => {
@@ -285,7 +300,7 @@ function StatsPage() {
       if (av === bv) return a.leader.localeCompare(b.leader);
       return av < bv ? dir : -dir;
     });
-  }, [aggregates, sortKey, sortDir, totalGames]);
+  }, [aggregates, sortKey, sortDir, totalGames, personalAgg, personalTotalSlots]);
 
   function cycleSort(k: SortKey) {
     if (sortKey !== k) { setSortKey(k); setSortDir("desc"); }
@@ -358,25 +373,24 @@ function StatsPage() {
                     <thead>
                       <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
                         <th className="px-4 py-3 text-left">Leader</th>
-                        <th className="px-4 py-3 text-left">Group</th>
                         <SortTh label="Picks" k="picks" />
-                        {showPersonal && <th className="px-4 py-3 text-right">You</th>}
+                        {showPersonal && <SortTh label="You" k="youPicks" />}
                         <SortTh label="Pick %" k="pickPct" />
-                        {showPersonal && <th className="px-4 py-3 text-right">You</th>}
+                        {showPersonal && <SortTh label="You" k="youPickPct" />}
                         <SortTh label="Wins" k="wins" />
-                        {showPersonal && <th className="px-4 py-3 text-right">You</th>}
+                        {showPersonal && <SortTh label="You" k="youWins" />}
                         <SortTh label="Win %" k="winPct" />
-                        {showPersonal && <th className="px-4 py-3 text-right">You</th>}
+                        {showPersonal && <SortTh label="You" k="youWinPct" />}
                         <SortTh label="Top 2 %" k="top2Pct" className="hidden sm:table-cell" />
-                        {showPersonal && <th className="px-4 py-3 text-right hidden sm:table-cell">You</th>}
+                        {showPersonal && <SortTh label="You" k="youTop2Pct" className="hidden sm:table-cell" />}
                         <SortTh label="Avg pts" k="avgPts" className="hidden md:table-cell" />
-                        {showPersonal && <th className="px-4 py-3 text-right hidden md:table-cell">You</th>}
+                        {showPersonal && <SortTh label="You" k="youAvgPts" className="hidden md:table-cell" />}
                       </tr>
                     </thead>
                     <tbody>
                       {loading && (
                         <tr>
-                          <td colSpan={showPersonal ? 14 : 8} className="py-10 text-center text-muted-foreground">
+                          <td colSpan={showPersonal ? 13 : 7} className="py-10 text-center text-muted-foreground">
                             Loading stats…
                           </td>
                         </tr>
@@ -395,17 +409,14 @@ function StatsPage() {
                           const pAvgPts = p && p.picks ? p.totalPoints / p.picks : null;
                           return (
                             <tr key={a.leader} className={`border-t border-border/40 hover:bg-secondary/30 ${mine ? "bg-sand/10 ring-1 ring-inset ring-sand/60" : ""}`}>
-                              <td className="px-4 py-3 font-medium">{a.leader}</td>
-                              <td className="px-4 py-3 text-xs uppercase tracking-wider text-muted-foreground">
-                                {a.group}
-                              </td>
+                              <td className={`px-4 py-3 font-medium ${GROUP_COLOR[a.group]}`}>{a.leader}</td>
                               <td className="px-4 py-3 text-right tabular-nums">{a.picks}</td>
-                              {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{p ? <span className={toneClass(p.picks, 0)}>{p.picks}</span> : <span className="text-muted-foreground/60">—</span>}</td>}
-                              <td className="px-4 py-3 text-right tabular-nums text-sand">{pickPct.toFixed(1)}%</td>
+                              {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{p ? p.picks : <span className="text-muted-foreground/60">—</span>}</td>}
+                              <td className="px-4 py-3 text-right tabular-nums">{pickPct.toFixed(1)}%</td>
                               {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{personalCell(pPickPct, pickPct, "%")}</td>}
                               <td className="px-4 py-3 text-right tabular-nums">{a.wins}</td>
-                              {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{p ? <span className={toneClass(p.wins, 0)}>{p.wins}</span> : <span className="text-muted-foreground/60">—</span>}</td>}
-                              <td className="px-4 py-3 text-right tabular-nums text-coral">{winPct.toFixed(1)}%</td>
+                              {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{p ? p.wins : <span className="text-muted-foreground/60">—</span>}</td>}
+                              <td className="px-4 py-3 text-right tabular-nums">{winPct.toFixed(1)}%</td>
                               {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{personalCell(pWinPct, winPct, "%")}</td>}
                               <td className="px-4 py-3 text-right tabular-nums hidden sm:table-cell">
                                 {top2Pct.toFixed(1)}%
@@ -420,7 +431,7 @@ function StatsPage() {
                         })}
                       {!loading && aggregates.length === 0 && (
                         <tr>
-                          <td colSpan={showPersonal ? 14 : 8} className="py-10 text-center text-muted-foreground">
+                          <td colSpan={showPersonal ? 13 : 7} className="py-10 text-center text-muted-foreground">
                             No data for {v.label} yet.
                           </td>
                         </tr>

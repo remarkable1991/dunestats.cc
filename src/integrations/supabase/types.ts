@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       active_async_matches: {
         Row: {
+          auto_start_at: string | null
           board_type: string | null
           channel_id: string
           created_at: string
@@ -27,6 +28,7 @@ export type Database = {
           id: number
           last_prompted_at: string | null
           lobby_password: string | null
+          match_id: string | null
           message_id: string
           message_text: string
           modules: string[] | null
@@ -35,6 +37,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          auto_start_at?: string | null
           board_type?: string | null
           channel_id: string
           created_at?: string
@@ -46,6 +49,7 @@ export type Database = {
           id?: number
           last_prompted_at?: string | null
           lobby_password?: string | null
+          match_id?: string | null
           message_id: string
           message_text: string
           modules?: string[] | null
@@ -54,6 +58,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          auto_start_at?: string | null
           board_type?: string | null
           channel_id?: string
           created_at?: string
@@ -65,6 +70,7 @@ export type Database = {
           id?: number
           last_prompted_at?: string | null
           lobby_password?: string | null
+          match_id?: string | null
           message_id?: string
           message_text?: string
           modules?: string[] | null
