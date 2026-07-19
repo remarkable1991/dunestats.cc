@@ -37,6 +37,8 @@ function ProfileLanding() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [identities, setIdentities] = useState<string[]>([]);
   const [linkingGoogle, setLinkingGoogle] = useState(false);
+  const titles = usePlayerTitles();
+
 
   const refreshDiscordIdentity = async (uid: string) => {
     const { data: ids } = await supabase.auth.getUserIdentities();
