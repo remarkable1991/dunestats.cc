@@ -12,6 +12,8 @@ import { loadChampions, type ChampionMap } from "@/lib/champions";
 import { toast } from "sonner";
 import { SpProgress } from "@/components/SpProgress";
 import { SpHistory } from "@/components/SpHistory";
+import { usePlayerTitles, colorForKey } from "@/lib/player-title";
+
 
 export const Route = createFileRoute("/profile")({
   head: () => ({ meta: [{ title: "My profile · Strategy Arena" }] }),
