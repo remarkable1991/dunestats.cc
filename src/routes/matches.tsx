@@ -278,7 +278,8 @@ function MatchesPage() {
                             <Link
                               to="/players/$key"
                               params={{ key: r.player_name.toLowerCase().trim() }}
-                              className="block truncate font-medium hover:text-sand"
+                              className="block truncate font-medium hover:underline underline-offset-2"
+                              style={{ color: colorForKey(titles, r.player_name) }}
                             >
                               {r.player_name}
                             </Link>
