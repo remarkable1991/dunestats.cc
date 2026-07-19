@@ -45,6 +45,8 @@ function Leaderboard() {
   const [userId, setUserId] = useState<string | null>(null);
   const [myKeys, setMyKeys] = useState<Set<string>>(new Set());
   const champions = useChampions();
+  const titles = usePlayerTitles();
+
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
