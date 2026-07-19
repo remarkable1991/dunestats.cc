@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { ListOrdered, Search, Trash2, Loader2, Shield, ChevronLeft, ChevronRight } from "lucide-react";
 import { ScreenshotButton } from "@/components/ScreenshotButton";
 import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
+import { usePlayerTitles, colorForKey } from "@/lib/player-title";
+
 
 export const Route = createFileRoute("/matches")({
   head: () => ({ meta: [{ title: "Matches · Strategy Arena" }] }),
