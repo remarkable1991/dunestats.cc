@@ -110,6 +110,8 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
 
   const isMine = (name: string) => myKeys.has(name.toLowerCase().trim());
   const champions = useChampions();
+  const titles = usePlayerTitles();
+
 
   const refresh = async () => {
     setLoading(true);
