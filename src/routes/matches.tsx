@@ -235,7 +235,8 @@ function MatchesPage() {
                             <Link
                               to="/players/$key"
                               params={{ key: uploaders[g.created_by].toLowerCase().trim() }}
-                              className="hover:text-sand"
+                              className="hover:underline underline-offset-2"
+                              style={{ color: colorForKey(titles, uploaders[g.created_by]) }}
                             >
                               {uploaders[g.created_by]}
                             </Link>
