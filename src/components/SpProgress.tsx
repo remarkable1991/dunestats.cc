@@ -1,28 +1,18 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Sparkles, Trophy } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { TITLE_TIERS } from "@/lib/player-title";
 import { SpLearnMore } from "./SpLearnMore";
 
-const TITLES = [
-  { name: "Spiceworker", min: 0 },
-  { name: "Trooper", min: 250 },
-  { name: "Fedaykin", min: 1000 },
-  { name: "Mentat", min: 2500 },
-  { name: "Swordmaster", min: 5000 },
-  { name: "Kwisatz Haderach", min: 10000 },
-];
-
-
-
 function titleFor(lifetime: number) {
-  let current = TITLES[0];
-  let next: (typeof TITLES)[number] | null = null;
-  for (let i = 0; i < TITLES.length; i++) {
-    if (lifetime >= TITLES[i].min) {
-      current = TITLES[i];
-      next = TITLES[i + 1] ?? null;
+  let current = TITLE_TIERS[0];
+  let next: (typeof TITLE_TIERS)[number] | null = null;
+  for (let i = 0; i < TITLE_TIERS.length; i++) {
+    if (lifetime >= TITLE_TIERS[i].min) {
+      current = TITLE_TIERS[i];
+      next = TITLE_TIERS[i + 1] ?? null;
     }
   }
   return { current, next };
