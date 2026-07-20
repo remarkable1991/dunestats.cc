@@ -57,8 +57,11 @@ export function SpProgress({ userId }: { userId: string }) {
       </div>
 
       <div className="flex items-center gap-3 mb-5 flex-wrap">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-sand/40 bg-sand/10 text-sand px-3 py-1 text-sm font-medium">
-          <Trophy className="size-4" /> {current.name}
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full border border-sand/40 bg-sand/10 px-3 py-1 text-sm font-medium"
+          style={{ color: current.color }}
+        >
+          {current.name}
         </span>
         <span className="text-xs text-muted-foreground">
           {lifetime.toLocaleString()} lifetime SP
