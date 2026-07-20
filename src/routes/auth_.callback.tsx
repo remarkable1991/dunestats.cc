@@ -25,7 +25,7 @@ function isSafePath(path: string): boolean {
 
 function AuthCallback() {
   const navigate = useNavigate();
-  const search = useSearch({ from: "/auth/callback" });
+  const search = useSearch({ from: "/auth_/callback" });
 
   useEffect(() => {
     let cancelled = false;
