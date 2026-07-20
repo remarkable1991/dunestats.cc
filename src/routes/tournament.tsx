@@ -415,7 +415,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
         </Button>
         <header className="flex items-end justify-between flex-wrap gap-4">
           <div>
-            <h1 className="font-display text-3xl flex items-center gap-2"><Trophy className="size-7 text-sand" /> Live Tournament #{tournamentNum}</h1>
+            <h2 className="font-display text-3xl flex items-center gap-2"><Trophy className="size-7 text-sand" /> Live Tournament #{tournamentNum}</h2>
             <p className="text-muted-foreground">Live standings update as match screenshots are uploaded.</p>
           </div>
           <div className="flex items-center gap-3">
@@ -486,7 +486,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
 
             {/* Standings */}
             <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
-              <h2 className="font-display text-xl mb-4">Live Standings</h2>
+              <h3 className="font-display text-xl mb-4">Live Standings</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-muted-foreground text-xs uppercase">
@@ -558,7 +558,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
 
             {/* Match logs */}
             <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
-              <h2 className="font-display text-xl mb-4">Match Logs</h2>
+              <h3 className="font-display text-xl mb-4">Match Logs</h3>
               <Tabs value={logTab} onValueChange={(v) => setLogTab(v as "swiss" | "playoffs")}>
                 <TabsList>
                   <TabsTrigger value="swiss">League Phase</TabsTrigger>
@@ -567,7 +567,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                 <TabsContent value={logTab} className="mt-4 space-y-6">
                    {[...groupedLogs.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([rt, tables]) => (
                      <div key={rt} id={`round-${rt.replace(/\s+/g, "-")}`} className="scroll-mt-24">
-                      <h3 className="font-display text-lg text-sand mb-2">{rt}</h3>
+                      <h4 className="font-display text-lg text-sand mb-2">{rt}</h4>
                       <div className="grid md:grid-cols-2 gap-3">
                         {[...tables.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([ti, players]) => {
                           const shot = shotFor(rt, ti);
@@ -623,7 +623,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
             <div ref={uploadRef as any} className="scroll-mt-24">
               <div className="flex items-center gap-2 mb-4">
                 <UploadIcon className="size-6 text-sand" />
-                <h2 className="font-display text-2xl">Submit Table Results</h2>
+                <h3 className="font-display text-2xl">Submit Table Results</h3>
               </div>
               <p className="text-muted-foreground mb-6 text-sm">
                 Drop your Dune Imperium Digital end-screen screenshot — Round &amp; Table auto-detect from the detected players.
@@ -716,7 +716,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                 </Card>
 
                 <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
-                  <h2 className="font-display text-lg mb-3">Detected results</h2>
+                  <h4 className="font-display text-lg mb-3">Detected results</h4>
                   <div className="grid grid-cols-3 gap-2 mb-4">
                     <div>
                       <Label className="text-xs">Tournament</Label>
@@ -779,7 +779,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                 <Card className="p-4 mt-6 border-sand/40 bg-card/70">
                   <div className="flex items-center gap-2 mb-3">
                     <CheckCircle2 className="size-5 text-emerald-400" />
-                    <h2 className="font-display text-lg">Match saved</h2>
+                    <h4 className="font-display text-lg">Match saved</h4>
                     <TournamentTag num={lastSave.tournament_num} />
                   </div>
                   <ul className="space-y-1 text-sm">
@@ -898,6 +898,12 @@ function TournamentPage() {
     <div className="min-h-screen">
       <Navbar />
       <div className="container mx-auto px-4 py-6 max-w-6xl">
+        <header className="mb-6">
+          <h1 className="font-display text-3xl flex items-center gap-2">
+            <Trophy className="size-7 text-sand" /> Tournaments
+          </h1>
+          <p className="text-muted-foreground text-sm">Current, future, and past Strategy Arena cycles.</p>
+        </header>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-8">
           {buttons.map((b) => {
             const active = b.id === tab;
@@ -1009,9 +1015,9 @@ function CurrentTournamentsHub() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-3xl flex items-center gap-2">
+        <h2 className="font-display text-3xl flex items-center gap-2">
           <Sword className="size-7 text-sand" /> Active Tournaments
-        </h1>
+        </h2>
         <p className="text-muted-foreground text-sm">Two concurrent cycles are live. Pick one to jump in.</p>
       </header>
 
@@ -1340,6 +1346,10 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
       <Button variant="ghost" size="sm" onClick={onBack} className="text-sand hover:text-sand">
         <ArrowLeft className="size-4 mr-1" /> Back to Hall of Fame
       </Button>
+
+      <h2 className="font-display text-3xl text-sand flex items-center gap-2">
+        <Trophy className="size-7 text-sand" /> Tournament #{num}
+      </h2>
 
       {/* Header card mirrors the Hall of Fame card */}
       <Card className="p-6 border-sand/40 bg-gradient-to-br from-card to-card/40">
