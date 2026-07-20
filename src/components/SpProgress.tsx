@@ -72,7 +72,13 @@ export function SpProgress({ userId }: { userId: string }) {
         <div>
           <div className="flex justify-between text-xs mb-1.5">
             <span className="text-muted-foreground">
-              {next ? `Progress to ${next.name}` : "Max title reached"}
+              {next ? (
+                <>
+                  Progress to <span style={{ color: next.color }}>{next.name}</span>
+                </>
+              ) : (
+                "Max title reached"
+              )}
             </span>
             <span className="text-foreground font-mono">
               {next
