@@ -1,4 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { leaderRouteFor } from "@/lib/leader-slug";
 import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
