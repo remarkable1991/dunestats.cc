@@ -410,7 +410,16 @@ function StatsPage() {
                           const pAvgPts = p && p.picks ? p.totalPoints / p.picks : null;
                           return (
                             <tr key={a.leader} className={`border-t border-border/40 hover:bg-secondary/30 ${mine ? "bg-sand/10 ring-1 ring-inset ring-sand/60" : ""}`}>
-                              <td className={`px-4 py-3 font-medium ${GROUP_COLOR[a.group]}`}>{a.leader}</td>
+                              <td className={`px-4 py-3 font-medium ${GROUP_COLOR[a.group]}`}>
+                                {(() => {
+                                  const r = leaderRouteFor(a.leader);
+                                  return r ? (
+                                    <Link to="/leaders/$origin/$slug" params={{ origin: r.origin, slug: r.slug }} className="hover:underline">
+                                      {a.leader}
+                                    </Link>
+                                  ) : a.leader;
+                                })()}
+                              </td>
                               <td className="px-4 py-3 text-right tabular-nums">{a.picks}</td>
                               {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{p ? p.picks : <span className="text-muted-foreground/60">—</span>}</td>}
                               <td className="px-4 py-3 text-right tabular-nums">{pickPct.toFixed(1)}%</td>
