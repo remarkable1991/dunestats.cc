@@ -390,6 +390,51 @@ function LeaderDetail() {
           Based on {stats.total} recorded seats
           {version !== "overall" ? ` in ${GAME_VERSIONS.find((g) => g.value === version)?.label}` : ""}.
         </p>
+
+        {/* Leader card image */}
+        <div className="mt-8">
+          <h2 className="font-display text-lg mb-3">Leader card</h2>
+          <div
+            className="relative aspect-[3/2] w-full max-w-2xl rounded-xl overflow-hidden border border-border/60 bg-card/60 cursor-pointer group"
+            onClick={() => cardUrl && setCardOpen(true)}
+          >
+            {cardUrl ? (
+              <img src={cardUrl} alt={`${leader.name} card`} className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform" />
+            ) : (
+              <div className="w-full h-full grid place-items-center text-muted-foreground">
+                <ImagePlus className="size-10 opacity-50" />
+                <span className="text-xs mt-2">No card image yet</span>
+              </div>
+            )}
+            {isAdmin && (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    cardInput.current?.click();
+                  }}
+                  className="absolute top-2 right-2 bg-black/70 hover:bg-black text-white text-xs px-3 py-1.5 rounded flex items-center gap-1"
+                  disabled={uploading === "card"}
+                >
+                  <Upload className="size-3" />
+                  {uploading === "card" ? "Uploading…" : "Upload card"}
+                </button>
+                <input
+                  ref={cardInput}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadImage(f, "card");
+                    e.target.value = "";
+                  }}
+                />
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Card modal */}
