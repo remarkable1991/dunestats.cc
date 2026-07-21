@@ -28,6 +28,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as RUsernameRouteImport } from './routes/r.$username'
 import { Route as PlayersKeyRouteImport } from './routes/players.$key'
 import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
+import { Route as LeadersOriginSlugRouteImport } from './routes/leaders.$origin.$slug'
 
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',
@@ -124,6 +125,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LeadersOriginSlugRoute = LeadersOriginSlugRouteImport.update({
+  id: '/leaders/$origin/$slug',
+  path: '/leaders/$origin/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -145,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
+  '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -166,6 +173,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
+  '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -188,6 +196,7 @@ export interface FileRoutesById {
   '/auth_/callback': typeof AuthCallbackRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
+  '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -211,6 +220,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/players/$key'
     | '/r/$username'
+    | '/leaders/$origin/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/players/$key'
     | '/r/$username'
+    | '/leaders/$origin/$slug'
   id:
     | '__root__'
     | '/'
@@ -253,6 +264,7 @@ export interface FileRouteTypes {
     | '/auth_/callback'
     | '/players/$key'
     | '/r/$username'
+    | '/leaders/$origin/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -275,6 +287,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   PlayersKeyRoute: typeof PlayersKeyRoute
   RUsernameRoute: typeof RUsernameRoute
+  LeadersOriginSlugRoute: typeof LeadersOriginSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -412,6 +425,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/leaders/$origin/$slug': {
+      id: '/leaders/$origin/$slug'
+      path: '/leaders/$origin/$slug'
+      fullPath: '/leaders/$origin/$slug'
+      preLoaderRoute: typeof LeadersOriginSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -435,6 +455,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   PlayersKeyRoute: PlayersKeyRoute,
   RUsernameRoute: RUsernameRoute,
+  LeadersOriginSlugRoute: LeadersOriginSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
