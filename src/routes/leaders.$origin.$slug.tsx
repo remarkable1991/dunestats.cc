@@ -70,8 +70,9 @@ const ORIGIN_TO_VERSION: Record<LeaderOrigin, GameVersion> = {
 };
 
 function versionsForOrigin(origin: LeaderOrigin): GameVersion[] {
-  // A leader can appear in its native set + any set that includes it (base/ix leaders show up in uprising with base-leaders flag).
-  if (origin === "base") return ["overall", "base", "uprising"];
+  // A leader can appear in its native set + any set that includes it.
+  // Base leaders play in Base, Rise of Ix (expansion added to base game), and Uprising (with base-leaders flag).
+  if (origin === "base") return ["overall", "base", "ix", "uprising"];
   if (origin === "rise-of-ix") return ["overall", "ix", "uprising"];
   return ["overall", "uprising"];
 }
@@ -160,18 +161,25 @@ function LeaderDetail() {
     return null as number | null;
   }, [rows, version]);
 
-  const [totalSeats, setTotalSeats] = useState<number | null>(null);
+  const [seatsByVersion, setSeatsByVersion] = useState<Record<string, number | null>>({});
   useEffect(() => {
     (async () => {
-      let q = supabase.from("game_results").select("id, games!inner(game_version)", { count: "exact", head: true });
-      if (version !== "overall") q = q.eq("games.game_version", version);
-      const { count } = await q;
-      setTotalSeats(count ?? null);
+      const versions: GameVersion[] = ["overall", "base", "ix", "uprising"];
+      const entries = await Promise.all(
+        versions.map(async (v) => {
+          let q = supabase.from("game_results").select("id, games!inner(game_version)", { count: "exact", head: true });
+          if (v !== "overall") q = q.eq("games.game_version", v);
+          const { count } = await q;
+          return [v, count ?? null] as const;
+        }),
+      );
+      setSeatsByVersion(Object.fromEntries(entries));
     })();
-  }, [version]);
+  }, []);
+  const totalSeats = seatsByVersion[version] ?? null;
 
-  const stats = useMemo(() => {
-    const f = version === "overall" ? rows : rows.filter((r) => r.games?.game_version === version);
+  const computeStats = (v: GameVersion) => {
+    const f = v === "overall" ? rows : rows.filter((r) => r.games?.game_version === v);
     const total = f.length;
     const placements = [0, 0, 0, 0];
     let points = 0;
@@ -180,6 +188,7 @@ function LeaderDetail() {
       points += r.points ?? 0;
     }
     const pct = (n: number) => (total ? (n / total) * 100 : 0);
+    const seats = seatsByVersion[v] ?? null;
     return {
       total,
       firsts: placements[0],
@@ -193,9 +202,18 @@ function LeaderDetail() {
       top2Pct: pct(placements[0] + placements[1]),
       bottom2Pct: pct(placements[2] + placements[3]),
       avgPts: total ? points / total : 0,
-      pickRatePct: totalSeats ? (total / totalSeats) * 100 : 0,
+      pickRatePct: seats ? (total / seats) * 100 : 0,
     };
-  }, [rows, version, totalSeats]);
+  };
+
+  const stats = useMemo(() => computeStats(version), [rows, version, seatsByVersion]);
+  const nativeVersion = ORIGIN_TO_VERSION[leader?.origin ?? "base"];
+  const showCompare = leader && version !== "overall" && version !== nativeVersion;
+  const compareStats = useMemo(
+    () => (showCompare ? computeStats(nativeVersion) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, version, seatsByVersion, showCompare, nativeVersion],
+  );
 
   // ---- color logic per spec ----
   const winTone = (winPct: number) => {
@@ -391,6 +409,31 @@ function LeaderDetail() {
           {version !== "overall" ? ` in ${GAME_VERSIONS.find((g) => g.value === version)?.label}` : ""}.
         </p>
 
+        {/* Comparison to native version */}
+        {showCompare && compareStats && (
+          <div className="mt-8">
+            <h2 className="font-display text-lg mb-1">
+              Compared to {GAME_VERSIONS.find((g) => g.value === nativeVersion)?.label}
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              {GAME_VERSIONS.find((g) => g.value === version)?.label} stats vs the leader's native set. Δ shows the difference.
+            </p>
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <CompareCard label="Matches Played" a={stats.total} b={compareStats.total} kind="int" />
+              <CompareCard label="Avg Victory Pts" a={stats.avgPts} b={compareStats.avgPts} kind="num" />
+              <CompareCard label="Pick Rate" a={stats.pickRatePct} b={compareStats.pickRatePct} kind="pct" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <CompareCard label="1st (Win %)" a={stats.firstPct} b={compareStats.firstPct} kind="pct" higherIsBetter />
+              <CompareCard label="2nd Place" a={stats.secondPct} b={compareStats.secondPct} kind="pct" />
+              <CompareCard label="3rd Place" a={stats.thirdPct} b={compareStats.thirdPct} kind="pct" higherIsBetter={false} />
+              <CompareCard label="4th Place" a={stats.fourthPct} b={compareStats.fourthPct} kind="pct" higherIsBetter={false} />
+              <CompareCard label="Top 2" a={stats.top2Pct} b={compareStats.top2Pct} kind="pct" higherIsBetter className="col-span-2 md:col-span-1" />
+            </div>
+          </div>
+        )}
+
+
         {/* Leader card image */}
         <div className="mt-8">
           <h2 className="font-display text-lg mb-3">Leader card</h2>
@@ -460,6 +503,45 @@ function LeaderDetail() {
         </div>
       )}
     </div>
+  );
+}
+
+function CompareCard({
+  label,
+  a,
+  b,
+  kind,
+  higherIsBetter,
+  className,
+}: {
+  label: string;
+  a: number;
+  b: number;
+  kind: "pct" | "num" | "int";
+  higherIsBetter?: boolean;
+  className?: string;
+}) {
+  const fmt = (n: number) =>
+    kind === "int" ? String(Math.round(n)) : kind === "pct" ? `${n.toFixed(1)}%` : n.toFixed(1);
+  const diff = a - b;
+  const diffStr =
+    kind === "int"
+      ? `${diff > 0 ? "+" : ""}${Math.round(diff)}`
+      : `${diff > 0 ? "+" : ""}${diff.toFixed(1)}${kind === "pct" ? "%" : ""}`;
+  const tone =
+    higherIsBetter === undefined || Math.abs(diff) < 0.05
+      ? "text-muted-foreground"
+      : (diff > 0) === higherIsBetter
+        ? "text-emerald-400"
+        : "text-red-400";
+  return (
+    <Card className={`p-4 bg-card/70 border-border/60 ${className ?? ""}`}>
+      <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">{label}</div>
+      <div className="text-2xl font-display tabular-nums">{fmt(a)}</div>
+      <div className={`text-xs tabular-nums mt-1 ${tone}`}>
+        Δ {diffStr} <span className="text-muted-foreground">(was {fmt(b)})</span>
+      </div>
+    </Card>
   );
 }
 
