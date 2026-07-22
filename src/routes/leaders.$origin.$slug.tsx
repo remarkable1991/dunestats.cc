@@ -70,8 +70,9 @@ const ORIGIN_TO_VERSION: Record<LeaderOrigin, GameVersion> = {
 };
 
 function versionsForOrigin(origin: LeaderOrigin): GameVersion[] {
-  // A leader can appear in its native set + any set that includes it (base/ix leaders show up in uprising with base-leaders flag).
-  if (origin === "base") return ["overall", "base", "uprising"];
+  // A leader can appear in its native set + any set that includes it.
+  // Base leaders play in Base, Rise of Ix (expansion added to base game), and Uprising (with base-leaders flag).
+  if (origin === "base") return ["overall", "base", "ix", "uprising"];
   if (origin === "rise-of-ix") return ["overall", "ix", "uprising"];
   return ["overall", "uprising"];
 }
