@@ -506,5 +506,44 @@ function LeaderDetail() {
   );
 }
 
+function CompareCard({
+  label,
+  a,
+  b,
+  kind,
+  higherIsBetter,
+  className,
+}: {
+  label: string;
+  a: number;
+  b: number;
+  kind: "pct" | "num" | "int";
+  higherIsBetter?: boolean;
+  className?: string;
+}) {
+  const fmt = (n: number) =>
+    kind === "int" ? String(Math.round(n)) : kind === "pct" ? `${n.toFixed(1)}%` : n.toFixed(1);
+  const diff = a - b;
+  const diffStr =
+    kind === "int"
+      ? `${diff > 0 ? "+" : ""}${Math.round(diff)}`
+      : `${diff > 0 ? "+" : ""}${diff.toFixed(1)}${kind === "pct" ? "%" : ""}`;
+  const tone =
+    higherIsBetter === undefined || Math.abs(diff) < 0.05
+      ? "text-muted-foreground"
+      : (diff > 0) === higherIsBetter
+        ? "text-emerald-400"
+        : "text-red-400";
+  return (
+    <Card className={`p-4 bg-card/70 border-border/60 ${className ?? ""}`}>
+      <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">{label}</div>
+      <div className="text-2xl font-display tabular-nums">{fmt(a)}</div>
+      <div className={`text-xs tabular-nums mt-1 ${tone}`}>
+        Δ {diffStr} <span className="text-muted-foreground">(was {fmt(b)})</span>
+      </div>
+    </Card>
+  );
+}
+
 // keep import so tree-shakers don't drop it (leader validity references LEADERS via findLeader/leader-slug)
 void LEADERS;
