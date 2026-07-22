@@ -11,6 +11,8 @@ import { ListOrdered, Search, Trash2, Loader2, Shield, ChevronLeft, ChevronRight
 import { ScreenshotButton } from "@/components/ScreenshotButton";
 import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
+import { leaderRouteFor } from "@/lib/leader-slug";
+import { useLeaderPortraits } from "@/lib/leader-portraits";
 
 
 export const Route = createFileRoute("/matches")({
@@ -139,6 +141,16 @@ function MatchesPage() {
   const filtered = games;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  const leaderSlugs = Array.from(
+    new Set(
+      filtered
+        .flatMap((g) => g.game_results.map((r) => (r.leader_name ? leaderRouteFor(r.leader_name) : null)))
+        .filter((v) => v !== null)
+        .map((v) => v!.slug),
+    ),
+  );
+  const portraits = useLeaderPortraits(leaderSlugs);
+
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this match? ELO and stats it contributed will be reverted.")) return;
     setBusy(id);
@@ -265,7 +277,10 @@ function MatchesPage() {
                     </div>
                   </div>
                   <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                    {sorted.map((r, i) => (
+                    {sorted.map((r, i) => {
+                      const leaderRoute = r.leader_name ? leaderRouteFor(r.leader_name) : null;
+                      const portrait = leaderRoute ? portraits[leaderRoute.slug] : null;
+                      return (
                       <div
                         key={i}
                         className="flex items-center justify-between border border-border/40 rounded px-3 py-2 bg-background/40"
@@ -274,6 +289,22 @@ function MatchesPage() {
                           <span className="inline-flex size-6 items-center justify-center rounded bg-secondary/60 text-xs font-bold">
                             {r.placement}
                           </span>
+                          {leaderRoute && (
+                            <Link
+                              to="/leaders/$origin/$slug"
+                              params={{ origin: leaderRoute.origin, slug: leaderRoute.slug }}
+                              className="shrink-0"
+                              title={r.leader_name ?? ""}
+                            >
+                              <div className="size-9 rounded overflow-hidden border border-border/50 bg-card/60">
+                                {portrait ? (
+                                  <img src={portrait} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full" />
+                                )}
+                              </div>
+                            </Link>
+                          )}
                           <div className="min-w-0">
                             <Link
                               to="/players/$key"
@@ -283,13 +314,26 @@ function MatchesPage() {
                             >
                               {r.player_name}
                             </Link>
-                            <div className="text-xs text-muted-foreground truncate">{r.leader_name}</div>
-                            <EloDeltaLine version={g.game_version} overall={r.elo_delta_overall} versionDelta={r.elo_delta} />
+                            {leaderRoute ? (
+                              <Link
+                                to="/leaders/$origin/$slug"
+                                params={{ origin: leaderRoute.origin, slug: leaderRoute.slug }}
+                                className="block text-xs text-muted-foreground truncate hover:text-sand hover:underline underline-offset-2"
+                              >
+                                {r.leader_name}
+                              </Link>
+                            ) : (
+                              <div className="text-xs text-muted-foreground truncate">{r.leader_name}</div>
+                            )}
+                            <Link to="/leaderboard" className="hover:underline underline-offset-2">
+                              <EloDeltaLine version={g.game_version} overall={r.elo_delta_overall} versionDelta={r.elo_delta} />
+                            </Link>
                           </div>
                         </div>
                         <span className="font-display text-sand tabular-nums">{r.points}</span>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </Card>
               );
