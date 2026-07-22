@@ -11,6 +11,8 @@ import { ListOrdered, Search, Trash2, Loader2, Shield, ChevronLeft, ChevronRight
 import { ScreenshotButton } from "@/components/ScreenshotButton";
 import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
+import { leaderRouteFor } from "@/lib/leader-slug";
+import { useLeaderPortraits } from "@/lib/leader-portraits";
 
 
 export const Route = createFileRoute("/matches")({
