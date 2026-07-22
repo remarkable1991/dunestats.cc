@@ -409,6 +409,31 @@ function LeaderDetail() {
           {version !== "overall" ? ` in ${GAME_VERSIONS.find((g) => g.value === version)?.label}` : ""}.
         </p>
 
+        {/* Comparison to native version */}
+        {showCompare && compareStats && (
+          <div className="mt-8">
+            <h2 className="font-display text-lg mb-1">
+              Compared to {GAME_VERSIONS.find((g) => g.value === nativeVersion)?.label}
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              {GAME_VERSIONS.find((g) => g.value === version)?.label} stats vs the leader's native set. Δ shows the difference.
+            </p>
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <CompareCard label="Matches Played" a={stats.total} b={compareStats.total} kind="int" />
+              <CompareCard label="Avg Victory Pts" a={stats.avgPts} b={compareStats.avgPts} kind="num" />
+              <CompareCard label="Pick Rate" a={stats.pickRatePct} b={compareStats.pickRatePct} kind="pct" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <CompareCard label="1st (Win %)" a={stats.firstPct} b={compareStats.firstPct} kind="pct" higherIsBetter />
+              <CompareCard label="2nd Place" a={stats.secondPct} b={compareStats.secondPct} kind="pct" />
+              <CompareCard label="3rd Place" a={stats.thirdPct} b={compareStats.thirdPct} kind="pct" higherIsBetter={false} />
+              <CompareCard label="4th Place" a={stats.fourthPct} b={compareStats.fourthPct} kind="pct" higherIsBetter={false} />
+              <CompareCard label="Top 2" a={stats.top2Pct} b={compareStats.top2Pct} kind="pct" higherIsBetter className="col-span-2 md:col-span-1" />
+            </div>
+          </div>
+        )}
+
+
         {/* Leader card image */}
         <div className="mt-8">
           <h2 className="font-display text-lg mb-3">Leader card</h2>
