@@ -161,18 +161,25 @@ function LeaderDetail() {
     return null as number | null;
   }, [rows, version]);
 
-  const [totalSeats, setTotalSeats] = useState<number | null>(null);
+  const [seatsByVersion, setSeatsByVersion] = useState<Record<string, number | null>>({});
   useEffect(() => {
     (async () => {
-      let q = supabase.from("game_results").select("id, games!inner(game_version)", { count: "exact", head: true });
-      if (version !== "overall") q = q.eq("games.game_version", version);
-      const { count } = await q;
-      setTotalSeats(count ?? null);
+      const versions: GameVersion[] = ["overall", "base", "ix", "uprising"];
+      const entries = await Promise.all(
+        versions.map(async (v) => {
+          let q = supabase.from("game_results").select("id, games!inner(game_version)", { count: "exact", head: true });
+          if (v !== "overall") q = q.eq("games.game_version", v);
+          const { count } = await q;
+          return [v, count ?? null] as const;
+        }),
+      );
+      setSeatsByVersion(Object.fromEntries(entries));
     })();
-  }, [version]);
+  }, []);
+  const totalSeats = seatsByVersion[version] ?? null;
 
-  const stats = useMemo(() => {
-    const f = version === "overall" ? rows : rows.filter((r) => r.games?.game_version === version);
+  const computeStats = (v: GameVersion) => {
+    const f = v === "overall" ? rows : rows.filter((r) => r.games?.game_version === v);
     const total = f.length;
     const placements = [0, 0, 0, 0];
     let points = 0;
@@ -181,6 +188,7 @@ function LeaderDetail() {
       points += r.points ?? 0;
     }
     const pct = (n: number) => (total ? (n / total) * 100 : 0);
+    const seats = seatsByVersion[v] ?? null;
     return {
       total,
       firsts: placements[0],
@@ -194,9 +202,18 @@ function LeaderDetail() {
       top2Pct: pct(placements[0] + placements[1]),
       bottom2Pct: pct(placements[2] + placements[3]),
       avgPts: total ? points / total : 0,
-      pickRatePct: totalSeats ? (total / totalSeats) * 100 : 0,
+      pickRatePct: seats ? (total / seats) * 100 : 0,
     };
-  }, [rows, version, totalSeats]);
+  };
+
+  const stats = useMemo(() => computeStats(version), [rows, version, seatsByVersion]);
+  const nativeVersion = ORIGIN_TO_VERSION[leader?.origin ?? "base"];
+  const showCompare = leader && version !== "overall" && version !== nativeVersion;
+  const compareStats = useMemo(
+    () => (showCompare ? computeStats(nativeVersion) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, version, seatsByVersion, showCompare, nativeVersion],
+  );
 
   // ---- color logic per spec ----
   const winTone = (winPct: number) => {
