@@ -141,6 +141,16 @@ function MatchesPage() {
   const filtered = games;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  const leaderSlugs = Array.from(
+    new Set(
+      filtered
+        .flatMap((g) => g.game_results.map((r) => (r.leader_name ? leaderRouteFor(r.leader_name) : null)))
+        .filter((v): v is { origin: string; slug: string } => !!v)
+        .map((v) => v.slug),
+    ),
+  );
+  const portraits = useLeaderPortraits(leaderSlugs);
+
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this match? ELO and stats it contributed will be reverted.")) return;
     setBusy(id);
