@@ -147,6 +147,8 @@ function MatchesPage() {
         .flatMap((g) => g.game_results.map((r) => (r.leader_name ? leaderRouteFor(r.leader_name) : null)))
         .filter((v) => v !== null)
         .map((v) => v!.slug),
+    ),
+  );
   const portraits = useLeaderPortraits(leaderSlugs);
 
   const handleDelete = async (id: string) => {
