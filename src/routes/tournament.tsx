@@ -186,14 +186,78 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
     return list;
   }, [rows]);
 
+  // League-only standings: recompute using ONLY Swiss round rows so playoff
+  // projections don't shift as Semi/Grand Final results get uploaded.
+  const leagueStandings = useMemo(() => {
+    type Agg = { player: string; discord: string; tp: number; wins: number; placements: number[]; vp: number; vpShareSum: number };
+    const map = new Map<string, Agg>();
+    const tables = new Map<string, Row[]>();
+    for (const row of rows) {
+      if (!(SWISS_ROUNDS as readonly string[]).includes(row.round_type)) continue;
+      const k = `${row.round_type}__${row.table_identifier}`;
+      if (!tables.has(k)) tables.set(k, []);
+      tables.get(k)!.push(row);
+    }
+    for (const tableRows of tables.values()) {
+      const ranked = tableRows
+        .filter((r) => r.placement && r.points != null)
+        .sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9));
+      if (ranked.length < 4) continue;
+      const vps = ranked.map((r) => r.points ?? 0);
+      const tableVpTotal = vps.reduce((s, n) => s + n, 0);
+      const tps = [
+        20 + (vps[0] - vps[1]),
+        Math.max(0, 15 - (vps[0] - vps[1])),
+        Math.max(0, 10 - (vps[0] - vps[2])),
+        Math.max(0, 5 - (vps[0] - vps[3])),
+      ].map((v) => Math.max(0, v));
+      ranked.forEach((r, i) => {
+        const key = r.player_name;
+        const agg = map.get(key) ?? { player: r.player_name, discord: r.discord_username ?? r.player_name, tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0 };
+        agg.tp += tps[i];
+        if (r.placement === 1) agg.wins += 1;
+        agg.placements.push(r.placement ?? 0);
+        agg.vp += r.points ?? 0;
+        agg.vpShareSum += tableVpTotal > 0 ? (r.points ?? 0) / tableVpTotal : 0;
+        if (r.discord_username) agg.discord = r.discord_username;
+        map.set(key, agg);
+      });
+    }
+    const list = [...map.values()].map((a) => ({
+      ...a,
+      avgPlacement: a.placements.length ? a.placements.reduce((s, n) => s + n, 0) / a.placements.length : 4,
+      vpPct: a.placements.length ? (a.vpShareSum / a.placements.length) * 100 : 0,
+    }));
+    list.sort((a, b) => {
+      if (b.tp !== a.tp) return b.tp - a.tp;
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      if (a.avgPlacement !== b.avgPlacement) return a.avgPlacement - b.avgPlacement;
+      if (b.vp !== a.vp) return b.vp - a.vp;
+      return b.vpPct - a.vpPct;
+    });
+    return list;
+  }, [rows]);
+
   const playoffs = useMemo(() => {
-    const rank = (i: number) => standings[i - 1];
+    const rank = (i: number) => leagueStandings[i - 1];
     return {
       semi1: [3, 6, 7, 10].map(rank).filter(Boolean),
       semi2: [4, 5, 8, 9].map(rank).filter(Boolean),
       grand: [1, 2].map(rank).filter(Boolean),
     };
-  }, [standings]);
+  }, [leagueStandings]);
+
+  // Actual SF winners (placement=1 in each Semi Final table), if uploaded.
+  const semiWinners = useMemo(() => {
+    const winnerFor = (needle: RegExp) => {
+      const row = rows.find(
+        (r) => r.round_type === "Finals" && needle.test(r.table_identifier) && r.placement === 1,
+      );
+      if (!row) return null;
+      return { player: row.player_name, discord: row.discord_username ?? row.player_name };
+    };
+    return { sf1: winnerFor(/semi\s*final\s*1/i), sf2: winnerFor(/semi\s*final\s*2/i) };
+  }, [rows]);
 
   const swissProgress = useMemo(() => {
     const roundTables = new Map<string, Map<string, Row[]>>();
