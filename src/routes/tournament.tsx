@@ -548,13 +548,20 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
 
             {/* Playoff bracket */}
             <p className="text-xs text-muted-foreground italic">
-              {semisPublished ? "Semi Final tables published." : "Projected Semi Finals based on current standings."}
+              {semisPublished
+                ? "Projected Grand Final based on top 2 of the league standings."
+                : "Projected Semi Finals based on current standings."}
             </p>
-            <div className="grid md:grid-cols-3 gap-4">
-              <BracketCard title="Semi Final 1" players={playoffs.semi1.map((p) => displayMode === "discord" ? p.discord : p.player)} accent="slate" />
-              <BracketCard title="Semi Final 2" players={playoffs.semi2.map((p) => displayMode === "discord" ? p.discord : p.player)} accent="slate" />
+            <div className={semisPublished ? "grid md:grid-cols-1 gap-4" : "grid md:grid-cols-3 gap-4"}>
+              {!semisPublished && (
+                <>
+                  <BracketCard title="Semi Final 1" players={playoffs.semi1.map((p) => displayMode === "discord" ? p.discord : p.player)} accent="slate" />
+                  <BracketCard title="Semi Final 2" players={playoffs.semi2.map((p) => displayMode === "discord" ? p.discord : p.player)} accent="slate" />
+                </>
+              )}
               <BracketCard title="Grand Final!" players={[...playoffs.grand.map((p) => displayMode === "discord" ? p.discord : p.player), "Winner SF1", "Winner SF2"]} accent="amber" />
             </div>
+
 
             {/* Match logs */}
             <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
