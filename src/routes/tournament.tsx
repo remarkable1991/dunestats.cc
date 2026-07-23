@@ -623,7 +623,11 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                   <BracketCard title="Semi Final 2" players={playoffs.semi2.map((p) => displayMode === "discord" ? p.discord : p.player)} accent="slate" />
                 </>
               )}
-              <BracketCard title="Grand Final!" players={[...playoffs.grand.map((p) => displayMode === "discord" ? p.discord : p.player), "Winner SF1", "Winner SF2"]} accent="amber" />
+              <BracketCard title="Grand Final!" players={[
+                ...playoffs.grand.map((p) => displayMode === "discord" ? p.discord : p.player),
+                semiWinners.sf1 ? (displayMode === "discord" ? semiWinners.sf1.discord : semiWinners.sf1.player) : "Winner SF1",
+                semiWinners.sf2 ? (displayMode === "discord" ? semiWinners.sf2.discord : semiWinners.sf2.player) : "Winner SF2",
+              ]} accent="amber" />
             </div>
 
 
