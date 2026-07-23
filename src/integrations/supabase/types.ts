@@ -126,6 +126,7 @@ export type Database = {
       }
       games: {
         Row: {
+          announced_to_discord: boolean | null
           board_version: string | null
           created_at: string
           created_by: string | null
@@ -140,6 +141,7 @@ export type Database = {
           tournament_num: number | null
         }
         Insert: {
+          announced_to_discord?: boolean | null
           board_version?: string | null
           created_at?: string
           created_by?: string | null
@@ -154,6 +156,7 @@ export type Database = {
           tournament_num?: number | null
         }
         Update: {
+          announced_to_discord?: boolean | null
           board_version?: string | null
           created_at?: string
           created_by?: string | null
