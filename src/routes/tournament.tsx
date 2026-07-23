@@ -573,8 +573,9 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                   <tbody>
                     {standings.map((s, i) => {
                       const rank = i + 1;
-                      const gold = rank <= 2;
-                      const silver = rank >= 3 && rank <= 10;
+                      const grandKeys = new Set(playoffs.grand.map((p) => p.player));
+                      const gold = grandKeys.has(s.player);
+                      const silver = !gold && rank >= 3 && rank <= 10;
                       const mine = isMine(s.player);
                       return (
                         <tr key={s.player} className={`border-b border-border/20 ${mine ? "bg-sand/15 ring-2 ring-sand" : gold ? "bg-amber-500/10 ring-1 ring-amber-400/60" : silver ? "bg-slate-400/5 ring-1 ring-slate-400/40" : ""}`}>
