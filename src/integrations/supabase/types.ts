@@ -393,6 +393,138 @@ export type Database = {
         }
         Relationships: []
       }
+      sandbox_game_results: {
+        Row: {
+          created_at: string | null
+          elo_delta: number | null
+          elo_delta_overall: number | null
+          game_id: string | null
+          id: string | null
+          leader_name: string | null
+          placement: number | null
+          player_name: string | null
+          points: number | null
+          vp_overall_delta: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          elo_delta?: number | null
+          elo_delta_overall?: number | null
+          game_id?: string | null
+          id?: string | null
+          leader_name?: string | null
+          placement?: number | null
+          player_name?: string | null
+          points?: number | null
+          vp_overall_delta?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          elo_delta?: number | null
+          elo_delta_overall?: number | null
+          game_id?: string | null
+          id?: string | null
+          leader_name?: string | null
+          placement?: number | null
+          player_name?: string | null
+          points?: number | null
+          vp_overall_delta?: number | null
+        }
+        Relationships: []
+      }
+      sandbox_games: {
+        Row: {
+          announced_to_discord: boolean | null
+          board_version: string | null
+          created_at: string | null
+          created_by: string | null
+          game_version: Database["public"]["Enums"]["game_version"] | null
+          has_base_leaders: boolean | null
+          has_epic_mode: boolean | null
+          has_immortality: boolean | null
+          has_rise_of_ix: boolean | null
+          id: string
+          image_url: string | null
+          source: string | null
+          tournament_num: number | null
+        }
+        Insert: {
+          announced_to_discord?: boolean | null
+          board_version?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          game_version?: Database["public"]["Enums"]["game_version"] | null
+          has_base_leaders?: boolean | null
+          has_epic_mode?: boolean | null
+          has_immortality?: boolean | null
+          has_rise_of_ix?: boolean | null
+          id?: string
+          image_url?: string | null
+          source?: string | null
+          tournament_num?: number | null
+        }
+        Update: {
+          announced_to_discord?: boolean | null
+          board_version?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          game_version?: Database["public"]["Enums"]["game_version"] | null
+          has_base_leaders?: boolean | null
+          has_epic_mode?: boolean | null
+          has_immortality?: boolean | null
+          has_rise_of_ix?: boolean | null
+          id?: string
+          image_url?: string | null
+          source?: string | null
+          tournament_num?: number | null
+        }
+        Relationships: []
+      }
+      sandbox_player_ratings: {
+        Row: {
+          claimed_by: string | null
+          display_name: string | null
+          elo: number | null
+          game_version: Database["public"]["Enums"]["game_version"] | null
+          games_played: number | null
+          id: string | null
+          overall_vp_elo: number | null
+          player_key: string | null
+          top2: number | null
+          total_points: number | null
+          updated_at: string | null
+          wins: number | null
+        }
+        Insert: {
+          claimed_by?: string | null
+          display_name?: string | null
+          elo?: number | null
+          game_version?: Database["public"]["Enums"]["game_version"] | null
+          games_played?: number | null
+          id?: string | null
+          overall_vp_elo?: number | null
+          player_key?: string | null
+          top2?: number | null
+          total_points?: number | null
+          updated_at?: string | null
+          wins?: number | null
+        }
+        Update: {
+          claimed_by?: string | null
+          display_name?: string | null
+          elo?: number | null
+          game_version?: Database["public"]["Enums"]["game_version"] | null
+          games_played?: number | null
+          id?: string | null
+          overall_vp_elo?: number | null
+          player_key?: string | null
+          top2?: number | null
+          total_points?: number | null
+          updated_at?: string | null
+          wins?: number | null
+        }
+        Relationships: []
+      }
       sp_events: {
         Row: {
           action_type: string
@@ -659,6 +791,7 @@ export type Database = {
         Args: { p_semi1: string[]; p_semi2: string[]; p_tournament_num: number }
         Returns: Json
       }
+      recalculate_sandbox_overall_vp_elo: { Args: never; Returns: undefined }
       save_game_with_ratings: {
         Args: {
           p_board_version: string
