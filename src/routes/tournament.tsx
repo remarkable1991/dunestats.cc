@@ -307,6 +307,84 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
     })();
   }, [userId, leagueComplete, semisPublished, playoffs, tournamentNum]);
 
+  // Detect whether the Grand Final table already exists / has been fully scored.
+  const grandFinalRows = useMemo(
+    () => rows.filter((r) => r.round_type === "Finals" && /grand/i.test(r.table_identifier)),
+    [rows],
+  );
+  const grandFinalExists = grandFinalRows.length > 0;
+  const grandFinalComplete = useMemo(
+    () => grandFinalRows.length >= 4 && grandFinalRows.every((r) => r.placement != null && r.points != null),
+    [grandFinalRows],
+  );
+
+  // Auto-publish the Grand Final table once BOTH semi finals have a winner.
+  const promoteGFRef = useRef(false);
+  useEffect(() => {
+    if (!userId || !semisPublished) return;
+    if (grandFinalExists) return;
+    if (!semiWinners.sf1 || !semiWinners.sf2) return;
+    const top2 = leagueStandings.slice(0, 2).map((p) => p.player);
+    if (top2.length !== 2) return;
+    const players = Array.from(new Set([top2[0], top2[1], semiWinners.sf1.player, semiWinners.sf2.player]));
+    if (players.length !== 4) return;
+    if (promoteGFRef.current) return;
+    promoteGFRef.current = true;
+    (async () => {
+      const { error } = await (supabase as any).rpc("promote_to_grandfinal", {
+        p_tournament_num: tournamentNum,
+        p_players: players,
+      });
+      if (!error) await refresh();
+    })();
+  }, [userId, semisPublished, grandFinalExists, semiWinners, leagueStandings, tournamentNum]);
+
+  // Auto-archive the tournament to Hall of Fame once the Grand Final is scored.
+  const archiveRef = useRef(false);
+  useEffect(() => {
+    if (!userId || !grandFinalComplete) return;
+    if (archiveRef.current) return;
+    archiveRef.current = true;
+    const profile = tournamentModes(tournamentNum);
+    (async () => {
+      const { error } = await (supabase as any).rpc("archive_tournament", {
+        p_tournament_num: tournamentNum,
+        p_board: profile?.board_version ?? "uprising",
+        p_ix: profile?.has_rise_of_ix ?? false,
+        p_epic: profile?.has_epic_mode ?? false,
+        p_immo: profile?.has_immortality ?? false,
+      });
+      if (!error) {
+        toast.success(`Tournament #${tournamentNum} complete — moved to Hall of Fame.`);
+        onBack();
+      }
+    })();
+  }, [userId, grandFinalComplete, tournamentNum, onBack]);
+
+  // ===== Standings view (Total with GF bonus vs League Phase only) =====
+  const [standingsView, setStandingsView] = useState<"total" | "league">("total");
+
+  // Total standing: uses everything, but the top-2 league finishers earned +25 TP
+  // for skipping the semi finals (direct-to-Grand-Final bye bonus).
+  const totalStandings = useMemo(() => {
+    const grandBonus = new Set(leagueStandings.slice(0, 2).map((p) => p.player));
+    const boosted = standings.map((s) =>
+      grandBonus.has(s.player) ? { ...s, tp: s.tp + 25 } : s,
+    );
+    boosted.sort((a, b) => {
+      if (b.tp !== a.tp) return b.tp - a.tp;
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      if (a.avgPlacement !== b.avgPlacement) return a.avgPlacement - b.avgPlacement;
+      if (b.vp !== a.vp) return b.vp - a.vp;
+      return b.vpPct - a.vpPct;
+    });
+    return boosted;
+  }, [standings, leagueStandings]);
+
+  const displayStandings = semisPublished
+    ? (standingsView === "total" ? totalStandings : leagueStandings)
+    : standings;
+
   // Helper: get screenshot URL for a table
   const shotFor = (rt: string, ti: string) => shots.find((s) => s.round_type === rt && s.table_identifier === ti);
 
