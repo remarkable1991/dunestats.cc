@@ -1175,7 +1175,7 @@ function CurrentTournamentsHub() {
           phase,
         });
       }
-      setCards(summaries);
+      setCards(summaries.filter((c) => c.totalCells > 0));
     })();
   }, []);
 
