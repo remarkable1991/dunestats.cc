@@ -628,7 +628,24 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
 
             {/* Standings */}
             <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
-              <h3 className="font-display text-xl mb-4">Live Standings</h3>
+              <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+                <h3 className="font-display text-xl">Live Standings</h3>
+                {semisPublished && (
+                  <Tabs value={standingsView} onValueChange={(v) => setStandingsView(v as "total" | "league")}>
+                    <TabsList>
+                      <TabsTrigger value="total">Total (with GF bonus)</TabsTrigger>
+                      <TabsTrigger value="league">League Phase Only</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                )}
+              </div>
+              {semisPublished && (
+                <p className="text-xs text-muted-foreground mb-3 italic">
+                  {standingsView === "total"
+                    ? "Total standing includes all games. Players who finished top-2 in the league phase get +25 TP for their direct-to-Grand-Final bye."
+                    : "League phase standing only counts the three Swiss games."}
+                </p>
+              )}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-muted-foreground text-xs uppercase">
@@ -649,7 +666,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                     </tr>
                   </thead>
                   <tbody>
-                    {standings.map((s, i) => {
+                    {displayStandings.map((s, i) => {
                       const rank = i + 1;
                       const grandKeys = new Set(playoffs.grand.map((p) => p.player));
                       const gold = grandKeys.has(s.player);
