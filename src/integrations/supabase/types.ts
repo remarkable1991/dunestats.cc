@@ -748,6 +748,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      archive_tournament: {
+        Args: {
+          p_board: string
+          p_epic: boolean
+          p_immo: boolean
+          p_ix: boolean
+          p_tournament_num: number
+        }
+        Returns: Json
+      }
       claim_player_name: {
         Args: { p_player_key: string; p_reset?: boolean }
         Returns: Json
@@ -786,6 +796,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      promote_to_grandfinal: {
+        Args: { p_players: string[]; p_tournament_num: number }
+        Returns: Json
       }
       promote_to_semifinals: {
         Args: { p_semi1: string[]; p_semi2: string[]; p_tournament_num: number }
