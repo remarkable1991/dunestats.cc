@@ -768,6 +768,8 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                         {[...tables.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([ti, players]) => {
                           const shot = shotFor(rt, ti);
                           const sorted = [...players].sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9));
+                          const finished = players.filter((p) => p.placement != null && p.points != null).length >= 4;
+                          const tDays = finished ? tableDaysToFinish(players) : null;
                           return (
                             <div key={ti} className="border border-border/40 rounded-md p-3 bg-background/40">
                               <div className="flex items-center justify-between mb-2">
@@ -782,6 +784,14 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                                     >
                                       <Sparkles className="size-3" /> Match Quality {players[0].table_score}
                                     </button>
+                                  )}
+                                  {tDays != null && (
+                                    <span
+                                      className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground"
+                                      title="Days from first upload of this table to last update"
+                                    >
+                                      ⏱ {fmtDays(tDays)}
+                                    </span>
                                   )}
                                 </div>
                                 {shot ? (
