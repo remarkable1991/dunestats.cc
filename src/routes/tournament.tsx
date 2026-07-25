@@ -234,12 +234,13 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
       ].map((v) => Math.max(0, v));
       ranked.forEach((r, i) => {
         const key = r.player_name;
-        const agg = map.get(key) ?? { player: r.player_name, discord: r.discord_username ?? r.player_name, tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0 };
+        const agg = map.get(key) ?? { player: r.player_name, discord: r.discord_username ?? r.player_name, tp: 0, wins: 0, placements: [] as number[], vp: 0, vpShareSum: 0, daysSum: 0, daysCount: 0 };
         agg.tp += tps[i];
         if (r.placement === 1) agg.wins += 1;
         agg.placements.push(r.placement ?? 0);
         agg.vp += r.points ?? 0;
         agg.vpShareSum += tableVpTotal > 0 ? (r.points ?? 0) / tableVpTotal : 0;
+        if (tDays != null) { agg.daysSum += tDays; agg.daysCount += 1; }
         if (r.discord_username) agg.discord = r.discord_username;
         map.set(key, agg);
       });
@@ -248,6 +249,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
       ...a,
       avgPlacement: a.placements.length ? a.placements.reduce((s, n) => s + n, 0) / a.placements.length : 4,
       vpPct: a.placements.length ? (a.vpShareSum / a.placements.length) * 100 : 0,
+      avgDays: a.daysCount ? a.daysSum / a.daysCount : null,
     }));
     list.sort((a, b) => {
       if (b.tp !== a.tp) return b.tp - a.tp;
