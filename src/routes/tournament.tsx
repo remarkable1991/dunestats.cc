@@ -61,7 +61,24 @@ type Row = {
   table_score: number | null;
   player_compatibility_score: number | null;
   player_availability: string[] | null;
+  created_at: string;
+  updated_at: string;
 };
+
+/** Days from first upload of a table (min created_at) to last update (max updated_at). */
+function tableDaysToFinish(rows: Row[]): number | null {
+  if (!rows.length) return null;
+  const created = rows.map((r) => new Date(r.created_at).getTime()).filter((n) => !isNaN(n));
+  const updated = rows.map((r) => new Date(r.updated_at).getTime()).filter((n) => !isNaN(n));
+  if (!created.length || !updated.length) return null;
+  const days = (Math.max(...updated) - Math.min(...created)) / 86400000;
+  return days < 0 ? 0 : days;
+}
+function fmtDays(d: number | null): string {
+  if (d == null) return "—";
+  if (d < 1) return "<1d";
+  return `${d.toFixed(d < 10 ? 1 : 0)}d`;
+}
 type Shot = { tournament_num: number; round_type: string; table_identifier: string; image_url: string };
 
 function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; onBack: () => void }) {
