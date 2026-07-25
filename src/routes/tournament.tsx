@@ -718,6 +718,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                           <td className="py-2 px-2 text-right font-mono">{s.vp}</td>
                           <td className="py-2 px-2 text-right font-mono">{s.placements.length ? `${s.vpPct.toFixed(1)}%` : "—"}</td>
                           <td className="py-2 px-2 text-right font-mono">{s.placements.length}</td>
+                          <td className="py-2 px-2 text-right font-mono text-muted-foreground">{fmtDays(s.avgDays)}</td>
                           <td className="py-2 px-2 text-xs">
                             {gold && <Badge className="bg-amber-500/80 text-black">Direct to Grand Finals</Badge>}
                             {silver && <Badge variant="outline" className="border-slate-300/60 text-slate-200">Qualified for Semi Finals</Badge>}
