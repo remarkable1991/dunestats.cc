@@ -685,6 +685,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                       <th className="text-right py-2 px-2">VP</th>
                       <th className="text-right py-2 px-2">VP %</th>
                       <th className="text-right py-2 px-2">Games</th>
+                      <th className="text-right py-2 px-2" title="Average days to finish per table">D2F</th>
                       <th className="text-left py-2 px-2">Status</th>
                     </tr>
                   </thead>
