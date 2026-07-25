@@ -144,7 +144,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
 
   // ===== TP scoring + standings =====
   const standings = useMemo(() => {
-    type Agg = { player: string; discord: string; tp: number; wins: number; placements: number[]; vp: number; vpShareSum: number };
+    type Agg = { player: string; discord: string; tp: number; wins: number; placements: number[]; vp: number; vpShareSum: number; daysSum: number; daysCount: number };
     const map = new Map<string, Agg>();
     // Group rows by (round, table)
     const tables = new Map<string, Row[]>();
@@ -161,6 +161,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
       if (ranked.length < 4) continue;
       const vps = ranked.map((r) => r.points ?? 0);
       const tableVpTotal = vps.reduce((s, n) => s + n, 0);
+      const tDays = tableDaysToFinish(ranked);
       const tps = [
         20 + (vps[0] - vps[1]),
         Math.max(0, 15 - (vps[0] - vps[1])),
@@ -169,12 +170,13 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
       ].map((v) => Math.max(0, v));
       ranked.forEach((r, i) => {
         const key = r.player_name;
-        const agg = map.get(key) ?? { player: r.player_name, discord: r.discord_username ?? r.player_name, tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0 };
+        const agg = map.get(key) ?? { player: r.player_name, discord: r.discord_username ?? r.player_name, tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0, daysSum: 0, daysCount: 0 };
         agg.tp += tps[i];
         if (r.placement === 1) agg.wins += 1;
         agg.placements.push(r.placement ?? 0);
         agg.vp += r.points ?? 0;
         agg.vpShareSum += tableVpTotal > 0 ? (r.points ?? 0) / tableVpTotal : 0;
+        if (tDays != null) { agg.daysSum += tDays; agg.daysCount += 1; }
         if (r.discord_username) agg.discord = r.discord_username;
         map.set(key, agg);
       });
@@ -184,7 +186,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
       if (!map.has(row.player_name)) {
         map.set(row.player_name, {
           player: row.player_name, discord: row.discord_username ?? row.player_name,
-          tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0,
+          tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0, daysSum: 0, daysCount: 0,
         });
       }
     }
@@ -192,6 +194,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
       ...a,
       avgPlacement: a.placements.length ? a.placements.reduce((s, n) => s + n, 0) / a.placements.length : 4,
       vpPct: a.placements.length ? (a.vpShareSum / a.placements.length) * 100 : 0,
+      avgDays: a.daysCount ? a.daysSum / a.daysCount : null,
     }));
     list.sort((a, b) => {
       if (b.tp !== a.tp) return b.tp - a.tp;
@@ -206,7 +209,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
   // League-only standings: recompute using ONLY Swiss round rows so playoff
   // projections don't shift as Semi/Grand Final results get uploaded.
   const leagueStandings = useMemo(() => {
-    type Agg = { player: string; discord: string; tp: number; wins: number; placements: number[]; vp: number; vpShareSum: number };
+    type Agg = { player: string; discord: string; tp: number; wins: number; placements: number[]; vp: number; vpShareSum: number; daysSum: number; daysCount: number };
     const map = new Map<string, Agg>();
     const tables = new Map<string, Row[]>();
     for (const row of rows) {
@@ -222,6 +225,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
       if (ranked.length < 4) continue;
       const vps = ranked.map((r) => r.points ?? 0);
       const tableVpTotal = vps.reduce((s, n) => s + n, 0);
+      const tDays = tableDaysToFinish(ranked);
       const tps = [
         20 + (vps[0] - vps[1]),
         Math.max(0, 15 - (vps[0] - vps[1])),
