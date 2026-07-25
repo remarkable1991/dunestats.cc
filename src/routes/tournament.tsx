@@ -61,7 +61,24 @@ type Row = {
   table_score: number | null;
   player_compatibility_score: number | null;
   player_availability: string[] | null;
+  created_at: string;
+  updated_at: string;
 };
+
+/** Days from first upload of a table (min created_at) to last update (max updated_at). */
+function tableDaysToFinish(rows: Row[]): number | null {
+  if (!rows.length) return null;
+  const created = rows.map((r) => new Date(r.created_at).getTime()).filter((n) => !isNaN(n));
+  const updated = rows.map((r) => new Date(r.updated_at).getTime()).filter((n) => !isNaN(n));
+  if (!created.length || !updated.length) return null;
+  const days = (Math.max(...updated) - Math.min(...created)) / 86400000;
+  return days < 0 ? 0 : days;
+}
+function fmtDays(d: number | null): string {
+  if (d == null) return "—";
+  if (d < 1) return "<1d";
+  return `${d.toFixed(d < 10 ? 1 : 0)}d`;
+}
 type Shot = { tournament_num: number; round_type: string; table_identifier: string; image_url: string };
 
 function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; onBack: () => void }) {
@@ -127,7 +144,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
 
   // ===== TP scoring + standings =====
   const standings = useMemo(() => {
-    type Agg = { player: string; discord: string; tp: number; wins: number; placements: number[]; vp: number; vpShareSum: number };
+    type Agg = { player: string; discord: string; tp: number; wins: number; placements: number[]; vp: number; vpShareSum: number; daysSum: number; daysCount: number };
     const map = new Map<string, Agg>();
     // Group rows by (round, table)
     const tables = new Map<string, Row[]>();
@@ -144,6 +161,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
       if (ranked.length < 4) continue;
       const vps = ranked.map((r) => r.points ?? 0);
       const tableVpTotal = vps.reduce((s, n) => s + n, 0);
+      const tDays = tableDaysToFinish(ranked);
       const tps = [
         20 + (vps[0] - vps[1]),
         Math.max(0, 15 - (vps[0] - vps[1])),
@@ -152,12 +170,13 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
       ].map((v) => Math.max(0, v));
       ranked.forEach((r, i) => {
         const key = r.player_name;
-        const agg = map.get(key) ?? { player: r.player_name, discord: r.discord_username ?? r.player_name, tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0 };
+        const agg = map.get(key) ?? { player: r.player_name, discord: r.discord_username ?? r.player_name, tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0, daysSum: 0, daysCount: 0 };
         agg.tp += tps[i];
         if (r.placement === 1) agg.wins += 1;
         agg.placements.push(r.placement ?? 0);
         agg.vp += r.points ?? 0;
         agg.vpShareSum += tableVpTotal > 0 ? (r.points ?? 0) / tableVpTotal : 0;
+        if (tDays != null) { agg.daysSum += tDays; agg.daysCount += 1; }
         if (r.discord_username) agg.discord = r.discord_username;
         map.set(key, agg);
       });
@@ -167,7 +186,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
       if (!map.has(row.player_name)) {
         map.set(row.player_name, {
           player: row.player_name, discord: row.discord_username ?? row.player_name,
-          tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0,
+          tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0, daysSum: 0, daysCount: 0,
         });
       }
     }
@@ -175,6 +194,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
       ...a,
       avgPlacement: a.placements.length ? a.placements.reduce((s, n) => s + n, 0) / a.placements.length : 4,
       vpPct: a.placements.length ? (a.vpShareSum / a.placements.length) * 100 : 0,
+      avgDays: a.daysCount ? a.daysSum / a.daysCount : null,
     }));
     list.sort((a, b) => {
       if (b.tp !== a.tp) return b.tp - a.tp;
@@ -189,7 +209,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
   // League-only standings: recompute using ONLY Swiss round rows so playoff
   // projections don't shift as Semi/Grand Final results get uploaded.
   const leagueStandings = useMemo(() => {
-    type Agg = { player: string; discord: string; tp: number; wins: number; placements: number[]; vp: number; vpShareSum: number };
+    type Agg = { player: string; discord: string; tp: number; wins: number; placements: number[]; vp: number; vpShareSum: number; daysSum: number; daysCount: number };
     const map = new Map<string, Agg>();
     const tables = new Map<string, Row[]>();
     for (const row of rows) {
@@ -205,6 +225,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
       if (ranked.length < 4) continue;
       const vps = ranked.map((r) => r.points ?? 0);
       const tableVpTotal = vps.reduce((s, n) => s + n, 0);
+      const tDays = tableDaysToFinish(ranked);
       const tps = [
         20 + (vps[0] - vps[1]),
         Math.max(0, 15 - (vps[0] - vps[1])),
@@ -213,12 +234,13 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
       ].map((v) => Math.max(0, v));
       ranked.forEach((r, i) => {
         const key = r.player_name;
-        const agg = map.get(key) ?? { player: r.player_name, discord: r.discord_username ?? r.player_name, tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0 };
+        const agg = map.get(key) ?? { player: r.player_name, discord: r.discord_username ?? r.player_name, tp: 0, wins: 0, placements: [] as number[], vp: 0, vpShareSum: 0, daysSum: 0, daysCount: 0 };
         agg.tp += tps[i];
         if (r.placement === 1) agg.wins += 1;
         agg.placements.push(r.placement ?? 0);
         agg.vp += r.points ?? 0;
         agg.vpShareSum += tableVpTotal > 0 ? (r.points ?? 0) / tableVpTotal : 0;
+        if (tDays != null) { agg.daysSum += tDays; agg.daysCount += 1; }
         if (r.discord_username) agg.discord = r.discord_username;
         map.set(key, agg);
       });
@@ -227,6 +249,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
       ...a,
       avgPlacement: a.placements.length ? a.placements.reduce((s, n) => s + n, 0) / a.placements.length : 4,
       vpPct: a.placements.length ? (a.vpShareSum / a.placements.length) * 100 : 0,
+      avgDays: a.daysCount ? a.daysSum / a.daysCount : null,
     }));
     list.sort((a, b) => {
       if (b.tp !== a.tp) return b.tp - a.tp;
@@ -662,6 +685,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                       <th className="text-right py-2 px-2">VP</th>
                       <th className="text-right py-2 px-2">VP %</th>
                       <th className="text-right py-2 px-2">Games</th>
+                      <th className="text-right py-2 px-2" title="Average days to finish per table">D2F</th>
                       <th className="text-left py-2 px-2">Status</th>
                     </tr>
                   </thead>
@@ -694,6 +718,7 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                           <td className="py-2 px-2 text-right font-mono">{s.vp}</td>
                           <td className="py-2 px-2 text-right font-mono">{s.placements.length ? `${s.vpPct.toFixed(1)}%` : "—"}</td>
                           <td className="py-2 px-2 text-right font-mono">{s.placements.length}</td>
+                          <td className="py-2 px-2 text-right font-mono text-muted-foreground">{fmtDays(s.avgDays)}</td>
                           <td className="py-2 px-2 text-xs">
                             {gold && <Badge className="bg-amber-500/80 text-black">Direct to Grand Finals</Badge>}
                             {silver && <Badge variant="outline" className="border-slate-300/60 text-slate-200">Qualified for Semi Finals</Badge>}
@@ -743,6 +768,8 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                         {[...tables.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([ti, players]) => {
                           const shot = shotFor(rt, ti);
                           const sorted = [...players].sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9));
+                          const finished = players.filter((p) => p.placement != null && p.points != null).length >= 4;
+                          const tDays = finished ? tableDaysToFinish(players) : null;
                           return (
                             <div key={ti} className="border border-border/40 rounded-md p-3 bg-background/40">
                               <div className="flex items-center justify-between mb-2">
@@ -757,6 +784,14 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                                     >
                                       <Sparkles className="size-3" /> Match Quality {players[0].table_score}
                                     </button>
+                                  )}
+                                  {tDays != null && (
+                                    <span
+                                      className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground"
+                                      title="Days from first upload of this table to last update"
+                                    >
+                                      ⏱ {fmtDays(tDays)}
+                                    </span>
                                   )}
                                 </div>
                                 {shot ? (
