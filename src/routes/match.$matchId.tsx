@@ -288,7 +288,7 @@ function MatchDetailsPage() {
 }
 
 function PlacementBadge({ placement }: { placement: number }) {
-  const styles: Record<number, { bg: string; icon: JSX.Element | null }> = {
+  const styles: Record<number, { bg: string; icon: React.ReactNode }> = {
     1: { bg: "bg-yellow-500/20 text-yellow-300 border-yellow-500/50", icon: <Trophy className="size-3" /> },
     2: { bg: "bg-zinc-400/20 text-zinc-200 border-zinc-400/50", icon: <Medal className="size-3" /> },
     3: { bg: "bg-orange-600/20 text-orange-300 border-orange-600/50", icon: <Award className="size-3" /> },
