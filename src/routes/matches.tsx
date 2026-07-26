@@ -30,6 +30,7 @@ type ResultRow = {
 };
 type GameRow = {
   id: string;
+  public_match_id: string | null;
   created_at: string;
   created_by: string | null;
   game_version: "base" | "ix" | "uprising";
@@ -90,7 +91,7 @@ function MatchesPage() {
     let query = supabase
       .from("games")
       .select(
-        "id, created_at, created_by, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, image_url, tournament_num, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall)",
+        "id, public_match_id, created_at, created_by, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, image_url, tournament_num, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall)",
         { count: "exact" },
       )
       .order("created_at", { ascending: false });

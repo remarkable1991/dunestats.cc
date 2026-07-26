@@ -206,6 +206,13 @@ function UploadPage() {
         },
       });
       setLastSave(res);
+      // Fetch the generated public_match_id for the newly created game
+      const { data: g } = await supabase
+        .from("games")
+        .select("public_match_id")
+        .eq("id", res.game_id)
+        .maybeSingle();
+      setLastMatchId(g?.public_match_id ?? res.game_id);
       toast.success("Match submitted! ELO updated.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
@@ -486,19 +493,39 @@ function UploadPage() {
         </div>
         {lastSave && (
           <Card className="p-4 mt-6 border-sand/40 bg-card/70">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
               <CheckCircle2 className="size-5 text-emerald-400" />
               <h2 className="font-display text-lg">Match saved</h2>
               <TournamentTag num={lastSave.tournament_num} />
-              <Button
-                size="sm"
-                variant="outline"
-                className="ml-auto"
-                onClick={() => navigate({ to: "/leaderboard" })}
-              >
-                Go to leaderboard
-              </Button>
             </div>
+            {lastMatchId && (
+              <div className="mb-4 rounded-md border border-sand/40 bg-sand/5 p-3 flex flex-wrap items-center gap-2">
+                <span className="text-sm text-muted-foreground">Match ID:</span>
+                <span className="font-mono text-sand font-medium">#{lastMatchId}</span>
+                <div className="ml-auto flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(`https://dunestats.cc/match/${lastMatchId}`);
+                        toast.success("Match link copied!");
+                      } catch {
+                        toast.error("Could not copy link");
+                      }
+                    }}
+                  >
+                    Copy Link
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => navigate({ to: "/match/$matchId", params: { matchId: lastMatchId } })}
+                  >
+                    View Match Page
+                  </Button>
+                </div>
+              </div>
+            )}
             <ul className="space-y-1 text-sm">
               {[...lastSave.deltas].sort((a, b) => a.placement - b.placement).map((d, i) => (
                 <li key={i} className="flex flex-wrap items-center gap-2">
@@ -508,6 +535,11 @@ function UploadPage() {
                 </li>
               ))}
             </ul>
+            <div className="mt-3 flex justify-end">
+              <Button size="sm" variant="ghost" onClick={() => navigate({ to: "/leaderboard" })}>
+                Go to leaderboard
+              </Button>
+            </div>
           </Card>
         )}
       </div>
