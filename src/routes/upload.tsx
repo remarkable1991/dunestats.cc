@@ -62,6 +62,7 @@ function UploadPage() {
   const [detectedTournamentNum, setDetectedTournamentNum] = useState<number | null>(null);
   type SaveResult = Awaited<ReturnType<typeof saveGame>>;
   const [lastSave, setLastSave] = useState<SaveResult | null>(null);
+  const [lastMatchId, setLastMatchId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
