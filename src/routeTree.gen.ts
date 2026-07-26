@@ -27,6 +27,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RUsernameRouteImport } from './routes/r.$username'
 import { Route as PlayersKeyRouteImport } from './routes/players.$key'
+import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
 import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
 import { Route as LeadersOriginSlugRouteImport } from './routes/leaders.$origin.$slug'
 
@@ -120,6 +121,11 @@ const PlayersKeyRoute = PlayersKeyRouteImport.update({
   path: '/players/$key',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MatchMatchIdRoute = MatchMatchIdRouteImport.update({
+  id: '/match/$matchId',
+  path: '/match/$matchId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth_/callback',
   path: '/auth/callback',
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/tournament-register': typeof TournamentRegisterRoute
   '/upload': typeof UploadRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/match/$matchId': typeof MatchMatchIdRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
   '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/tournament-register': typeof TournamentRegisterRoute
   '/upload': typeof UploadRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/match/$matchId': typeof MatchMatchIdRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
   '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
@@ -194,6 +202,7 @@ export interface FileRoutesById {
   '/tournament-register': typeof TournamentRegisterRoute
   '/upload': typeof UploadRoute
   '/auth_/callback': typeof AuthCallbackRoute
+  '/match/$matchId': typeof MatchMatchIdRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
   '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
@@ -218,6 +227,7 @@ export interface FileRouteTypes {
     | '/tournament-register'
     | '/upload'
     | '/auth/callback'
+    | '/match/$matchId'
     | '/players/$key'
     | '/r/$username'
     | '/leaders/$origin/$slug'
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
     | '/tournament-register'
     | '/upload'
     | '/auth/callback'
+    | '/match/$matchId'
     | '/players/$key'
     | '/r/$username'
     | '/leaders/$origin/$slug'
@@ -262,6 +273,7 @@ export interface FileRouteTypes {
     | '/tournament-register'
     | '/upload'
     | '/auth_/callback'
+    | '/match/$matchId'
     | '/players/$key'
     | '/r/$username'
     | '/leaders/$origin/$slug'
@@ -285,6 +297,7 @@ export interface RootRouteChildren {
   TournamentRegisterRoute: typeof TournamentRegisterRoute
   UploadRoute: typeof UploadRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  MatchMatchIdRoute: typeof MatchMatchIdRoute
   PlayersKeyRoute: typeof PlayersKeyRoute
   RUsernameRoute: typeof RUsernameRoute
   LeadersOriginSlugRoute: typeof LeadersOriginSlugRoute
@@ -418,6 +431,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayersKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/match/$matchId': {
+      id: '/match/$matchId'
+      path: '/match/$matchId'
+      fullPath: '/match/$matchId'
+      preLoaderRoute: typeof MatchMatchIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth_/callback': {
       id: '/auth_/callback'
       path: '/auth/callback'
@@ -453,6 +473,7 @@ const rootRouteChildren: RootRouteChildren = {
   TournamentRegisterRoute: TournamentRegisterRoute,
   UploadRoute: UploadRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  MatchMatchIdRoute: MatchMatchIdRoute,
   PlayersKeyRoute: PlayersKeyRoute,
   RUsernameRoute: RUsernameRoute,
   LeadersOriginSlugRoute: LeadersOriginSlugRoute,
