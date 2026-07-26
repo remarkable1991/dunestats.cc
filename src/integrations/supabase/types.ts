@@ -137,6 +137,7 @@ export type Database = {
           has_rise_of_ix: boolean
           id: string
           image_url: string | null
+          public_match_id: string | null
           source: string
           tournament_num: number | null
         }
@@ -152,6 +153,7 @@ export type Database = {
           has_rise_of_ix?: boolean
           id?: string
           image_url?: string | null
+          public_match_id?: string | null
           source?: string
           tournament_num?: number | null
         }
@@ -167,6 +169,7 @@ export type Database = {
           has_rise_of_ix?: boolean
           id?: string
           image_url?: string | null
+          public_match_id?: string | null
           source?: string
           tournament_num?: number | null
         }
@@ -445,6 +448,7 @@ export type Database = {
           has_rise_of_ix: boolean | null
           id: string
           image_url: string | null
+          public_match_id: string | null
           source: string | null
           tournament_num: number | null
         }
@@ -460,6 +464,7 @@ export type Database = {
           has_rise_of_ix?: boolean | null
           id?: string
           image_url?: string | null
+          public_match_id?: string | null
           source?: string | null
           tournament_num?: number | null
         }
@@ -475,6 +480,7 @@ export type Database = {
           has_rise_of_ix?: boolean | null
           id?: string
           image_url?: string | null
+          public_match_id?: string | null
           source?: string | null
           tournament_num?: number | null
         }
