@@ -260,6 +260,14 @@ function MatchesPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-1">
+                      <Link
+                        to="/match/$matchId"
+                        params={{ matchId: g.public_match_id ?? g.id }}
+                        className="text-xs px-2 py-1 rounded border border-border/60 text-sand hover:bg-sand/10 font-mono"
+                        title="View match page"
+                      >
+                        #{g.public_match_id ?? g.id.slice(0, 8)}
+                      </Link>
                       {g.image_url && <ScreenshotButton url={g.image_url} />}
                       {canDelete && (
                       <Button
