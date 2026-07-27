@@ -365,6 +365,46 @@ function PlacementBadge({ placement }: { placement: number }) {
   );
 }
 
+function versionShort(v: "base" | "ix" | "uprising"): string {
+  return v === "base" ? "BA" : v === "ix" ? "IX" : "UP";
+}
+
+function fmtDelta(n: number | null | undefined): string | null {
+  if (n === null || n === undefined || Number.isNaN(Number(n))) return null;
+  const v = Number(n);
+  return `${v > 0 ? "+" : ""}${v.toFixed(1)}`;
+}
+
+function EloTrack({
+  label,
+  delta,
+  total,
+}: {
+  label: string;
+  delta: number | null | undefined;
+  total: number | null | undefined;
+}) {
+  const d = fmtDelta(delta);
+  const tone = delta === null || delta === undefined
+    ? "text-muted-foreground"
+    : Number(delta) > 0
+      ? "text-emerald-400"
+      : Number(delta) < 0
+        ? "text-red-400"
+        : "text-muted-foreground";
+  return (
+    <div className="rounded border border-border/40 bg-background/40 px-2 py-1">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="flex items-baseline gap-1">
+        <span className="font-display text-sand text-sm">
+          {total !== null && total !== undefined ? Math.round(Number(total)) : "—"}
+        </span>
+        {d && <span className={`text-[11px] ${tone}`}>({d})</span>}
+      </div>
+    </div>
+  );
+}
+
 function relativeTime(d: Date): string {
   const diff = Date.now() - d.getTime();
   const s = Math.floor(diff / 1000);
