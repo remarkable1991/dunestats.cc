@@ -58,6 +58,7 @@ function MatchesPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [games, setGames] = useState<GameRow[]>([]);
   const [uploaders, setUploaders] = useState<Record<string, string>>({});
+  const [vpDeltas, setVpDeltas] = useState<Record<string, number>>({});
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
