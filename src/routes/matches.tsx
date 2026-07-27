@@ -132,6 +132,22 @@ function MatchesPage() {
     } else {
       setUploaders({});
     }
+    // Sandbox VP-Elo deltas per (game_id, player_key)
+    const gameIds = rows.map((g) => g.id);
+    if (gameIds.length) {
+      const { data: sbrs } = await supabase
+        .from("sandbox_game_results")
+        .select("game_id, player_name, elo_delta_overall")
+        .in("game_id", gameIds);
+      const vmap: Record<string, number> = {};
+      (sbrs ?? []).forEach((r) => {
+        if (!r.game_id || !r.player_name || r.elo_delta_overall === null || r.elo_delta_overall === undefined) return;
+        vmap[`${r.game_id}::${r.player_name.toLowerCase().trim()}`] = Number(r.elo_delta_overall);
+      });
+      setVpDeltas(vmap);
+    } else {
+      setVpDeltas({});
+    }
     setLoading(false);
   };
 
