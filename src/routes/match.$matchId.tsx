@@ -29,6 +29,14 @@ type ResultRow = {
   player_name: string;
   leader_name: string | null;
   points: number;
+  elo_delta: number | null;
+  elo_delta_overall: number | null;
+};
+
+type RatingTotals = {
+  version: number | null;
+  overall: number | null;
+  vp: number | null;
 };
 
 type GameRow = {
@@ -55,6 +63,8 @@ function MatchDetailsPage() {
   const [notFoundState, setNotFoundState] = useState(false);
   const [signedImg, setSignedImg] = useState<string | null>(null);
   const [imgLoading, setImgLoading] = useState(false);
+  const [vpDeltas, setVpDeltas] = useState<Record<string, number>>({});
+  const [totals, setTotals] = useState<Record<string, RatingTotals>>({});
   const titles = usePlayerTitles();
 
   useEffect(() => {
@@ -62,7 +72,7 @@ function MatchDetailsPage() {
     (async () => {
       setLoading(true);
       const select =
-        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, image_url, tournament_num, game_results(placement, player_name, leader_name, points)";
+        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, image_url, tournament_num, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall)";
       let q = supabase.from("games").select(select).limit(1);
       q = UUID_RE.test(matchId)
         ? q.or(`public_match_id.eq.${matchId},id.eq.${matchId}`)
@@ -71,10 +81,53 @@ function MatchDetailsPage() {
       if (cancelled) return;
       if (!data) {
         setNotFoundState(true);
-      } else {
-        setGame(data as GameRow);
+        setLoading(false);
+        return;
       }
+      const g = data as GameRow;
+      setGame(g);
       setLoading(false);
+
+      // Fetch sandbox VP deltas + current totals for each player.
+      const keys = Array.from(new Set(g.game_results.map((r) => r.player_name.toLowerCase().trim())));
+      const [{ data: sbrs }, { data: prs }, { data: sbrats }] = await Promise.all([
+        supabase
+          .from("sandbox_game_results")
+          .select("player_name, elo_delta_overall")
+          .eq("game_id", g.id),
+        supabase
+          .from("player_ratings")
+          .select("player_key, game_version, elo")
+          .in("player_key", keys)
+          .in("game_version", [g.game_version, "overall"]),
+        supabase
+          .from("sandbox_player_ratings")
+          .select("player_key, overall_vp_elo")
+          .in("player_key", keys),
+      ]);
+      if (cancelled) return;
+      const vmap: Record<string, number> = {};
+      (sbrs ?? []).forEach((r) => {
+        if (!r.player_name || r.elo_delta_overall === null || r.elo_delta_overall === undefined) return;
+        vmap[r.player_name.toLowerCase().trim()] = Number(r.elo_delta_overall);
+      });
+      setVpDeltas(vmap);
+      const tmap: Record<string, RatingTotals> = {};
+      keys.forEach((k) => (tmap[k] = { version: null, overall: null, vp: null }));
+      (prs ?? []).forEach((r) => {
+        if (!r.player_key) return;
+        const k = r.player_key.toLowerCase().trim();
+        if (!tmap[k]) tmap[k] = { version: null, overall: null, vp: null };
+        if (r.game_version === "overall") tmap[k].overall = Number(r.elo);
+        else if (r.game_version === g.game_version) tmap[k].version = Number(r.elo);
+      });
+      (sbrats ?? []).forEach((r) => {
+        if (!r.player_key) return;
+        const k = r.player_key.toLowerCase().trim();
+        if (!tmap[k]) tmap[k] = { version: null, overall: null, vp: null };
+        if (r.overall_vp_elo !== null && r.overall_vp_elo !== undefined) tmap[k].vp = Number(r.overall_vp_elo);
+      });
+      setTotals(tmap);
     })();
     return () => {
       cancelled = true;
@@ -198,58 +251,68 @@ function MatchDetailsPage() {
               {sorted.map((r, i) => {
                 const leaderRoute = r.leader_name ? leaderRouteFor(r.leader_name) : null;
                 const portrait = leaderRoute ? portraits[leaderRoute.slug] : null;
+                const key = r.player_name.toLowerCase().trim();
+                const t = totals[key];
+                const vpDelta = vpDeltas[key];
                 return (
                   <div
                     key={i}
-                    className="flex items-center gap-3 border border-border/40 rounded px-3 py-2 bg-background/40"
+                    className="border border-border/40 rounded px-3 py-2 bg-background/40"
                   >
-                    <PlacementBadge placement={r.placement} />
-                    {leaderRoute ? (
-                      <Link
-                        to="/leaders/$origin/$slug"
-                        params={{ origin: leaderRoute.origin, slug: leaderRoute.slug }}
-                        className="shrink-0"
-                        title={r.leader_name ?? ""}
-                      >
-                        <div className="size-10 rounded overflow-hidden border border-border/50 bg-card/60">
-                          {portrait ? (
-                            <img src={portrait} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full" />
-                          )}
-                        </div>
-                      </Link>
-                    ) : (
-                      <div className="size-10 rounded border border-border/50 bg-card/60" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        to="/players/$key"
-                        params={{ key: r.player_name.toLowerCase().trim() }}
-                        className="block truncate font-medium hover:underline underline-offset-2"
-                        style={{ color: colorForKey(titles, r.player_name) }}
-                      >
-                        {r.player_name}
-                      </Link>
+                    <div className="flex items-center gap-3">
+                      <PlacementBadge placement={r.placement} />
                       {leaderRoute ? (
                         <Link
                           to="/leaders/$origin/$slug"
                           params={{ origin: leaderRoute.origin, slug: leaderRoute.slug }}
-                          className="block text-xs text-muted-foreground truncate hover:text-sand"
+                          className="shrink-0"
+                          title={r.leader_name ?? ""}
                         >
-                          {r.leader_name}
+                          <div className="size-10 rounded overflow-hidden border border-border/50 bg-card/60">
+                            {portrait ? (
+                              <img src={portrait} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full" />
+                            )}
+                          </div>
                         </Link>
                       ) : (
-                        <div className="text-xs text-muted-foreground truncate">
-                          {r.leader_name ?? "—"}
-                        </div>
+                        <div className="size-10 rounded border border-border/50 bg-card/60" />
                       )}
-                    </div>
-                    <div className="text-right">
-                      <div className="font-display text-sand text-2xl tabular-nums leading-none">
-                        {r.points}
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          to="/players/$key"
+                          params={{ key }}
+                          className="block truncate font-medium hover:underline underline-offset-2"
+                          style={{ color: colorForKey(titles, r.player_name) }}
+                        >
+                          {r.player_name}
+                        </Link>
+                        {leaderRoute ? (
+                          <Link
+                            to="/leaders/$origin/$slug"
+                            params={{ origin: leaderRoute.origin, slug: leaderRoute.slug }}
+                            className="block text-xs text-muted-foreground truncate hover:text-sand"
+                          >
+                            {r.leader_name}
+                          </Link>
+                        ) : (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {r.leader_name ?? "—"}
+                          </div>
+                        )}
                       </div>
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-wider">VP</div>
+                      <div className="text-right">
+                        <div className="font-display text-sand text-2xl tabular-nums leading-none">
+                          {r.points}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">VP</div>
+                      </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] tabular-nums">
+                      <EloTrack label="All" delta={r.elo_delta_overall} total={t?.overall ?? null} />
+                      <EloTrack label={versionShort(game.game_version)} delta={r.elo_delta} total={t?.version ?? null} />
+                      <EloTrack label="All VP" delta={vpDelta ?? null} total={t?.vp ?? null} />
                     </div>
                   </div>
                 );
@@ -299,6 +362,46 @@ function PlacementBadge({ placement }: { placement: number }) {
       {s.icon}
       {placement}
     </span>
+  );
+}
+
+function versionShort(v: "base" | "ix" | "uprising"): string {
+  return v === "base" ? "BA" : v === "ix" ? "IX" : "UP";
+}
+
+function fmtDelta(n: number | null | undefined): string | null {
+  if (n === null || n === undefined || Number.isNaN(Number(n))) return null;
+  const v = Number(n);
+  return `${v > 0 ? "+" : ""}${v.toFixed(1)}`;
+}
+
+function EloTrack({
+  label,
+  delta,
+  total,
+}: {
+  label: string;
+  delta: number | null | undefined;
+  total: number | null | undefined;
+}) {
+  const d = fmtDelta(delta);
+  const tone = delta === null || delta === undefined
+    ? "text-muted-foreground"
+    : Number(delta) > 0
+      ? "text-emerald-400"
+      : Number(delta) < 0
+        ? "text-red-400"
+        : "text-muted-foreground";
+  return (
+    <div className="rounded border border-border/40 bg-background/40 px-2 py-1">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="flex items-baseline gap-1">
+        <span className="font-display text-sand text-sm">
+          {total !== null && total !== undefined ? Math.round(Number(total)) : "—"}
+        </span>
+        {d && <span className={`text-[11px] ${tone}`}>({d})</span>}
+      </div>
+    </div>
   );
 }
 

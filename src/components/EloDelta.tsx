@@ -28,18 +28,21 @@ export function EloDeltaLine({
   version,
   overall,
   versionDelta,
+  vpDelta,
   className,
 }: {
   version: Version;
   overall: number | null | undefined;
   versionDelta: number | null | undefined;
+  vpDelta?: number | null | undefined;
   className?: string;
 }) {
   const o = fmt(overall);
   const v = fmt(versionDelta);
-  if (o === null && v === null) return null;
+  const vp = fmt(vpDelta);
+  if (o === null && v === null && vp === null) return null;
   return (
-    <span className={`inline-flex items-center gap-1.5 text-[11px] tabular-nums ${className ?? ""}`}>
+    <span className={`inline-flex items-center gap-1.5 text-[11px] tabular-nums flex-wrap ${className ?? ""}`}>
       {o !== null && (
         <span className="inline-flex items-center gap-0.5">
           <span className="text-muted-foreground">All</span>
@@ -50,6 +53,12 @@ export function EloDeltaLine({
         <span className="inline-flex items-center gap-0.5">
           <span className="text-muted-foreground">{SHORT[version]}</span>
           <span className={toneClass(versionDelta)}>({v})</span>
+        </span>
+      )}
+      {vp !== null && (
+        <span className="inline-flex items-center gap-0.5">
+          <span className="text-muted-foreground">All VP</span>
+          <span className={toneClass(vpDelta)}>({vp})</span>
         </span>
       )}
     </span>

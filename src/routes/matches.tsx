@@ -58,6 +58,7 @@ function MatchesPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [games, setGames] = useState<GameRow[]>([]);
   const [uploaders, setUploaders] = useState<Record<string, string>>({});
+  const [vpDeltas, setVpDeltas] = useState<Record<string, number>>({});
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -130,6 +131,22 @@ function MatchesPage() {
       setUploaders(map);
     } else {
       setUploaders({});
+    }
+    // Sandbox VP-Elo deltas per (game_id, player_key)
+    const gameIds = rows.map((g) => g.id);
+    if (gameIds.length) {
+      const { data: sbrs } = await supabase
+        .from("sandbox_game_results")
+        .select("game_id, player_name, elo_delta_overall")
+        .in("game_id", gameIds);
+      const vmap: Record<string, number> = {};
+      (sbrs ?? []).forEach((r) => {
+        if (!r.game_id || !r.player_name || r.elo_delta_overall === null || r.elo_delta_overall === undefined) return;
+        vmap[`${r.game_id}::${r.player_name.toLowerCase().trim()}`] = Number(r.elo_delta_overall);
+      });
+      setVpDeltas(vmap);
+    } else {
+      setVpDeltas({});
     }
     setLoading(false);
   };
@@ -335,7 +352,7 @@ function MatchesPage() {
                               <div className="text-xs text-muted-foreground truncate">{r.leader_name}</div>
                             )}
                             <Link to="/leaderboard" className="hover:underline underline-offset-2">
-                              <EloDeltaLine version={g.game_version} overall={r.elo_delta_overall} versionDelta={r.elo_delta} />
+                              <EloDeltaLine version={g.game_version} overall={r.elo_delta_overall} versionDelta={r.elo_delta} vpDelta={vpDeltas[`${g.id}::${r.player_name.toLowerCase().trim()}`]} />
                             </Link>
                           </div>
                         </div>

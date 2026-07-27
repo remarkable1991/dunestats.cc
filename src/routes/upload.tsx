@@ -206,6 +206,12 @@ function UploadPage() {
         },
       });
       setLastSave(res);
+      // Fire-and-forget sandbox sync — never blocks or fails the main flow.
+      void supabase
+        .rpc("sync_new_game_to_sandbox_by_id", { p_game_id: res.game_id })
+        .then(({ error }) => {
+          if (error) console.error("Sandbox sync error:", error);
+        });
       // Fetch the generated public_match_id for the newly created game
       const { data: g } = await supabase
         .from("games")
