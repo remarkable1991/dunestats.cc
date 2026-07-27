@@ -29,6 +29,14 @@ type ResultRow = {
   player_name: string;
   leader_name: string | null;
   points: number;
+  elo_delta: number | null;
+  elo_delta_overall: number | null;
+};
+
+type RatingTotals = {
+  version: number | null;
+  overall: number | null;
+  vp: number | null;
 };
 
 type GameRow = {
