@@ -70,22 +70,22 @@ function LedgerPage() {
         return out;
       }
       const [sp, ss, pr] = await Promise.all([
-        fetchAll<SpRow>((from, to) =>
-          supabase
+        fetchAll<SpRow>(async (from, to) => {
+          const { data } = await supabase
             .from("player_sp")
             .select("player_key, display_name, lifetime_sp, seasonal_sp, season_id, is_claimed")
-            .range(from, to)
-            .then(({ data }) => ({ data: data as SpRow[] | null })),
-        ),
+            .range(from, to);
+          return { data: data as SpRow[] | null };
+        }),
         supabase.from("sp_seasons").select("*").order("id").then(({ data }) => data as Season[] | null),
-        fetchAll<{ player_key: string; display_name: string }>((from, to) =>
-          supabase
+        fetchAll<{ player_key: string; display_name: string }>(async (from, to) => {
+          const { data } = await supabase
             .from("player_ratings")
             .select("player_key, display_name")
             .eq("game_version", "overall")
-            .range(from, to)
-            .then(({ data }) => ({ data: data as { player_key: string; display_name: string }[] | null })),
-        ),
+            .range(from, to);
+          return { data: data as { player_key: string; display_name: string }[] | null };
+        }),
       ]);
       const nameMap = new Map<string, string>();
       for (const r of pr) nameMap.set(r.player_key, r.display_name);
