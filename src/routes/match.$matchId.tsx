@@ -251,58 +251,68 @@ function MatchDetailsPage() {
               {sorted.map((r, i) => {
                 const leaderRoute = r.leader_name ? leaderRouteFor(r.leader_name) : null;
                 const portrait = leaderRoute ? portraits[leaderRoute.slug] : null;
+                const key = r.player_name.toLowerCase().trim();
+                const t = totals[key];
+                const vpDelta = vpDeltas[key];
                 return (
                   <div
                     key={i}
-                    className="flex items-center gap-3 border border-border/40 rounded px-3 py-2 bg-background/40"
+                    className="border border-border/40 rounded px-3 py-2 bg-background/40"
                   >
-                    <PlacementBadge placement={r.placement} />
-                    {leaderRoute ? (
-                      <Link
-                        to="/leaders/$origin/$slug"
-                        params={{ origin: leaderRoute.origin, slug: leaderRoute.slug }}
-                        className="shrink-0"
-                        title={r.leader_name ?? ""}
-                      >
-                        <div className="size-10 rounded overflow-hidden border border-border/50 bg-card/60">
-                          {portrait ? (
-                            <img src={portrait} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full" />
-                          )}
-                        </div>
-                      </Link>
-                    ) : (
-                      <div className="size-10 rounded border border-border/50 bg-card/60" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        to="/players/$key"
-                        params={{ key: r.player_name.toLowerCase().trim() }}
-                        className="block truncate font-medium hover:underline underline-offset-2"
-                        style={{ color: colorForKey(titles, r.player_name) }}
-                      >
-                        {r.player_name}
-                      </Link>
+                    <div className="flex items-center gap-3">
+                      <PlacementBadge placement={r.placement} />
                       {leaderRoute ? (
                         <Link
                           to="/leaders/$origin/$slug"
                           params={{ origin: leaderRoute.origin, slug: leaderRoute.slug }}
-                          className="block text-xs text-muted-foreground truncate hover:text-sand"
+                          className="shrink-0"
+                          title={r.leader_name ?? ""}
                         >
-                          {r.leader_name}
+                          <div className="size-10 rounded overflow-hidden border border-border/50 bg-card/60">
+                            {portrait ? (
+                              <img src={portrait} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full" />
+                            )}
+                          </div>
                         </Link>
                       ) : (
-                        <div className="text-xs text-muted-foreground truncate">
-                          {r.leader_name ?? "—"}
-                        </div>
+                        <div className="size-10 rounded border border-border/50 bg-card/60" />
                       )}
-                    </div>
-                    <div className="text-right">
-                      <div className="font-display text-sand text-2xl tabular-nums leading-none">
-                        {r.points}
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          to="/players/$key"
+                          params={{ key }}
+                          className="block truncate font-medium hover:underline underline-offset-2"
+                          style={{ color: colorForKey(titles, r.player_name) }}
+                        >
+                          {r.player_name}
+                        </Link>
+                        {leaderRoute ? (
+                          <Link
+                            to="/leaders/$origin/$slug"
+                            params={{ origin: leaderRoute.origin, slug: leaderRoute.slug }}
+                            className="block text-xs text-muted-foreground truncate hover:text-sand"
+                          >
+                            {r.leader_name}
+                          </Link>
+                        ) : (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {r.leader_name ?? "—"}
+                          </div>
+                        )}
                       </div>
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-wider">VP</div>
+                      <div className="text-right">
+                        <div className="font-display text-sand text-2xl tabular-nums leading-none">
+                          {r.points}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">VP</div>
+                      </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] tabular-nums">
+                      <EloTrack label="All" delta={r.elo_delta_overall} total={t?.overall ?? null} />
+                      <EloTrack label={versionShort(game.game_version)} delta={r.elo_delta} total={t?.version ?? null} />
+                      <EloTrack label="All VP" delta={vpDelta ?? null} total={t?.vp ?? null} />
                     </div>
                   </div>
                 );
