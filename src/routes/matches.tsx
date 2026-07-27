@@ -352,7 +352,7 @@ function MatchesPage() {
                               <div className="text-xs text-muted-foreground truncate">{r.leader_name}</div>
                             )}
                             <Link to="/leaderboard" className="hover:underline underline-offset-2">
-                              <EloDeltaLine version={g.game_version} overall={r.elo_delta_overall} versionDelta={r.elo_delta} />
+                              <EloDeltaLine version={g.game_version} overall={r.elo_delta_overall} versionDelta={r.elo_delta} vpDelta={vpDeltas[`${g.id}::${r.player_name.toLowerCase().trim()}`]} />
                             </Link>
                           </div>
                         </div>
