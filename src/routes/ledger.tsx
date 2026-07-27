@@ -55,24 +55,46 @@ function LedgerPage() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [{ data: sp }, { data: ss }, { data: pr }] = await Promise.all([
-        supabase
-          .from("player_sp")
-          .select("player_key, display_name, lifetime_sp, seasonal_sp, season_id, is_claimed")
-          .limit(1000),
-        supabase.from("sp_seasons").select("*").order("id"),
-        supabase.from("player_ratings").select("player_key, display_name").eq("game_version", "overall"),
+      const PAGE = 1000;
+      async function fetchAll<T>(build: (from: number, to: number) => Promise<{ data: T[] | null }>): Promise<T[]> {
+        const out: T[] = [];
+        let from = 0;
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { data } = await build(from, from + PAGE - 1);
+          if (!data || data.length === 0) break;
+          out.push(...data);
+          if (data.length < PAGE) break;
+          from += PAGE;
+        }
+        return out;
+      }
+      const [sp, ss, pr] = await Promise.all([
+        fetchAll<SpRow>(async (from, to) => {
+          const { data } = await supabase
+            .from("player_sp")
+            .select("player_key, display_name, lifetime_sp, seasonal_sp, season_id, is_claimed")
+            .range(from, to);
+          return { data: data as SpRow[] | null };
+        }),
+        supabase.from("sp_seasons").select("*").order("id").then(({ data }) => data as Season[] | null),
+        fetchAll<{ player_key: string; display_name: string }>(async (from, to) => {
+          const { data } = await supabase
+            .from("player_ratings")
+            .select("player_key, display_name")
+            .eq("game_version", "overall")
+            .range(from, to);
+          return { data: data as { player_key: string; display_name: string }[] | null };
+        }),
       ]);
       const nameMap = new Map<string, string>();
-      for (const r of (pr as { player_key: string; display_name: string }[] | null) ?? []) {
-        nameMap.set(r.player_key, r.display_name);
-      }
-      const merged = ((sp as SpRow[]) ?? []).map((r) => ({
+      for (const r of pr) nameMap.set(r.player_key, r.display_name);
+      const merged = sp.map((r) => ({
         ...r,
         display_name: nameMap.get(r.player_key) ?? r.display_name,
       }));
       setRows(merged);
-      setSeasons((ss as Season[]) ?? []);
+      setSeasons(ss ?? []);
       setLoading(false);
     })();
   }, []);
