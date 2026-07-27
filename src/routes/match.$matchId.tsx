@@ -63,6 +63,8 @@ function MatchDetailsPage() {
   const [notFoundState, setNotFoundState] = useState(false);
   const [signedImg, setSignedImg] = useState<string | null>(null);
   const [imgLoading, setImgLoading] = useState(false);
+  const [vpDeltas, setVpDeltas] = useState<Record<string, number>>({});
+  const [totals, setTotals] = useState<Record<string, RatingTotals>>({});
   const titles = usePlayerTitles();
 
   useEffect(() => {
@@ -70,7 +72,7 @@ function MatchDetailsPage() {
     (async () => {
       setLoading(true);
       const select =
-        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, image_url, tournament_num, game_results(placement, player_name, leader_name, points)";
+        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, image_url, tournament_num, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall)";
       let q = supabase.from("games").select(select).limit(1);
       q = UUID_RE.test(matchId)
         ? q.or(`public_match_id.eq.${matchId},id.eq.${matchId}`)
@@ -79,10 +81,53 @@ function MatchDetailsPage() {
       if (cancelled) return;
       if (!data) {
         setNotFoundState(true);
-      } else {
-        setGame(data as GameRow);
+        setLoading(false);
+        return;
       }
+      const g = data as GameRow;
+      setGame(g);
       setLoading(false);
+
+      // Fetch sandbox VP deltas + current totals for each player.
+      const keys = Array.from(new Set(g.game_results.map((r) => r.player_name.toLowerCase().trim())));
+      const [{ data: sbrs }, { data: prs }, { data: sbrats }] = await Promise.all([
+        supabase
+          .from("sandbox_game_results")
+          .select("player_name, elo_delta_overall")
+          .eq("game_id", g.id),
+        supabase
+          .from("player_ratings")
+          .select("player_key, game_version, elo")
+          .in("player_key", keys)
+          .in("game_version", [g.game_version, "overall"]),
+        supabase
+          .from("sandbox_player_ratings")
+          .select("player_key, overall_vp_elo")
+          .in("player_key", keys),
+      ]);
+      if (cancelled) return;
+      const vmap: Record<string, number> = {};
+      (sbrs ?? []).forEach((r) => {
+        if (!r.player_name || r.elo_delta_overall === null || r.elo_delta_overall === undefined) return;
+        vmap[r.player_name.toLowerCase().trim()] = Number(r.elo_delta_overall);
+      });
+      setVpDeltas(vmap);
+      const tmap: Record<string, RatingTotals> = {};
+      keys.forEach((k) => (tmap[k] = { version: null, overall: null, vp: null }));
+      (prs ?? []).forEach((r) => {
+        if (!r.player_key) return;
+        const k = r.player_key.toLowerCase().trim();
+        if (!tmap[k]) tmap[k] = { version: null, overall: null, vp: null };
+        if (r.game_version === "overall") tmap[k].overall = Number(r.elo);
+        else if (r.game_version === g.game_version) tmap[k].version = Number(r.elo);
+      });
+      (sbrats ?? []).forEach((r) => {
+        if (!r.player_key) return;
+        const k = r.player_key.toLowerCase().trim();
+        if (!tmap[k]) tmap[k] = { version: null, overall: null, vp: null };
+        if (r.overall_vp_elo !== null && r.overall_vp_elo !== undefined) tmap[k].vp = Number(r.overall_vp_elo);
+      });
+      setTotals(tmap);
     })();
     return () => {
       cancelled = true;
