@@ -841,6 +841,10 @@ export type Database = {
       sp_daily_checkin: { Args: never; Returns: Json }
       sp_register_referral: { Args: { p_referrer_key: string }; Returns: Json }
       sp_season_for: { Args: { ts: string }; Returns: number }
+      sync_new_game_to_sandbox_by_id: {
+        Args: { p_game_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
