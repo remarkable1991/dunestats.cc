@@ -168,6 +168,35 @@ function MatchDetailsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game?.image_url]);
 
+  // Resolve which tournament round/table this game belongs to (for deep-link tag)
+  useEffect(() => {
+    if (!game || !game.tournament_num) { setTourneyTable(null); return; }
+    let cancelled = false;
+    void (async () => {
+      const names = game.game_results.map((r) => r.player_name);
+      const keys = new Set(names.map((n) => n.toLowerCase().trim()));
+      const { data } = await supabase
+        .from("tournament_matches")
+        .select("round_type, table_identifier, player_name")
+        .eq("tournament_num", game.tournament_num);
+      if (cancelled || !data) return;
+      const groups = new Map<string, { round: string; table: string; players: Set<string> }>();
+      for (const r of data) {
+        const k = `${r.round_type}__${r.table_identifier}`;
+        const g = groups.get(k) ?? { round: r.round_type, table: r.table_identifier, players: new Set<string>() };
+        g.players.add((r.player_name ?? "").toLowerCase().trim());
+        groups.set(k, g);
+      }
+      let best: { round: string; table: string } | null = null;
+      for (const g of groups.values()) {
+        const matched = [...keys].every((k) => g.players.has(k));
+        if (matched && g.players.size === keys.size) { best = { round: g.round, table: g.table }; break; }
+      }
+      setTourneyTable(best);
+    })();
+    return () => { cancelled = true; };
+  }, [game?.id, game?.tournament_num]);
+
   const copyLink = async () => {
     if (!game) return;
     const id = game.public_match_id ?? game.id;
@@ -244,7 +273,7 @@ function MatchDetailsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 mb-6">
-          <TournamentTag num={game.tournament_num} />
+          <TournamentTag num={game.tournament_num} round={tourneyTable?.round} table={tourneyTable?.table} />
           {tags.map((t) => (
             <span key={t} className="text-xs px-2 py-0.5 rounded bg-secondary/60 text-secondary-foreground">
               {t}

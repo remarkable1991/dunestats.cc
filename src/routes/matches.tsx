@@ -59,6 +59,7 @@ function MatchesPage() {
   const [games, setGames] = useState<GameRow[]>([]);
   const [uploaders, setUploaders] = useState<Record<string, string>>({});
   const [vpDeltas, setVpDeltas] = useState<Record<string, number>>({});
+  const [tourneyTables, setTourneyTables] = useState<Record<string, { round: string; table: string }>>({});
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -249,7 +250,7 @@ function MatchesPage() {
                 <Card key={g.id} className="p-4 border-border/60 bg-card/70">
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <TournamentTag num={g.tournament_num} />
+                      <TournamentTag num={g.tournament_num} round={tourneyTables[g.id]?.round} table={tourneyTables[g.id]?.table} />
                       {tags.map((t) => (
                         <span key={t} className="text-xs px-2 py-0.5 rounded bg-secondary/60 text-secondary-foreground">
                           {t}
