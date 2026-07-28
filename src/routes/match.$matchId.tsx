@@ -178,7 +178,7 @@ function MatchDetailsPage() {
       const { data } = await supabase
         .from("tournament_matches")
         .select("round_type, table_identifier, player_name")
-        .eq("tournament_num", game.tournament_num);
+        .eq("tournament_num", game.tournament_num as number);
       if (cancelled || !data) return;
       const groups = new Map<string, { round: string; table: string; players: Set<string> }>();
       for (const r of data) {
