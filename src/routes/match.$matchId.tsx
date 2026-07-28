@@ -65,6 +65,7 @@ function MatchDetailsPage() {
   const [imgLoading, setImgLoading] = useState(false);
   const [vpDeltas, setVpDeltas] = useState<Record<string, number>>({});
   const [totals, setTotals] = useState<Record<string, RatingTotals>>({});
+  const [tourneyTable, setTourneyTable] = useState<{ round: string; table: string } | null>(null);
   const titles = usePlayerTitles();
 
   useEffect(() => {
