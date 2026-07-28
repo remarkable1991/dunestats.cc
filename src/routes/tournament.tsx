@@ -776,7 +776,15 @@ function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; o
                           const finished = players.filter((p) => p.placement != null && p.points != null).length >= 4;
                           const tDays = finished ? tableDaysToFinish(players) : null;
                           return (
-                            <div key={ti} className="border border-border/40 rounded-md p-3 bg-background/40">
+                            <div
+                              key={ti}
+                              id={`table-${rt.replace(/\s+/g, "-")}-${ti.replace(/\s+/g, "-")}`}
+                              className={`border rounded-md p-3 bg-background/40 scroll-mt-24 transition-colors ${
+                                focusRound === rt && focusTable === ti
+                                  ? "border-sand ring-2 ring-sand/60"
+                                  : "border-border/40"
+                              }`}
+                            >
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-medium">{ti}</span>
