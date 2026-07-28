@@ -160,6 +160,13 @@ function MatchDetailsPage() {
     setImgLoading(false);
   };
 
+  // Eagerly load the screenshot so we can render a thumbnail preview.
+  useEffect(() => {
+    if (!game?.image_url || signedImg) return;
+    void openImage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.image_url]);
+
   const copyLink = async () => {
     if (!game) return;
     const id = game.public_match_id ?? game.id;
@@ -326,8 +333,14 @@ function MatchDetailsPage() {
               <Dialog onOpenChange={(o) => { if (o) void openImage(); }}>
                 <DialogTrigger asChild>
                   <button className="relative group w-full aspect-video rounded overflow-hidden border border-border/50 bg-background/40 flex items-center justify-center">
-                    <span className="text-xs text-muted-foreground">Click to view</span>
-                    <span className="absolute inset-0 flex items-center justify-center bg-background/40 opacity-0 group-hover:opacity-100">
+                    {signedImg ? (
+                      <img src={signedImg} alt="Match screenshot preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {imgLoading ? <Loader2 className="size-4 animate-spin" /> : "Loading…"}
+                      </span>
+                    )}
+                    <span className="absolute inset-0 flex items-center justify-center bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Maximize2 className="size-5 text-sand" />
                     </span>
                   </button>
@@ -393,7 +406,11 @@ function EloTrack({
         ? "text-red-400"
         : "text-muted-foreground";
   return (
-    <div className="rounded border border-border/40 bg-background/40 px-2 py-1">
+    <Link
+      to="/leaderboard"
+      className="rounded border border-border/40 bg-background/40 px-2 py-1 hover:border-sand/60 hover:bg-sand/5 transition-colors"
+      title="View leaderboard"
+    >
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="flex items-baseline gap-1">
         <span className="font-display text-sand text-sm">
@@ -401,7 +418,7 @@ function EloTrack({
         </span>
         {d && <span className={`text-[11px] ${tone}`}>({d})</span>}
       </div>
-    </div>
+    </Link>
   );
 }
 
