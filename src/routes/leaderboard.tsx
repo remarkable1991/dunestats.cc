@@ -247,6 +247,7 @@ function Leaderboard() {
                         <th className="px-4 py-3 text-left w-16">Rank</th>
                         <th className="px-4 py-3 text-left">Player</th>
                         <SortHeader label="ELO" k="elo" />
+                        {v.value === "overall" && <SortHeader label="ELO VP" k="vp_elo" />}
                         <SortHeader label="Games" k="games_played" />
                         <SortHeader label="Wins" k="wins" />
                         <SortHeader label="Top 2" k="top2" className="hidden sm:table-cell" />
