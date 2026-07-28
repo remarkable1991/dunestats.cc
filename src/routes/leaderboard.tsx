@@ -95,6 +95,30 @@ function Leaderboard() {
     })();
   }, [version]);
 
+  useEffect(() => {
+    if (version !== "overall") { setVpElos({}); return; }
+    (async () => {
+      const PAGE = 1000;
+      const map: Record<string, number> = {};
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from("sandbox_player_ratings")
+          .select("player_key, overall_vp_elo")
+          .eq("game_version", "overall")
+          .range(from, from + PAGE - 1);
+        if (error || !data || data.length === 0) break;
+        for (const r of data as { player_key: string; overall_vp_elo: number | null }[]) {
+          if (r.overall_vp_elo !== null) map[r.player_key] = Number(r.overall_vp_elo);
+        }
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      setVpElos(map);
+    })();
+  }, [version]);
+
   const processed = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const filtered = allRows.filter(
