@@ -30,7 +30,7 @@ type Row = {
 
 const PAGE_SIZE = 50;
 
-type SortKey = "elo" | "games_played" | "wins" | "top2" | "win_pct";
+type SortKey = "elo" | "vp_elo" | "games_played" | "wins" | "top2" | "win_pct";
 type SortDir = "desc" | "asc" | null;
 
 function Leaderboard() {
