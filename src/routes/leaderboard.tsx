@@ -30,12 +30,13 @@ type Row = {
 
 const PAGE_SIZE = 50;
 
-type SortKey = "elo" | "games_played" | "wins" | "top2" | "win_pct";
+type SortKey = "elo" | "vp_elo" | "games_played" | "wins" | "top2" | "win_pct";
 type SortDir = "desc" | "asc" | null;
 
 function Leaderboard() {
   const [version, setVersion] = useState<GameVersion>("overall");
   const [allRows, setAllRows] = useState<Row[]>([]);
+  const [vpElos, setVpElos] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [minGames, setMinGames] = useState(3);
@@ -94,6 +95,30 @@ function Leaderboard() {
     })();
   }, [version]);
 
+  useEffect(() => {
+    if (version !== "overall") { setVpElos({}); return; }
+    (async () => {
+      const PAGE = 1000;
+      const map: Record<string, number> = {};
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from("sandbox_player_ratings")
+          .select("player_key, overall_vp_elo")
+          .eq("game_version", "overall")
+          .range(from, from + PAGE - 1);
+        if (error || !data || data.length === 0) break;
+        for (const r of data as { player_key: string; overall_vp_elo: number | null }[]) {
+          if (r.overall_vp_elo !== null) map[r.player_key] = Number(r.overall_vp_elo);
+        }
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      setVpElos(map);
+    })();
+  }, [version]);
+
   const processed = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const filtered = allRows.filter(
@@ -104,14 +129,20 @@ function Leaderboard() {
     if (sortKey && sortDir) {
       const dir = sortDir === "desc" ? -1 : 1;
       filtered.sort((a, b) => {
-        const av = sortKey === "win_pct" ? (a.games_played ? a.wins / a.games_played : 0) : Number(a[sortKey]);
-        const bv = sortKey === "win_pct" ? (b.games_played ? b.wins / b.games_played : 0) : Number(b[sortKey]);
+        const getV = (r: Row) =>
+          sortKey === "win_pct"
+            ? r.games_played ? r.wins / r.games_played : 0
+            : sortKey === "vp_elo"
+              ? (vpElos[r.player_key] ?? -Infinity)
+              : Number(r[sortKey]);
+        const av = getV(a);
+        const bv = getV(b);
         if (av === bv) return a.player_key.localeCompare(b.player_key);
         return av < bv ? dir : -dir;
       });
     }
     return filtered;
-  }, [allRows, q, minGames, sortKey, sortDir]);
+  }, [allRows, q, minGames, sortKey, sortDir, vpElos]);
 
   const total = processed.length;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -216,6 +247,7 @@ function Leaderboard() {
                         <th className="px-4 py-3 text-left w-16">Rank</th>
                         <th className="px-4 py-3 text-left">Player</th>
                         <SortHeader label="ELO" k="elo" />
+                        {v.value === "overall" && <SortHeader label="ELO VP" k="vp_elo" />}
                         <SortHeader label="Games" k="games_played" />
                         <SortHeader label="Wins" k="wins" />
                         <SortHeader label="Top 2" k="top2" className="hidden sm:table-cell" />
@@ -283,6 +315,11 @@ function Leaderboard() {
                               <td className="px-4 py-3 text-right font-display text-sand tabular-nums">
                                 {Math.round(Number(r.elo))}
                               </td>
+                              {v.value === "overall" && (
+                                <td className="px-4 py-3 text-right font-display text-teal tabular-nums">
+                                  {vpElos[r.player_key] !== undefined ? Math.round(vpElos[r.player_key]) : "—"}
+                                </td>
+                              )}
                               <td className="px-4 py-3 text-right tabular-nums">{r.games_played}</td>
                               <td className="px-4 py-3 text-right tabular-nums">{r.wins}</td>
                               <td className="px-4 py-3 text-right tabular-nums hidden sm:table-cell">{r.top2}</td>
