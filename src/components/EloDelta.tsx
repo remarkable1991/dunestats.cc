@@ -65,15 +65,30 @@ export function EloDeltaLine({
   );
 }
 
-export function TournamentTag({ num, className }: { num: number | null | undefined; className?: string }) {
+export function TournamentTag({
+  num,
+  round,
+  table,
+  className,
+}: {
+  num: number | null | undefined;
+  round?: string | null;
+  table?: string | null;
+  className?: string;
+}) {
   if (!num) return null;
+  const search: Record<string, string | number> = { t: num };
+  if (round) search.round = round;
+  if (table) search.table = table;
+  const label = table ? `Tournament ${num} · ${table}` : `Tournament ${num}`;
   return (
     <Link
       to="/tournament"
+      search={search}
       className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-sand/40 text-sand hover:bg-sand/10 ${className ?? ""}`}
-      title={`Tournament ${num}`}
+      title={label}
     >
-      <Trophy className="size-3" /> Tournament {num}
+      <Trophy className="size-3" /> {label}
     </Link>
   );
 }
