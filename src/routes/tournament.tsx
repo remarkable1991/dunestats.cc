@@ -1191,8 +1191,15 @@ type TournamentSummaryCard = {
 const ACTIVE_TOURNAMENTS = [13, 14];
 
 function CurrentTournamentsHub() {
-  const [selected, setSelected] = useState<number | null>(null);
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const [selected, setSelected] = useState<number | null>(search.t ?? null);
   const [cards, setCards] = useState<TournamentSummaryCard[] | null>(null);
+
+  useEffect(() => {
+    if (search.t != null && search.t !== selected) setSelected(search.t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.t]);
 
   useEffect(() => {
     void (async () => {
@@ -1239,7 +1246,17 @@ function CurrentTournamentsHub() {
   }, []);
 
   if (selected != null) {
-    return <CurrentTournament tournamentNum={selected} onBack={() => setSelected(null)} />;
+    return (
+      <CurrentTournament
+        tournamentNum={selected}
+        focusRound={search.round}
+        focusTable={search.table}
+        onBack={() => {
+          setSelected(null);
+          void navigate({ search: { t: undefined, round: undefined, table: undefined } });
+        }}
+      />
+    );
   }
 
   return (
