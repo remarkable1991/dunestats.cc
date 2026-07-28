@@ -315,6 +315,11 @@ function Leaderboard() {
                               <td className="px-4 py-3 text-right font-display text-sand tabular-nums">
                                 {Math.round(Number(r.elo))}
                               </td>
+                              {v.value === "overall" && (
+                                <td className="px-4 py-3 text-right font-display text-teal tabular-nums">
+                                  {vpElos[r.player_key] !== undefined ? Math.round(vpElos[r.player_key]) : "—"}
+                                </td>
+                              )}
                               <td className="px-4 py-3 text-right tabular-nums">{r.games_played}</td>
                               <td className="px-4 py-3 text-right tabular-nums">{r.wins}</td>
                               <td className="px-4 py-3 text-right tabular-nums hidden sm:table-cell">{r.top2}</td>
