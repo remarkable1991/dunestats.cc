@@ -36,6 +36,7 @@ type SortDir = "desc" | "asc" | null;
 function Leaderboard() {
   const [version, setVersion] = useState<GameVersion>("overall");
   const [allRows, setAllRows] = useState<Row[]>([]);
+  const [vpElos, setVpElos] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [minGames, setMinGames] = useState(3);
