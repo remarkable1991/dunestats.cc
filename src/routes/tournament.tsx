@@ -489,6 +489,17 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
     uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  // Auto-scroll to a specific round/table when arriving via a deep link
+  useEffect(() => {
+    if (loading || !focusRound || !focusTable) return;
+    if (/final/i.test(focusRound)) setLogTab("playoffs");
+    else setLogTab("swiss");
+    const id = `table-${focusRound.replace(/\s+/g, "-")}-${focusTable.replace(/\s+/g, "-")}`;
+    requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [loading, focusRound, focusTable]);
+
   const submitResults = async () => {
     if (!userId) return toast.error("Sign in to submit results.");
     if (parsedRows.length < 4) return toast.error("Need 4 detected players.");
