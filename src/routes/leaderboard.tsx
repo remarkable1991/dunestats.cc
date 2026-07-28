@@ -118,7 +118,7 @@ function Leaderboard() {
       });
     }
     return filtered;
-  }, [allRows, q, minGames, sortKey, sortDir]);
+  }, [allRows, q, minGames, sortKey, sortDir, vpElos]);
 
   const total = processed.length;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
