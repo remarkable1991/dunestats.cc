@@ -406,7 +406,11 @@ function EloTrack({
         ? "text-red-400"
         : "text-muted-foreground";
   return (
-    <div className="rounded border border-border/40 bg-background/40 px-2 py-1">
+    <Link
+      to="/leaderboard"
+      className="rounded border border-border/40 bg-background/40 px-2 py-1 hover:border-sand/60 hover:bg-sand/5 transition-colors"
+      title="View leaderboard"
+    >
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="flex items-baseline gap-1">
         <span className="font-display text-sand text-sm">
@@ -414,7 +418,7 @@ function EloTrack({
         </span>
         {d && <span className={`text-[11px] ${tone}`}>({d})</span>}
       </div>
-    </div>
+    </Link>
   );
 }
 
