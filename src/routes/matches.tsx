@@ -59,6 +59,7 @@ function MatchesPage() {
   const [games, setGames] = useState<GameRow[]>([]);
   const [uploaders, setUploaders] = useState<Record<string, string>>({});
   const [vpDeltas, setVpDeltas] = useState<Record<string, number>>({});
+  const [tourneyTables, setTourneyTables] = useState<Record<string, { round: string; table: string }>>({});
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -147,6 +148,42 @@ function MatchesPage() {
       setVpDeltas(vmap);
     } else {
       setVpDeltas({});
+    }
+    // Resolve tournament round/table per game (for deep-link tags)
+    const tourneyGames = rows.filter((g) => g.tournament_num != null);
+    if (tourneyGames.length) {
+      const nums = Array.from(new Set(tourneyGames.map((g) => g.tournament_num as number)));
+      const names = Array.from(
+        new Set(
+          tourneyGames.flatMap((g) => g.game_results.map((r) => r.player_name.toLowerCase().trim())),
+        ),
+      );
+      const { data: tms } = await supabase
+        .from("tournament_matches")
+        .select("tournament_num, round_type, table_identifier, player_name")
+        .in("tournament_num", nums);
+      const filtered = (tms ?? []).filter((r) => names.includes((r.player_name ?? "").toLowerCase().trim()));
+      const groups = new Map<string, { num: number; round: string; table: string; players: Set<string> }>();
+      for (const r of filtered) {
+        const k = `${r.tournament_num}::${r.round_type}::${r.table_identifier}`;
+        const g = groups.get(k) ?? { num: r.tournament_num, round: r.round_type, table: r.table_identifier, players: new Set<string>() };
+        g.players.add((r.player_name ?? "").toLowerCase().trim());
+        groups.set(k, g);
+      }
+      const map: Record<string, { round: string; table: string }> = {};
+      for (const g of tourneyGames) {
+        const gameKeys = new Set(g.game_results.map((r) => r.player_name.toLowerCase().trim()));
+        for (const grp of groups.values()) {
+          if (grp.num !== g.tournament_num) continue;
+          if (grp.players.size !== gameKeys.size) continue;
+          let all = true;
+          for (const k of gameKeys) if (!grp.players.has(k)) { all = false; break; }
+          if (all) { map[g.id] = { round: grp.round, table: grp.table }; break; }
+        }
+      }
+      setTourneyTables(map);
+    } else {
+      setTourneyTables({});
     }
     setLoading(false);
   };
@@ -249,7 +286,7 @@ function MatchesPage() {
                 <Card key={g.id} className="p-4 border-border/60 bg-card/70">
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <TournamentTag num={g.tournament_num} />
+                      <TournamentTag num={g.tournament_num} round={tourneyTables[g.id]?.round} table={tourneyTables[g.id]?.table} />
                       {tags.map((t) => (
                         <span key={t} className="text-xs px-2 py-0.5 rounded bg-secondary/60 text-secondary-foreground">
                           {t}
