@@ -333,8 +333,14 @@ function MatchDetailsPage() {
               <Dialog onOpenChange={(o) => { if (o) void openImage(); }}>
                 <DialogTrigger asChild>
                   <button className="relative group w-full aspect-video rounded overflow-hidden border border-border/50 bg-background/40 flex items-center justify-center">
-                    <span className="text-xs text-muted-foreground">Click to view</span>
-                    <span className="absolute inset-0 flex items-center justify-center bg-background/40 opacity-0 group-hover:opacity-100">
+                    {signedImg ? (
+                      <img src={signedImg} alt="Match screenshot preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {imgLoading ? <Loader2 className="size-4 animate-spin" /> : "Loading…"}
+                      </span>
+                    )}
+                    <span className="absolute inset-0 flex items-center justify-center bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Maximize2 className="size-5 text-sand" />
                     </span>
                   </button>
