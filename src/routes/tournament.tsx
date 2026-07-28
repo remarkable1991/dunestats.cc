@@ -86,7 +86,7 @@ function fmtDays(d: number | null): string {
 }
 type Shot = { tournament_num: number; round_type: string; table_identifier: string; image_url: string };
 
-function CurrentTournament({ tournamentNum, onBack }: { tournamentNum: number; onBack: () => void }) {
+function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { tournamentNum: number; onBack: () => void; focusRound?: string; focusTable?: string }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [shots, setShots] = useState<Shot[]>([]);
   const [loading, setLoading] = useState(true);
