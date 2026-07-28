@@ -160,6 +160,13 @@ function MatchDetailsPage() {
     setImgLoading(false);
   };
 
+  // Eagerly load the screenshot so we can render a thumbnail preview.
+  useEffect(() => {
+    if (!game?.image_url || signedImg) return;
+    void openImage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.image_url]);
+
   const copyLink = async () => {
     if (!game) return;
     const id = game.public_match_id ?? game.id;
