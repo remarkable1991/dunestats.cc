@@ -105,8 +105,14 @@ function Leaderboard() {
     if (sortKey && sortDir) {
       const dir = sortDir === "desc" ? -1 : 1;
       filtered.sort((a, b) => {
-        const av = sortKey === "win_pct" ? (a.games_played ? a.wins / a.games_played : 0) : Number(a[sortKey]);
-        const bv = sortKey === "win_pct" ? (b.games_played ? b.wins / b.games_played : 0) : Number(b[sortKey]);
+        const getV = (r: Row) =>
+          sortKey === "win_pct"
+            ? r.games_played ? r.wins / r.games_played : 0
+            : sortKey === "vp_elo"
+              ? (vpElos[r.player_key] ?? -Infinity)
+              : Number(r[sortKey]);
+        const av = getV(a);
+        const bv = getV(b);
         if (av === bv) return a.player_key.localeCompare(b.player_key);
         return av < bv ? dir : -dir;
       });
