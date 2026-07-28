@@ -401,11 +401,11 @@ export type Database = {
           created_at: string | null
           elo_delta: number | null
           elo_delta_overall: number | null
-          game_id: string | null
+          game_id: string
           id: string | null
           leader_name: string | null
           placement: number | null
-          player_name: string | null
+          player_name: string
           points: number | null
           vp_overall_delta: number | null
         }
@@ -413,11 +413,11 @@ export type Database = {
           created_at?: string | null
           elo_delta?: number | null
           elo_delta_overall?: number | null
-          game_id?: string | null
+          game_id: string
           id?: string | null
           leader_name?: string | null
           placement?: number | null
-          player_name?: string | null
+          player_name: string
           points?: number | null
           vp_overall_delta?: number | null
         }
@@ -425,15 +425,23 @@ export type Database = {
           created_at?: string | null
           elo_delta?: number | null
           elo_delta_overall?: number | null
-          game_id?: string | null
+          game_id?: string
           id?: string | null
           leader_name?: string | null
           placement?: number | null
-          player_name?: string | null
+          player_name?: string
           points?: number | null
           vp_overall_delta?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sandbox_game_results_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "sandbox_games"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sandbox_games: {
         Row: {
@@ -484,18 +492,26 @@ export type Database = {
           source?: string | null
           tournament_num?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sandbox_games_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sandbox_player_ratings: {
         Row: {
           claimed_by: string | null
           display_name: string | null
           elo: number | null
-          game_version: Database["public"]["Enums"]["game_version"] | null
+          game_version: Database["public"]["Enums"]["game_version"]
           games_played: number | null
           id: string | null
           overall_vp_elo: number | null
-          player_key: string | null
+          player_key: string
           top2: number | null
           total_points: number | null
           updated_at: string | null
@@ -505,11 +521,11 @@ export type Database = {
           claimed_by?: string | null
           display_name?: string | null
           elo?: number | null
-          game_version?: Database["public"]["Enums"]["game_version"] | null
+          game_version: Database["public"]["Enums"]["game_version"]
           games_played?: number | null
           id?: string | null
           overall_vp_elo?: number | null
-          player_key?: string | null
+          player_key: string
           top2?: number | null
           total_points?: number | null
           updated_at?: string | null
@@ -519,11 +535,11 @@ export type Database = {
           claimed_by?: string | null
           display_name?: string | null
           elo?: number | null
-          game_version?: Database["public"]["Enums"]["game_version"] | null
+          game_version?: Database["public"]["Enums"]["game_version"]
           games_played?: number | null
           id?: string | null
           overall_vp_elo?: number | null
-          player_key?: string | null
+          player_key?: string
           top2?: number | null
           total_points?: number | null
           updated_at?: string | null
