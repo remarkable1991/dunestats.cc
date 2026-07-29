@@ -157,6 +157,18 @@ function UploadPage() {
         setHasBaseLeaders(profile.has_base_leaders);
       }
 
+      // If the players match a known tournament table, remember which slot
+      // so we can offer to update it as part of this submit.
+      if (tNum) {
+        const slot = await detectTournamentTable(tNum, detected.map((d) => d.player_name));
+        if (slot) {
+          setDetectedTable(slot);
+          setTRound(slot.round);
+          setTTable(slot.table);
+        }
+      }
+
+
       const unknown = detected.filter((d) => !isCanonicalLeader(d.leader_name)).length;
       if (unknown > 0) {
         toast.warning(`Detected ${res.results.length} players — ${unknown} leader${unknown > 1 ? "s" : ""} need manual selection.`);
