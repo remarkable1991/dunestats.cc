@@ -189,66 +189,49 @@ function UploadPage() {
     if (hasEpic && !hasIx) return toast.error("Epic Mode requires Rise of Ix.");
     const bad = rows.filter((r) => !isCanonicalLeader(r.leader_name));
     if (bad.length) return toast.error("Unrecognized leader — pick a valid leader from the dropdown for the highlighted row(s).");
-    if (!confirmDuplicate) {
-      setCheckingDup(true);
-      try {
-        const dup = await checkRecentDuplicate(rows);
-        if (dup) {
-          setDuplicateWarn(true);
-          setCheckingDup(false);
-          return;
-        }
-      } catch { /* ignore */ }
-      setCheckingDup(false);
-    }
+    if (!userId) return toast.error("Sign in to submit");
+
+    const tournamentActive = !notATournamentGame && detectedTournamentNum != null && !!detectedTable;
+    const tournament = tournamentActive
+      ? { num: detectedTournamentNum, round: tRound, table: tTable }
+      : null;
+
     setSaving(true);
+    setCheckingDup(!confirmDuplicate);
     try {
-      let match_screenshot_url: string | null = null;
-      if (file && userId) {
-        const ext = (file.name.split(".").pop() || "png").toLowerCase();
-        const path = `${userId}/${crypto.randomUUID()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("match-screenshots")
-          .upload(path, file, { contentType: file.type || "image/png", upsert: false });
-        if (upErr) throw upErr;
-        match_screenshot_url = path;
-      }
-      const res = await saveGame({
-        data: {
-          board_version: board,
-          has_rise_of_ix: hasIx,
-          has_epic_mode: hasEpic,
-          has_immortality: hasImmortality,
-          has_base_leaders: hasBaseLeaders,
-          match_screenshot_url,
-          tournament_num: detectedTournamentNum,
-          results: rows.map((r) => ({
-            placement: r.placement,
-            player_name: r.player_name.trim(),
-            leader_name: r.leader_name.trim() || null,
-            points: Number(r.points) || 0,
-          })),
-        },
+      const result = await submitMatch({
+        userId,
+        file,
+        board,
+        hasIx,
+        hasEpic,
+        hasImmortality,
+        hasBaseLeaders,
+        rows: rows.map((r) => ({
+          placement: r.placement,
+          player_name: r.player_name,
+          leader_name: r.leader_name || null,
+          points: r.points,
+        })),
+        tournament,
+        confirmDuplicate,
       });
-      setLastSave(res);
-      // Fire-and-forget sandbox sync — never blocks or fails the main flow.
-      void supabase
-        .rpc("sync_new_game_to_sandbox_by_id", { p_game_id: res.game_id })
-        .then(({ error }) => {
-          if (error) console.error("Sandbox sync error:", error);
-        });
-      // Fetch the generated public_match_id for the newly created game
-      const { data: g } = await supabase
-        .from("games")
-        .select("public_match_id")
-        .eq("id", res.game_id)
-        .maybeSingle();
-      setLastMatchId(g?.public_match_id ?? res.game_id);
-      toast.success("Match submitted! ELO updated.");
+      if (result.status === "duplicate") {
+        setDuplicateWarn(true);
+        return;
+      }
+      setLastSave(result.saveResult);
+      setLastMatchId(result.publicMatchId);
+      if (result.tournamentApplied) {
+        toast.success(`Submitted to Tournament #${tournament!.num} · ${tournament!.round} · ${tournament!.table} and global leaderboard.`);
+      } else {
+        toast.success("Match submitted! ELO updated.");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
     } finally {
       setSaving(false);
+      setCheckingDup(false);
     }
   };
 
