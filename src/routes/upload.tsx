@@ -479,6 +479,18 @@ function UploadPage() {
                     </div>
                   </div>
                 )}
+                {duplicateWarn && (
+                  <div className="mt-2 rounded-md border border-red-500/70 bg-red-500/10 text-red-300 text-xs px-3 py-2 space-y-2">
+                    <p className="font-medium">This game appears to have been recently uploaded. Are you sure you want to submit it again?</p>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={confirmDuplicate}
+                        onCheckedChange={(c) => setConfirmDuplicate(!!c)}
+                      />
+                      <span>Yes, submit anyway (override duplicate protection)</span>
+                    </label>
+                  </div>
+                )}
                 {detectedTournamentNum != null && detectedTable && (
                   <div className="mt-3 rounded-md border border-sand/50 bg-sand/5 p-3 space-y-2">
                     <div className="flex items-center gap-2 text-sm text-sand">
