@@ -67,6 +67,10 @@ function UploadPage() {
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
   const [checkingDup, setCheckingDup] = useState(false);
   const [detectedTournamentNum, setDetectedTournamentNum] = useState<number | null>(null);
+  const [detectedTable, setDetectedTable] = useState<{ round: string; table: string } | null>(null);
+  const [notATournamentGame, setNotATournamentGame] = useState(false);
+  const [tRound, setTRound] = useState<string>("Game 1");
+  const [tTable, setTTable] = useState<string>("Table 1");
   type SaveResult = Awaited<ReturnType<typeof saveGame>>;
   const [lastSave, setLastSave] = useState<SaveResult | null>(null);
   const [lastMatchId, setLastMatchId] = useState<string | null>(null);
