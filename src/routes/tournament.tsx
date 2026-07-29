@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, Dialog
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { parseScreenshot, saveGame } from "@/lib/games.functions";
+import { submitMatch } from "@/lib/match-submit";
 import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
 import { translateLeader } from "@/lib/leader-translate";
@@ -506,82 +507,33 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
     if (hasEpic && !hasIx) return toast.error("Epic Mode requires Rise of Ix.");
     setSaving(true);
     try {
-      // Upload screenshot
-      let imagePath: string | null = null;
-      if (file) {
-        const ext = (file.name.split(".").pop() || "png").toLowerCase();
-        imagePath = `${userId}/${crypto.randomUUID()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("match-screenshots")
-          .upload(imagePath, file, { contentType: file.type || "image/png", upsert: false });
-        if (upErr) throw upErr;
-        await supabase.from("tournament_table_screenshots").upsert(
-          { tournament_num: tournamentNum, round_type: round, table_identifier: tableId, image_url: imagePath, created_by: userId },
-          { onConflict: "tournament_num,round_type,table_identifier" },
+      const result = await submitMatch({
+        userId,
+        file,
+        board,
+        hasIx,
+        hasEpic,
+        hasImmortality,
+        hasBaseLeaders,
+        rows: parsedRows.map((r) => ({
+          placement: r.placement,
+          player_name: r.player_name,
+          leader_name: r.leader_name || null,
+          points: r.points,
+        })),
+        tournament: { num: tournamentNum, round, table: tableId },
+        // Tournament re-uploads: same 4 scores are expected; skip the global
+        // dedupe prompt so admins can re-upload without an extra click.
+        confirmDuplicate: true,
+      });
+      if (result.status === "ok") {
+        setLastSave(result.saveResult);
+        toast.success(
+          result.tournamentApplied
+            ? "Results submitted to tournament + global leaderboard!"
+            : "Global leaderboard updated (tournament write skipped).",
         );
       }
-      // Match each parsed row to a tournament_matches row by player_name (fuzzy: case-insensitive includes)
-      const tableRows = rows.filter((r) => r.round_type === round && r.table_identifier === tableId);
-      for (const pr of parsedRows) {
-        const lower = pr.player_name.toLowerCase().trim();
-        const target = tableRows.find((r) =>
-          r.player_name.toLowerCase() === lower ||
-          r.player_name.toLowerCase().includes(lower) ||
-          lower.includes(r.player_name.toLowerCase()),
-        );
-        if (!target) continue;
-        await supabase.from("tournament_matches").update({
-          placement: pr.placement,
-          points: pr.points,
-          leader_name: pr.leader_name || null,
-          updated_at: new Date().toISOString(),
-        }).eq("id", target.id);
-      }
-
-      // Also submit to the global leaderboard, unless an identical match exists
-      // in the last 25 uploaded games (fingerprint = sorted player|points pairs).
-      const fingerprint = (rs: { player_name: string; points: number }[]) =>
-        rs
-          .map((r) => `${r.player_name.toLowerCase().trim()}|${r.points}`)
-          .sort()
-          .join("~");
-      const incomingFp = fingerprint(parsedRows);
-      const { data: recent } = await supabase
-        .from("games")
-        .select("id, created_at, game_results(player_name, points)")
-        .order("created_at", { ascending: false })
-        .limit(25);
-      const dup = (recent ?? []).some((g: any) =>
-        Array.isArray(g.game_results) && fingerprint(g.game_results) === incomingFp,
-      );
-      if (!dup) {
-        try {
-          const res = await saveGame({
-            data: {
-              board_version: board,
-              has_rise_of_ix: hasIx,
-              has_epic_mode: hasEpic,
-              has_immortality: hasImmortality,
-              has_base_leaders: hasBaseLeaders,
-              match_screenshot_url: imagePath,
-              tournament_num: tournamentNum,
-              results: parsedRows.map((r) => ({
-                placement: r.placement,
-                player_name: r.player_name.trim(),
-                leader_name: r.leader_name?.trim() || null,
-                points: Number(r.points) || 0,
-              })),
-            },
-          });
-          setLastSave(res);
-          toast.success("Results submitted to tournament + global leaderboard!");
-        } catch (e) {
-          toast.warning(`Tournament saved. Leaderboard skipped: ${e instanceof Error ? e.message : "unknown error"}`);
-        }
-      } else {
-        toast.success("Results submitted! (Already on leaderboard — skipped duplicate.)");
-      }
-
       setFile(null); setPreview(null); setParsedRows([]);
       await refresh();
     } catch (e) {

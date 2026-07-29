@@ -16,10 +16,17 @@ import { detectExpansions } from "@/lib/leaders";
 import { detectTournamentFromPlayers } from "@/lib/tournament-detect";
 import { tournamentModes } from "@/lib/tournament-config";
 import { translateLeader, isCanonicalLeader, CANONICAL_LEADERS } from "@/lib/leader-translate";
+import { submitMatch, detectTournamentTable } from "@/lib/match-submit";
 import { toast } from "sonner";
-import { Upload as UploadIcon, Loader2, CheckCircle2, Maximize2, GripVertical } from "lucide-react";
+import { Upload as UploadIcon, Loader2, CheckCircle2, Maximize2, GripVertical, Trophy } from "lucide-react";
 import exampleMatch from "@/assets/example-match.png.asset.json";
 import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
+
+const TOURNAMENT_ROUND_OPTIONS = ["Game 1", "Game 2", "Game 3", "Finals"] as const;
+const TOURNAMENT_TABLE_OPTIONS = [
+  "Table 1","Table 2","Table 3","Table 4","Table 5","Table 6","Table 7",
+  "Semi Final 1","Semi Final 2","Grand Final!",
+];
 
 export const Route = createFileRoute("/upload")({
   head: () => ({ meta: [{ title: "Upload match · Strategy Arena" }] }),
@@ -60,6 +67,10 @@ function UploadPage() {
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
   const [checkingDup, setCheckingDup] = useState(false);
   const [detectedTournamentNum, setDetectedTournamentNum] = useState<number | null>(null);
+  const [detectedTable, setDetectedTable] = useState<{ round: string; table: string } | null>(null);
+  const [notATournamentGame, setNotATournamentGame] = useState(false);
+  const [tRound, setTRound] = useState<string>("Game 1");
+  const [tTable, setTTable] = useState<string>("Table 1");
   type SaveResult = Awaited<ReturnType<typeof saveGame>>;
   const [lastSave, setLastSave] = useState<SaveResult | null>(null);
   const [lastMatchId, setLastMatchId] = useState<string | null>(null);
@@ -96,6 +107,8 @@ function UploadPage() {
     setDuplicateWarn(false);
     setConfirmDuplicate(false);
     setDetectedTournamentNum(null);
+    setDetectedTable(null);
+    setNotATournamentGame(false);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(f ? URL.createObjectURL(f) : null);
     if (f) await analyze(f);
@@ -144,6 +157,18 @@ function UploadPage() {
         setHasBaseLeaders(profile.has_base_leaders);
       }
 
+      // If the players match a known tournament table, remember which slot
+      // so we can offer to update it as part of this submit.
+      if (tNum) {
+        const slot = await detectTournamentTable(tNum, detected.map((d) => d.player_name));
+        if (slot) {
+          setDetectedTable(slot);
+          setTRound(slot.round);
+          setTTable(slot.table);
+        }
+      }
+
+
       const unknown = detected.filter((d) => !isCanonicalLeader(d.leader_name)).length;
       if (unknown > 0) {
         toast.warning(`Detected ${res.results.length} players — ${unknown} leader${unknown > 1 ? "s" : ""} need manual selection.`);
@@ -164,66 +189,49 @@ function UploadPage() {
     if (hasEpic && !hasIx) return toast.error("Epic Mode requires Rise of Ix.");
     const bad = rows.filter((r) => !isCanonicalLeader(r.leader_name));
     if (bad.length) return toast.error("Unrecognized leader — pick a valid leader from the dropdown for the highlighted row(s).");
-    if (!confirmDuplicate) {
-      setCheckingDup(true);
-      try {
-        const dup = await checkRecentDuplicate(rows);
-        if (dup) {
-          setDuplicateWarn(true);
-          setCheckingDup(false);
-          return;
-        }
-      } catch { /* ignore */ }
-      setCheckingDup(false);
-    }
+    if (!userId) return toast.error("Sign in to submit");
+
+    const tournamentActive = !notATournamentGame && detectedTournamentNum != null && !!detectedTable;
+    const tournament = tournamentActive
+      ? { num: detectedTournamentNum, round: tRound, table: tTable }
+      : null;
+
     setSaving(true);
+    setCheckingDup(!confirmDuplicate);
     try {
-      let match_screenshot_url: string | null = null;
-      if (file && userId) {
-        const ext = (file.name.split(".").pop() || "png").toLowerCase();
-        const path = `${userId}/${crypto.randomUUID()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("match-screenshots")
-          .upload(path, file, { contentType: file.type || "image/png", upsert: false });
-        if (upErr) throw upErr;
-        match_screenshot_url = path;
-      }
-      const res = await saveGame({
-        data: {
-          board_version: board,
-          has_rise_of_ix: hasIx,
-          has_epic_mode: hasEpic,
-          has_immortality: hasImmortality,
-          has_base_leaders: hasBaseLeaders,
-          match_screenshot_url,
-          tournament_num: detectedTournamentNum,
-          results: rows.map((r) => ({
-            placement: r.placement,
-            player_name: r.player_name.trim(),
-            leader_name: r.leader_name.trim() || null,
-            points: Number(r.points) || 0,
-          })),
-        },
+      const result = await submitMatch({
+        userId,
+        file,
+        board,
+        hasIx,
+        hasEpic,
+        hasImmortality,
+        hasBaseLeaders,
+        rows: rows.map((r) => ({
+          placement: r.placement,
+          player_name: r.player_name,
+          leader_name: r.leader_name || null,
+          points: r.points,
+        })),
+        tournament,
+        confirmDuplicate,
       });
-      setLastSave(res);
-      // Fire-and-forget sandbox sync — never blocks or fails the main flow.
-      void supabase
-        .rpc("sync_new_game_to_sandbox_by_id", { p_game_id: res.game_id })
-        .then(({ error }) => {
-          if (error) console.error("Sandbox sync error:", error);
-        });
-      // Fetch the generated public_match_id for the newly created game
-      const { data: g } = await supabase
-        .from("games")
-        .select("public_match_id")
-        .eq("id", res.game_id)
-        .maybeSingle();
-      setLastMatchId(g?.public_match_id ?? res.game_id);
-      toast.success("Match submitted! ELO updated.");
+      if (result.status === "duplicate") {
+        setDuplicateWarn(true);
+        return;
+      }
+      setLastSave(result.saveResult);
+      setLastMatchId(result.publicMatchId);
+      if (result.tournamentApplied) {
+        toast.success(`Submitted to Tournament #${tournament!.num} · ${tournament!.round} · ${tournament!.table} and global leaderboard.`);
+      } else {
+        toast.success("Match submitted! ELO updated.");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
     } finally {
       setSaving(false);
+      setCheckingDup(false);
     }
   };
 
@@ -483,6 +491,57 @@ function UploadPage() {
                     </label>
                   </div>
                 )}
+                {detectedTournamentNum != null && detectedTable && (
+                  <div className="mt-3 rounded-md border border-sand/50 bg-sand/5 p-3 space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-sand">
+                      <Trophy className="size-4" />
+                      <span className="font-medium">Tournament match detected</span>
+                    </div>
+                    {!notATournamentGame ? (
+                      <>
+                        <p className="text-xs text-muted-foreground">
+                          Will also update Tournament #{detectedTournamentNum} · this table's slot.
+                        </p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <Label className="text-xs">Tournament</Label>
+                            <Select value={String(detectedTournamentNum)} disabled>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent><SelectItem value={String(detectedTournamentNum)}>{detectedTournamentNum}</SelectItem></SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Round</Label>
+                            <Select value={tRound} onValueChange={setTRound}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {TOURNAMENT_ROUND_OPTIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Table</Label>
+                            <Select value={tTable} onValueChange={setTTable}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {TOURNAMENT_TABLE_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Will only be recorded on the global leaderboard.</p>
+                    )}
+                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                      <Checkbox
+                        checked={notATournamentGame}
+                        onCheckedChange={(c) => setNotATournamentGame(!!c)}
+                      />
+                      This is not a tournament game
+                    </label>
+                  </div>
+                )}
                 <Button
                   onClick={save}
                   disabled={saving || checkingDup || hasUnrecognized || (duplicateWarn && !confirmDuplicate)}
@@ -491,7 +550,13 @@ function UploadPage() {
                   {saving || checkingDup ? (
                     <><Loader2 className="size-4 animate-spin" /> {checkingDup ? "Checking duplicates…" : "Submitting…"}</>
                   ) : (
-                    <><CheckCircle2 className="size-4" /> {duplicateWarn ? "Confirm & submit" : "Submit match"}</>
+                    <><CheckCircle2 className="size-4" />
+                      {duplicateWarn
+                        ? "Confirm & submit"
+                        : detectedTournamentNum != null && detectedTable && !notATournamentGame
+                          ? `Submit to ${tRound} · ${tTable}`
+                          : "Submit match"}
+                    </>
                   )}
                 </Button>
               </div>
@@ -563,34 +628,4 @@ function fileToBase64(file: File): Promise<string> {
     r.onerror = reject;
     r.readAsDataURL(file);
   });
-}
-
-/** Check the last 100 uploaded games for an identical fingerprint. */
-async function checkRecentDuplicate(rows: Row[]): Promise<boolean> {
-  const fp = fingerprint(rows);
-  const { data: recent } = await supabase
-    .from("games")
-    .select("id, game_results(placement, player_name, leader_name, points)")
-    .order("created_at", { ascending: false })
-    .limit(100);
-  if (!recent) return false;
-  for (const g of recent) {
-    const gr = (g as { game_results?: Array<{ placement: number; player_name: string; leader_name: string | null; points: number }> }).game_results ?? [];
-    if (gr.length !== rows.length) continue;
-    const other = gr.map((r) => ({
-      placement: r.placement,
-      player_name: r.player_name,
-      leader_name: r.leader_name ?? "",
-      points: r.points,
-    }));
-    if (fingerprint(other) === fp) return true;
-  }
-  return false;
-}
-
-function fingerprint(rows: Row[]): string {
-  return rows
-    .map((r) => `${r.placement}|${r.player_name.trim().toLowerCase()}|${(r.leader_name ?? "").trim().toLowerCase()}|${Number(r.points) || 0}`)
-    .sort()
-    .join("::");
 }
