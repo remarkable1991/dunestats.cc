@@ -479,15 +479,54 @@ function UploadPage() {
                     </div>
                   </div>
                 )}
-                {duplicateWarn && (
-                  <div className="mt-2 rounded-md border border-red-500/70 bg-red-500/10 text-red-300 text-xs px-3 py-2 space-y-2">
-                    <p className="font-medium">This game appears to have been recently uploaded. Are you sure you want to submit it again?</p>
-                    <label className="flex items-center gap-2 cursor-pointer">
+                {detectedTournamentNum != null && detectedTable && (
+                  <div className="mt-3 rounded-md border border-sand/50 bg-sand/5 p-3 space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-sand">
+                      <Trophy className="size-4" />
+                      <span className="font-medium">Tournament match detected</span>
+                    </div>
+                    {!notATournamentGame ? (
+                      <>
+                        <p className="text-xs text-muted-foreground">
+                          Will also update Tournament #{detectedTournamentNum} · this table's slot.
+                        </p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <Label className="text-xs">Tournament</Label>
+                            <Select value={String(detectedTournamentNum)} disabled>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent><SelectItem value={String(detectedTournamentNum)}>{detectedTournamentNum}</SelectItem></SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Round</Label>
+                            <Select value={tRound} onValueChange={setTRound}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {TOURNAMENT_ROUND_OPTIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Table</Label>
+                            <Select value={tTable} onValueChange={setTTable}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {TOURNAMENT_TABLE_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Will only be recorded on the global leaderboard.</p>
+                    )}
+                    <label className="flex items-center gap-2 text-xs cursor-pointer">
                       <Checkbox
-                        checked={confirmDuplicate}
-                        onCheckedChange={(c) => setConfirmDuplicate(!!c)}
+                        checked={notATournamentGame}
+                        onCheckedChange={(c) => setNotATournamentGame(!!c)}
                       />
-                      <span>Yes, submit anyway (override duplicate protection)</span>
+                      This is not a tournament game
                     </label>
                   </div>
                 )}
@@ -499,7 +538,13 @@ function UploadPage() {
                   {saving || checkingDup ? (
                     <><Loader2 className="size-4 animate-spin" /> {checkingDup ? "Checking duplicates…" : "Submitting…"}</>
                   ) : (
-                    <><CheckCircle2 className="size-4" /> {duplicateWarn ? "Confirm & submit" : "Submit match"}</>
+                    <><CheckCircle2 className="size-4" />
+                      {duplicateWarn
+                        ? "Confirm & submit"
+                        : detectedTournamentNum != null && detectedTable && !notATournamentGame
+                          ? `Submit to ${tRound} · ${tTable}`
+                          : "Submit match"}
+                    </>
                   )}
                 </Button>
               </div>
