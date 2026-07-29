@@ -16,10 +16,17 @@ import { detectExpansions } from "@/lib/leaders";
 import { detectTournamentFromPlayers } from "@/lib/tournament-detect";
 import { tournamentModes } from "@/lib/tournament-config";
 import { translateLeader, isCanonicalLeader, CANONICAL_LEADERS } from "@/lib/leader-translate";
+import { submitMatch, detectTournamentTable } from "@/lib/match-submit";
 import { toast } from "sonner";
-import { Upload as UploadIcon, Loader2, CheckCircle2, Maximize2, GripVertical } from "lucide-react";
+import { Upload as UploadIcon, Loader2, CheckCircle2, Maximize2, GripVertical, Trophy } from "lucide-react";
 import exampleMatch from "@/assets/example-match.png.asset.json";
 import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
+
+const TOURNAMENT_ROUND_OPTIONS = ["Game 1", "Game 2", "Game 3", "Finals"] as const;
+const TOURNAMENT_TABLE_OPTIONS = [
+  "Table 1","Table 2","Table 3","Table 4","Table 5","Table 6","Table 7",
+  "Semi Final 1","Semi Final 2","Grand Final!",
+];
 
 export const Route = createFileRoute("/upload")({
   head: () => ({ meta: [{ title: "Upload match · Strategy Arena" }] }),
