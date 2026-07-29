@@ -629,33 +629,3 @@ function fileToBase64(file: File): Promise<string> {
     r.readAsDataURL(file);
   });
 }
-
-/** Check the last 100 uploaded games for an identical fingerprint. */
-async function checkRecentDuplicate(rows: Row[]): Promise<boolean> {
-  const fp = fingerprint(rows);
-  const { data: recent } = await supabase
-    .from("games")
-    .select("id, game_results(placement, player_name, leader_name, points)")
-    .order("created_at", { ascending: false })
-    .limit(100);
-  if (!recent) return false;
-  for (const g of recent) {
-    const gr = (g as { game_results?: Array<{ placement: number; player_name: string; leader_name: string | null; points: number }> }).game_results ?? [];
-    if (gr.length !== rows.length) continue;
-    const other = gr.map((r) => ({
-      placement: r.placement,
-      player_name: r.player_name,
-      leader_name: r.leader_name ?? "",
-      points: r.points,
-    }));
-    if (fingerprint(other) === fp) return true;
-  }
-  return false;
-}
-
-function fingerprint(rows: Row[]): string {
-  return rows
-    .map((r) => `${r.placement}|${r.player_name.trim().toLowerCase()}|${(r.leader_name ?? "").trim().toLowerCase()}|${Number(r.points) || 0}`)
-    .sort()
-    .join("::");
-}
