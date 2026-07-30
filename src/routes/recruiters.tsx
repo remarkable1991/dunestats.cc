@@ -45,20 +45,31 @@ function RecruitersPage() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [{ data: lb, error: lbError }, { data: ratings, error: ratingsError }] = await Promise.all([
+      const [
+        { data: lb, error: lbError },
+        { data: ratings, error: ratingsError },
+        { data: spRows, error: spError },
+      ] = await Promise.all([
         supabase.rpc("get_recruitment_leaderboard"),
         supabase
           .from("player_ratings")
           .select("player_key, display_name")
           .eq("game_version", "overall"),
+        supabase.from("player_sp").select("player_key, lifetime_sp"),
       ]);
       if (lbError) console.error(lbError);
       if (ratingsError) console.error(ratingsError);
+      if (spError) console.error(spError);
       const nameMap: Record<string, string> = {};
       (ratings ?? []).forEach((r) => {
         nameMap[r.player_key] = r.display_name;
       });
+      const spMap: Record<string, number> = {};
+      (spRows ?? []).forEach((r) => {
+        spMap[r.player_key] = Math.max(spMap[r.player_key] ?? 0, r.lifetime_sp ?? 0);
+      });
       setNames(nameMap);
+      setLifetimeSp(spMap);
       setRows((lb ?? []) as LeaderboardRow[]);
       setLoading(false);
     })();
