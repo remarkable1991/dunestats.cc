@@ -40,6 +40,7 @@ type LeaderboardRow = {
 function RecruitersPage() {
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
+  const [lifetimeSp, setLifetimeSp] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
