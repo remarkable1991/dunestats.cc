@@ -81,9 +81,10 @@ function RecruitersPage() {
       rows.map((r, i) => ({
         ...r,
         displayName: names[r.player_key] ?? r.player_key,
+        lifetimeSp: lifetimeSp[r.player_key] ?? 0,
         position: i + 1,
       })),
-    [rows, names],
+    [rows, names, lifetimeSp],
   );
 
   return (
