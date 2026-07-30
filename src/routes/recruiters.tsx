@@ -193,7 +193,7 @@ function RecruitersPage() {
                             to="/players/$key"
                             params={{ key: r.player_key }}
                             className="hover:underline underline-offset-2"
-                            style={{ color: titleColor(r.total_points) }}
+                            style={{ color: titleColor(r.lifetimeSp) }}
                           >
                             <span className="inline-flex items-center gap-1">
                               {isTopThree && <Trophy className="size-3.5 text-sand" />}
