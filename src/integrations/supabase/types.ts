@@ -812,6 +812,19 @@ export type Database = {
           opponent_name: string
         }[]
       }
+      get_recruitment_leaderboard: {
+        Args: never
+        Returns: {
+          image_upload_count: number
+          player_key: string
+          prize_rank: number
+          referral_jackpot_count: number
+          referral_signup_count: number
+          total_points: number
+          total_qualifying_events: number
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -16,6 +16,7 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as StatsRouteImport } from './routes/stats'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as RecruitersRouteImport } from './routes/recruiters'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as MatchesRouteImport } from './routes/matches'
@@ -64,6 +65,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecruitersRoute = RecruitersRouteImport.update({
+  id: '/recruiters',
+  path: '/recruiters',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -147,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/matches': typeof MatchesRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/recruiters': typeof RecruitersRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByTo {
   '/matches': typeof MatchesRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/recruiters': typeof RecruitersRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
@@ -194,6 +202,7 @@ export interface FileRoutesById {
   '/matches': typeof MatchesRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/recruiters': typeof RecruitersRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
@@ -219,6 +228,7 @@ export interface FileRouteTypes {
     | '/matches'
     | '/privacy'
     | '/profile'
+    | '/recruiters'
     | '/reset-password'
     | '/sitemap.xml'
     | '/stats'
@@ -242,6 +252,7 @@ export interface FileRouteTypes {
     | '/matches'
     | '/privacy'
     | '/profile'
+    | '/recruiters'
     | '/reset-password'
     | '/sitemap.xml'
     | '/stats'
@@ -265,6 +276,7 @@ export interface FileRouteTypes {
     | '/matches'
     | '/privacy'
     | '/profile'
+    | '/recruiters'
     | '/reset-password'
     | '/sitemap.xml'
     | '/stats'
@@ -289,6 +301,7 @@ export interface RootRouteChildren {
   MatchesRoute: typeof MatchesRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
+  RecruitersRoute: typeof RecruitersRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StatsRoute: typeof StatsRoute
@@ -352,6 +365,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recruiters': {
+      id: '/recruiters'
+      path: '/recruiters'
+      fullPath: '/recruiters'
+      preLoaderRoute: typeof RecruitersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -465,6 +485,7 @@ const rootRouteChildren: RootRouteChildren = {
   MatchesRoute: MatchesRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
+  RecruitersRoute: RecruitersRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StatsRoute: StatsRoute,
