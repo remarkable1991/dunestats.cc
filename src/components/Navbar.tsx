@@ -50,6 +50,12 @@ export function Navbar() {
             </Link>
           </Button>
           <Button asChild variant="ghost" size="sm">
+            <Link to="/recruiters">
+              <Users className="size-4" />
+              <span className="hidden sm:inline">Recruiters</span>
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
             <Link to="/tournament">
               <Trophy className="size-4" />
               <span className="hidden sm:inline">Tournament</span>
