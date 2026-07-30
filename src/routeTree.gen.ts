@@ -15,12 +15,11 @@ import { Route as TournamentRouteImport } from './routes/tournament'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as StatsRouteImport } from './routes/stats'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as RewardsRouteImport } from './routes/rewards'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as RecruitersRouteImport } from './routes/recruiters'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as MatchesRouteImport } from './routes/matches'
-import { Route as LedgerRouteImport } from './routes/ledger'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ClaimRouteImport } from './routes/claim'
@@ -62,14 +61,14 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RewardsRoute = RewardsRouteImport.update({
+  id: '/rewards',
+  path: '/rewards',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RecruitersRoute = RecruitersRouteImport.update({
-  id: '/recruiters',
-  path: '/recruiters',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -85,11 +84,6 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const MatchesRoute = MatchesRouteImport.update({
   id: '/matches',
   path: '/matches',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LedgerRoute = LedgerRouteImport.update({
-  id: '/ledger',
-  path: '/ledger',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeaderboardRoute = LeaderboardRouteImport.update({
@@ -149,12 +143,11 @@ export interface FileRoutesByFullPath {
   '/claim': typeof ClaimRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/leaderboard': typeof LeaderboardRoute
-  '/ledger': typeof LedgerRoute
   '/matches': typeof MatchesRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
-  '/recruiters': typeof RecruitersRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/rewards': typeof RewardsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
   '/terms': typeof TermsRoute
@@ -173,12 +166,11 @@ export interface FileRoutesByTo {
   '/claim': typeof ClaimRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/leaderboard': typeof LeaderboardRoute
-  '/ledger': typeof LedgerRoute
   '/matches': typeof MatchesRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
-  '/recruiters': typeof RecruitersRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/rewards': typeof RewardsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
   '/terms': typeof TermsRoute
@@ -198,12 +190,11 @@ export interface FileRoutesById {
   '/claim': typeof ClaimRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/leaderboard': typeof LeaderboardRoute
-  '/ledger': typeof LedgerRoute
   '/matches': typeof MatchesRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
-  '/recruiters': typeof RecruitersRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/rewards': typeof RewardsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
   '/terms': typeof TermsRoute
@@ -224,12 +215,11 @@ export interface FileRouteTypes {
     | '/claim'
     | '/forgot-password'
     | '/leaderboard'
-    | '/ledger'
     | '/matches'
     | '/privacy'
     | '/profile'
-    | '/recruiters'
     | '/reset-password'
+    | '/rewards'
     | '/sitemap.xml'
     | '/stats'
     | '/terms'
@@ -248,12 +238,11 @@ export interface FileRouteTypes {
     | '/claim'
     | '/forgot-password'
     | '/leaderboard'
-    | '/ledger'
     | '/matches'
     | '/privacy'
     | '/profile'
-    | '/recruiters'
     | '/reset-password'
+    | '/rewards'
     | '/sitemap.xml'
     | '/stats'
     | '/terms'
@@ -272,12 +261,11 @@ export interface FileRouteTypes {
     | '/claim'
     | '/forgot-password'
     | '/leaderboard'
-    | '/ledger'
     | '/matches'
     | '/privacy'
     | '/profile'
-    | '/recruiters'
     | '/reset-password'
+    | '/rewards'
     | '/sitemap.xml'
     | '/stats'
     | '/terms'
@@ -297,12 +285,11 @@ export interface RootRouteChildren {
   ClaimRoute: typeof ClaimRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LeaderboardRoute: typeof LeaderboardRoute
-  LedgerRoute: typeof LedgerRoute
   MatchesRoute: typeof MatchesRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
-  RecruitersRoute: typeof RecruitersRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  RewardsRoute: typeof RewardsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StatsRoute: typeof StatsRoute
   TermsRoute: typeof TermsRoute
@@ -360,18 +347,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rewards': {
+      id: '/rewards'
+      path: '/rewards'
+      fullPath: '/rewards'
+      preLoaderRoute: typeof RewardsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/recruiters': {
-      id: '/recruiters'
-      path: '/recruiters'
-      fullPath: '/recruiters'
-      preLoaderRoute: typeof RecruitersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -393,13 +380,6 @@ declare module '@tanstack/react-router' {
       path: '/matches'
       fullPath: '/matches'
       preLoaderRoute: typeof MatchesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ledger': {
-      id: '/ledger'
-      path: '/ledger'
-      fullPath: '/ledger'
-      preLoaderRoute: typeof LedgerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leaderboard': {
@@ -481,12 +461,11 @@ const rootRouteChildren: RootRouteChildren = {
   ClaimRoute: ClaimRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LeaderboardRoute: LeaderboardRoute,
-  LedgerRoute: LedgerRoute,
   MatchesRoute: MatchesRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
-  RecruitersRoute: RecruitersRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  RewardsRoute: RewardsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StatsRoute: StatsRoute,
   TermsRoute: TermsRoute,

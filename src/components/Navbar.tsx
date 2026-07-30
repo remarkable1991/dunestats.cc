@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "./Logo";
 import { Button } from "@/components/ui/button";
-import { Trophy, Upload, LogOut, User as UserIcon, ListOrdered, BarChart3, Medal, Sparkles, Users } from "lucide-react";
+import { Trophy, Upload, LogOut, User as UserIcon, ListOrdered, BarChart3, Medal, Sparkles } from "lucide-react";
 
 export function Navbar() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -44,17 +44,12 @@ export function Navbar() {
             </Link>
           </Button>
           <Button asChild variant="ghost" size="sm">
-            <Link to="/ledger">
+            <Link to="/rewards">
               <Sparkles className="size-4" />
-              <span className="hidden sm:inline">SP</span>
+              <span className="hidden sm:inline">Rewards</span>
             </Link>
           </Button>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/recruiters">
-              <Users className="size-4" />
-              <span className="hidden sm:inline">Recruiters</span>
-            </Link>
-          </Button>
+
           <Button asChild variant="ghost" size="sm">
             <Link to="/tournament">
               <Trophy className="size-4" />
