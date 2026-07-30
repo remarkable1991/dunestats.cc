@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Gift, Medal, Trophy, ImageIcon, UserPlus, Coins } from "lucide-react";
+import { Users, Gift, Trophy, ImageIcon, UserPlus, Coins } from "lucide-react";
 import { titleColor } from "@/lib/player-title";
 
 export const Route = createFileRoute("/recruiters")({
