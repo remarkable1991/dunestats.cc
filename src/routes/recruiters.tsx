@@ -178,7 +178,7 @@ function RecruitersPage() {
                             : "bg-muted text-muted-foreground";
                     return (
                       <tr
-                        key={r.user_id}
+                        key={r.player_key}
                         className="border-t border-border/40 hover:bg-secondary/30"
                       >
                         <td className="px-4 py-3">
