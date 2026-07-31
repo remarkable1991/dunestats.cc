@@ -1195,8 +1195,7 @@ function FutureTournaments() {
           )}
 
           <div className="text-xs text-muted-foreground">
-            Check-in opens {checkinStart(t).toLocaleString()} · Registration closes{" "}
-            {registrationClosesAt(t).toLocaleString()} · Minimum availability{" "}
+            Check-in opens {checkinStart(t).toLocaleString()} · Tournament starts 24 hours later · Minimum availability{" "}
             {t.required_availability_pct}% overall and {t.required_weekly_pct}% per week
           </div>
         </Card>
