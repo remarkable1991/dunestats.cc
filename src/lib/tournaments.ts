@@ -13,6 +13,7 @@ export type TournamentConfig = {
   info_title: string | null;
   info_text: string | null;
   registration_open: boolean;
+  checkin_start_at: string | null;
 };
 
 export const MAX_CHECKBOXES = 4;
@@ -39,10 +40,31 @@ export function tournamentWeekCount(t: Pick<TournamentConfig, "start_date" | "en
   return Math.ceil(tournamentDayCount(t) / 7);
 }
 
-/** Check-in opens 24 hours before the tournament start date. */
-export function checkinStart(t: Pick<TournamentConfig, "start_date">): Date {
+/** Check-in opens at the configured time, or 24 hours before the start date. */
+export function checkinStart(t: Pick<TournamentConfig, "start_date"> & { checkin_start_at?: string | null }): Date {
+  if (t.checkin_start_at) {
+    const d = new Date(t.checkin_start_at);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
   return new Date(parseLocalDate(t.start_date).getTime() - 24 * 3600_000);
 }
+
+/** Convert an ISO timestamp to a value for <input type="datetime-local"> in local time. */
+export function toLocalInputValue(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Convert a local datetime-local input value to an ISO timestamp. */
+export function fromLocalInputValue(v: string): string | null {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 
 /** Registration closes 24 hours after the start date. */
 export function registrationClosesAt(t: Pick<TournamentConfig, "start_date">): Date {
@@ -64,6 +86,7 @@ type Row = {
   info_title: string | null;
   info_text: string | null;
   registration_open: boolean;
+  checkin_start_at: string | null;
 };
 
 export function normalizeTournament(row: Row): TournamentConfig {
@@ -83,11 +106,12 @@ export function normalizeTournament(row: Row): TournamentConfig {
     info_title: row.info_title,
     info_text: row.info_text,
     registration_open: row.registration_open,
+    checkin_start_at: row.checkin_start_at ?? null,
   };
 }
 
 const SELECT =
-  "tournament_num, name, start_date, end_date, required_availability_pct, required_weekly_pct, checkboxes, info_title, info_text, registration_open";
+  "tournament_num, name, start_date, end_date, required_availability_pct, required_weekly_pct, checkboxes, info_title, info_text, registration_open, checkin_start_at";
 
 export async function fetchTournaments(): Promise<TournamentConfig[]> {
   const { data, error } = await supabase

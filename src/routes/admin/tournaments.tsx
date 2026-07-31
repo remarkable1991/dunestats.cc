@@ -16,6 +16,8 @@ import {
   type TournamentConfig,
   checkinStart,
   fetchTournaments,
+  fromLocalInputValue,
+  toLocalInputValue,
   registrationClosesAt,
   tournamentDayCount,
   tournamentWeekCount,
@@ -46,6 +48,7 @@ type Draft = {
   info_title: string;
   info_text: string;
   registration_open: boolean;
+  checkin_start_at: string;
 };
 
 function toDraft(t: TournamentConfig): Draft {
@@ -60,6 +63,7 @@ function toDraft(t: TournamentConfig): Draft {
     info_title: t.info_title ?? "",
     info_text: t.info_text ?? "",
     registration_open: t.registration_open,
+    checkin_start_at: toLocalInputValue(t.checkin_start_at),
   };
 }
 
@@ -82,6 +86,7 @@ function emptyDraft(nextNum: number): Draft {
     info_title: "",
     info_text: "",
     registration_open: true,
+    checkin_start_at: toLocalInputValue(new Date(start.getTime() - 86400000).toISOString()),
   };
 }
 
@@ -269,6 +274,7 @@ function TournamentForm({
       info_title: draft.info_title.trim() || null,
       info_text: draft.info_text.trim() || null,
       registration_open: draft.registration_open,
+      checkin_start_at: fromLocalInputValue(draft.checkin_start_at),
     };
     const { error } = await supabase.from("tournaments").upsert(payload, { onConflict: "tournament_num" });
     setSaving(false);
@@ -300,13 +306,25 @@ function TournamentForm({
           <Label htmlFor="start">Start date</Label>
           <Input id="start" type="date" value={draft.start_date} onChange={(e) => set("start_date", e.target.value)} />
           <p className="text-[11px] text-muted-foreground mt-1">
-            First day of the availability grid. Check-in opens 24h earlier; registration closes 24h after.
+            First day of the availability grid. Registration closes 24h after.
           </p>
         </div>
         <div>
           <Label htmlFor="end">End date</Label>
           <Input id="end" type="date" value={draft.end_date} onChange={(e) => set("end_date", e.target.value)} />
           <p className="text-[11px] text-muted-foreground mt-1">Last day of the availability grid.</p>
+        </div>
+        <div>
+          <Label htmlFor="checkin">Check-in opens (your local time)</Label>
+          <Input
+            id="checkin"
+            type="datetime-local"
+            value={draft.checkin_start_at}
+            onChange={(e) => set("checkin_start_at", e.target.value)}
+          />
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Shown to every player in their own time zone. Leave empty to default to 24h before the start date.
+          </p>
         </div>
         <div>
           <Label htmlFor="pct">Required availability % (overall)</Label>
