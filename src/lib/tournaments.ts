@@ -66,6 +66,17 @@ export function fromLocalInputValue(v: string): string | null {
 }
 
 
+/** Format a YYYY-MM-DD date as e.g. "8th of August 2026". */
+export function formatLongDate(s: string): string {
+  const d = parseLocalDate(s);
+  if (Number.isNaN(d.getTime())) return s;
+  const day = d.getDate();
+  const suffix =
+    day % 10 === 1 && day !== 11 ? "st" : day % 10 === 2 && day !== 12 ? "nd" : day % 10 === 3 && day !== 13 ? "rd" : "th";
+  const month = d.toLocaleDateString("en-GB", { month: "long" });
+  return `${day}${suffix} of ${month} ${d.getFullYear()}`;
+}
+
 /** Registration closes 24 hours after the start date. */
 export function registrationClosesAt(t: Pick<TournamentConfig, "start_date">): Date {
   return new Date(parseLocalDate(t.start_date).getTime() + 24 * 3600_000);
