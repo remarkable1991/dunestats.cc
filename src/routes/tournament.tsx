@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navbar } from "@/components/Navbar";
+import { AdminTournamentsLink } from "@/components/AdminTournamentsLink";
+
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1080,12 +1082,16 @@ function TournamentPage() {
     <div className="min-h-screen">
       <Navbar />
       <div className="container mx-auto px-4 py-6 max-w-6xl">
-        <header className="mb-6">
-          <h1 className="font-display text-3xl flex items-center gap-2">
-            <Trophy className="size-7 text-sand" /> Tournaments
-          </h1>
-          <p className="text-muted-foreground text-sm">Current, future, and past Strategy Arena cycles.</p>
+        <header className="mb-6 flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="font-display text-3xl flex items-center gap-2">
+              <Trophy className="size-7 text-sand" /> Tournaments
+            </h1>
+            <p className="text-muted-foreground text-sm">Current, future, and past Strategy Arena cycles.</p>
+          </div>
+          <AdminTournamentsLink />
         </header>
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-8">
           {buttons.map((b) => {
             const active = b.id === tab;
