@@ -36,7 +36,6 @@ import uprisingIcon from "@/assets/uprising.png.asset.json";
 import immoIcon from "@/assets/immo.png.asset.json";
 import epicIcon from "@/assets/epic.png.asset.json";
 import { ArrowLeft, Users as UsersIcon, ArrowUp, ArrowDown, ArrowUpDown, Sparkles } from "lucide-react";
-import { TournamentCountdown } from "@/components/TournamentCountdown";
 import {
   type TournamentConfig,
   checkinStart,
@@ -1158,7 +1157,6 @@ function FutureTournaments() {
             There are no tournaments open for registration right now. Check the Discord or come back soon.
           </p>
         </Card>
-        <TournamentCountdown />
       </div>
     );
   }
@@ -1202,8 +1200,6 @@ function FutureTournaments() {
           </div>
         </Card>
       ))}
-
-      <TournamentCountdown />
     </div>
   );
 }

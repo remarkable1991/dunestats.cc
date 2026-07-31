@@ -1,0 +1,1 @@
+ALTER TABLE public.tournament_registrations ADD COLUMN IF NOT EXISTS timezone text;
