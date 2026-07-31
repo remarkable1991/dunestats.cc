@@ -36,7 +36,15 @@ import uprisingIcon from "@/assets/uprising.png.asset.json";
 import immoIcon from "@/assets/immo.png.asset.json";
 import epicIcon from "@/assets/epic.png.asset.json";
 import { ArrowLeft, Users as UsersIcon, ArrowUp, ArrowDown, ArrowUpDown, Sparkles } from "lucide-react";
-import { TournamentAnnouncement, TournamentCountdown } from "@/components/TournamentCountdown";
+import { TournamentCountdown } from "@/components/TournamentCountdown";
+import {
+  type TournamentConfig,
+  checkinStart,
+  fetchOpenTournaments,
+  registrationClosesAt,
+  tournamentDayCount,
+} from "@/lib/tournaments";
+
 import { AvailabilityHeatmap, type HeatmapPlayer } from "@/components/AvailabilityHeatmap";
 
 export const Route = createFileRoute("/tournament")({
