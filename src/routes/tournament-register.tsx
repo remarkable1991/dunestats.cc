@@ -527,7 +527,7 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
             <p className="text-sm text-muted-foreground">
               Registering as a guest.{" "}
               <Link to="/auth" className="text-sand underline">Sign in</Link>{" "}
-              to auto-fill your Direwolf name, Discord handle, and saved availability baseline.
+              to auto-fill your Direwolf name, Discord handle, and saved availability baseline and be allowed to adjust your registration.
             </p>
           </Card>
         )}
