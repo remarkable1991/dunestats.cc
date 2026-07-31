@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,93 +11,170 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import {
-  TOURNAMENT_NUMBER,
-  TOURNAMENT_START_DATE,
-  DISCORD_INVITE_URL,
-  firstMondayOfTournament,
-  tournamentGridStart,
-} from "@/lib/tournament-config";
+  SLOTS_PER_DAY as SLOTS,
+  type TournamentConfig,
+  checkinStart,
+  fetchOpenTournaments,
+  parseLocalDate,
+  registrationClosesAt,
+  tournamentDayCount,
+  tournamentWeekCount,
+} from "@/lib/tournaments";
 import discordHint from "@/assets/discord-hint.png.asset.json";
 
-
 export const Route = createFileRoute("/tournament-register")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    t: search.t != null && Number.isFinite(Number(search.t)) ? Number(search.t) : undefined,
+  }),
   head: () => ({
     meta: [
-      { title: `Register — Tournament ${TOURNAMENT_NUMBER} · Strategy Arena` },
+      { title: "Tournament Registration · Strategy Arena" },
       { name: "description", content: "Sign up for the next Strategy Arena Dune Imperium tournament." },
+      { property: "og:title", content: "Tournament Registration · Strategy Arena" },
+      { property: "og:description", content: "Sign up for the next Strategy Arena Dune Imperium tournament." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: RegisterPage,
 });
 
 // ---------- Grid math ----------
-const DAYS = 28;
-const SLOTS = 48; // 30-min blocks in 24h
-const TOTAL = DAYS * SLOTS;
-
 function blockId(day: number, slot: number) { return day * SLOTS + slot; }
 function dayOfBlock(id: number) { return Math.floor(id / SLOTS); }
 function slotOfBlock(id: number) { return id % SLOTS; }
-
-/** Convert a local (day-index, slot) to UTC ISO string using tournament start date. */
-function blockToUtcIso(day: number, slot: number): string {
-  const base = tournamentGridStart();
-  const d = new Date(base);
-  d.setDate(d.getDate() + day);
-  d.setMinutes(slot * 30);
-  return d.toISOString();
-}
 
 /** dayOfWeek where Monday=0..Sunday=6 for a JS Date */
 function mondayDow(date: Date): number {
   return (date.getDay() + 6) % 7;
 }
 
-// ---------- Baseline template (relative to Monday) ----------
 type BaselineEntry = { dow: number; slot: number }; // dow 0=Mon..6=Sun
 
-function selectionToBaseline(sel: Set<number>): BaselineEntry[] {
-  // Keep only entries in the first 7 days from the first Monday within the grid.
-  const gridStart = tournamentGridStart();
-  const monday = firstMondayOfTournament();
-  const dayOffsetToMonday = Math.round((monday.getTime() - gridStart.getTime()) / 86400000);
-  const entries: BaselineEntry[] = [];
-  const seen = new Set<string>();
-  for (const id of sel) {
-    const dIdx = dayOfBlock(id) - dayOffsetToMonday;
-    if (dIdx < 0 || dIdx >= 7) continue;
-    const key = `${dIdx}:${slotOfBlock(id)}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    entries.push({ dow: dIdx, slot: slotOfBlock(id) });
-  }
-  return entries;
-}
-
-function baselineToSelection(baseline: BaselineEntry[]): Set<number> {
-  const gridStart = tournamentGridStart();
-  const monday = firstMondayOfTournament();
-  const dayOffsetToMonday = Math.round((monday.getTime() - gridStart.getTime()) / 86400000);
-  const s = new Set<number>();
-  for (const b of baseline) {
-    for (let w = 0; w < 4; w++) {
-      const dIdx = dayOffsetToMonday + b.dow + w * 7;
-      if (dIdx >= 0 && dIdx < DAYS) s.add(blockId(dIdx, b.slot));
-    }
-  }
-  return s;
-}
-
-// ---------- Page ----------
+// ---------- Page shell: pick which tournament to register for ----------
 function RegisterPage() {
+  const { t: requested } = Route.useSearch();
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState<TournamentConfig[]>([]);
+
+  useEffect(() => {
+    void (async () => {
+      setOpen(await fetchOpenTournaments());
+      setLoading(false);
+    })();
+  }, []);
+
+  const selected = useMemo(() => {
+    if (requested != null) return open.find((t) => t.tournament_num === requested) ?? null;
+    return open.length === 1 ? open[0] : null;
+  }, [open, requested]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        <Navbar />
+        <div className="container mx-auto px-4 py-10 flex justify-center">
+          <Loader2 className="size-6 animate-spin text-sand" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!selected) {
+    return (
+      <div className="min-h-screen">
+        <Navbar />
+        <div className="container mx-auto px-4 py-6 max-w-3xl space-y-6">
+          <div className="flex items-center justify-between">
+            <h1 className="font-display text-2xl sm:text-3xl">Tournament Registration</h1>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/tournament"><ArrowLeft className="size-4 mr-1" />Back</Link>
+            </Button>
+          </div>
+          {open.length === 0 ? (
+            <Card className="p-6 border-sand/40">
+              <p className="text-sm text-muted-foreground">
+                There are no tournament registrations open right now. Keep an eye on{" "}
+                <Link to="/tournament" className="text-sand underline">the tournaments page</Link> for the next event.
+              </p>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Multiple registrations are open. Pick the tournament you want to sign up for.
+              </p>
+              {open.map((t) => (
+                <Card key={t.tournament_num} className="p-4 border-sand/40 flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <div className="font-display text-lg text-sand">{t.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Starts {parseLocalDate(t.start_date).toLocaleDateString()} · Registration closes{" "}
+                      {registrationClosesAt(t).toLocaleString()}
+                    </div>
+                  </div>
+                  <Button asChild className="bg-sand text-background hover:bg-sand/90">
+                    <Link to="/tournament-register" search={{ t: t.tournament_num }}>Register</Link>
+                  </Button>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return <RegisterForm key={selected.tournament_num} tournament={selected} multiOpen={open.length > 1} />;
+}
+
+// ---------- The actual form ----------
+function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig; multiOpen: boolean }) {
   const navigate = useNavigate();
+  const DAYS = tournamentDayCount(tournament);
+  const WEEKS = tournamentWeekCount(tournament);
+  const TOTAL = DAYS * SLOTS;
+  const gridStart = useMemo(() => parseLocalDate(tournament.start_date), [tournament.start_date]);
+
+  const blockToUtcIso = useCallback((day: number, slot: number): string => {
+    const d = new Date(gridStart);
+    d.setDate(d.getDate() + day);
+    d.setMinutes(slot * 30);
+    return d.toISOString();
+  }, [gridStart]);
+
+  const dayOffsetToMonday = useMemo(() => (7 - mondayDow(gridStart)) % 7, [gridStart]);
+
+  const selectionToBaseline = useCallback((sel: Set<number>): BaselineEntry[] => {
+    const entries: BaselineEntry[] = [];
+    const seen = new Set<string>();
+    for (const id of sel) {
+      const dIdx = dayOfBlock(id) - dayOffsetToMonday;
+      if (dIdx < 0 || dIdx >= 7) continue;
+      const key = `${dIdx}:${slotOfBlock(id)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      entries.push({ dow: dIdx, slot: slotOfBlock(id) });
+    }
+    return entries;
+  }, [dayOffsetToMonday]);
+
+  const baselineToSelection = useCallback((baseline: BaselineEntry[]): Set<number> => {
+    const s = new Set<number>();
+    for (const b of baseline) {
+      for (let w = 0; w < WEEKS + 1; w++) {
+        const dIdx = dayOffsetToMonday + b.dow + w * 7;
+        if (dIdx >= 0 && dIdx < DAYS) s.add(blockId(dIdx, b.slot));
+      }
+    }
+    return s;
+  }, [DAYS, WEEKS, dayOffsetToMonday]);
+
   const [userId, setUserId] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
 
-  // Consent
-  const [ownsExpansions, setOwnsExpansions] = useState(false);
-  const [activeOnDiscord, setActiveOnDiscord] = useState(false);
-  const consented = ownsExpansions && activeOnDiscord;
+  // Consent (dynamic per tournament)
+  const [consents, setConsents] = useState<Record<string, boolean>>({});
+  const consented = tournament.checkboxes.every((c) => consents[c.id]);
 
   // Identity
   const [direwolf, setDirewolf] = useState("");
@@ -111,7 +188,6 @@ function RegisterPage() {
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [discordLinked, setDiscordLinked] = useState(false);
 
-
   // Load session + prefill
   useEffect(() => {
     void (async () => {
@@ -120,12 +196,9 @@ function RegisterPage() {
       setUserId(uid);
       if (uid) {
         const { data: idData } = await supabase.auth.getUserIdentities();
-        if (idData?.identities?.some((i) => i.provider === "discord")) {
-          setDiscordLinked(true);
-        }
+        if (idData?.identities?.some((i) => i.provider === "discord")) setDiscordLinked(true);
 
-        const emailVal = sess.session?.user.email ?? "";
-        setEmail(emailVal);
+        setEmail(sess.session?.user.email ?? "");
         const { data: prof } = await supabase
           .from("profiles")
           .select("username, discord_username, availability_baseline")
@@ -142,7 +215,6 @@ function RegisterPage() {
             setSelection(baselineToSelection(prof.availability_baseline as BaselineEntry[]));
           }
         }
-        // Prefer the player_name they've claimed on the leaderboard
         const { data: claimed } = await supabase
           .from("player_ratings")
           .select("display_name")
@@ -152,7 +224,6 @@ function RegisterPage() {
         if (claimed?.display_name) resolvedName = claimed.display_name;
         if (resolvedName) setDirewolf(resolvedName);
 
-        // If no discord on profile, try to find one from previous tournaments
         if (!prof?.discord_username) {
           const candidates = Array.from(
             new Set([resolvedName, prof?.username].filter((v): v is string => !!v && v.length > 0)),
@@ -177,36 +248,33 @@ function RegisterPage() {
               .maybeSingle();
             if (reg2?.discord_username) { found = reg2.discord_username; break; }
           }
-          if (found) {
-            setDiscord(found);
-            setInitialDiscord(found);
-          }
+          if (found) { setDiscord(found); setInitialDiscord(found); }
         }
 
-        // If they already have a registration for this tournament, hydrate it too
         const { data: reg } = await supabase
           .from("tournament_registrations")
-          .select("direwolf_name, email, discord_username, owns_expansions, active_on_discord, availability")
+          .select("direwolf_name, email, discord_username, owns_expansions, active_on_discord, availability, consents")
           .eq("user_id", uid)
-          .eq("tournament_num", TOURNAMENT_NUMBER)
+          .eq("tournament_num", tournament.tournament_num)
           .maybeSingle();
         if (reg) {
           setAlreadyRegistered(true);
           setDirewolf(reg.direwolf_name);
           if (reg.email) setEmail(reg.email);
           setDiscord(reg.discord_username);
-          setOwnsExpansions(reg.owns_expansions);
-          setActiveOnDiscord(reg.active_on_discord);
+          const stored = (reg.consents && typeof reg.consents === "object" ? reg.consents : {}) as Record<string, boolean>;
+          setConsents({
+            ...stored,
+            ...(reg.owns_expansions ? { owns_expansions: true } : {}),
+            ...(reg.active_on_discord ? { active_on_discord: true } : {}),
+          });
           if (Array.isArray(reg.availability)) {
             const s = new Set<number>();
-            const base = tournamentGridStart();
             for (const iso of reg.availability as string[]) {
               const d = new Date(iso);
-              const dayIdx = Math.floor((d.getTime() - base.getTime()) / 86400000);
+              const dayIdx = Math.floor((d.getTime() - gridStart.getTime()) / 86400000);
               const slot = d.getHours() * 2 + Math.floor(d.getMinutes() / 30);
-              if (dayIdx >= 0 && dayIdx < DAYS && slot >= 0 && slot < SLOTS) {
-                s.add(blockId(dayIdx, slot));
-              }
+              if (dayIdx >= 0 && dayIdx < DAYS && slot >= 0 && slot < SLOTS) s.add(blockId(dayIdx, slot));
             }
             setSelection(s);
           }
@@ -214,19 +282,17 @@ function RegisterPage() {
       }
       setChecking(false);
     })();
-  }, []);
+  }, [tournament.tournament_num, DAYS, gridStart, baselineToSelection]);
 
   const days = useMemo(() => {
-    const base = tournamentGridStart();
     return Array.from({ length: DAYS }).map((_, i) => {
-      const d = new Date(base);
+      const d = new Date(gridStart);
       d.setDate(d.getDate() + i);
       return d;
     });
-  }, []);
+  }, [DAYS, gridStart]);
 
   // ---------- Drag selection ----------
-  // Rectangle-drag: from anchor cell to current cell, all cells in-between get set.
   const dragMode = useRef<"add" | "remove" | null>(null);
   const anchorId = useRef<number | null>(null);
   const baseSelection = useRef<Set<number>>(new Set());
@@ -293,10 +359,10 @@ function RegisterPage() {
   const applyWeek1ToRest = () => {
     setSelection((prev) => {
       const next = new Set(prev);
-      for (let d = 0; d < 7; d++) {
+      for (let d = 0; d < Math.min(7, DAYS); d++) {
         const slotsForDay: number[] = [];
         for (let s = 0; s < SLOTS; s++) if (next.has(blockId(d, s))) slotsForDay.push(s);
-        for (let w = 1; w < 4; w++) {
+        for (let w = 1; w < WEEKS; w++) {
           const targetDay = d + w * 7;
           if (targetDay >= DAYS) continue;
           for (let s = 0; s < SLOTS; s++) next.delete(blockId(targetDay, s));
@@ -305,16 +371,34 @@ function RegisterPage() {
       }
       return next;
     });
-    toast.success("Copied Week 1 across all 4 weeks");
+    toast.success(`Copied Week 1 across all ${WEEKS} weeks`);
   };
 
   const clearAll = () => setSelection(new Set());
+
+  // ---------- Live availability stats ----------
+  const stats = useMemo(() => {
+    const overall = TOTAL ? (selection.size / TOTAL) * 100 : 0;
+    const weeks: { pct: number; ok: boolean }[] = [];
+    for (let w = 0; w < WEEKS; w++) {
+      const startDay = w * 7;
+      const endDay = Math.min(startDay + 7, DAYS);
+      const total = (endDay - startDay) * SLOTS;
+      let filled = 0;
+      for (const id of selection) {
+        const d = dayOfBlock(id);
+        if (d >= startDay && d < endDay) filled++;
+      }
+      const pct = total ? (filled / total) * 100 : 0;
+      weeks.push({ pct, ok: pct >= tournament.required_weekly_pct });
+    }
+    return { overall, overallOk: overall >= tournament.required_availability_pct, weeks };
+  }, [selection, TOTAL, WEEKS, DAYS, tournament.required_availability_pct, tournament.required_weekly_pct]);
 
   // ---------- Submit ----------
   const [submitting, setSubmitting] = useState(false);
   const [linkingDiscord, setLinkingDiscord] = useState(false);
 
-  // Auto-fill Discord from player_discord_map when Direwolf is set and Discord is empty
   useEffect(() => {
     const name = direwolf.trim();
     if (!name) return;
@@ -338,54 +422,29 @@ function RegisterPage() {
     setLinkingDiscord(true);
     const redirectTo = typeof window !== "undefined" ? window.location.href : undefined;
     const { error } = userId
-      ? await supabase.auth.linkIdentity({
-          provider: "discord",
-          options: { redirectTo },
-        })
-      : await supabase.auth.signInWithOAuth({
-          provider: "discord",
-          options: { redirectTo },
-        });
+      ? await supabase.auth.linkIdentity({ provider: "discord", options: { redirectTo } })
+      : await supabase.auth.signInWithOAuth({ provider: "discord", options: { redirectTo } });
     setLinkingDiscord(false);
     if (error) toast.error(error.message);
   };
-
 
   const submit = async () => {
     if (!consented) return;
     if (!direwolf.trim()) { toast.error("Direwolf name required"); return; }
     if (!discord.trim()) { toast.error("Discord username required"); return; }
 
-
-    // Availability sanity checks
-    const filled = selection.size;
-    const pct = (filled / TOTAL) * 100;
-
-    // Detect first-week-only selection (nothing selected past day 7)
-    let onlyWeek1 = filled > 0;
-    for (const id of selection) {
-      if (dayOfBlock(id) >= 7) { onlyWeek1 = false; break; }
-    }
-    if (onlyWeek1) {
-      const ok = window.confirm(
-        "You only filled availability for Week 1. Copy Week 1 to all 4 weeks? You'll need to click Register again after.",
-      );
-      if (ok) applyWeek1ToRest();
-      else toast.error("Please fill availability for the remaining weeks before registering.");
-      return;
-    }
-
-    if (pct < 5) {
+    if (!stats.overallOk) {
       toast.error(
-        `Availability too low (${pct.toFixed(1)}%). At least 5% of the schedule is required to register.`,
+        `Availability too low (${stats.overall.toFixed(1)}%). At least ${tournament.required_availability_pct}% of the schedule is required.`,
       );
       return;
     }
-    if (pct < 10) {
-      const ok = window.confirm(
-        `Warning: only ${pct.toFixed(1)}% availability filled. With this little overlap you may not be matched into games. Register anyway?`,
+    const badWeek = stats.weeks.findIndex((w) => !w.ok);
+    if (badWeek >= 0) {
+      toast.error(
+        `Week ${badWeek + 1} only has ${stats.weeks[badWeek].pct.toFixed(1)}% availability. At least ${tournament.required_weekly_pct}% per week is required.`,
       );
-      if (!ok) return;
+      return;
     }
 
     setSubmitting(true);
@@ -396,34 +455,28 @@ function RegisterPage() {
 
       const payload = {
         user_id: userId,
-        tournament_num: TOURNAMENT_NUMBER,
+        tournament_num: tournament.tournament_num,
         direwolf_name: direwolf.trim(),
         email: email.trim() || null,
         discord_username: discord.trim(),
-        owns_expansions: ownsExpansions,
-        active_on_discord: activeOnDiscord,
+        owns_expansions: consents.owns_expansions === true,
+        active_on_discord: consents.active_on_discord === true,
+        consents: tournament.checkboxes.reduce<Record<string, boolean>>((acc, c) => {
+          acc[c.id] = consents[c.id] === true;
+          return acc;
+        }, {}),
         availability,
         updated_at: new Date().toISOString(),
       };
       const { error: regErr } = userId
-        ? await supabase
-            .from("tournament_registrations")
-            .upsert(payload, { onConflict: "user_id,tournament_num" })
+        ? await supabase.from("tournament_registrations").upsert(payload, { onConflict: "user_id,tournament_num" })
         : await supabase.from("tournament_registrations").insert(payload);
       if (regErr) throw regErr;
 
-      // Persist discord + baseline to profile if signed in
       if (userId) {
-        const profileUpdates: {
-          discord_username?: string;
-          availability_baseline?: BaselineEntry[];
-        } = {};
-        if (discord.trim() && discord.trim() !== initialDiscord) {
-          profileUpdates.discord_username = discord.trim();
-        }
-        if (saveBaseline) {
-          profileUpdates.availability_baseline = selectionToBaseline(selection);
-        }
+        const profileUpdates: { discord_username?: string; availability_baseline?: BaselineEntry[] } = {};
+        if (discord.trim() && discord.trim() !== initialDiscord) profileUpdates.discord_username = discord.trim();
+        if (saveBaseline) profileUpdates.availability_baseline = selectionToBaseline(selection);
         if (Object.keys(profileUpdates).length) {
           await supabase.from("profiles").update(profileUpdates as never).eq("id", userId);
         }
@@ -431,8 +484,8 @@ function RegisterPage() {
 
       toast.success(
         alreadyRegistered
-          ? `Registration updated for Tournament ${TOURNAMENT_NUMBER}!`
-          : `You're registered for Tournament ${TOURNAMENT_NUMBER}!`,
+          ? `Registration updated for ${tournament.name}!`
+          : `You're registered for ${tournament.name}!`,
       );
       void navigate({ to: "/tournament" });
     } catch (e) {
@@ -446,14 +499,28 @@ function RegisterPage() {
     <div className="min-h-screen">
       <Navbar />
       <div className="container mx-auto px-4 py-6 max-w-6xl space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="font-display text-2xl sm:text-3xl">
-            Register — Tournament {TOURNAMENT_NUMBER}
-          </h1>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/tournament"><ArrowLeft className="size-4 mr-1" />Back</Link>
-          </Button>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h1 className="font-display text-2xl sm:text-3xl">Register — {tournament.name}</h1>
+          <div className="flex gap-2">
+            {multiOpen && (
+              <Button asChild variant="outline" size="sm">
+                <Link to="/tournament-register">Other tournaments</Link>
+              </Button>
+            )}
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/tournament"><ArrowLeft className="size-4 mr-1" />Back</Link>
+            </Button>
+          </div>
         </div>
+
+        {(tournament.info_title || tournament.info_text) && (
+          <Card className="p-6 border-sand/40 bg-card/70">
+            {tournament.info_title && <h2 className="font-display text-lg mb-2 text-sand">{tournament.info_title}</h2>}
+            {tournament.info_text && (
+              <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{tournament.info_text}</p>
+            )}
+          </Card>
+        )}
 
         {!userId && !checking && (
           <Card className="p-4 border-sand/40 bg-card/70">
@@ -466,37 +533,23 @@ function RegisterPage() {
         )}
 
         {/* Consent */}
-        <Card className="p-6 border-sand/40">
-          <h2 className="font-display text-lg mb-4">Profile & Platform Verification</h2>
-          <div className="space-y-3">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <Checkbox
-                checked={ownsExpansions}
-                onCheckedChange={(v) => setOwnsExpansions(v === true)}
-                className="mt-0.5"
-              />
-              <span className="text-sm leading-relaxed">
-                I confirm that I own <b>Dune Imperium Digital</b> and the required expansions
-                (<b>Uprising</b> and <b>Immortality</b>).
-              </span>
-            </label>
-            <label className="flex items-start gap-3 cursor-pointer">
-              <Checkbox
-                checked={activeOnDiscord}
-                onCheckedChange={(v) => setActiveOnDiscord(v === true)}
-                className="mt-0.5"
-              />
-              <span className="text-sm leading-relaxed">
-                I confirm that I am active on our{" "}
-                <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer" className="text-sand underline">
-                  Strategy Arena Discord Server
-                </a>
-                , have played or am currently playing at least one game to demonstrate ASync
-                progress, and will check in during the July 13 – July 14 window.
-              </span>
-            </label>
-          </div>
-        </Card>
+        {tournament.checkboxes.length > 0 && (
+          <Card className="p-6 border-sand/40">
+            <h2 className="font-display text-lg mb-4">Profile & Platform Verification</h2>
+            <div className="space-y-3">
+              {tournament.checkboxes.map((c) => (
+                <label key={c.id} className="flex items-start gap-3 cursor-pointer">
+                  <Checkbox
+                    checked={consents[c.id] === true}
+                    onCheckedChange={(v) => setConsents((prev) => ({ ...prev, [c.id]: v === true }))}
+                    className="mt-0.5"
+                  />
+                  <span className="text-sm leading-relaxed whitespace-pre-line">{c.label}</span>
+                </label>
+              ))}
+            </div>
+          </Card>
+        )}
 
         <fieldset disabled={!consented} className={!consented ? "opacity-60 pointer-events-none" : ""}>
           {/* Identity */}
@@ -514,12 +567,7 @@ function RegisterPage() {
               </div>
               <div className="sm:col-span-2">
                 <Label htmlFor="discord">Discord Username <span className="text-destructive">*</span></Label>
-                <Input
-                  id="discord"
-                  value={discord}
-                  onChange={(e) => setDiscord(e.target.value)}
-                  placeholder="remarkable91"
-                />
+                <Input id="discord" value={discord} onChange={(e) => setDiscord(e.target.value)} placeholder="remarkable91" />
                 {discordLinked ? (
                   <div className="mt-2">
                     <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1 text-xs font-medium text-green-500">
@@ -529,13 +577,7 @@ function RegisterPage() {
                   </div>
                 ) : (
                   <div className="mt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={linkDiscord}
-                      disabled={linkingDiscord}
-                    >
+                    <Button type="button" variant="outline" size="sm" onClick={linkDiscord} disabled={linkingDiscord}>
                       {linkingDiscord ? "Linking…" : userId ? "Link Discord account" : "Sign in with Discord"}
                     </Button>
                   </div>
@@ -549,7 +591,6 @@ function RegisterPage() {
                   </p>
                 </div>
               </div>
-
             </div>
           </Card>
 
@@ -563,7 +604,7 @@ function RegisterPage() {
                 </p>
               </div>
               <div className="flex items-center gap-3 flex-wrap">
-                <Button size="sm" variant="outline" onClick={applyWeek1ToRest}>Apply Week 1 to Weeks 2-4</Button>
+                <Button size="sm" variant="outline" onClick={applyWeek1ToRest}>Apply Week 1 to all weeks</Button>
                 <Button size="sm" variant="ghost" onClick={clearAll}>Clear</Button>
                 <label className="flex items-center gap-2 text-xs">
                   <Switch checked={saveBaseline} onCheckedChange={setSaveBaseline} />
@@ -572,27 +613,34 @@ function RegisterPage() {
               </div>
             </div>
 
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className={stats.overallOk ? "text-green-500" : "text-destructive"}>
+                Overall {stats.overall.toFixed(1)}% / {tournament.required_availability_pct}% required
+              </span>
+              {tournament.required_weekly_pct > 0 && stats.weeks.map((w, i) => (
+                <span
+                  key={i}
+                  className={`rounded border px-1.5 py-0.5 ${w.ok ? "border-green-500/40 text-green-500" : "border-destructive/40 text-destructive"}`}
+                >
+                  W{i + 1} {w.pct.toFixed(1)}%
+                </span>
+              ))}
+              {tournament.required_weekly_pct > 0 && (
+                <span className="text-muted-foreground">({tournament.required_weekly_pct}% required per week)</span>
+              )}
+            </div>
+
             {compact && (
               <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-background/40 px-2 py-1.5">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setWeekIdx((w) => Math.max(0, w - 1))}
-                  disabled={weekIdx === 0}
-                >
+                <Button size="sm" variant="ghost" onClick={() => setWeekIdx((w) => Math.max(0, w - 1))} disabled={weekIdx === 0}>
                   <ChevronLeft className="size-4" /> Prev
                 </Button>
                 <div className="text-xs font-medium text-sand">
-                  Week {weekIdx + 1} of 4 — {days[weekIdx * 7]?.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  Week {weekIdx + 1} of {WEEKS} — {days[weekIdx * 7]?.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                   {" – "}
                   {days[Math.min(weekIdx * 7 + 6, DAYS - 1)]?.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                 </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setWeekIdx((w) => Math.min(3, w + 1))}
-                  disabled={weekIdx === 3}
-                >
+                <Button size="sm" variant="ghost" onClick={() => setWeekIdx((w) => Math.min(WEEKS - 1, w + 1))} disabled={weekIdx >= WEEKS - 1}>
                   Next <ChevronRight className="size-4" />
                 </Button>
               </div>
@@ -618,15 +666,16 @@ function RegisterPage() {
               className="bg-sand text-background hover:bg-sand/90 gap-2"
             >
               {submitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-              {alreadyRegistered
-                ? `Update Registration for Tournament ${TOURNAMENT_NUMBER}`
-                : `Register for Tournament ${TOURNAMENT_NUMBER}`}
+              {alreadyRegistered ? `Update Registration for ${tournament.name}` : `Register for ${tournament.name}`}
             </Button>
           </div>
         </fieldset>
 
         <p className="text-xs text-muted-foreground text-center pt-2">
-          Tournament begins {TOURNAMENT_START_DATE}. You can update your registration any time before check-in closes.
+          Check-in opens {checkinStart(tournament).toLocaleString()}. Tournament runs{" "}
+          {parseLocalDate(tournament.start_date).toLocaleDateString()} –{" "}
+          {parseLocalDate(tournament.end_date).toLocaleDateString()}. Registration closes{" "}
+          {registrationClosesAt(tournament).toLocaleString()}.
         </p>
       </div>
     </div>
@@ -648,9 +697,7 @@ function AvailabilityGrid({
 }) {
   const slotLabels = useMemo(() => {
     const out: string[] = [];
-    for (let h = 0; h < 24; h++) {
-      out.push(`${h.toString().padStart(2, "0")}:00`);
-    }
+    for (let h = 0; h < 24; h++) out.push(`${h.toString().padStart(2, "0")}:00`);
     return out;
   }, []);
 
@@ -670,30 +717,36 @@ function AvailabilityGrid({
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
-        {/* Header row */}
         <div className="sticky left-0 bg-background z-10 border-b border-r border-border" />
         {visible.map((d, vi) => {
           const i = startDay + vi;
           return (
-          <div
-            key={i}
-            className="text-[10px] text-center border-b border-border py-1 leading-tight bg-background/70 flex flex-col items-center gap-1"
-          >
-            <div className="text-muted-foreground">
-              {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            <div
+              key={i}
+              className="text-[10px] text-center border-b border-border py-1 leading-tight bg-background/70 flex flex-col items-center gap-1"
+            >
+              <div className="text-muted-foreground">
+                {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+              </div>
+              <div className="text-sand font-medium">
+                {d.toLocaleDateString(undefined, { weekday: "short" })}
+              </div>
             </div>
-            <div className="text-sand font-medium">
-              {d.toLocaleDateString(undefined, { weekday: "short" })}
-            </div>
-          </div>
           );
         })}
 
-        {/* Slot rows */}
         {Array.from({ length: SLOTS }).map((_, slot) => {
           const isHour = slot % 2 === 0;
           return (
-            <RowFragment key={slot} slot={slot} isHour={isHour} label={isHour ? slotLabels[slot / 2] : ""} selection={selection} startDay={startDay} visibleDays={visible.length} />
+            <RowFragment
+              key={slot}
+              slot={slot}
+              isHour={isHour}
+              label={isHour ? slotLabels[slot / 2] : ""}
+              selection={selection}
+              startDay={startDay}
+              visibleDays={visible.length}
+            />
           );
         })}
       </div>
