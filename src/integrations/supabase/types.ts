@@ -753,6 +753,7 @@ export type Database = {
       tournaments: {
         Row: {
           checkboxes: Json
+          checkin_start_at: string | null
           created_at: string
           end_date: string
           info_text: string | null
@@ -767,6 +768,7 @@ export type Database = {
         }
         Insert: {
           checkboxes?: Json
+          checkin_start_at?: string | null
           created_at?: string
           end_date: string
           info_text?: string | null
@@ -781,6 +783,7 @@ export type Database = {
         }
         Update: {
           checkboxes?: Json
+          checkin_start_at?: string | null
           created_at?: string
           end_date?: string
           info_text?: string | null
