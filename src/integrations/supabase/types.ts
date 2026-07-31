@@ -676,6 +676,7 @@ export type Database = {
         Row: {
           active_on_discord: boolean
           availability: Json
+          consents: Json
           created_at: string
           direwolf_name: string
           discord_username: string
@@ -689,6 +690,7 @@ export type Database = {
         Insert: {
           active_on_discord?: boolean
           availability?: Json
+          consents?: Json
           created_at?: string
           direwolf_name: string
           discord_username: string
@@ -702,6 +704,7 @@ export type Database = {
         Update: {
           active_on_discord?: boolean
           availability?: Json
+          consents?: Json
           created_at?: string
           direwolf_name?: string
           discord_username?: string
@@ -741,6 +744,51 @@ export type Database = {
           round_type?: string
           table_identifier?: string
           tournament_num?: number
+        }
+        Relationships: []
+      }
+      tournaments: {
+        Row: {
+          checkboxes: Json
+          created_at: string
+          end_date: string
+          info_text: string | null
+          info_title: string | null
+          name: string
+          registration_open: boolean
+          required_availability_pct: number
+          required_weekly_pct: number
+          start_date: string
+          tournament_num: number
+          updated_at: string
+        }
+        Insert: {
+          checkboxes?: Json
+          created_at?: string
+          end_date: string
+          info_text?: string | null
+          info_title?: string | null
+          name: string
+          registration_open?: boolean
+          required_availability_pct?: number
+          required_weekly_pct?: number
+          start_date: string
+          tournament_num: number
+          updated_at?: string
+        }
+        Update: {
+          checkboxes?: Json
+          created_at?: string
+          end_date?: string
+          info_text?: string | null
+          info_title?: string | null
+          name?: string
+          registration_open?: boolean
+          required_availability_pct?: number
+          required_weekly_pct?: number
+          start_date?: string
+          tournament_num?: number
+          updated_at?: string
         }
         Relationships: []
       }
