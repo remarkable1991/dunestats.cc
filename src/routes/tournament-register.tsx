@@ -613,22 +613,6 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className={stats.overallOk ? "text-green-500" : "text-destructive"}>
-                Overall {stats.overall.toFixed(1)}% / {tournament.required_availability_pct}% required
-              </span>
-              {tournament.required_weekly_pct > 0 && stats.weeks.map((w, i) => (
-                <span
-                  key={i}
-                  className={`rounded border px-1.5 py-0.5 ${w.ok ? "border-green-500/40 text-green-500" : "border-destructive/40 text-destructive"}`}
-                >
-                  W{i + 1} {w.pct.toFixed(1)}%
-                </span>
-              ))}
-              {tournament.required_weekly_pct > 0 && (
-                <span className="text-muted-foreground">({tournament.required_weekly_pct}% required per week)</span>
-              )}
-            </div>
 
             {compact && (
               <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-background/40 px-2 py-1.5">
