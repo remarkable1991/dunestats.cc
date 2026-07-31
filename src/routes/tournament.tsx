@@ -1178,7 +1178,7 @@ function FutureTournaments() {
               <div>
                 <h3 className="font-display text-2xl">{t.info_title?.trim() || t.name}</h3>
                 <p className="text-xs text-muted-foreground">
-                  Tournament #{t.tournament_num} · {t.start_date} → {t.end_date} ({tournamentDayCount(t)} days)
+                  Tournament #{t.tournament_num} · {formatLongDate(t.start_date)} → {formatLongDate(t.end_date)} ({tournamentDayCount(t)} days)
                 </p>
               </div>
             </div>
