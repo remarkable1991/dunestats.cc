@@ -683,6 +683,7 @@ export type Database = {
           email: string | null
           id: string
           owns_expansions: boolean
+          timezone: string | null
           tournament_num: number
           updated_at: string
           user_id: string | null
@@ -697,6 +698,7 @@ export type Database = {
           email?: string | null
           id?: string
           owns_expansions?: boolean
+          timezone?: string | null
           tournament_num: number
           updated_at?: string
           user_id?: string | null
@@ -711,6 +713,7 @@ export type Database = {
           email?: string | null
           id?: string
           owns_expansions?: boolean
+          timezone?: string | null
           tournament_num?: number
           updated_at?: string
           user_id?: string | null
