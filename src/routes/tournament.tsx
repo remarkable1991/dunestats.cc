@@ -36,7 +36,15 @@ import uprisingIcon from "@/assets/uprising.png.asset.json";
 import immoIcon from "@/assets/immo.png.asset.json";
 import epicIcon from "@/assets/epic.png.asset.json";
 import { ArrowLeft, Users as UsersIcon, ArrowUp, ArrowDown, ArrowUpDown, Sparkles } from "lucide-react";
-import { TournamentAnnouncement, TournamentCountdown } from "@/components/TournamentCountdown";
+import { TournamentCountdown } from "@/components/TournamentCountdown";
+import {
+  type TournamentConfig,
+  checkinStart,
+  fetchOpenTournaments,
+  registrationClosesAt,
+  tournamentDayCount,
+} from "@/lib/tournaments";
+
 import { AvailabilityHeatmap, type HeatmapPlayer } from "@/components/AvailabilityHeatmap";
 
 export const Route = createFileRoute("/tournament")({
@@ -1127,13 +1135,79 @@ function TournamentPage() {
 }
 
 function FutureTournaments() {
+  const [open, setOpen] = useState<TournamentConfig[] | null>(null);
+
+  useEffect(() => {
+    void (async () => setOpen(await fetchOpenTournaments()))();
+  }, []);
+
+  if (open === null) {
+    return (
+      <Card className="p-6 border-sand/40 text-sm text-muted-foreground flex items-center gap-2">
+        <Loader2 className="size-4 animate-spin" /> Loading tournaments…
+      </Card>
+    );
+  }
+
+  if (open.length === 0) {
+    return (
+      <div className="space-y-6">
+        <Card className="p-6 border-sand/40">
+          <h2 className="font-display text-xl mb-1">No open registrations</h2>
+          <p className="text-sm text-muted-foreground">
+            There are no tournaments open for registration right now. Check the Discord or come back soon.
+          </p>
+        </Card>
+        <TournamentCountdown />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <TournamentAnnouncement />
+      <div>
+        <h2 className="font-display text-xl mb-1">Open for registration</h2>
+        <p className="text-sm text-muted-foreground">
+          {open.length} tournament{open.length === 1 ? "" : "s"} currently accepting registrations.
+        </p>
+      </div>
+
+      {open.map((t) => (
+        <Card key={t.tournament_num} className="p-6 sm:p-8 border-sand/40 bg-gradient-to-br from-card via-card to-card/40 space-y-4">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <Trophy className="size-6 text-sand" />
+              <div>
+                <h3 className="font-display text-2xl">{t.info_title?.trim() || t.name}</h3>
+                <p className="text-xs text-muted-foreground">
+                  Tournament #{t.tournament_num} · {t.start_date} → {t.end_date} ({tournamentDayCount(t)} days)
+                </p>
+              </div>
+            </div>
+            <Button asChild className="bg-sand text-background hover:bg-sand/90">
+              <Link to="/tournament-register" search={{ t: t.tournament_num }}>Register now</Link>
+            </Button>
+          </div>
+
+          {t.info_text?.trim() && (
+            <p className="text-muted-foreground text-sm sm:text-[0.95rem] leading-relaxed whitespace-pre-line">
+              {t.info_text}
+            </p>
+          )}
+
+          <div className="text-xs text-muted-foreground">
+            Check-in opens {checkinStart(t).toLocaleString()} · Registration closes{" "}
+            {registrationClosesAt(t).toLocaleString()} · Minimum availability{" "}
+            {t.required_availability_pct}% overall and {t.required_weekly_pct}% per week
+          </div>
+        </Card>
+      ))}
+
       <TournamentCountdown />
     </div>
   );
 }
+
 
 type TournamentSummaryCard = {
   num: number;
