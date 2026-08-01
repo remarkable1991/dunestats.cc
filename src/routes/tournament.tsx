@@ -1197,8 +1197,17 @@ function FutureTournaments() {
                 </p>
               </div>
             </div>
-            <Button asChild className="bg-sand text-background hover:bg-sand/90">
-              <Link to="/tournament-register" search={{ t: t.tournament_num }}>Register now</Link>
+            <Button
+              asChild
+              className={
+                registered.has(t.tournament_num)
+                  ? "bg-emerald-600 text-white hover:bg-emerald-600/90"
+                  : "bg-sand text-background hover:bg-sand/90"
+              }
+            >
+              <Link to="/tournament-register" search={{ t: t.tournament_num }}>
+                {registered.has(t.tournament_num) ? "Registered! Adjust your registration" : "Register now"}
+              </Link>
             </Button>
           </div>
 
