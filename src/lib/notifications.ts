@@ -127,7 +127,7 @@ export function useNotifications() {
       }));
       await supabase.rpc("dismiss_user_notification", {
         p_notification_type: type,
-        p_reference_id: ref,
+        p_reference_id: ref ?? undefined,
       });
     },
     [],
