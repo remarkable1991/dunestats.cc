@@ -798,6 +798,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_dismissed_notifications: {
+        Row: {
+          dismissed_at: string | null
+          id: string
+          notification_type: string
+          reference_id: string | null
+          user_id: string
+        }
+        Insert: {
+          dismissed_at?: string | null
+          id?: string
+          notification_type: string
+          reference_id?: string | null
+          user_id: string
+        }
+        Update: {
+          dismissed_at?: string | null
+          id?: string
+          notification_type?: string
+          reference_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -879,6 +903,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_user_notifications: { Args: { p_user_id: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
