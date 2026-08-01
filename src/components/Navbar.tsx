@@ -58,6 +58,7 @@ export function Navbar() {
           </Button>
           {userId ? (
             <>
+              <NotificationCenter />
               <Button asChild variant="ghost" size="sm">
                 <Link to="/upload">
                   <Upload className="size-4" />
