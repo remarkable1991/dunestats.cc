@@ -1136,9 +1136,23 @@ function TournamentPage() {
 
 function FutureTournaments() {
   const [open, setOpen] = useState<TournamentConfig[] | null>(null);
+  const [registered, setRegistered] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     void (async () => setOpen(await fetchOpenTournaments()))();
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id;
+      if (!uid) return;
+      const { data } = await supabase
+        .from("tournament_registrations")
+        .select("tournament_num")
+        .eq("user_id", uid);
+      setRegistered(new Set((data ?? []).map((r) => r.tournament_num)));
+    })();
   }, []);
 
   if (open === null) {
@@ -1183,8 +1197,17 @@ function FutureTournaments() {
                 </p>
               </div>
             </div>
-            <Button asChild className="bg-sand text-background hover:bg-sand/90">
-              <Link to="/tournament-register" search={{ t: t.tournament_num }}>Register now</Link>
+            <Button
+              asChild
+              className={
+                registered.has(t.tournament_num)
+                  ? "bg-emerald-600 text-white hover:bg-emerald-600/90"
+                  : "bg-sand text-background hover:bg-sand/90"
+              }
+            >
+              <Link to="/tournament-register" search={{ t: t.tournament_num }}>
+                {registered.has(t.tournament_num) ? "Registered! Adjust your registration" : "Register now"}
+              </Link>
             </Button>
           </div>
 
