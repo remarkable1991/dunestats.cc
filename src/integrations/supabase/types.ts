@@ -358,6 +358,7 @@ export type Database = {
           discord_username: string | null
           has_used_reset: boolean
           id: string
+          last_sign_in_at: string | null
           last_sp_checkin_at: string | null
           pending_signup_sp: number
           referral_phase1_paid: boolean
@@ -372,6 +373,7 @@ export type Database = {
           discord_username?: string | null
           has_used_reset?: boolean
           id: string
+          last_sign_in_at?: string | null
           last_sp_checkin_at?: string | null
           pending_signup_sp?: number
           referral_phase1_paid?: boolean
@@ -386,6 +388,7 @@ export type Database = {
           discord_username?: string | null
           has_used_reset?: boolean
           id?: string
+          last_sign_in_at?: string | null
           last_sp_checkin_at?: string | null
           pending_signup_sp?: number
           referral_phase1_paid?: boolean
@@ -866,6 +869,10 @@ export type Database = {
         Args: { p_game_id: string }
         Returns: Json
       }
+      dismiss_user_notification: {
+        Args: { p_notification_type: string; p_reference_id?: string }
+        Returns: Json
+      }
       get_player_favorite_leaders_for_stats: {
         Args: { p_player_key: string }
         Returns: {
@@ -953,6 +960,7 @@ export type Database = {
         Args: { p_game_id: string }
         Returns: undefined
       }
+      touch_last_sign_in: { Args: never; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
