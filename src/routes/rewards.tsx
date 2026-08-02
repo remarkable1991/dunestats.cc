@@ -211,7 +211,7 @@ function LedgerTable({
               <th className="px-4 py-3 text-left w-12">#</th>
               <th className="px-4 py-3 text-left">Player</th>
               <th className="px-4 py-3 text-left">Status</th>
-              <th className="px-4 py-3 text-right">{column === "seasonal_sp" ? "Seasonal Rewards" : "Lifetime Rewards"}</th>
+              <th className="px-4 py-3 text-right">{column === "seasonal_sp" ? "SEASONAL SP" : "LIFETIME SP"}</th>
             </tr>
           </thead>
           <tbody>
