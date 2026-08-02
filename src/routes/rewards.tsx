@@ -128,7 +128,7 @@ function RewardsPage() {
           <SpLearnMore className="ml-auto" />
         </div>
         <p className="text-muted-foreground mb-6">
-          Rewards are separate from Elo — they reward playing, uploading, verifying matches, competing and recruiting.
+          SP (Strategy Points) are separate from Elo — they reward playing, uploading, verifying matches, competing and recruiting.
           Uploading a match and verifying it give the <span className="text-foreground">identical</span> reward.
         </p>
 
