@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
+import { ALL_LEADERS } from "@/lib/leader-slug";
+import { supabase } from "@/integrations/supabase/client";
 
 const BASE_URL = "https://dunestats.cc";
 
