@@ -1263,7 +1263,8 @@ function CurrentTournamentsHub() {
   }, [search.t]);
 
   useEffect(() => {
-    void (async () => {
+    let cancelled = false;
+    const load = async () => {
       const summaries: TournamentSummaryCard[] = [];
       for (const num of ACTIVE_TOURNAMENTS) {
         const { data } = await supabase
@@ -1278,12 +1279,14 @@ function CurrentTournamentsHub() {
           if (r.placement != null && r.points != null) t.filled += 1;
           tables.set(key, t);
         }
-        const total = tables.size;
         const completed = [...tables.values()].filter((t) => t.filled >= 4).length;
-        const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
         const hasGrand = rows.some((r) => /grand/i.test(r.table_identifier));
         const grandComplete = rows.some((r) => /grand/i.test(r.table_identifier) && r.placement != null);
         const hasSemi = rows.some((r) => /semi/i.test(r.table_identifier));
+        // Expected bracket size: published tables + the finals tables still to come.
+        let total = tables.size;
+        if (hasSemi && !hasGrand) total += 1; // Grand Final still to be published
+        const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
         const phase = grandComplete ? "Champion Crowned" : hasGrand ? "Grand Finals" : hasSemi ? "Semi Finals" : "League Phase";
         const profile = tournamentModes(num);
         summaries.push({
@@ -1302,9 +1305,19 @@ function CurrentTournamentsHub() {
           phase,
         });
       }
-      setCards(summaries.filter((c) => c.totalCells > 0));
-    })();
+      if (!cancelled) setCards(summaries.filter((c) => c.totalCells > 0));
+    };
+    void load();
+    const onFocus = () => { if (document.visibilityState === "visible") void load(); };
+    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("focus", onFocus);
+    };
   }, []);
+
 
   if (selected != null) {
     return (
