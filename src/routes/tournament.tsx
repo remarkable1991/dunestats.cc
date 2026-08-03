@@ -709,25 +709,24 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
               </div>
             </Card>
 
-            {/* Playoff bracket */}
-            <p className="text-xs text-muted-foreground italic">
-              {semisPublished
-                ? "Projected Grand Final based on top 2 of the league standings."
-                : "Projected Semi Finals based on current standings."}
-            </p>
-            <div className={semisPublished ? "grid md:grid-cols-1 gap-4" : "grid md:grid-cols-3 gap-4"}>
-              {!semisPublished && (
-                <>
+            {/* Playoff bracket — projections only while the Semi Finals aren't published yet */}
+            {!semisPublished && (
+              <>
+                <p className="text-xs text-muted-foreground italic">
+                  Projected Semi Finals based on current standings.
+                </p>
+                <div className="grid md:grid-cols-3 gap-4">
                   <BracketCard title="Semi Final 1" players={playoffs.semi1.map((p) => displayMode === "discord" ? p.discord : p.player)} accent="slate" />
                   <BracketCard title="Semi Final 2" players={playoffs.semi2.map((p) => displayMode === "discord" ? p.discord : p.player)} accent="slate" />
-                </>
-              )}
-              <BracketCard title="Grand Final!" players={[
-                ...playoffs.grand.map((p) => displayMode === "discord" ? p.discord : p.player),
-                semiWinners.sf1 ? (displayMode === "discord" ? semiWinners.sf1.discord : semiWinners.sf1.player) : "Winner SF1",
-                semiWinners.sf2 ? (displayMode === "discord" ? semiWinners.sf2.discord : semiWinners.sf2.player) : "Winner SF2",
-              ]} accent="amber" />
-            </div>
+                  <BracketCard title="Grand Final!" players={[
+                    ...playoffs.grand.map((p) => displayMode === "discord" ? p.discord : p.player),
+                    "Winner SF1",
+                    "Winner SF2",
+                  ]} accent="amber" />
+                </div>
+              </>
+            )}
+
 
 
             {/* Match logs */}
