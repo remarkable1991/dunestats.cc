@@ -363,9 +363,13 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
     if (!userId || !semisPublished) return;
     if (grandFinalExists) return;
     if (!semiWinners.sf1 || !semiWinners.sf2) return;
-    const top2 = leagueStandings.slice(0, 2).map((p) => p.player);
-    if (top2.length !== 2) return;
-    const players = Array.from(new Set([top2[0], top2[1], semiWinners.sf1.player, semiWinners.sf2.player]));
+    // Top league finishers that are not already qualified through a Semi Final win.
+    const winners = [semiWinners.sf1.player, semiWinners.sf2.player];
+    const seeds = leagueStandings
+      .map((p) => p.player)
+      .filter((p) => !winners.includes(p))
+      .slice(0, 2);
+    const players = Array.from(new Set([...seeds, ...winners]));
     if (players.length !== 4) return;
     if (promoteGFRef.current) return;
     promoteGFRef.current = true;
@@ -374,9 +378,16 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
         p_tournament_num: tournamentNum,
         p_players: players,
       });
-      if (!error) await refresh();
+      if (error) {
+        promoteGFRef.current = false;
+        toast.error(`Could not publish the Grand Final: ${error.message}`);
+        return;
+      }
+      toast.success("Grand Final table published.");
+      await refresh();
     })();
   }, [userId, semisPublished, grandFinalExists, semiWinners, leagueStandings, tournamentNum]);
+
 
   // Auto-archive the tournament to Hall of Fame once the Grand Final is scored.
   const archiveRef = useRef(false);
