@@ -64,6 +64,8 @@ function toDraft(t: TournamentConfig): Draft {
     checkboxes: t.checkboxes,
     info_title: t.info_title ?? "",
     info_text: t.info_text ?? "",
+    prizes_summary: t.prizes_summary ?? "",
+    prizes_text: t.prizes_text ?? "",
     registration_open: t.registration_open,
     checkin_start_at: toLocalInputValue(t.checkin_start_at),
   };
@@ -87,6 +89,8 @@ function emptyDraft(nextNum: number): Draft {
     ],
     info_title: "",
     info_text: "",
+    prizes_summary: "",
+    prizes_text: "",
     registration_open: true,
     checkin_start_at: toLocalInputValue(new Date(start.getTime() - 86400000).toISOString()),
   };
