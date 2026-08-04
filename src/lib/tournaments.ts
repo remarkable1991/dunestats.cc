@@ -98,6 +98,8 @@ type Row = {
   checkboxes: unknown;
   info_title: string | null;
   info_text: string | null;
+  prizes_summary: string | null;
+  prizes_text: string | null;
   registration_open: boolean;
   checkin_start_at: string | null;
 };
