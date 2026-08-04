@@ -279,6 +279,8 @@ function TournamentForm({
       checkboxes: boxes,
       info_title: draft.info_title.trim() || null,
       info_text: draft.info_text.trim() || null,
+      prizes_summary: draft.prizes_summary.trim() || null,
+      prizes_text: draft.prizes_text.trim() || null,
       registration_open: draft.registration_open,
       checkin_start_at: fromLocalInputValue(draft.checkin_start_at),
     };
@@ -396,7 +398,23 @@ function TournamentForm({
           <Label htmlFor="itxt">Tournament information — text</Label>
           <Textarea id="itxt" rows={5} value={draft.info_text} onChange={(e) => set("info_text", e.target.value)} />
         </div>
+        <div>
+          <Label htmlFor="psum">Prizes — short summary</Label>
+          <Input
+            id="psum"
+            placeholder="e.g. €100 prize pool + exclusive Discord role"
+            value={draft.prizes_summary}
+            onChange={(e) => set("prizes_summary", e.target.value)}
+          />
+          <p className="text-[11px] text-muted-foreground mt-1">One line shown on tournament cards.</p>
+        </div>
+        <div>
+          <Label htmlFor="ptxt">Prizes — full details</Label>
+          <Textarea id="ptxt" rows={5} value={draft.prizes_text} onChange={(e) => set("prizes_text", e.target.value)} />
+          <p className="text-[11px] text-muted-foreground mt-1">Shown behind the "See more" button.</p>
+        </div>
       </div>
+
 
       <label className="flex items-center gap-3 text-sm">
         <Switch checked={draft.registration_open} onCheckedChange={(v) => set("registration_open", v)} />
