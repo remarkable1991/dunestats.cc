@@ -515,12 +515,13 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
           </div>
         </div>
 
-        {(tournament.info_title || tournament.info_text) && (
-          <Card className="p-6 border-sand/40 bg-card/70">
+        {(tournament.info_title || tournament.info_text || tournament.prizes_summary || tournament.prizes_text) && (
+          <Card className="p-6 border-sand/40 bg-card/70 space-y-3">
             {tournament.info_title && <h2 className="font-display text-lg mb-2 text-sand">{tournament.info_title}</h2>}
             {tournament.info_text && (
               <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{tournament.info_text}</p>
             )}
+            <PrizesInfo summary={tournament.prizes_summary} details={tournament.prizes_text} />
           </Card>
         )}
 
