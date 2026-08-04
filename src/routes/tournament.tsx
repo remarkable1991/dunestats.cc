@@ -49,7 +49,36 @@ import {
 import { AvailabilityHeatmap, type HeatmapPlayer } from "@/components/AvailabilityHeatmap";
 
 export const Route = createFileRoute("/tournament")({
-  head: () => ({ meta: [{ title: "Live Tournament · Strategy Arena" }] }),
+  head: () => ({
+    meta: [
+      { title: "Live Tournament · Strategy Arena" },
+      { name: "description", content: "Live Dune Imperium tournament brackets, standings, registration and results on Strategy Arena." },
+      { property: "og:title", content: "Live Tournament · Strategy Arena" },
+      { property: "og:description", content: "Live Dune Imperium tournament brackets, standings, registration and results." },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://dunestats.cc/tournament" },
+    ],
+    links: [{ rel: "canonical", href: "https://dunestats.cc/tournament" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "EventSeries",
+          name: "Strategy Arena Dune Imperium Tournaments",
+          url: "https://dunestats.cc/tournament",
+          eventAttendanceMode: "https://schema.org/OnlineEventAttendanceMode",
+          eventStatus: "https://schema.org/EventScheduled",
+          location: {
+            "@type": "VirtualLocation",
+            url: "https://dunestats.cc/tournament",
+          },
+          organizer: { "@id": "https://dunestats.cc/#organization" },
+          about: "Competitive Dune Imperium tournaments with ELO ratings and leaderboards.",
+        }),
+      },
+    ],
+  }),
   validateSearch: (search: Record<string, unknown>) => ({
     t: search.t == null ? undefined : Number(search.t),
     round: typeof search.round === "string" ? search.round : undefined,
