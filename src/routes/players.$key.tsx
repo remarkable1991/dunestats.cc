@@ -13,7 +13,33 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 
 export const Route = createFileRoute("/players/$key")({
   head: ({ params }) => ({
-    meta: [{ title: `${params.key} · Player profile` }],
+    meta: [
+      { title: `${params.key} · Player profile` },
+      { name: "description", content: `Dune Imperium competitive profile for ${params.key}: ELO rating, win rate, match history and tournament results on Strategy Arena.` },
+      { property: "og:title", content: `${params.key} · Player profile` },
+      { property: "og:description", content: `Dune Imperium competitive profile for ${params.key}: ELO rating, win rate and match history.` },
+      { property: "og:type", content: "profile" },
+      { property: "og:url", content: `https://dunestats.cc/players/${encodeURIComponent(params.key)}` },
+    ],
+    links: [{ rel: "canonical", href: `https://dunestats.cc/players/${encodeURIComponent(params.key)}` }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "ProfilePage",
+          url: `https://dunestats.cc/players/${encodeURIComponent(params.key)}`,
+          name: `${params.key} · Player profile`,
+          isPartOf: { "@id": "https://dunestats.cc/#website" },
+          mainEntity: {
+            "@type": "Person",
+            name: params.key,
+            url: `https://dunestats.cc/players/${encodeURIComponent(params.key)}`,
+            memberOf: { "@id": "https://dunestats.cc/#organization" },
+          },
+        }),
+      },
+    ],
   }),
   component: ProfilePage,
 });
