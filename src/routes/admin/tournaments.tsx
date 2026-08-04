@@ -47,6 +47,8 @@ type Draft = {
   checkboxes: TournamentCheckbox[];
   info_title: string;
   info_text: string;
+  prizes_summary: string;
+  prizes_text: string;
   registration_open: boolean;
   checkin_start_at: string;
 };
