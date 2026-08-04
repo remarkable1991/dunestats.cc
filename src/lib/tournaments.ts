@@ -12,6 +12,8 @@ export type TournamentConfig = {
   checkboxes: TournamentCheckbox[];
   info_title: string | null;
   info_text: string | null;
+  prizes_summary: string | null;
+  prizes_text: string | null;
   registration_open: boolean;
   checkin_start_at: string | null;
 };
@@ -96,6 +98,8 @@ type Row = {
   checkboxes: unknown;
   info_title: string | null;
   info_text: string | null;
+  prizes_summary: string | null;
+  prizes_text: string | null;
   registration_open: boolean;
   checkin_start_at: string | null;
 };
@@ -116,13 +120,15 @@ export function normalizeTournament(row: Row): TournamentConfig {
       .slice(0, MAX_CHECKBOXES),
     info_title: row.info_title,
     info_text: row.info_text,
+    prizes_summary: row.prizes_summary ?? null,
+    prizes_text: row.prizes_text ?? null,
     registration_open: row.registration_open,
     checkin_start_at: row.checkin_start_at ?? null,
   };
 }
 
 const SELECT =
-  "tournament_num, name, start_date, end_date, required_availability_pct, required_weekly_pct, checkboxes, info_title, info_text, registration_open, checkin_start_at";
+  "tournament_num, name, start_date, end_date, required_availability_pct, required_weekly_pct, checkboxes, info_title, info_text, prizes_summary, prizes_text, registration_open, checkin_start_at";
 
 export async function fetchTournaments(): Promise<TournamentConfig[]> {
   const { data, error } = await supabase

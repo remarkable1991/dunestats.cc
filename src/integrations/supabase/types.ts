@@ -762,6 +762,8 @@ export type Database = {
           info_text: string | null
           info_title: string | null
           name: string
+          prizes_summary: string | null
+          prizes_text: string | null
           registration_open: boolean
           required_availability_pct: number
           required_weekly_pct: number
@@ -777,6 +779,8 @@ export type Database = {
           info_text?: string | null
           info_title?: string | null
           name: string
+          prizes_summary?: string | null
+          prizes_text?: string | null
           registration_open?: boolean
           required_availability_pct?: number
           required_weekly_pct?: number
@@ -792,6 +796,8 @@ export type Database = {
           info_text?: string | null
           info_title?: string | null
           name?: string
+          prizes_summary?: string | null
+          prizes_text?: string | null
           registration_open?: boolean
           required_availability_pct?: number
           required_weekly_pct?: number

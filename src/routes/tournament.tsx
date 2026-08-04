@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navbar } from "@/components/Navbar";
+import { PrizesInfo } from "@/components/PrizesInfo";
 import { AdminTournamentsLink } from "@/components/AdminTournamentsLink";
 
 import { Card } from "@/components/ui/card";
@@ -1226,6 +1227,9 @@ function FutureTournaments() {
               {t.info_text}
             </p>
           )}
+
+          <PrizesInfo summary={t.prizes_summary} details={t.prizes_text} />
+
 
           <div className="text-xs text-muted-foreground">
             Check-in opens {checkinStart(t).toLocaleString()} · Tournament starts 24 hours later · Minimum availability{" "}
