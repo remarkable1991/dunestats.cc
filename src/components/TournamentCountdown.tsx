@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PrizesInfo } from "@/components/PrizesInfo";
 import { Trophy, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -113,6 +114,8 @@ export function TournamentCountdown() {
                 {t.info_text}
               </p>
             )}
+
+            <PrizesInfo summary={t.prizes_summary} details={t.prizes_text} />
 
             <div className="text-xs text-muted-foreground">
               Check-in opens {checkinLocal} · Tournament starts 24 hours later · Minimum availability{" "}
