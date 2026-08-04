@@ -108,6 +108,36 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600;700&display=swap",
       },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "Organization",
+              "@id": "https://dunestats.cc/#organization",
+              name: "Strategy Arena",
+              url: "https://dunestats.cc",
+              description: "Community running competitive Dune Imperium tournaments, ELO ratings and leaderboards.",
+              sameAs: [
+                "https://www.instagram.com/strategycommunity/",
+                "https://www.facebook.com/StrategyArena/",
+                "https://discord.gg/XuvUmtcSDQ",
+              ],
+            },
+            {
+              "@type": "WebSite",
+              "@id": "https://dunestats.cc/#website",
+              name: "Strategy Arena",
+              url: "https://dunestats.cc",
+              description: "Dune Imperium tournaments, stats and leaderboards all in one place.",
+              publisher: { "@id": "https://dunestats.cc/#organization" },
+            },
+          ],
+        }),
+      },
+    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,
