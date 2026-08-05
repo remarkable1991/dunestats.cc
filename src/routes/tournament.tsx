@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { PrizesInfo } from "@/components/PrizesInfo";
+import { TruncatedInfoText } from "@/components/TruncatedInfoText";
 import { AdminTournamentsLink } from "@/components/AdminTournamentsLink";
 
 import { Card } from "@/components/ui/card";
@@ -1251,13 +1252,9 @@ function FutureTournaments() {
             </Button>
           </div>
 
-          {t.info_text?.trim() && (
-            <p className="text-muted-foreground text-sm sm:text-[0.95rem] leading-relaxed whitespace-pre-line">
-              {t.info_text}
-            </p>
-          )}
-
           <PrizesInfo summary={t.prizes_summary} details={t.prizes_text} />
+
+          <TruncatedInfoText text={t.info_text} />
 
 
           <div className="text-xs text-muted-foreground">
