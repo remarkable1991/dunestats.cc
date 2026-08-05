@@ -80,7 +80,7 @@ export const Route = createFileRoute("/tournament")({
       },
     ],
   }),
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { t?: number; round?: string; table?: string } => ({
     t: search.t == null ? undefined : Number(search.t),
     round: typeof search.round === "string" ? search.round : undefined,
     table: typeof search.table === "string" ? search.table : undefined,
