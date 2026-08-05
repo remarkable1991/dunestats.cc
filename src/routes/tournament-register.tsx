@@ -432,6 +432,10 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
   const submit = async () => {
     if (!consented) return;
     if (!direwolf.trim()) { toast.error("Direwolf name required"); return; }
+    if (direwolf.includes("+")) {
+      toast.error("Direwolf name cannot contain a \"+\". Please enter your name without the + and anything after it.");
+      return;
+    }
     if (!discord.trim()) { toast.error("Discord username required"); return; }
 
     if (!stats.overallOk) {
