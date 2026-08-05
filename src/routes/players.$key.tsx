@@ -104,6 +104,8 @@ function ProfilePage() {
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [matches, setMatches] = useState<MatchRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [achTab, setAchTab] = useState<"all" | "unlocked" | "progress" | "rare">("all");
   const champions = useChampions();
   const champion = isChampion(champions, playerKey);
   const tournamentWins = winCount(champions, playerKey);
@@ -128,6 +130,37 @@ function ProfilePage() {
       setLoading(false);
     });
   }, [playerKey]);
+
+  useEffect(() => {
+    let mounted = true;
+    supabase
+      .rpc("get_player_achievements", { p_player_key: playerKey })
+      .then(({ data }) => {
+        if (!mounted) return;
+        const list = (data as unknown as { achievements?: Achievement[] } | null)?.achievements ?? [];
+        setAchievements(Array.isArray(list) ? list : []);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [playerKey]);
+
+  const closingIn = useMemo(
+    () =>
+      achievements
+        .filter((a) => !a.is_unlocked && ratio(a) >= 0.6 && ratio(a) < 1)
+        .sort((a, b) => ratio(b) - ratio(a)),
+    [achievements],
+  );
+
+  const shownAchievements = useMemo(() => {
+    const arr = [...achievements];
+    if (achTab === "unlocked") return arr.filter((a) => a.is_unlocked);
+    if (achTab === "progress") return arr.filter((a) => !a.is_unlocked);
+    if (achTab === "rare") return arr.filter((a) => a.rarity === "Rare" || a.rarity === "Legendary");
+    return arr;
+  }, [achievements, achTab]);
+
 
   const displayName = ratings[0]?.display_name ?? playerKey;
   const claimed = ratings.some((r) => r.claimed_by);
