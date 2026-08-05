@@ -10,6 +10,7 @@ import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 import { useChampions, isChampion, winCount } from "@/lib/champions";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { AchievementBadge, ratio, type Achievement } from "@/components/AchievementBadge";
 
 export const Route = createFileRoute("/players/$key")({
   head: ({ params }) => ({
