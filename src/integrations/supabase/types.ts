@@ -879,6 +879,7 @@ export type Database = {
         Args: { p_notification_type: string; p_reference_id?: string }
         Returns: Json
       }
+      get_player_achievements: { Args: { p_player_key: string }; Returns: Json }
       get_player_favorite_leaders_for_stats: {
         Args: { p_player_key: string }
         Returns: {

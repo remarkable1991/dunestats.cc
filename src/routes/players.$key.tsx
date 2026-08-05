@@ -4,12 +4,13 @@ import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
-import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown, Target } from "lucide-react";
 import { ScreenshotButton } from "@/components/ScreenshotButton";
 import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 import { useChampions, isChampion, winCount } from "@/lib/champions";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { AchievementBadge, ratio, type Achievement } from "@/components/AchievementBadge";
 
 export const Route = createFileRoute("/players/$key")({
   head: ({ params }) => ({
@@ -103,6 +104,8 @@ function ProfilePage() {
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [matches, setMatches] = useState<MatchRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [achTab, setAchTab] = useState<"all" | "unlocked" | "progress" | "rare">("all");
   const champions = useChampions();
   const champion = isChampion(champions, playerKey);
   const tournamentWins = winCount(champions, playerKey);
@@ -127,6 +130,37 @@ function ProfilePage() {
       setLoading(false);
     });
   }, [playerKey]);
+
+  useEffect(() => {
+    let mounted = true;
+    supabase
+      .rpc("get_player_achievements", { p_player_key: playerKey })
+      .then(({ data }) => {
+        if (!mounted) return;
+        const list = (data as unknown as { achievements?: Achievement[] } | null)?.achievements ?? [];
+        setAchievements(Array.isArray(list) ? list : []);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [playerKey]);
+
+  const closingIn = useMemo(
+    () =>
+      achievements
+        .filter((a) => !a.is_unlocked && ratio(a) >= 0.6 && ratio(a) < 1)
+        .sort((a, b) => ratio(b) - ratio(a)),
+    [achievements],
+  );
+
+  const shownAchievements = useMemo(() => {
+    const arr = [...achievements];
+    if (achTab === "unlocked") return arr.filter((a) => a.is_unlocked);
+    if (achTab === "progress") return arr.filter((a) => !a.is_unlocked);
+    if (achTab === "rare") return arr.filter((a) => a.rarity === "Rare" || a.rarity === "Legendary");
+    return arr;
+  }, [achievements, achTab]);
+
 
   const displayName = ratings[0]?.display_name ?? playerKey;
   const claimed = ratings.some((r) => r.claimed_by);
@@ -320,6 +354,45 @@ function ProfilePage() {
                 );
               })}
             </div>
+
+            {closingIn.length > 0 && (
+              <section className="mb-8">
+                <h2 className="font-display text-xl mb-3 flex items-center gap-2">
+                  <Target className="size-5 text-sand" /> Closing In
+                </h2>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {closingIn.map((a) => (
+                    <AchievementBadge key={a.id} a={a} featured />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {achievements.length > 0 && (
+              <section className="mb-8">
+                <h2 className="font-display text-xl mb-3 flex items-center gap-2">
+                  <Trophy className="size-5 text-sand" /> Trophy Cabinet
+                </h2>
+                <Tabs value={achTab} onValueChange={(v) => setAchTab(v as typeof achTab)} className="mb-3">
+                  <TabsList className="bg-card/60 border border-border/60">
+                    <TabsTrigger value="all" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">All</TabsTrigger>
+                    <TabsTrigger value="unlocked" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">Unlocked</TabsTrigger>
+                    <TabsTrigger value="progress" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">In Progress</TabsTrigger>
+                    <TabsTrigger value="rare" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">Rare &amp; Legendary</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {shownAchievements.map((a) => (
+                    <AchievementBadge key={a.id} a={a} />
+                  ))}
+                  {shownAchievements.length === 0 && (
+                    <p className="text-muted-foreground text-sm">Nothing here yet.</p>
+                  )}
+                </div>
+              </section>
+            )}
+
+
 
             <h2 className="font-display text-xl mb-3 flex items-center gap-2">
               <Medal className="size-5 text-sand" /> Leaders played

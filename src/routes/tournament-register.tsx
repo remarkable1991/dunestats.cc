@@ -24,7 +24,7 @@ import {
 import discordHint from "@/assets/discord-hint.png.asset.json";
 
 export const Route = createFileRoute("/tournament-register")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { t?: number } => ({
     t: search.t != null && Number.isFinite(Number(search.t)) ? Number(search.t) : undefined,
   }),
   head: () => ({
