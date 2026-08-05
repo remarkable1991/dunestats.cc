@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { PrizesInfo } from "@/components/PrizesInfo";
+import { TruncatedInfoText } from "@/components/TruncatedInfoText";
 import { AdminTournamentsLink } from "@/components/AdminTournamentsLink";
 
 import { Card } from "@/components/ui/card";
