@@ -355,6 +355,45 @@ function ProfilePage() {
               })}
             </div>
 
+            {closingIn.length > 0 && (
+              <section className="mb-8">
+                <h2 className="font-display text-xl mb-3 flex items-center gap-2">
+                  <Target className="size-5 text-sand" /> Closing In
+                </h2>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {closingIn.map((a) => (
+                    <AchievementBadge key={a.id} a={a} featured />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {achievements.length > 0 && (
+              <section className="mb-8">
+                <h2 className="font-display text-xl mb-3 flex items-center gap-2">
+                  <Trophy className="size-5 text-sand" /> Trophy Cabinet
+                </h2>
+                <Tabs value={achTab} onValueChange={(v) => setAchTab(v as typeof achTab)} className="mb-3">
+                  <TabsList className="bg-card/60 border border-border/60">
+                    <TabsTrigger value="all" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">All</TabsTrigger>
+                    <TabsTrigger value="unlocked" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">Unlocked</TabsTrigger>
+                    <TabsTrigger value="progress" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">In Progress</TabsTrigger>
+                    <TabsTrigger value="rare" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">Rare &amp; Legendary</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {shownAchievements.map((a) => (
+                    <AchievementBadge key={a.id} a={a} />
+                  ))}
+                  {shownAchievements.length === 0 && (
+                    <p className="text-muted-foreground text-sm">Nothing here yet.</p>
+                  )}
+                </div>
+              </section>
+            )}
+
+
+
             <h2 className="font-display text-xl mb-3 flex items-center gap-2">
               <Medal className="size-5 text-sand" /> Leaders played
             </h2>
