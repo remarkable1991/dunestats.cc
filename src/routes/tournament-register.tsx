@@ -432,6 +432,10 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
   const submit = async () => {
     if (!consented) return;
     if (!direwolf.trim()) { toast.error("Direwolf name required"); return; }
+    if (direwolf.includes("+")) {
+      toast.error("Direwolf name cannot contain a \"+\". Please enter your name without the + and anything after it.");
+      return;
+    }
     if (!discord.trim()) { toast.error("Discord username required"); return; }
 
     if (!stats.overallOk) {
@@ -562,8 +566,20 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="direwolf">Direwolf Name <span className="text-destructive">*</span></Label>
-                <Input id="direwolf" value={direwolf} onChange={(e) => setDirewolf(e.target.value)} placeholder="Your in-game name" />
+                <Input
+                  id="direwolf"
+                  value={direwolf}
+                  onChange={(e) => setDirewolf(e.target.value)}
+                  placeholder="Your in-game name"
+                  aria-invalid={direwolf.includes("+")}
+                />
+                {direwolf.includes("+") && (
+                  <p className="text-[11px] text-destructive mt-1">
+                    Your Direwolf name can't contain a "+". Enter the name without the + and anything after it.
+                  </p>
+                )}
               </div>
+
 
               <div>
                 <Label htmlFor="email">Email Address (optional)</Label>
