@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { SupabaseImage } from "@/components/SupabaseImage";
 import { useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
@@ -361,7 +362,7 @@ function MatchesPage() {
                             >
                               <div className="size-9 rounded overflow-hidden border border-border/50 bg-card/60">
                                 {portrait ? (
-                                  <img src={portrait} alt="" className="w-full h-full object-cover" />
+                                  <SupabaseImage src={portrait} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full" />
                                 )}
