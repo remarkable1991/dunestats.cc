@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SupabaseImage } from "@/components/SupabaseImage";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Image as ImageIcon, Loader2 } from "lucide-react";
@@ -47,7 +48,7 @@ export function ScreenshotButton({ url, label = "View screenshot" }: { url: stri
             <Loader2 className="size-6 animate-spin" />
           </div>
         ) : (
-          <img src={resolved} alt="Match screenshot" className="w-full h-auto rounded max-h-[80vh] object-contain" />
+          <SupabaseImage src={resolved} alt="Match screenshot" className="w-full h-auto rounded max-h-[80vh] object-contain" />
         )}
       </DialogContent>
     </Dialog>

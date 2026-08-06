@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { SupabaseImage } from "@/components/SupabaseImage";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
@@ -283,7 +284,7 @@ function LeaderDetail() {
           {/* Portrait */}
           <div className="relative w-24 h-24 md:w-40 md:h-40 aspect-square rounded-xl overflow-hidden border border-border/60 bg-card/60 shrink-0">
             {portraitUrl ? (
-              <img src={portraitUrl} alt={`${leader.name} portrait`} className="w-full h-full object-cover" />
+              <SupabaseImage src={portraitUrl} alt={`${leader.name} portrait`} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full grid place-items-center text-muted-foreground">
                 <ImagePlus className="size-8 opacity-50" />
@@ -442,7 +443,7 @@ function LeaderDetail() {
             onClick={() => cardUrl && setCardOpen(true)}
           >
             {cardUrl ? (
-              <img src={cardUrl} alt={`${leader.name} card`} className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform" />
+              <SupabaseImage src={cardUrl} alt={`${leader.name} card`} className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform" />
             ) : (
               <div className="w-full h-full grid place-items-center text-muted-foreground">
                 <ImagePlus className="size-10 opacity-50" />
@@ -494,7 +495,7 @@ function LeaderDetail() {
           >
             <X className="size-6" />
           </button>
-          <img
+          <SupabaseImage
             src={cardUrl}
             alt={`${leader.name} card`}
             className="max-w-full max-h-full rounded-xl shadow-2xl"

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { SupabaseImage } from "@/components/SupabaseImage";
 import { useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
@@ -307,7 +308,7 @@ function MatchDetailsPage() {
                         >
                           <div className="size-10 rounded overflow-hidden border border-border/50 bg-card/60">
                             {portrait ? (
-                              <img src={portrait} alt="" className="w-full h-full object-cover" />
+                              <SupabaseImage src={portrait} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full" />
                             )}
@@ -364,7 +365,7 @@ function MatchDetailsPage() {
                 <DialogTrigger asChild>
                   <button className="relative group w-full aspect-video rounded overflow-hidden border border-border/50 bg-background/40 flex items-center justify-center">
                     {signedImg ? (
-                      <img src={signedImg} alt="Match screenshot preview" className="w-full h-full object-cover" />
+                      <SupabaseImage src={signedImg} alt="Match screenshot preview" className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-xs text-muted-foreground">
                         {imgLoading ? <Loader2 className="size-4 animate-spin" /> : "Loading…"}
@@ -381,7 +382,7 @@ function MatchDetailsPage() {
                       <Loader2 className="size-6 animate-spin" />
                     </div>
                   ) : (
-                    <img src={signedImg} alt="Match screenshot" className="w-full h-auto rounded max-h-[80vh] object-contain" />
+                    <SupabaseImage src={signedImg} alt="Match screenshot" className="w-full h-auto rounded max-h-[80vh] object-contain" />
                   )}
                 </DialogContent>
               </Dialog>
