@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SupabaseImage } from "@/components/SupabaseImage";
+import { signedUrlOrR2 } from "@/lib/storage-r2";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { PrizesInfo } from "@/components/PrizesInfo";
@@ -1072,11 +1073,7 @@ function ScreenshotLightbox({ path, trigger }: { path: string; trigger?: React.R
   const onOpen = async (next: boolean) => {
     setOpen(next);
     if (next && !url) {
-      if (/^https?:\/\//i.test(path)) setUrl(path);
-      else {
-        const { data } = await supabase.storage.from("match-screenshots").createSignedUrl(path, 3600);
-        setUrl(data?.signedUrl ?? null);
-      }
+      setUrl(await signedUrlOrR2("match-screenshots", path, 3600));
     }
   };
   return (
@@ -1085,7 +1082,7 @@ function ScreenshotLightbox({ path, trigger }: { path: string; trigger?: React.R
         {trigger ?? <button className="text-sand hover:text-sand/80" title="View screenshot"><ImageIcon className="size-4" /></button>}
       </DialogTrigger>
       <DialogContent className="max-w-4xl p-2 bg-background/95 backdrop-blur-md">
-        {url ? <SupabaseImage src={url} alt="Screenshot" className="w-full h-auto rounded max-h-[80vh] object-contain" /> : <div className="flex justify-center py-12"><Loader2 className="size-6 animate-spin" /></div>}
+        {url ? <SupabaseImage bucket="match-screenshots" src={url} alt="Screenshot" className="w-full h-auto rounded max-h-[80vh] object-contain" /> : <div className="flex justify-center py-12"><Loader2 className="size-6 animate-spin" /></div>}
         <div className="flex justify-end mt-2"><Button variant="outline" size="sm" onClick={() => setOpen(false)}>Close</Button></div>
       </DialogContent>
     </Dialog>

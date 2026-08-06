@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { signedUrlOrR2 } from "@/lib/storage-r2";
 
 // In-memory cache of slug -> signed URL (or null when missing).
 const cache = new Map<string, string | null>();
@@ -10,10 +10,7 @@ function fetchPortrait(slug: string): Promise<string | null> {
   const existing = inflight.get(slug);
   if (existing) return existing;
   const p = (async () => {
-    const { data } = await supabase.storage
-      .from("leader-portraits")
-      .createSignedUrl(`${slug}.jpg`, 3600);
-    const url = data?.signedUrl ?? null;
+    const url = await signedUrlOrR2("leader-portraits", `${slug}.jpg`, 3600);
     cache.set(slug, url);
     inflight.delete(slug);
     return url;
