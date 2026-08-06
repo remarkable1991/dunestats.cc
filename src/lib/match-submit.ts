@@ -63,20 +63,20 @@ export async function submitMatch(input: SubmitMatchInput): Promise<SubmitMatchR
     if (dup) return { status: "duplicate" };
   }
 
-  // 1. Screenshot upload
+  // 1. Screenshot upload (Supabase + Cloudflare R2 backup)
   let screenshotPath: string | null = null;
   if (input.file) {
     const ext = (input.file.name.split(".").pop() || "png").toLowerCase();
     const path = `${input.userId}/${crypto.randomUUID()}.${ext}`;
+    const contentType = input.file.type || "image/png";
     const { error: upErr } = await supabase.storage
       .from("match-screenshots")
-      .upload(path, input.file, {
-        contentType: input.file.type || "image/png",
-        upsert: false,
-      });
+      .upload(path, input.file, { contentType, upsert: false });
     if (upErr) throw upErr;
     screenshotPath = path;
+    void mirrorFileToR2("match-screenshots", path, contentType, input.file);
   }
+
 
   // 2. Save globally
   const saveResult = await saveGame({
