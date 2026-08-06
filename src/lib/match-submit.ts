@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { saveGame } from "@/lib/games.functions";
+import { mirrorFileToR2 } from "@/lib/storage-r2";
 
 export type SubmitMatchRow = {
   placement: number;

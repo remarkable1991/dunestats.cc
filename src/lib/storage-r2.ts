@@ -80,3 +80,27 @@ export async function signedUrlOrR2(
     return r2UrlFor(bucket, filePath);
   }
 }
+
+/**
+ * Fire-and-forget backup of an uploaded file into the matching R2 bucket.
+ * Never throws — the Supabase upload is the source of truth.
+ */
+export async function mirrorFileToR2(
+  bucket: string,
+  path: string,
+  contentType: string,
+  file: Blob,
+): Promise<void> {
+  try {
+    const buf = new Uint8Array(await file.arrayBuffer());
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < buf.length; i += chunk) {
+      binary += String.fromCharCode(...buf.subarray(i, i + chunk));
+    }
+    const { mirrorToR2 } = await import("@/lib/r2-mirror.functions");
+    await mirrorToR2({ data: { bucket, path, contentType, base64: btoa(binary) } });
+  } catch (e) {
+    console.warn("[storage] R2 mirror failed", e);
+  }
+}
