@@ -1,5 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { SupabaseImage } from "@/components/SupabaseImage";
+import { signedUrlOrR2 } from "@/lib/storage-r2";
 import { useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
@@ -155,10 +156,7 @@ function MatchDetailsPage() {
       return;
     }
     setImgLoading(true);
-    const { data } = await supabase.storage
-      .from("match-screenshots")
-      .createSignedUrl(game.image_url, 60 * 60);
-    setSignedImg(data?.signedUrl ?? null);
+    setSignedImg(await signedUrlOrR2("match-screenshots", game.image_url, 60 * 60));
     setImgLoading(false);
   };
 
@@ -308,7 +306,7 @@ function MatchDetailsPage() {
                         >
                           <div className="size-10 rounded overflow-hidden border border-border/50 bg-card/60">
                             {portrait ? (
-                              <SupabaseImage src={portrait} alt="" className="w-full h-full object-cover" />
+                              <SupabaseImage bucket="leader-portraits" src={portrait} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full" />
                             )}
@@ -365,7 +363,7 @@ function MatchDetailsPage() {
                 <DialogTrigger asChild>
                   <button className="relative group w-full aspect-video rounded overflow-hidden border border-border/50 bg-background/40 flex items-center justify-center">
                     {signedImg ? (
-                      <SupabaseImage src={signedImg} alt="Match screenshot preview" className="w-full h-full object-cover" />
+                      <SupabaseImage bucket="match-screenshots" src={signedImg} alt="Match screenshot preview" className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-xs text-muted-foreground">
                         {imgLoading ? <Loader2 className="size-4 animate-spin" /> : "Loading…"}
@@ -382,7 +380,7 @@ function MatchDetailsPage() {
                       <Loader2 className="size-6 animate-spin" />
                     </div>
                   ) : (
-                    <SupabaseImage src={signedImg} alt="Match screenshot" className="w-full h-auto rounded max-h-[80vh] object-contain" />
+                    <SupabaseImage bucket="match-screenshots" src={signedImg} alt="Match screenshot" className="w-full h-auto rounded max-h-[80vh] object-contain" />
                   )}
                 </DialogContent>
               </Dialog>

@@ -3,7 +3,7 @@ import { SupabaseImage } from "@/components/SupabaseImage";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Image as ImageIcon, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { signedUrlOrR2 } from "@/lib/storage-r2";
 
 /**
  * Renders a small icon button. On click, opens a lightbox showing the
@@ -18,12 +18,8 @@ export function ScreenshotButton({ url, label = "View screenshot" }: { url: stri
   const onOpenChange = async (next: boolean) => {
     setOpen(next);
     if (next && !resolved) {
-      if (/^https?:\/\//i.test(url)) { setResolved(url); return; }
       setLoading(true);
-      const { data } = await supabase.storage
-        .from("match-screenshots")
-        .createSignedUrl(url, 60 * 60);
-      setResolved(data?.signedUrl ?? null);
+      setResolved(await signedUrlOrR2("match-screenshots", url, 60 * 60));
       setLoading(false);
     }
   };
@@ -48,7 +44,7 @@ export function ScreenshotButton({ url, label = "View screenshot" }: { url: stri
             <Loader2 className="size-6 animate-spin" />
           </div>
         ) : (
-          <SupabaseImage src={resolved} alt="Match screenshot" className="w-full h-auto rounded max-h-[80vh] object-contain" />
+          <SupabaseImage bucket="match-screenshots" src={resolved} alt="Match screenshot" className="w-full h-auto rounded max-h-[80vh] object-contain" />
         )}
       </DialogContent>
     </Dialog>
