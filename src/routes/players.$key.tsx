@@ -476,9 +476,10 @@ function ProfilePage() {
 
 
 
-            <h2 className="font-display text-xl mb-3 flex items-center gap-2">
-              <Medal className="size-5 text-sand" /> Leaders played
+            <h2 id="leader-stats" className="font-display text-xl mb-3 flex items-center gap-2 scroll-mt-24">
+              <Medal className="size-5 text-sand" /> Leader Stats
             </h2>
+
             <div className="flex flex-wrap items-center gap-3 mb-3">
               <Tabs value={version} onValueChange={(v) => setVersion(v as GameVersion)}>
                 <TabsList className="bg-card/60 border border-border/60">
@@ -529,9 +530,10 @@ function ProfilePage() {
               </table>
             </Card>
 
-            <h2 className="font-display text-xl mb-3 flex items-center gap-2">
-              <Trophy className="size-5 text-sand" /> Recent matches
+            <h2 id="match-history" className="font-display text-xl mb-3 flex items-center gap-2 scroll-mt-24">
+              <History className="size-5 text-sand" /> Match History
             </h2>
+
             <Card className="p-0 overflow-hidden border-border/60 bg-card/70">
               <table className="w-full text-sm">
                 <thead>
