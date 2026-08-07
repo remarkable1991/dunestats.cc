@@ -1,4 +1,14 @@
+import { useEffect, useMemo, useState } from "react";
 import { Lock } from "lucide-react";
+import { RankEmblem } from "@/components/RankEmblem";
+
+export type AchievementTier = {
+  tier: string;
+  req: string | null;
+  target: number;
+  current: number;
+  is_unlocked: boolean;
+};
 
 export type Achievement = {
   id: string;
@@ -10,7 +20,9 @@ export type Achievement = {
   category: string;
   description: string;
   is_unlocked: boolean;
+  is_seasonal?: boolean | null;
   missing_items: string[] | null;
+  tiers?: AchievementTier[] | null;
 };
 
 export const TIER_ICON: Record<string, string> = {
@@ -19,6 +31,8 @@ export const TIER_ICON: Record<string, string> = {
   Gold: "🥇",
   Platinum: "💎",
 };
+
+export const TIER_ORDER = ["Bronze", "Silver", "Gold", "Platinum"];
 
 const RARITY_STYLE: Record<string, string> = {
   Common: "border-border/70 bg-card/60",
@@ -40,29 +54,58 @@ export function ratio(a: Achievement) {
   return Math.min(1, a.current / a.target);
 }
 
+function sortTiers(tiers: AchievementTier[]) {
+  return [...tiers].sort(
+    (x, y) => TIER_ORDER.indexOf(x.tier) - TIER_ORDER.indexOf(y.tier),
+  );
+}
+
+/** Tier that should be selected by default: first in-progress, else highest unlocked. */
+function defaultTierIndex(tiers: AchievementTier[]) {
+  const firstLocked = tiers.findIndex((t) => !t.is_unlocked);
+  if (firstLocked !== -1) return firstLocked;
+  return tiers.length - 1;
+}
+
 export function AchievementBadge({ a, featured = false }: { a: Achievement; featured?: boolean }) {
-  const pct = Math.round(ratio(a) * 100);
+  const tiers = useMemo(() => sortTiers(a.tiers ?? []), [a.tiers]);
+  const [active, setActive] = useState(() => (tiers.length ? defaultTierIndex(tiers) : 0));
+  useEffect(() => {
+    setActive(tiers.length ? defaultTierIndex(tiers) : 0);
+  }, [tiers]);
+
+  const sel = tiers[active];
+  const current = sel ? sel.current : a.current;
+  const target = sel ? sel.target : a.target;
+  const unlocked = sel ? sel.is_unlocked : a.is_unlocked;
+  const tierName = sel ? sel.tier : a.tier;
+  const pct = target ? Math.round(Math.min(1, current / target) * 100) : 0;
+
+  // Missing items are reported for the achievement's current working tier only.
+  const isCurrentTier = !sel || sel.tier === a.tier;
   const missing = (a.missing_items ?? []).filter(Boolean);
-  const showMissing = !a.is_unlocked && missing.length > 0;
+  const showMissing = !unlocked && isCurrentTier && missing.length > 0;
+
+  const description = sel?.req
+    ? `(${sel.tier} Target) ${sel.req} — ${a.description.replace(/^\([^)]*\)\s*/, "")}`
+    : a.description;
 
   return (
     <div
       className={`relative overflow-hidden rounded-lg border p-4 transition ${
         RARITY_STYLE[a.rarity] ?? RARITY_STYLE.Common
-      } ${a.is_unlocked ? "" : "opacity-95"} ${featured ? "ring-1 ring-sand/30" : ""}`}
+      } ${unlocked ? "ring-2 ring-sand/60" : "opacity-95"} ${featured ? "ring-1 ring-sand/30" : ""}`}
     >
-      {!a.is_unlocked && (
+      {!unlocked && (
         <div className="pointer-events-none absolute inset-0 bg-background/50" aria-hidden />
       )}
       <div className="relative">
         <div className="flex items-start gap-2">
-          <span className="text-xl leading-none" aria-hidden>
-            {TIER_ICON[a.tier] ?? "🏅"}
-          </span>
+          <RankEmblem tier={tierName} size={34} muted={!unlocked} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="font-display text-sm truncate">{a.title}</h3>
-              {!a.is_unlocked && <Lock className="size-3.5 text-muted-foreground shrink-0" />}
+              {!unlocked && <Lock className="size-3.5 text-muted-foreground shrink-0" />}
             </div>
             <div className="text-[11px] uppercase tracking-wider flex items-center gap-2">
               <span className={RARITY_TEXT[a.rarity] ?? RARITY_TEXT.Common}>{a.rarity}</span>
@@ -71,22 +114,46 @@ export function AchievementBadge({ a, featured = false }: { a: Achievement; feat
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground mt-2">{a.description}</p>
+        {tiers.length > 1 && (
+          <div className="mt-3 flex flex-wrap gap-1">
+            {tiers.map((t, i) => {
+              const isActive = i === active;
+              const future = !t.is_unlocked && i > defaultTierIndex(tiers);
+              return (
+                <button
+                  key={t.tier}
+                  type="button"
+                  onClick={() => setActive(i)}
+                  aria-pressed={isActive}
+                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider transition ${
+                    isActive
+                      ? "border-sand/70 bg-sand/15 text-sand"
+                      : "border-border/60 bg-secondary/40 text-muted-foreground hover:border-sand/40"
+                  } ${future ? "opacity-60" : ""}`}
+                >
+                  <RankEmblem tier={t.tier} size={14} muted={!t.is_unlocked} />
+                  {t.tier}
+                  {!t.is_unlocked && <Lock className="size-2.5" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <p className="text-xs text-muted-foreground mt-2">{description}</p>
 
         <div className="mt-3">
           <div className="h-2 w-full rounded-full bg-secondary/60 overflow-hidden">
             <div
-              className={`h-full rounded-full ${
-                a.is_unlocked ? "bg-teal" : "bg-sand"
-              }`}
+              className={`h-full rounded-full ${unlocked ? "bg-teal" : "bg-sand"}`}
               style={{ width: `${pct}%` }}
             />
           </div>
           <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
             <span>
-              {Math.min(a.current, a.target)} / {a.target}
+              {Math.min(current, target)} / {target}
             </span>
-            <span>{a.is_unlocked ? "Unlocked" : `${pct}%`}</span>
+            <span>{unlocked ? "Unlocked" : `${pct}%`}</span>
           </div>
         </div>
 

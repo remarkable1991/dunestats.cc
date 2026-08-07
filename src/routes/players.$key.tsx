@@ -4,7 +4,7 @@ import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
-import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown, Target } from "lucide-react";
+import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown, Target, History, type LucideIcon } from "lucide-react";
 import { ScreenshotButton } from "@/components/ScreenshotButton";
 import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 import { useChampions, isChampion, winCount } from "@/lib/champions";
@@ -98,7 +98,38 @@ function TriSelect({ label, value, onChange }: { label: string; value: TriState;
   );
 }
 
+function QuickJump({
+  icon: Icon,
+  title,
+  subtitle,
+  target,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+  target: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" })
+      }
+      className="group flex items-start gap-3 rounded-lg border border-border/60 bg-card/70 p-4 text-left transition hover:border-sand/60 hover:bg-card"
+    >
+      <span className="rounded-md border border-sand/30 bg-sand/10 p-2 text-sand">
+        <Icon className="size-5" />
+      </span>
+      <span className="min-w-0">
+        <span className="block font-display text-sm group-hover:text-sand transition-colors">{title}</span>
+        <span className="block text-xs text-muted-foreground">{subtitle}</span>
+      </span>
+    </button>
+  );
+}
+
 function ProfilePage() {
+
   const { key } = Route.useParams();
   const playerKey = decodeURIComponent(key).toLowerCase().trim();
   const [ratings, setRatings] = useState<Rating[]>([]);
@@ -106,6 +137,8 @@ function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [achTab, setAchTab] = useState<"all" | "unlocked" | "progress" | "rare">("all");
+  const [achScope, setAchScope] = useState<"lifetime" | "seasonal">("lifetime");
+
   const champions = useChampions();
   const champion = isChampion(champions, playerKey);
   const tournamentWins = winCount(champions, playerKey);
@@ -153,13 +186,19 @@ function ProfilePage() {
     [achievements],
   );
 
+  const scopedAchievements = useMemo(
+    () => achievements.filter((a) => Boolean(a.is_seasonal) === (achScope === "seasonal")),
+    [achievements, achScope],
+  );
+
   const shownAchievements = useMemo(() => {
-    const arr = [...achievements];
+    const arr = [...scopedAchievements];
     if (achTab === "unlocked") return arr.filter((a) => a.is_unlocked);
     if (achTab === "progress") return arr.filter((a) => !a.is_unlocked);
     if (achTab === "rare") return arr.filter((a) => a.rarity === "Rare" || a.rarity === "Legendary");
     return arr;
-  }, [achievements, achTab]);
+  }, [scopedAchievements, achTab]);
+
 
 
   const displayName = ratings[0]?.display_name ?? playerKey;
@@ -355,6 +394,27 @@ function ProfilePage() {
               })}
             </div>
 
+            <div className="grid gap-3 sm:grid-cols-3 mb-8">
+              <QuickJump
+                icon={Trophy}
+                title="Achievements & Trophies"
+                subtitle="Track lifetime & seasonal milestones"
+                target="achievements"
+              />
+              <QuickJump
+                icon={Medal}
+                title="Leader Stats"
+                subtitle="Pick rate, win rate & points per leader"
+                target="leader-stats"
+              />
+              <QuickJump
+                icon={History}
+                title="Match History"
+                subtitle="Recent game logs, placement & ELO deltas"
+                target="match-history"
+              />
+            </div>
+
             {closingIn.length > 0 && (
               <section className="mb-8">
                 <h2 className="font-display text-xl mb-3 flex items-center gap-2">
@@ -369,18 +429,39 @@ function ProfilePage() {
             )}
 
             {achievements.length > 0 && (
-              <section className="mb-8">
+              <section id="achievements" className="mb-8 scroll-mt-24">
                 <h2 className="font-display text-xl mb-3 flex items-center gap-2">
                   <Trophy className="size-5 text-sand" /> Trophy Cabinet
                 </h2>
-                <Tabs value={achTab} onValueChange={(v) => setAchTab(v as typeof achTab)} className="mb-3">
-                  <TabsList className="bg-card/60 border border-border/60">
-                    <TabsTrigger value="all" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">All</TabsTrigger>
-                    <TabsTrigger value="unlocked" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">Unlocked</TabsTrigger>
-                    <TabsTrigger value="progress" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">In Progress</TabsTrigger>
-                    <TabsTrigger value="rare" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">Rare &amp; Legendary</TabsTrigger>
-                  </TabsList>
-                </Tabs>
+                <div className="flex flex-wrap items-center gap-3 mb-3">
+                  <div className="inline-flex rounded-full border border-border/60 bg-card/60 p-0.5">
+                    {([
+                      { v: "lifetime", label: "Lifetime" },
+                      { v: "seasonal", label: "Current Season" },
+                    ] as const).map((s) => (
+                      <button
+                        key={s.v}
+                        type="button"
+                        onClick={() => setAchScope(s.v)}
+                        className={`rounded-full px-3 py-1 text-xs transition ${
+                          achScope === s.v
+                            ? "bg-sand text-sand-foreground"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                  <Tabs value={achTab} onValueChange={(v) => setAchTab(v as typeof achTab)}>
+                    <TabsList className="bg-card/60 border border-border/60">
+                      <TabsTrigger value="all" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">All</TabsTrigger>
+                      <TabsTrigger value="unlocked" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">Unlocked</TabsTrigger>
+                      <TabsTrigger value="progress" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">In Progress</TabsTrigger>
+                      <TabsTrigger value="rare" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">Rare &amp; Legendary</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {shownAchievements.map((a) => (
                     <AchievementBadge key={a.id} a={a} />
@@ -394,9 +475,11 @@ function ProfilePage() {
 
 
 
-            <h2 className="font-display text-xl mb-3 flex items-center gap-2">
-              <Medal className="size-5 text-sand" /> Leaders played
+
+            <h2 id="leader-stats" className="font-display text-xl mb-3 flex items-center gap-2 scroll-mt-24">
+              <Medal className="size-5 text-sand" /> Leader Stats
             </h2>
+
             <div className="flex flex-wrap items-center gap-3 mb-3">
               <Tabs value={version} onValueChange={(v) => setVersion(v as GameVersion)}>
                 <TabsList className="bg-card/60 border border-border/60">
@@ -447,9 +530,10 @@ function ProfilePage() {
               </table>
             </Card>
 
-            <h2 className="font-display text-xl mb-3 flex items-center gap-2">
-              <Trophy className="size-5 text-sand" /> Recent matches
+            <h2 id="match-history" className="font-display text-xl mb-3 flex items-center gap-2 scroll-mt-24">
+              <History className="size-5 text-sand" /> Match History
             </h2>
+
             <Card className="p-0 overflow-hidden border-border/60 bg-card/70">
               <table className="w-full text-sm">
                 <thead>
