@@ -98,7 +98,38 @@ function TriSelect({ label, value, onChange }: { label: string; value: TriState;
   );
 }
 
+function QuickJump({
+  icon: Icon,
+  title,
+  subtitle,
+  target,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+  target: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" })
+      }
+      className="group flex items-start gap-3 rounded-lg border border-border/60 bg-card/70 p-4 text-left transition hover:border-sand/60 hover:bg-card"
+    >
+      <span className="rounded-md border border-sand/30 bg-sand/10 p-2 text-sand">
+        <Icon className="size-5" />
+      </span>
+      <span className="min-w-0">
+        <span className="block font-display text-sm group-hover:text-sand transition-colors">{title}</span>
+        <span className="block text-xs text-muted-foreground">{subtitle}</span>
+      </span>
+    </button>
+  );
+}
+
 function ProfilePage() {
+
   const { key } = Route.useParams();
   const playerKey = decodeURIComponent(key).toLowerCase().trim();
   const [ratings, setRatings] = useState<Rating[]>([]);
