@@ -882,6 +882,7 @@ export type Database = {
       get_all_storage_files: {
         Args: { bucket_name: string }
         Returns: {
+          created_at: string
           file_path: string
         }[]
       }
