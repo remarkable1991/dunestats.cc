@@ -363,6 +363,27 @@ function ProfilePage() {
               })}
             </div>
 
+            <div className="grid gap-3 sm:grid-cols-3 mb-8">
+              <QuickJump
+                icon={Trophy}
+                title="Achievements & Trophies"
+                subtitle="Track lifetime & seasonal milestones"
+                target="achievements"
+              />
+              <QuickJump
+                icon={Medal}
+                title="Leader Stats"
+                subtitle="Pick rate, win rate & points per leader"
+                target="leader-stats"
+              />
+              <QuickJump
+                icon={History}
+                title="Match History"
+                subtitle="Recent game logs, placement & ELO deltas"
+                target="match-history"
+              />
+            </div>
+
             {closingIn.length > 0 && (
               <section className="mb-8">
                 <h2 className="font-display text-xl mb-3 flex items-center gap-2">
@@ -377,18 +398,39 @@ function ProfilePage() {
             )}
 
             {achievements.length > 0 && (
-              <section className="mb-8">
+              <section id="achievements" className="mb-8 scroll-mt-24">
                 <h2 className="font-display text-xl mb-3 flex items-center gap-2">
                   <Trophy className="size-5 text-sand" /> Trophy Cabinet
                 </h2>
-                <Tabs value={achTab} onValueChange={(v) => setAchTab(v as typeof achTab)} className="mb-3">
-                  <TabsList className="bg-card/60 border border-border/60">
-                    <TabsTrigger value="all" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">All</TabsTrigger>
-                    <TabsTrigger value="unlocked" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">Unlocked</TabsTrigger>
-                    <TabsTrigger value="progress" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">In Progress</TabsTrigger>
-                    <TabsTrigger value="rare" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">Rare &amp; Legendary</TabsTrigger>
-                  </TabsList>
-                </Tabs>
+                <div className="flex flex-wrap items-center gap-3 mb-3">
+                  <div className="inline-flex rounded-full border border-border/60 bg-card/60 p-0.5">
+                    {([
+                      { v: "lifetime", label: "Lifetime" },
+                      { v: "seasonal", label: "Current Season" },
+                    ] as const).map((s) => (
+                      <button
+                        key={s.v}
+                        type="button"
+                        onClick={() => setAchScope(s.v)}
+                        className={`rounded-full px-3 py-1 text-xs transition ${
+                          achScope === s.v
+                            ? "bg-sand text-sand-foreground"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                  <Tabs value={achTab} onValueChange={(v) => setAchTab(v as typeof achTab)}>
+                    <TabsList className="bg-card/60 border border-border/60">
+                      <TabsTrigger value="all" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">All</TabsTrigger>
+                      <TabsTrigger value="unlocked" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">Unlocked</TabsTrigger>
+                      <TabsTrigger value="progress" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">In Progress</TabsTrigger>
+                      <TabsTrigger value="rare" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">Rare &amp; Legendary</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {shownAchievements.map((a) => (
                     <AchievementBadge key={a.id} a={a} />
@@ -399,6 +441,7 @@ function ProfilePage() {
                 </div>
               </section>
             )}
+
 
 
 
