@@ -4,7 +4,7 @@ import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
-import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown, Target } from "lucide-react";
+import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown, Target, History, type LucideIcon } from "lucide-react";
 import { ScreenshotButton } from "@/components/ScreenshotButton";
 import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 import { useChampions, isChampion, winCount } from "@/lib/champions";
@@ -106,6 +106,8 @@ function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [achTab, setAchTab] = useState<"all" | "unlocked" | "progress" | "rare">("all");
+  const [achScope, setAchScope] = useState<"lifetime" | "seasonal">("lifetime");
+
   const champions = useChampions();
   const champion = isChampion(champions, playerKey);
   const tournamentWins = winCount(champions, playerKey);
@@ -153,13 +155,19 @@ function ProfilePage() {
     [achievements],
   );
 
+  const scopedAchievements = useMemo(
+    () => achievements.filter((a) => Boolean(a.is_seasonal) === (achScope === "seasonal")),
+    [achievements, achScope],
+  );
+
   const shownAchievements = useMemo(() => {
-    const arr = [...achievements];
+    const arr = [...scopedAchievements];
     if (achTab === "unlocked") return arr.filter((a) => a.is_unlocked);
     if (achTab === "progress") return arr.filter((a) => !a.is_unlocked);
     if (achTab === "rare") return arr.filter((a) => a.rarity === "Rare" || a.rarity === "Legendary");
     return arr;
-  }, [achievements, achTab]);
+  }, [scopedAchievements, achTab]);
+
 
 
   const displayName = ratings[0]?.display_name ?? playerKey;
