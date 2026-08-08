@@ -142,7 +142,13 @@ export function useNotifications() {
 
   const clearAll = useCallback(async () => {
     const items: [NotificationType, string][] = [
-      ...data.major_tournaments.map((t) => ["tournament_modal", String(t.tournament_num)] as [NotificationType, string]),
+      ...data.major_tournaments.map(
+        (t) =>
+          [isCheckinTournament(t) ? "tournament_checkin" : "tournament_modal", String(t.tournament_num)] as [
+            NotificationType,
+            string,
+          ],
+      ),
       ...data.medium_matches.map((m) => ["match_result", m.game_id] as [NotificationType, string]),
       ...data.medium_referrals.map((r) => ["referral", r.event_id] as [NotificationType, string]),
     ];
