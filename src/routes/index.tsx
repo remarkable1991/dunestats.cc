@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Trophy, Upload, BarChart3, Sparkles, Medal } from "lucide-react";
 import discordBanner from "@/assets/discord-banner.png.asset.json";
 import { TournamentCountdown } from "@/components/TournamentCountdown";
+import { CheckinBanner } from "@/components/CheckinBanner";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -135,6 +136,9 @@ function Index() {
               </div>
             ))}
           </div>
+
+          {/* Check-in phase banner */}
+          <CheckinBanner />
 
           {/* Upcoming tournament countdown banner */}
           <TournamentCountdown />
