@@ -30,7 +30,14 @@ export type MajorTournament = {
   start_date: string;
   end_date: string | null;
   updated_at: string;
+  is_checkin?: boolean | null;
+  notification_type?: string | null;
 };
+
+/** True when the tournament notification is a check-in phase alert. */
+export function isCheckinTournament(t: MajorTournament): boolean {
+  return t.is_checkin === true || t.notification_type === "tournament_checkin";
+}
 
 export type NotificationsPayload = {
   last_sign_in_at: string;
