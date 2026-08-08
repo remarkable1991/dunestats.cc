@@ -99,8 +99,10 @@ export function NotificationCenter() {
   const [modalIndex, setModalIndex] = useState(0);
   const rankChecked = useRef(false);
 
-  const major = data.major_tournaments;
+  const checkins = data.major_tournaments.filter(isCheckinTournament);
+  const major = data.major_tournaments.filter((t) => !isCheckinTournament(t));
   const current = major[modalIndex];
+  const checkin = checkins[0];
 
   useEffect(() => {
     setModalIndex(0);
