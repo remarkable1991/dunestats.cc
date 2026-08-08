@@ -124,7 +124,7 @@ export function useNotifications() {
       setData((prev) => ({
         ...prev,
         major_tournaments:
-          type === "tournament_modal"
+          type === "tournament_modal" || type === "tournament_checkin"
             ? prev.major_tournaments.filter((t) => String(t.tournament_num) !== ref)
             : prev.major_tournaments,
         medium_matches:
