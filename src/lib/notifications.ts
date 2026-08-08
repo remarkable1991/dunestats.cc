@@ -49,7 +49,7 @@ export type NotificationsPayload = {
   major_tournaments: MajorTournament[];
 };
 
-export type NotificationType = "tournament_modal" | "match_result" | "referral";
+export type NotificationType = "tournament_modal" | "tournament_checkin" | "match_result" | "referral";
 
 const EMPTY: NotificationsPayload = {
   last_sign_in_at: new Date().toISOString(),
