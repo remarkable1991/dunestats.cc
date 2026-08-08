@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { PrizesInfo } from "@/components/PrizesInfo";
 import { TruncatedInfoText } from "@/components/TruncatedInfoText";
+import { CheckinBanner } from "@/components/CheckinBanner";
 import { AdminTournamentsLink } from "@/components/AdminTournamentsLink";
 
 import { Card } from "@/components/ui/card";
@@ -1138,6 +1139,8 @@ function TournamentPage() {
           </div>
           <AdminTournamentsLink />
         </header>
+
+        <div className="mb-8"><CheckinBanner /></div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-8">
           {buttons.map((b) => {

@@ -79,6 +79,27 @@ export function formatLongDate(s: string): string {
   return `${day}${suffix} of ${month} ${d.getFullYear()}`;
 }
 
+/** Check-in window lasts 24 hours from the check-in start. */
+export const CHECKIN_WINDOW_HOURS = 24;
+
+export function checkinEnd(t: Pick<TournamentConfig, "start_date"> & { checkin_start_at?: string | null }): Date {
+  return new Date(checkinStart(t).getTime() + CHECKIN_WINDOW_HOURS * 3600_000);
+}
+
+/** True while the tournament is inside its 24h check-in window. */
+export function isInCheckin(
+  t: Pick<TournamentConfig, "start_date"> & { checkin_start_at?: string | null },
+  now: number = Date.now(),
+): boolean {
+  return now >= checkinStart(t).getTime() && now < checkinEnd(t).getTime();
+}
+
+export async function fetchCheckinTournaments(): Promise<TournamentConfig[]> {
+  const all = await fetchTournaments();
+  const now = Date.now();
+  return all.filter((t) => isInCheckin(t, now)).sort((a, b) => a.tournament_num - b.tournament_num);
+}
+
 /** Registration closes 24 hours after the start date. */
 export function registrationClosesAt(t: Pick<TournamentConfig, "start_date">): Date {
   return new Date(parseLocalDate(t.start_date).getTime() + 24 * 3600_000);
