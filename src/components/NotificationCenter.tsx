@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Bell, Trophy, Gift, Swords, X, Sparkles } from "lucide-react";
+import { Bell, Trophy, Gift, Swords, X, Sparkles, AlarmClock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,9 +14,16 @@ import {
 } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useNotifications, labelForAction, type MediumMatch, type MediumReferral } from "@/lib/notifications";
+import {
+  useNotifications,
+  labelForAction,
+  isCheckinTournament,
+  type MediumMatch,
+  type MediumReferral,
+} from "@/lib/notifications";
 import { titleName, titleColor } from "@/lib/player-title";
 import { formatLongDate } from "@/lib/tournaments";
+import { DISCORD_INVITE_URL } from "@/lib/tournament-config";
 
 function fmtDelta(v: number | null | undefined) {
   const n = Number(v ?? 0);
