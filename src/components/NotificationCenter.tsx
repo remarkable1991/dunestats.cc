@@ -158,6 +158,37 @@ export function NotificationCenter() {
                 </div>
               ) : null}
 
+              {checkins.map((t) => (
+                <div
+                  key={`checkin-${t.tournament_num}`}
+                  className="relative rounded-lg border-2 border-emerald-500 bg-emerald-500/10 p-3"
+                >
+                  <button
+                    aria-label="Dismiss check-in notification"
+                    onClick={() => void dismiss("tournament_checkin", t.tournament_num)}
+                    className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-4" />
+                  </button>
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <AlarmClock className="size-4 animate-pulse text-emerald-400" />
+                    Check-in open · Tournament #{t.tournament_num}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {t.info_title || t.name} · check-in closes 1 hour before the tournament starts.
+                  </div>
+                  <Button
+                    asChild
+                    size="sm"
+                    className="mt-2 bg-emerald-600 text-white hover:bg-emerald-500"
+                  >
+                    <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
+                      Check in on Discord
+                    </a>
+                  </Button>
+                </div>
+              ))}
+
               {major.map((t) => (
                 <div key={t.tournament_num} className="relative rounded-lg border border-primary/40 bg-primary/5 p-3">
                   <button
