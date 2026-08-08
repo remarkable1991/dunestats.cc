@@ -235,7 +235,53 @@ export function NotificationCenter() {
         </SheetContent>
       </Sheet>
 
-      <Dialog open={!!current} onOpenChange={(o) => !o && current && void dismiss("tournament_modal", current.tournament_num)}>
+      <Dialog
+        open={!!checkin}
+        onOpenChange={(o) => !o && checkin && void dismiss("tournament_checkin", checkin.tournament_num)}
+      >
+        <DialogContent className="border-2 border-emerald-500">
+          {checkin ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <AlarmClock className="size-5 animate-pulse text-emerald-400" />
+                  🚨 Tournament Check-in is Open!
+                </DialogTitle>
+                <DialogDescription>
+                  Tournament #{checkin.tournament_num} · starts {formatLongDate(checkin.start_date)}
+                </DialogDescription>
+              </DialogHeader>
+              <p className="font-medium">{checkin.info_title || checkin.name}</p>
+              <p className="text-sm text-emerald-300">
+                Check-in closes 1 hour before the tournament starts. You must check in on Discord to be seated at a
+                table.
+              </p>
+              <DialogFooter className="gap-2 sm:justify-between">
+                <Button
+                  variant="ghost"
+                  onClick={() => void dismiss("tournament_checkin", checkin.tournament_num)}
+                >
+                  Close / Dismiss
+                </Button>
+                <Button
+                  asChild
+                  className="bg-emerald-600 text-white hover:bg-emerald-500"
+                  onClick={() => void dismiss("tournament_checkin", checkin.tournament_num)}
+                >
+                  <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
+                    Check in on Discord
+                  </a>
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!checkin && !!current}
+        onOpenChange={(o) => !o && current && void dismiss("tournament_modal", current.tournament_num)}
+      >
         <DialogContent>
           {current ? (
             <>
