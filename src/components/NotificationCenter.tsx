@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Bell, Trophy, Gift, Swords, X, Sparkles } from "lucide-react";
+import { Bell, Trophy, Gift, Swords, X, Sparkles, AlarmClock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,9 +14,16 @@ import {
 } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useNotifications, labelForAction, type MediumMatch, type MediumReferral } from "@/lib/notifications";
+import {
+  useNotifications,
+  labelForAction,
+  isCheckinTournament,
+  type MediumMatch,
+  type MediumReferral,
+} from "@/lib/notifications";
 import { titleName, titleColor } from "@/lib/player-title";
 import { formatLongDate } from "@/lib/tournaments";
+import { DISCORD_INVITE_URL } from "@/lib/tournament-config";
 
 function fmtDelta(v: number | null | undefined) {
   const n = Number(v ?? 0);
@@ -92,8 +99,10 @@ export function NotificationCenter() {
   const [modalIndex, setModalIndex] = useState(0);
   const rankChecked = useRef(false);
 
-  const major = data.major_tournaments;
+  const checkins = data.major_tournaments.filter(isCheckinTournament);
+  const major = data.major_tournaments.filter((t) => !isCheckinTournament(t));
   const current = major[modalIndex];
+  const checkin = checkins[0];
 
   useEffect(() => {
     setModalIndex(0);
@@ -149,6 +158,37 @@ export function NotificationCenter() {
                 </div>
               ) : null}
 
+              {checkins.map((t) => (
+                <div
+                  key={`checkin-${t.tournament_num}`}
+                  className="relative rounded-lg border-2 border-emerald-500 bg-emerald-500/10 p-3"
+                >
+                  <button
+                    aria-label="Dismiss check-in notification"
+                    onClick={() => void dismiss("tournament_checkin", t.tournament_num)}
+                    className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-4" />
+                  </button>
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <AlarmClock className="size-4 animate-pulse text-emerald-400" />
+                    Check-in open · Tournament #{t.tournament_num}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {t.info_title || t.name} · check-in closes 1 hour before the tournament starts.
+                  </div>
+                  <Button
+                    asChild
+                    size="sm"
+                    className="mt-2 bg-emerald-600 text-white hover:bg-emerald-500"
+                  >
+                    <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
+                      Check in on Discord
+                    </a>
+                  </Button>
+                </div>
+              ))}
+
               {major.map((t) => (
                 <div key={t.tournament_num} className="relative rounded-lg border border-primary/40 bg-primary/5 p-3">
                   <button
@@ -195,7 +235,53 @@ export function NotificationCenter() {
         </SheetContent>
       </Sheet>
 
-      <Dialog open={!!current} onOpenChange={(o) => !o && current && void dismiss("tournament_modal", current.tournament_num)}>
+      <Dialog
+        open={!!checkin}
+        onOpenChange={(o) => !o && checkin && void dismiss("tournament_checkin", checkin.tournament_num)}
+      >
+        <DialogContent className="border-2 border-emerald-500">
+          {checkin ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <AlarmClock className="size-5 animate-pulse text-emerald-400" />
+                  🚨 Tournament Check-in is Open!
+                </DialogTitle>
+                <DialogDescription>
+                  Tournament #{checkin.tournament_num} · starts {formatLongDate(checkin.start_date)}
+                </DialogDescription>
+              </DialogHeader>
+              <p className="font-medium">{checkin.info_title || checkin.name}</p>
+              <p className="text-sm text-emerald-300">
+                Check-in closes 1 hour before the tournament starts. You must check in on Discord to be seated at a
+                table.
+              </p>
+              <DialogFooter className="gap-2 sm:justify-between">
+                <Button
+                  variant="ghost"
+                  onClick={() => void dismiss("tournament_checkin", checkin.tournament_num)}
+                >
+                  Close / Dismiss
+                </Button>
+                <Button
+                  asChild
+                  className="bg-emerald-600 text-white hover:bg-emerald-500"
+                  onClick={() => void dismiss("tournament_checkin", checkin.tournament_num)}
+                >
+                  <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
+                    Check in on Discord
+                  </a>
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!checkin && !!current}
+        onOpenChange={(o) => !o && current && void dismiss("tournament_modal", current.tournament_num)}
+      >
         <DialogContent>
           {current ? (
             <>

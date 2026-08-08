@@ -30,7 +30,14 @@ export type MajorTournament = {
   start_date: string;
   end_date: string | null;
   updated_at: string;
+  is_checkin?: boolean | null;
+  notification_type?: string | null;
 };
+
+/** True when the tournament notification is a check-in phase alert. */
+export function isCheckinTournament(t: MajorTournament): boolean {
+  return t.is_checkin === true || t.notification_type === "tournament_checkin";
+}
 
 export type NotificationsPayload = {
   last_sign_in_at: string;
@@ -42,7 +49,7 @@ export type NotificationsPayload = {
   major_tournaments: MajorTournament[];
 };
 
-export type NotificationType = "tournament_modal" | "match_result" | "referral";
+export type NotificationType = "tournament_modal" | "tournament_checkin" | "match_result" | "referral";
 
 const EMPTY: NotificationsPayload = {
   last_sign_in_at: new Date().toISOString(),
@@ -117,7 +124,7 @@ export function useNotifications() {
       setData((prev) => ({
         ...prev,
         major_tournaments:
-          type === "tournament_modal"
+          type === "tournament_modal" || type === "tournament_checkin"
             ? prev.major_tournaments.filter((t) => String(t.tournament_num) !== ref)
             : prev.major_tournaments,
         medium_matches:
@@ -135,7 +142,13 @@ export function useNotifications() {
 
   const clearAll = useCallback(async () => {
     const items: [NotificationType, string][] = [
-      ...data.major_tournaments.map((t) => ["tournament_modal", String(t.tournament_num)] as [NotificationType, string]),
+      ...data.major_tournaments.map(
+        (t) =>
+          [isCheckinTournament(t) ? "tournament_checkin" : "tournament_modal", String(t.tournament_num)] as [
+            NotificationType,
+            string,
+          ],
+      ),
       ...data.medium_matches.map((m) => ["match_result", m.game_id] as [NotificationType, string]),
       ...data.medium_referrals.map((r) => ["referral", r.event_id] as [NotificationType, string]),
     ];
