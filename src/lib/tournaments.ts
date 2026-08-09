@@ -19,6 +19,8 @@ export type TournamentConfig = {
   total_players: number | null;
   direct_to_grand_final: number | null;
   to_semifinal: number | null;
+  semifinal_tables: number | null;
+  grand_final_spots: number | null;
 };
 
 export const MAX_CHECKBOXES = 4;
