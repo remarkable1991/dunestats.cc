@@ -9,13 +9,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Save, Trash2, Upload } from "lucide-react";
+import { parseTournamentMatchesCsv } from "@/lib/tournament-csv";
 import {
   MAX_CHECKBOXES,
   type TournamentCheckbox,
   type TournamentConfig,
   checkinStart,
   fetchTournaments,
+  formatTournamentFormat,
   fromLocalInputValue,
   toLocalInputValue,
   registrationClosesAt,
@@ -51,6 +53,9 @@ type Draft = {
   prizes_text: string;
   registration_open: boolean;
   checkin_start_at: string;
+  total_players: string;
+  direct_to_grand_final: string;
+  to_semifinal: string;
 };
 
 function toDraft(t: TournamentConfig): Draft {
@@ -68,6 +73,9 @@ function toDraft(t: TournamentConfig): Draft {
     prizes_text: t.prizes_text ?? "",
     registration_open: t.registration_open,
     checkin_start_at: toLocalInputValue(t.checkin_start_at),
+    total_players: t.total_players == null ? "" : String(t.total_players),
+    direct_to_grand_final: t.direct_to_grand_final == null ? "" : String(t.direct_to_grand_final),
+    to_semifinal: t.to_semifinal == null ? "" : String(t.to_semifinal),
   };
 }
 
@@ -93,6 +101,9 @@ function emptyDraft(nextNum: number): Draft {
     prizes_text: "",
     registration_open: true,
     checkin_start_at: toLocalInputValue(new Date(start.getTime() - 86400000).toISOString()),
+    total_players: "",
+    direct_to_grand_final: "",
+    to_semifinal: "",
   };
 }
 
@@ -199,6 +210,9 @@ function AdminTournaments() {
                   Check-in opens {checkinStart(t).toLocaleString()} · Registration closes{" "}
                   {registrationClosesAt(t).toLocaleString()}
                 </div>
+                {formatTournamentFormat(t) && (
+                  <div className="text-xs text-sand">{formatTournamentFormat(t)}</div>
+                )}
                 <div className="text-xs text-muted-foreground">
                   Min availability {t.required_availability_pct}% overall · {t.required_weekly_pct}% per week ·{" "}
                   {t.checkboxes.length} checkbox{t.checkboxes.length === 1 ? "" : "es"} ·{" "}
@@ -207,7 +221,8 @@ function AdminTournaments() {
                   </span>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
+                <CsvImportButton tournamentNum={t.tournament_num} />
                 <Button size="sm" variant="outline" onClick={() => { setEditing(toDraft(t)); setIsNew(false); }}>
                   Edit
                 </Button>
@@ -268,6 +283,17 @@ function TournamentForm({
       .filter((b) => b.label.length > 0)
       .slice(0, MAX_CHECKBOXES);
 
+    const totalPlayers = draft.total_players.trim() === "" ? null : Number(draft.total_players);
+    const gf = draft.direct_to_grand_final.trim() === "" ? null : Number(draft.direct_to_grand_final);
+    const semi = draft.to_semifinal.trim() === "" ? null : Number(draft.to_semifinal);
+    for (const [label, v] of [["Total players", totalPlayers], ["Straight to Grand Final", gf], ["To Semi Finals", semi]] as const) {
+      if (v != null && (!Number.isInteger(v) || v < 0)) { toast.error(`${label} must be a whole number`); return; }
+    }
+    if (totalPlayers != null && (gf != null || semi != null) && (gf ?? 0) + (semi ?? 0) > totalPlayers) {
+      toast.error("Grand Final + Semi Final spots cannot exceed the total number of players");
+      return;
+    }
+
     setSaving(true);
     const payload = {
       tournament_num: num,
@@ -283,6 +309,9 @@ function TournamentForm({
       prizes_text: draft.prizes_text.trim() || null,
       registration_open: draft.registration_open,
       checkin_start_at: fromLocalInputValue(draft.checkin_start_at),
+      total_players: totalPlayers,
+      direct_to_grand_final: gf,
+      to_semifinal: semi,
     };
     const { error } = await supabase.from("tournaments").upsert(payload, { onConflict: "tournament_num" });
     setSaving(false);
@@ -350,6 +379,31 @@ function TournamentForm({
             onChange={(e) => set("required_weekly_pct", e.target.value)}
           />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Tournament format</Label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <Label htmlFor="tp" className="text-xs text-muted-foreground">Total players</Label>
+            <Input id="tp" type="number" min={0} value={draft.total_players} onChange={(e) => set("total_players", e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="gf" className="text-xs text-muted-foreground">Straight to Grand Final</Label>
+            <Input id="gf" type="number" min={0} value={draft.direct_to_grand_final} onChange={(e) => set("direct_to_grand_final", e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="sf" className="text-xs text-muted-foreground">To Semi Finals</Label>
+            <Input id="sf" type="number" min={0} value={draft.to_semifinal} onChange={(e) => set("to_semifinal", e.target.value)} />
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          {formatTournamentFormat({
+            total_players: Number(draft.total_players) || null,
+            direct_to_grand_final: Number(draft.direct_to_grand_final) || null,
+            to_semifinal: Number(draft.to_semifinal) || null,
+          }) ?? "e.g. 40 players \u00b7 2 straight to Grand Final \u00b7 3\u201310 (8) to Semi Finals."}
+        </p>
       </div>
 
       <div className="space-y-2">
@@ -429,5 +483,48 @@ function TournamentForm({
         </Button>
       </div>
     </Card>
+  );
+}
+
+
+function CsvImportButton({ tournamentNum }: { tournamentNum: number }) {
+  const [busy, setBusy] = useState(false);
+
+  const onFile = async (file: File) => {
+    setBusy(true);
+    try {
+      const text = await file.text();
+      const { rows, errors } = parseTournamentMatchesCsv(text, tournamentNum);
+      if (errors.length) toast.error(errors.slice(0, 3).join(" \u00b7 "));
+      if (!rows.length) return;
+      const { error } = await supabase.from("tournament_matches").insert(rows);
+      if (error) { toast.error(error.message); return; }
+      const tables = new Set(rows.map((r) => `${r.round_type}__${r.table_identifier}`));
+      toast.success(`Imported ${rows.length} rows across ${tables.size} tables into tournament #${tournamentNum}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <label className="inline-flex">
+      <input
+        type="file"
+        accept=".csv,text/csv"
+        className="hidden"
+        disabled={busy}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) void onFile(f);
+        }}
+      />
+      <span
+        className="inline-flex items-center gap-1 h-8 px-3 rounded-md border border-sand/60 text-sand text-sm cursor-pointer hover:bg-sand/10"
+        aria-disabled={busy}
+      >
+        {busy ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} Import CSV
+      </span>
+    </label>
   );
 }
