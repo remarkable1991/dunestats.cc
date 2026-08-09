@@ -758,6 +758,7 @@ export type Database = {
           checkboxes: Json
           checkin_start_at: string | null
           created_at: string
+          direct_to_grand_final: number | null
           end_date: string
           info_text: string | null
           info_title: string | null
@@ -768,6 +769,8 @@ export type Database = {
           required_availability_pct: number
           required_weekly_pct: number
           start_date: string
+          to_semifinal: number | null
+          total_players: number | null
           tournament_num: number
           updated_at: string
         }
@@ -775,6 +778,7 @@ export type Database = {
           checkboxes?: Json
           checkin_start_at?: string | null
           created_at?: string
+          direct_to_grand_final?: number | null
           end_date: string
           info_text?: string | null
           info_title?: string | null
@@ -785,6 +789,8 @@ export type Database = {
           required_availability_pct?: number
           required_weekly_pct?: number
           start_date: string
+          to_semifinal?: number | null
+          total_players?: number | null
           tournament_num: number
           updated_at?: string
         }
@@ -792,6 +798,7 @@ export type Database = {
           checkboxes?: Json
           checkin_start_at?: string | null
           created_at?: string
+          direct_to_grand_final?: number | null
           end_date?: string
           info_text?: string | null
           info_title?: string | null
@@ -802,6 +809,8 @@ export type Database = {
           required_availability_pct?: number
           required_weekly_pct?: number
           start_date?: string
+          to_semifinal?: number | null
+          total_players?: number | null
           tournament_num?: number
           updated_at?: string
         }

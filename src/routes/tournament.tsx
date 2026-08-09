@@ -45,6 +45,8 @@ import {
   type TournamentConfig,
   checkinStart,
   fetchOpenTournaments,
+  fetchTournaments,
+  formatTournamentFormat,
   formatLongDate,
   registrationClosesAt,
   tournamentDayCount,
@@ -179,6 +181,15 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
   const champions = useChampions();
   const titles = usePlayerTitles();
 
+
+  const [formatLine, setFormatLine] = useState<string | null>(null);
+  useEffect(() => {
+    void (async () => {
+      const all = await fetchTournaments();
+      const cfg = all.find((t) => t.tournament_num === tournamentNum);
+      setFormatLine(cfg ? formatTournamentFormat(cfg) : null);
+    })();
+  }, [tournamentNum]);
 
   const refresh = async () => {
     setLoading(true);
@@ -605,6 +616,11 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
           <div>
             <h2 className="font-display text-3xl flex items-center gap-2"><Trophy className="size-7 text-sand" /> Live Tournament #{tournamentNum}</h2>
             <p className="text-muted-foreground">Live standings update as match screenshots are uploaded.</p>
+            {formatLine && (
+              <p className="mt-2 inline-flex items-center gap-2 rounded-md border border-sand/40 bg-sand/10 px-3 py-1.5 text-xs text-sand">
+                <Sword className="size-3.5" /> {formatLine}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -1280,7 +1296,11 @@ type TournamentSummaryCard = {
   phase: string;
 };
 
-const ACTIVE_TOURNAMENTS = [13, 14];
+async function fetchActiveTournamentNums(): Promise<number[]> {
+  const { data } = await supabase.from("tournament_matches").select("tournament_num");
+  const nums = new Set<number>((data ?? []).map((r) => (r as { tournament_num: number }).tournament_num));
+  return [...nums].sort((a, b) => a - b);
+}
 
 function CurrentTournamentsHub() {
   const search = Route.useSearch();
@@ -1297,7 +1317,8 @@ function CurrentTournamentsHub() {
     let cancelled = false;
     const load = async () => {
       const summaries: TournamentSummaryCard[] = [];
-      for (const num of ACTIVE_TOURNAMENTS) {
+      const activeNums = await fetchActiveTournamentNums();
+      for (const num of activeNums) {
         const { data } = await supabase
           .from("tournament_matches")
           .select("placement, points, round_type, table_identifier")

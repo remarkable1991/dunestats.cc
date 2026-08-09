@@ -16,6 +16,9 @@ export type TournamentConfig = {
   prizes_text: string | null;
   registration_open: boolean;
   checkin_start_at: string | null;
+  total_players: number | null;
+  direct_to_grand_final: number | null;
+  to_semifinal: number | null;
 };
 
 export const MAX_CHECKBOXES = 4;
@@ -123,6 +126,9 @@ type Row = {
   prizes_text: string | null;
   registration_open: boolean;
   checkin_start_at: string | null;
+  total_players: number | null;
+  direct_to_grand_final: number | null;
+  to_semifinal: number | null;
 };
 
 export function normalizeTournament(row: Row): TournamentConfig {
@@ -145,11 +151,32 @@ export function normalizeTournament(row: Row): TournamentConfig {
     prizes_text: row.prizes_text ?? null,
     registration_open: row.registration_open,
     checkin_start_at: row.checkin_start_at ?? null,
+    total_players: row.total_players ?? null,
+    direct_to_grand_final: row.direct_to_grand_final ?? null,
+    to_semifinal: row.to_semifinal ?? null,
   };
 }
 
 const SELECT =
-  "tournament_num, name, start_date, end_date, required_availability_pct, required_weekly_pct, checkboxes, info_title, info_text, prizes_summary, prizes_text, registration_open, checkin_start_at";
+  "tournament_num, name, start_date, end_date, required_availability_pct, required_weekly_pct, checkboxes, info_title, info_text, prizes_summary, prizes_text, registration_open, checkin_start_at, total_players, direct_to_grand_final, to_semifinal";
+
+/** Human readable bracket format, e.g. "40 players · 2 straight to Grand Final · 3–10 (8) to Semi Finals". */
+export function formatTournamentFormat(
+  t: Pick<TournamentConfig, "total_players" | "direct_to_grand_final" | "to_semifinal">,
+): string | null {
+  const total = t.total_players ?? 0;
+  const gf = t.direct_to_grand_final ?? 0;
+  const semi = t.to_semifinal ?? 0;
+  if (!total || (!gf && !semi)) return null;
+  const parts: string[] = [`${total} players`];
+  if (gf > 0) parts.push(gf === 1 ? "1st goes straight to the Grand Final" : `Top ${gf} go straight to the Grand Final`);
+  if (semi > 0) {
+    const from = gf + 1;
+    const to = gf + semi;
+    parts.push(`${from}\u2013${to} (${semi}) to the Semi Finals`);
+  }
+  return parts.join(" \u00b7 ");
+}
 
 export async function fetchTournaments(): Promise<TournamentConfig[]> {
   const { data, error } = await supabase
