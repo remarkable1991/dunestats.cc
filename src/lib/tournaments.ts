@@ -131,7 +131,10 @@ type Row = {
   total_players: number | null;
   direct_to_grand_final: number | null;
   to_semifinal: number | null;
+  semifinal_tables?: number | null;
+  grand_final_spots?: number | null;
 };
+
 
 export function normalizeTournament(row: Row): TournamentConfig {
   const boxes = Array.isArray(row.checkboxes) ? row.checkboxes : [];
