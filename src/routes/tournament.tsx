@@ -746,7 +746,7 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
                       const rank = i + 1;
                       const grandKeys = new Set(playoffs.grand.map((p) => p.player));
                       const gold = grandKeys.has(s.player);
-                      const silver = !gold && rank >= 3 && rank <= 10;
+                      const silver = !gold && rank > plan.gf && rank <= plan.gf + plan.semi;
                       const mine = isMine(s.player);
                       return (
                         <tr key={s.player} className={`border-b border-border/20 ${mine ? "bg-sand/15 ring-2 ring-sand" : gold ? "bg-amber-500/10 ring-1 ring-amber-400/60" : silver ? "bg-slate-400/5 ring-1 ring-slate-400/40" : ""}`}>
