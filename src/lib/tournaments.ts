@@ -19,6 +19,8 @@ export type TournamentConfig = {
   total_players: number | null;
   direct_to_grand_final: number | null;
   to_semifinal: number | null;
+  semifinal_tables: number | null;
+  grand_final_spots: number | null;
 };
 
 export const MAX_CHECKBOXES = 4;
@@ -129,7 +131,10 @@ type Row = {
   total_players: number | null;
   direct_to_grand_final: number | null;
   to_semifinal: number | null;
+  semifinal_tables?: number | null;
+  grand_final_spots?: number | null;
 };
+
 
 export function normalizeTournament(row: Row): TournamentConfig {
   const boxes = Array.isArray(row.checkboxes) ? row.checkboxes : [];
@@ -154,16 +159,51 @@ export function normalizeTournament(row: Row): TournamentConfig {
     total_players: row.total_players ?? null,
     direct_to_grand_final: row.direct_to_grand_final ?? null,
     to_semifinal: row.to_semifinal ?? null,
+    semifinal_tables: row.semifinal_tables ?? null,
+    grand_final_spots: row.grand_final_spots ?? null,
   };
 }
 
 const SELECT =
-  "tournament_num, name, start_date, end_date, required_availability_pct, required_weekly_pct, checkboxes, info_title, info_text, prizes_summary, prizes_text, registration_open, checkin_start_at, total_players, direct_to_grand_final, to_semifinal";
+  "tournament_num, name, start_date, end_date, required_availability_pct, required_weekly_pct, checkboxes, info_title, info_text, prizes_summary, prizes_text, registration_open, checkin_start_at, total_players, direct_to_grand_final, to_semifinal, semifinal_tables, grand_final_spots";
+
+export type BracketFields = Pick<
+  TournamentConfig,
+  "total_players" | "direct_to_grand_final" | "to_semifinal" | "semifinal_tables" | "grand_final_spots"
+>;
+
+/** Resolved bracket plan with sensible fallbacks (2 direct + 2 semi tables of 4). */
+export function bracketPlan(t?: Partial<BracketFields> | null) {
+  const gf = t?.direct_to_grand_final ?? 2;
+  const semi = t?.to_semifinal ?? 8;
+  const tables =
+    t?.semifinal_tables && t.semifinal_tables > 0
+      ? t.semifinal_tables
+      : semi > 0
+        ? Math.max(1, Math.round(semi / 4))
+        : 0;
+  const perTable = tables > 0 ? Math.ceil(semi / tables) : 0;
+  const gfSpots =
+    t?.grand_final_spots && t.grand_final_spots > 0 ? t.grand_final_spots : Math.max(1, gf + tables);
+  return { gf, semi, tables, perTable, gfSpots };
+}
+
+/** Snake-seed the semi final tables from the league standings (index 0 = 1st place). */
+export function seedSemiTables<T>(standings: T[], plan: ReturnType<typeof bracketPlan>): T[][] {
+  if (plan.tables <= 0 || plan.semi <= 0) return [];
+  const pool = standings.slice(plan.gf, plan.gf + plan.semi);
+  const tables: T[][] = Array.from({ length: plan.tables }, () => []);
+  pool.forEach((p, i) => {
+    const round = Math.floor(i / plan.tables);
+    const pos = i % plan.tables;
+    const idx = round % 2 === 0 ? pos : plan.tables - 1 - pos;
+    tables[idx]!.push(p);
+  });
+  return tables;
+}
 
 /** Human readable bracket format, e.g. "40 players · 2 straight to Grand Final · 3–10 (8) to Semi Finals". */
-export function formatTournamentFormat(
-  t: Pick<TournamentConfig, "total_players" | "direct_to_grand_final" | "to_semifinal">,
-): string | null {
+export function formatTournamentFormat(t: Partial<BracketFields>): string | null {
   const total = t.total_players ?? 0;
   const gf = t.direct_to_grand_final ?? 0;
   const semi = t.to_semifinal ?? 0;
@@ -173,10 +213,14 @@ export function formatTournamentFormat(
   if (semi > 0) {
     const from = gf + 1;
     const to = gf + semi;
-    parts.push(`${from}\u2013${to} (${semi}) to the Semi Finals`);
+    const tables = t.semifinal_tables && t.semifinal_tables > 0 ? t.semifinal_tables : Math.max(1, Math.round(semi / 4));
+    parts.push(`${from}\u2013${to} (${semi}) to the Semi Finals over ${tables} table${tables === 1 ? "" : "s"}`);
   }
+  const spots = t.grand_final_spots ?? null;
+  if (spots) parts.push(`${spots}-seat Grand Final`);
   return parts.join(" \u00b7 ");
 }
+
 
 export async function fetchTournaments(): Promise<TournamentConfig[]> {
   const { data, error } = await supabase

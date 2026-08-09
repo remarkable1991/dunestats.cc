@@ -56,6 +56,8 @@ type Draft = {
   total_players: string;
   direct_to_grand_final: string;
   to_semifinal: string;
+  semifinal_tables: string;
+  grand_final_spots: string;
 };
 
 function toDraft(t: TournamentConfig): Draft {
@@ -76,6 +78,8 @@ function toDraft(t: TournamentConfig): Draft {
     total_players: t.total_players == null ? "" : String(t.total_players),
     direct_to_grand_final: t.direct_to_grand_final == null ? "" : String(t.direct_to_grand_final),
     to_semifinal: t.to_semifinal == null ? "" : String(t.to_semifinal),
+    semifinal_tables: t.semifinal_tables == null ? "" : String(t.semifinal_tables),
+    grand_final_spots: t.grand_final_spots == null ? "" : String(t.grand_final_spots),
   };
 }
 
@@ -104,6 +108,8 @@ function emptyDraft(nextNum: number): Draft {
     total_players: "",
     direct_to_grand_final: "",
     to_semifinal: "",
+    semifinal_tables: "",
+    grand_final_spots: "",
   };
 }
 
@@ -286,7 +292,9 @@ function TournamentForm({
     const totalPlayers = draft.total_players.trim() === "" ? null : Number(draft.total_players);
     const gf = draft.direct_to_grand_final.trim() === "" ? null : Number(draft.direct_to_grand_final);
     const semi = draft.to_semifinal.trim() === "" ? null : Number(draft.to_semifinal);
-    for (const [label, v] of [["Total players", totalPlayers], ["Straight to Grand Final", gf], ["To Semi Finals", semi]] as const) {
+    const semiTables = draft.semifinal_tables.trim() === "" ? null : Number(draft.semifinal_tables);
+    const gfSpots = draft.grand_final_spots.trim() === "" ? null : Number(draft.grand_final_spots);
+    for (const [label, v] of [["Total players", totalPlayers], ["Straight to Grand Final", gf], ["To Semi Finals", semi], ["Semi Final tables", semiTables], ["Grand Final spots", gfSpots]] as const) {
       if (v != null && (!Number.isInteger(v) || v < 0)) { toast.error(`${label} must be a whole number`); return; }
     }
     if (totalPlayers != null && (gf != null || semi != null) && (gf ?? 0) + (semi ?? 0) > totalPlayers) {
@@ -312,6 +320,8 @@ function TournamentForm({
       total_players: totalPlayers,
       direct_to_grand_final: gf,
       to_semifinal: semi,
+      semifinal_tables: semiTables,
+      grand_final_spots: gfSpots,
     };
     const { error } = await supabase.from("tournaments").upsert(payload, { onConflict: "tournament_num" });
     setSaving(false);
@@ -396,12 +406,24 @@ function TournamentForm({
             <Label htmlFor="sf" className="text-xs text-muted-foreground">To Semi Finals</Label>
             <Input id="sf" type="number" min={0} value={draft.to_semifinal} onChange={(e) => set("to_semifinal", e.target.value)} />
           </div>
+          <div>
+            <Label htmlFor="sft" className="text-xs text-muted-foreground">Semi Final tables</Label>
+            <Input id="sft" type="number" min={0} value={draft.semifinal_tables} onChange={(e) => set("semifinal_tables", e.target.value)} />
+            <p className="text-[11px] text-muted-foreground mt-1">Leave empty to use Semi Final players ÷ 4.</p>
+          </div>
+          <div>
+            <Label htmlFor="gfs" className="text-xs text-muted-foreground">Grand Final spots</Label>
+            <Input id="gfs" type="number" min={0} value={draft.grand_final_spots} onChange={(e) => set("grand_final_spots", e.target.value)} />
+            <p className="text-[11px] text-muted-foreground mt-1">Leave empty to use direct seeds + one winner per Semi Final table.</p>
+          </div>
         </div>
         <p className="text-[11px] text-muted-foreground">
           {formatTournamentFormat({
             total_players: Number(draft.total_players) || null,
             direct_to_grand_final: Number(draft.direct_to_grand_final) || null,
             to_semifinal: Number(draft.to_semifinal) || null,
+            semifinal_tables: Number(draft.semifinal_tables) || null,
+            grand_final_spots: Number(draft.grand_final_spots) || null,
           }) ?? "e.g. 40 players \u00b7 2 straight to Grand Final \u00b7 3\u201310 (8) to Semi Finals."}
         </p>
       </div>

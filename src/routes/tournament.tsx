@@ -47,6 +47,8 @@ import {
   fetchOpenTournaments,
   fetchTournaments,
   formatTournamentFormat,
+  bracketPlan,
+  seedSemiTables,
   formatLongDate,
   registrationClosesAt,
   tournamentDayCount,
@@ -183,11 +185,13 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
 
 
   const [formatLine, setFormatLine] = useState<string | null>(null);
+  const [plan, setPlan] = useState(() => bracketPlan(null));
   useEffect(() => {
     void (async () => {
       const all = await fetchTournaments();
       const cfg = all.find((t) => t.tournament_num === tournamentNum);
       setFormatLine(cfg ? formatTournamentFormat(cfg) : null);
+      setPlan(bracketPlan(cfg ?? null));
     })();
   }, [tournamentNum]);
 
@@ -323,13 +327,14 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
   }, [rows]);
 
   const playoffs = useMemo(() => {
-    const rank = (i: number) => leagueStandings[i - 1];
+    const semiTables = seedSemiTables(leagueStandings, plan);
     return {
-      semi1: [3, 6, 7, 10].map(rank).filter(Boolean),
-      semi2: [4, 5, 8, 9].map(rank).filter(Boolean),
-      grand: [1, 2].map(rank).filter(Boolean),
+      semiTables,
+      semi1: semiTables[0] ?? [],
+      semi2: semiTables[1] ?? [],
+      grand: leagueStandings.slice(0, plan.gf),
     };
-  }, [leagueStandings]);
+  }, [leagueStandings, plan]);
 
   // Actual SF winners (placement=1 in each Semi Final table), if uploaded.
   const semiWinners = useMemo(() => {
@@ -340,8 +345,11 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
       if (!row) return null;
       return { player: row.player_name, discord: row.discord_username ?? row.player_name };
     };
-    return { sf1: winnerFor(/semi\s*final\s*1/i), sf2: winnerFor(/semi\s*final\s*2/i) };
-  }, [rows]);
+    const all = Array.from({ length: Math.max(plan.tables, 2) }, (_, i) =>
+      winnerFor(new RegExp(`semi\\s*final\\s*${i + 1}\\b`, "i")),
+    );
+    return { all, sf1: all[0] ?? null, sf2: all[1] ?? null };
+  }, [rows, plan.tables]);
 
   const swissProgress = useMemo(() => {
     const roundTables = new Map<string, Map<string, Row[]>>();
@@ -378,18 +386,20 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
   useEffect(() => {
     if (!userId) return;
     if (!leagueComplete || semisPublished) return;
-    if (playoffs.semi1.length !== 4 || playoffs.semi2.length !== 4) return;
+    const tables = playoffs.semiTables;
+    if (tables.length !== plan.tables || tables.length === 0) return;
+    if (tables.some((t) => t.length !== plan.perTable)) return;
     if (promoteTriedRef.current) return;
     promoteTriedRef.current = true;
     (async () => {
-      const { error } = await supabase.rpc("promote_to_semifinals", {
+      const { error } = await (supabase as any).rpc("promote_to_semifinals_n", {
         p_tournament_num: tournamentNum,
-        p_semi1: playoffs.semi1.map((p) => p.player),
-        p_semi2: playoffs.semi2.map((p) => p.player),
+        p_tables: tables.map((t) => t.map((p) => p.player)),
       });
-      if (!error) await refresh();
+      if (error) { promoteTriedRef.current = false; return; }
+      await refresh();
     })();
-  }, [userId, leagueComplete, semisPublished, playoffs, tournamentNum]);
+  }, [userId, leagueComplete, semisPublished, playoffs, plan, tournamentNum]);
 
   // Detect whether the Grand Final table already exists / has been fully scored.
   const grandFinalRows = useMemo(
@@ -407,15 +417,18 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
   useEffect(() => {
     if (!userId || !semisPublished) return;
     if (grandFinalExists) return;
-    if (!semiWinners.sf1 || !semiWinners.sf2) return;
+    const tableCount = Math.max(1, plan.tables);
+    const won = semiWinners.all.slice(0, tableCount);
+    if (won.length !== tableCount || won.some((w) => !w)) return;
     // Top league finishers that are not already qualified through a Semi Final win.
-    const winners = [semiWinners.sf1.player, semiWinners.sf2.player];
+    const winners = won.map((w) => w!.player);
+    const seatsLeft = Math.max(0, plan.gfSpots - winners.length);
     const seeds = leagueStandings
       .map((p) => p.player)
       .filter((p) => !winners.includes(p))
-      .slice(0, 2);
+      .slice(0, seatsLeft);
     const players = Array.from(new Set([...seeds, ...winners]));
-    if (players.length !== 4) return;
+    if (players.length !== plan.gfSpots) return;
     if (promoteGFRef.current) return;
     promoteGFRef.current = true;
     (async () => {
@@ -431,7 +444,7 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
       toast.success("Grand Final table published.");
       await refresh();
     })();
-  }, [userId, semisPublished, grandFinalExists, semiWinners, leagueStandings, tournamentNum]);
+  }, [userId, semisPublished, grandFinalExists, semiWinners, leagueStandings, plan, tournamentNum]);
 
 
   // Auto-archive the tournament to Hall of Fame once the Grand Final is scored.
@@ -462,7 +475,7 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
   // Total standing: uses everything, but the top-2 league finishers earned +25 TP
   // for skipping the semi finals (direct-to-Grand-Final bye bonus).
   const totalStandings = useMemo(() => {
-    const grandBonus = new Set(leagueStandings.slice(0, 2).map((p) => p.player));
+    const grandBonus = new Set(leagueStandings.slice(0, plan.gf).map((p) => p.player));
     const boosted = standings.map((s) =>
       grandBonus.has(s.player) ? { ...s, tp: s.tp + 25 } : s,
     );
@@ -474,7 +487,7 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
       return b.vpPct - a.vpPct;
     });
     return boosted;
-  }, [standings, leagueStandings]);
+  }, [standings, leagueStandings, plan.gf]);
 
   const displayStandings = semisPublished
     ? (standingsView === "total" ? totalStandings : leagueStandings)
@@ -733,7 +746,7 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
                       const rank = i + 1;
                       const grandKeys = new Set(playoffs.grand.map((p) => p.player));
                       const gold = grandKeys.has(s.player);
-                      const silver = !gold && rank >= 3 && rank <= 10;
+                      const silver = !gold && rank > plan.gf && rank <= plan.gf + plan.semi;
                       const mine = isMine(s.player);
                       return (
                         <tr key={s.player} className={`border-b border-border/20 ${mine ? "bg-sand/15 ring-2 ring-sand" : gold ? "bg-amber-500/10 ring-1 ring-amber-400/60" : silver ? "bg-slate-400/5 ring-1 ring-slate-400/40" : ""}`}>
@@ -777,8 +790,14 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
                   Projected Semi Finals based on current standings.
                 </p>
                 <div className="grid md:grid-cols-3 gap-4">
-                  <BracketCard title="Semi Final 1" players={playoffs.semi1.map((p) => displayMode === "discord" ? p.discord : p.player)} accent="slate" />
-                  <BracketCard title="Semi Final 2" players={playoffs.semi2.map((p) => displayMode === "discord" ? p.discord : p.player)} accent="slate" />
+                  {playoffs.semiTables.map((t, i) => (
+                    <BracketCard
+                      key={i}
+                      title={`Semi Final ${i + 1}`}
+                      players={t.map((p) => displayMode === "discord" ? p.discord : p.player)}
+                      accent="slate"
+                    />
+                  ))}
                   <BracketCard title="Grand Final!" players={[
                     ...playoffs.grand.map((p) => displayMode === "discord" ? p.discord : p.player),
                     "Winner SF1",

@@ -760,6 +760,7 @@ export type Database = {
           created_at: string
           direct_to_grand_final: number | null
           end_date: string
+          grand_final_spots: number | null
           info_text: string | null
           info_title: string | null
           name: string
@@ -768,6 +769,7 @@ export type Database = {
           registration_open: boolean
           required_availability_pct: number
           required_weekly_pct: number
+          semifinal_tables: number | null
           start_date: string
           to_semifinal: number | null
           total_players: number | null
@@ -780,6 +782,7 @@ export type Database = {
           created_at?: string
           direct_to_grand_final?: number | null
           end_date: string
+          grand_final_spots?: number | null
           info_text?: string | null
           info_title?: string | null
           name: string
@@ -788,6 +791,7 @@ export type Database = {
           registration_open?: boolean
           required_availability_pct?: number
           required_weekly_pct?: number
+          semifinal_tables?: number | null
           start_date: string
           to_semifinal?: number | null
           total_players?: number | null
@@ -800,6 +804,7 @@ export type Database = {
           created_at?: string
           direct_to_grand_final?: number | null
           end_date?: string
+          grand_final_spots?: number | null
           info_text?: string | null
           info_title?: string | null
           name?: string
@@ -808,6 +813,7 @@ export type Database = {
           registration_open?: boolean
           required_availability_pct?: number
           required_weekly_pct?: number
+          semifinal_tables?: number | null
           start_date?: string
           to_semifinal?: number | null
           total_players?: number | null
@@ -947,6 +953,10 @@ export type Database = {
       }
       promote_to_semifinals: {
         Args: { p_semi1: string[]; p_semi2: string[]; p_tournament_num: number }
+        Returns: Json
+      }
+      promote_to_semifinals_n: {
+        Args: { p_tables: Json; p_tournament_num: number }
         Returns: Json
       }
       recalculate_sandbox_overall_vp_elo: { Args: never; Returns: undefined }
