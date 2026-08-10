@@ -382,24 +382,30 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
     () => swissProgress.length > 0 && swissProgress.every((r) => r.total > 0 && r.completed === r.total),
     [swissProgress],
   );
-  const promoteTriedRef = useRef(false);
-  useEffect(() => {
-    if (!userId) return;
-    if (!leagueComplete || semisPublished) return;
+  // Semi Final seating: automatic (snake seeded from the league standings) or
+  // manual (an admin imports a CSV with the Semi Final tables, which publishes them).
+  const [seeding, setSeeding] = useState(false);
+  const autoSeedSemis = async () => {
+    if (!userId || !leagueComplete || semisPublished) return;
     const tables = playoffs.semiTables;
-    if (tables.length !== plan.tables || tables.length === 0) return;
-    if (tables.some((t) => t.length !== plan.perTable)) return;
-    if (promoteTriedRef.current) return;
-    promoteTriedRef.current = true;
-    (async () => {
-      const { error } = await (supabase as any).rpc("promote_to_semifinals_n", {
-        p_tournament_num: tournamentNum,
-        p_tables: tables.map((t) => t.map((p) => p.player)),
-      });
-      if (error) { promoteTriedRef.current = false; return; }
-      await refresh();
-    })();
-  }, [userId, leagueComplete, semisPublished, playoffs, plan, tournamentNum]);
+    if (tables.length !== plan.tables || tables.length === 0) {
+      toast.error("Not enough players in the standings to seed the semi finals.");
+      return;
+    }
+    setSeeding(true);
+    const { error } = await (supabase as any).rpc("promote_to_semifinals_n", {
+      p_tournament_num: tournamentNum,
+      p_tables: tables.map((t) => t.map((p) => p.player)),
+    });
+    setSeeding(false);
+    if (error) {
+      toast.error(`Could not seed the semi finals: ${error.message}`);
+      return;
+    }
+    toast.success("Semi Final tables published.");
+    await refresh();
+  };
+
 
   // Detect whether the Grand Final table already exists / has been fully scored.
   const grandFinalRows = useMemo(
@@ -786,6 +792,24 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
             {/* Playoff bracket — projections only while the Semi Finals aren't published yet */}
             {!semisPublished && (
               <>
+                <Card className="p-4 border-border/60 bg-card/70 shadow-arena flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-display text-lg">Semi Final seating</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Automatic uses snake seeding on the league standings (1-8-9-16, 2-7-10-15, …). For manual seating,
+                      import a new CSV with the Semi Final tables in Admin → Tournaments — that always takes precedence.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={!userId || !leagueComplete || seeding}
+                    onClick={autoSeedSemis}
+                    className="bg-sand text-black hover:bg-sand/90"
+                  >
+                    {seeding ? <Loader2 className="size-4 mr-1 animate-spin" /> : null}
+                    {leagueComplete ? "Auto-seed Semi Finals" : "League phase not finished"}
+                  </Button>
+                </Card>
                 <p className="text-xs text-muted-foreground italic">
                   Projected Semi Finals based on current standings.
                 </p>
@@ -799,13 +823,15 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
                     />
                   ))}
                   <BracketCard title="Grand Final!" players={[
-                    ...playoffs.grand.map((p) => displayMode === "discord" ? p.discord : p.player),
-                    "Winner SF1",
-                    "Winner SF2",
+                    ...playoffs.grand
+                      .slice(0, Math.max(0, plan.gfSpots - plan.tables))
+                      .map((p) => displayMode === "discord" ? p.discord : p.player),
+                    ...Array.from({ length: Math.min(plan.tables, plan.gfSpots) }, (_, i) => `Winner SF${i + 1}`),
                   ]} accent="amber" />
                 </div>
               </>
             )}
+
 
 
 
@@ -818,11 +844,11 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
                   <TabsTrigger value="playoffs">Finals</TabsTrigger>
                 </TabsList>
                 <TabsContent value={logTab} className="mt-4 space-y-6">
-                   {[...groupedLogs.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([rt, tables]) => (
+                   {[...groupedLogs.entries()].sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true })).map(([rt, tables]) => (
                      <div key={rt} id={`round-${rt.replace(/\s+/g, "-")}`} className="scroll-mt-24">
                       <h4 className="font-display text-lg text-sand mb-2">{rt}</h4>
                       <div className="grid md:grid-cols-2 gap-3">
-                        {[...tables.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([ti, players]) => {
+                        {[...tables.entries()].sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true })).map(([ti, players]) => {
                           const shot = shotFor(rt, ti);
                           const sorted = [...players].sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9));
                           const finished = players.filter((p) => p.placement != null && p.points != null).length >= 4;
