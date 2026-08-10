@@ -183,10 +183,12 @@ export function bracketPlan(t?: Partial<BracketFields> | null) {
         ? Math.max(1, Math.round(semi / 4))
         : 0;
   const perTable = tables > 0 ? Math.ceil(semi / tables) : 0;
-  const gfSpots =
-    t?.grand_final_spots && t.grand_final_spots > 0 ? t.grand_final_spots : Math.max(1, gf + tables);
+  // With 4+ semi final tables the Grand Final is filled by the semi winners alone.
+  const defaultSpots = tables >= 4 ? tables : Math.max(1, gf + tables);
+  const gfSpots = t?.grand_final_spots && t.grand_final_spots > 0 ? t.grand_final_spots : defaultSpots;
   return { gf, semi, tables, perTable, gfSpots };
 }
+
 
 /** Snake-seed the semi final tables from the league standings (index 0 = 1st place). */
 export function seedSemiTables<T>(standings: T[], plan: ReturnType<typeof bracketPlan>): T[][] {
