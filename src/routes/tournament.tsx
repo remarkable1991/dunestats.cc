@@ -382,24 +382,30 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
     () => swissProgress.length > 0 && swissProgress.every((r) => r.total > 0 && r.completed === r.total),
     [swissProgress],
   );
-  const promoteTriedRef = useRef(false);
-  useEffect(() => {
-    if (!userId) return;
-    if (!leagueComplete || semisPublished) return;
+  // Semi Final seating: automatic (snake seeded from the league standings) or
+  // manual (an admin imports a CSV with the Semi Final tables, which publishes them).
+  const [seeding, setSeeding] = useState(false);
+  const autoSeedSemis = async () => {
+    if (!userId || !leagueComplete || semisPublished) return;
     const tables = playoffs.semiTables;
-    if (tables.length !== plan.tables || tables.length === 0) return;
-    if (tables.some((t) => t.length !== plan.perTable)) return;
-    if (promoteTriedRef.current) return;
-    promoteTriedRef.current = true;
-    (async () => {
-      const { error } = await (supabase as any).rpc("promote_to_semifinals_n", {
-        p_tournament_num: tournamentNum,
-        p_tables: tables.map((t) => t.map((p) => p.player)),
-      });
-      if (error) { promoteTriedRef.current = false; return; }
-      await refresh();
-    })();
-  }, [userId, leagueComplete, semisPublished, playoffs, plan, tournamentNum]);
+    if (tables.length !== plan.tables || tables.length === 0) {
+      toast.error("Not enough players in the standings to seed the semi finals.");
+      return;
+    }
+    setSeeding(true);
+    const { error } = await (supabase as any).rpc("promote_to_semifinals_n", {
+      p_tournament_num: tournamentNum,
+      p_tables: tables.map((t) => t.map((p) => p.player)),
+    });
+    setSeeding(false);
+    if (error) {
+      toast.error(`Could not seed the semi finals: ${error.message}`);
+      return;
+    }
+    toast.success("Semi Final tables published.");
+    await refresh();
+  };
+
 
   // Detect whether the Grand Final table already exists / has been fully scored.
   const grandFinalRows = useMemo(
