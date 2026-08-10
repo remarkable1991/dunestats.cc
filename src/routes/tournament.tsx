@@ -786,6 +786,24 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
             {/* Playoff bracket — projections only while the Semi Finals aren't published yet */}
             {!semisPublished && (
               <>
+                <Card className="p-4 border-border/60 bg-card/70 shadow-arena flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-display text-lg">Semi Final seating</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Automatic uses snake seeding on the league standings (1-8-9-16, 2-7-10-15, …). For manual seating,
+                      import a new CSV with the Semi Final tables in Admin → Tournaments — that always takes precedence.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={!userId || !leagueComplete || seeding}
+                    onClick={autoSeedSemis}
+                    className="bg-sand text-black hover:bg-sand/90"
+                  >
+                    {seeding ? <Loader2 className="size-4 mr-1 animate-spin" /> : null}
+                    {leagueComplete ? "Auto-seed Semi Finals" : "League phase not finished"}
+                  </Button>
+                </Card>
                 <p className="text-xs text-muted-foreground italic">
                   Projected Semi Finals based on current standings.
                 </p>
@@ -799,13 +817,15 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
                     />
                   ))}
                   <BracketCard title="Grand Final!" players={[
-                    ...playoffs.grand.map((p) => displayMode === "discord" ? p.discord : p.player),
-                    "Winner SF1",
-                    "Winner SF2",
+                    ...playoffs.grand
+                      .slice(0, Math.max(0, plan.gfSpots - plan.tables))
+                      .map((p) => displayMode === "discord" ? p.discord : p.player),
+                    ...Array.from({ length: Math.min(plan.tables, plan.gfSpots) }, (_, i) => `Winner SF${i + 1}`),
                   ]} accent="amber" />
                 </div>
               </>
             )}
+
 
 
 
