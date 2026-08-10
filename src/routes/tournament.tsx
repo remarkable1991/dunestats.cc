@@ -844,11 +844,11 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
                   <TabsTrigger value="playoffs">Finals</TabsTrigger>
                 </TabsList>
                 <TabsContent value={logTab} className="mt-4 space-y-6">
-                   {[...groupedLogs.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([rt, tables]) => (
+                   {[...groupedLogs.entries()].sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true })).map(([rt, tables]) => (
                      <div key={rt} id={`round-${rt.replace(/\s+/g, "-")}`} className="scroll-mt-24">
                       <h4 className="font-display text-lg text-sand mb-2">{rt}</h4>
                       <div className="grid md:grid-cols-2 gap-3">
-                        {[...tables.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([ti, players]) => {
+                        {[...tables.entries()].sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true })).map(([ti, players]) => {
                           const shot = shotFor(rt, ti);
                           const sorted = [...players].sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9));
                           const finished = players.filter((p) => p.placement != null && p.points != null).length >= 4;
