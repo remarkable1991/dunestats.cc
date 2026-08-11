@@ -58,6 +58,7 @@ type Draft = {
   to_semifinal: string;
   semifinal_tables: string;
   grand_final_spots: string;
+  semifinal_seeding: "snake" | "manual";
 };
 
 function toDraft(t: TournamentConfig): Draft {
@@ -80,6 +81,7 @@ function toDraft(t: TournamentConfig): Draft {
     to_semifinal: t.to_semifinal == null ? "" : String(t.to_semifinal),
     semifinal_tables: t.semifinal_tables == null ? "" : String(t.semifinal_tables),
     grand_final_spots: t.grand_final_spots == null ? "" : String(t.grand_final_spots),
+    semifinal_seeding: t.semifinal_seeding,
   };
 }
 
@@ -110,6 +112,7 @@ function emptyDraft(nextNum: number): Draft {
     to_semifinal: "",
     semifinal_tables: "",
     grand_final_spots: "",
+    semifinal_seeding: "snake",
   };
 }
 
@@ -322,6 +325,7 @@ function TournamentForm({
       to_semifinal: semi,
       semifinal_tables: semiTables,
       grand_final_spots: gfSpots,
+      semifinal_seeding: draft.semifinal_seeding,
     };
     const { error } = await supabase.from("tournaments").upsert(payload, { onConflict: "tournament_num" });
     setSaving(false);
@@ -417,6 +421,34 @@ function TournamentForm({
             <p className="text-[11px] text-muted-foreground mt-1">Leave empty to use direct seeds + one winner per Semi Final table.</p>
           </div>
         </div>
+        <div className="pt-2">
+          <Label className="text-xs text-muted-foreground">Semi Final seating</Label>
+          <div className="flex gap-2 mt-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={draft.semifinal_seeding === "snake" ? "default" : "outline"}
+              className={draft.semifinal_seeding === "snake" ? "bg-sand text-background hover:bg-sand/90" : ""}
+              onClick={() => set("semifinal_seeding", "snake")}
+            >
+              Automatic (snake)
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={draft.semifinal_seeding === "manual" ? "default" : "outline"}
+              className={draft.semifinal_seeding === "manual" ? "bg-sand text-background hover:bg-sand/90" : ""}
+              onClick={() => set("semifinal_seeding", "manual")}
+            >
+              Manual (CSV upload)
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Automatic snake-seeds the Semi Finals from the league standings (1-8-9-16, 2-7-10-15, …). Manual means you
+            import a CSV with the Semi Final tables yourself.
+          </p>
+        </div>
+
         <p className="text-[11px] text-muted-foreground">
           {formatTournamentFormat({
             total_players: Number(draft.total_players) || null,
