@@ -186,12 +186,14 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
 
   const [formatLine, setFormatLine] = useState<string | null>(null);
   const [plan, setPlan] = useState(() => bracketPlan(null));
+  const [seedingMode, setSeedingMode] = useState<"snake" | "manual">("snake");
   useEffect(() => {
     void (async () => {
       const all = await fetchTournaments();
       const cfg = all.find((t) => t.tournament_num === tournamentNum);
       setFormatLine(cfg ? formatTournamentFormat(cfg) : null);
       setPlan(bracketPlan(cfg ?? null));
+      setSeedingMode(cfg?.semifinal_seeding === "manual" ? "manual" : "snake");
     })();
   }, [tournamentNum]);
 
