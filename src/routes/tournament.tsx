@@ -386,27 +386,28 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
   );
   // Semi Final seating: automatic (snake seeded from the league standings) or
   // manual (an admin imports a CSV with the Semi Final tables, which publishes them).
-  const [seeding, setSeeding] = useState(false);
-  const autoSeedSemis = async () => {
+  // The mode is configured per tournament in Admin → Tournaments.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seedingMode !== "snake") return;
     if (!userId || !leagueComplete || semisPublished) return;
     const tables = playoffs.semiTables;
-    if (tables.length !== plan.tables || tables.length === 0) {
-      toast.error("Not enough players in the standings to seed the semi finals.");
-      return;
-    }
-    setSeeding(true);
-    const { error } = await (supabase as any).rpc("promote_to_semifinals_n", {
-      p_tournament_num: tournamentNum,
-      p_tables: tables.map((t) => t.map((p) => p.player)),
-    });
-    setSeeding(false);
-    if (error) {
-      toast.error(`Could not seed the semi finals: ${error.message}`);
-      return;
-    }
-    toast.success("Semi Final tables published.");
-    await refresh();
-  };
+    if (tables.length !== plan.tables || tables.length === 0) return;
+    if (seededRef.current) return;
+    seededRef.current = true;
+    void (async () => {
+      const { error } = await (supabase as any).rpc("promote_to_semifinals_n", {
+        p_tournament_num: tournamentNum,
+        p_tables: tables.map((t) => t.map((p) => p.player)),
+      });
+      if (error) {
+        seededRef.current = false;
+        return;
+      }
+      toast.success("Semi Final tables published.");
+      await refresh();
+    })();
+  }, [seedingMode, userId, leagueComplete, semisPublished, playoffs, plan.tables, tournamentNum]);
 
 
   // Detect whether the Grand Final table already exists / has been fully scored.
