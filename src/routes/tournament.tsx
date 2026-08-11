@@ -793,47 +793,57 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
             </Card>
 
             {/* Playoff bracket — projections only while the Semi Finals aren't published yet */}
-            {!semisPublished && (
+            {!semisPublished && (() => {
+              const rankOf = new Map(leagueStandings.map((p, i) => [p.player, i + 1]));
+              const label = (p: { player: string; discord: string }) => {
+                const name = displayMode === "discord" ? p.discord : p.player;
+                const r = rankOf.get(p.player);
+                return r ? `${name} (#${r})` : name;
+              };
+              return (
               <>
-                <Card className="p-4 border-border/60 bg-card/70 shadow-arena flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="font-display text-lg">Semi Final seating</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Automatic uses snake seeding on the league standings (1-8-9-16, 2-7-10-15, …). For manual seating,
-                      import a new CSV with the Semi Final tables in Admin → Tournaments — that always takes precedence.
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    disabled={!userId || !leagueComplete || seeding}
-                    onClick={autoSeedSemis}
-                    className="bg-sand text-black hover:bg-sand/90"
-                  >
-                    {seeding ? <Loader2 className="size-4 mr-1 animate-spin" /> : null}
-                    {leagueComplete ? "Auto-seed Semi Finals" : "League phase not finished"}
-                  </Button>
+                <Card className="p-4 border-border/60 bg-card/70 shadow-arena">
+                  <h3 className="font-display text-lg">Semi Final seating</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {seedingMode === "snake" ? (
+                      <>
+                        <span className="text-sand">Automatic (snake seeding)</span> — tables are built from the league
+                        standings (1-8-9-16, 2-7-10-15, …) as soon as the league phase is finished.
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-sand">Manual seating</span> — the Semi Final tables are published by the
+                        organisers once seating is decided.
+                      </>
+                    )}
+                  </p>
                 </Card>
                 <p className="text-xs text-muted-foreground italic">
-                  Projected Semi Finals based on current standings.
+                  {seedingMode === "snake"
+                    ? "Projected Semi Finals based on current standings."
+                    : "Semi Final tables will appear once the organisers publish the seating."}
                 </p>
-                <div className="grid md:grid-cols-3 gap-4">
-                  {playoffs.semiTables.map((t, i) => (
-                    <BracketCard
-                      key={i}
-                      title={`Semi Final ${i + 1}`}
-                      players={t.map((p) => displayMode === "discord" ? p.discord : p.player)}
-                      accent="slate"
-                    />
-                  ))}
-                  <BracketCard title="Grand Final!" players={[
-                    ...playoffs.grand
-                      .slice(0, Math.max(0, plan.gfSpots - plan.tables))
-                      .map((p) => displayMode === "discord" ? p.discord : p.player),
-                    ...Array.from({ length: Math.min(plan.tables, plan.gfSpots) }, (_, i) => `Winner SF${i + 1}`),
-                  ]} accent="amber" />
-                </div>
+                {seedingMode === "snake" && (
+                  <div className="grid md:grid-cols-3 gap-4">
+                    {playoffs.semiTables.map((t, i) => (
+                      <BracketCard
+                        key={i}
+                        title={`Semi Final ${i + 1}`}
+                        players={t.map(label)}
+                        accent="slate"
+                      />
+                    ))}
+                    <BracketCard title="Grand Final!" players={[
+                      ...playoffs.grand
+                        .slice(0, Math.max(0, plan.gfSpots - plan.tables))
+                        .map(label),
+                      ...Array.from({ length: Math.min(plan.tables, plan.gfSpots) }, (_, i) => `Winner SF${i + 1}`),
+                    ]} accent="amber" />
+                  </div>
+                )}
               </>
-            )}
+              );
+            })()}
 
 
 
