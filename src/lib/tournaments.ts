@@ -21,7 +21,10 @@ export type TournamentConfig = {
   to_semifinal: number | null;
   semifinal_tables: number | null;
   grand_final_spots: number | null;
+  semifinal_seeding: SemifinalSeeding;
 };
+
+export type SemifinalSeeding = "snake" | "manual";
 
 export const MAX_CHECKBOXES = 4;
 export const SLOTS_PER_DAY = 48; // 30-minute blocks
