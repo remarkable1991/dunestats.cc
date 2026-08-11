@@ -21,7 +21,10 @@ export type TournamentConfig = {
   to_semifinal: number | null;
   semifinal_tables: number | null;
   grand_final_spots: number | null;
+  semifinal_seeding: SemifinalSeeding;
 };
+
+export type SemifinalSeeding = "snake" | "manual";
 
 export const MAX_CHECKBOXES = 4;
 export const SLOTS_PER_DAY = 48; // 30-minute blocks
@@ -133,6 +136,7 @@ type Row = {
   to_semifinal: number | null;
   semifinal_tables?: number | null;
   grand_final_spots?: number | null;
+  semifinal_seeding?: string | null;
 };
 
 
@@ -161,11 +165,12 @@ export function normalizeTournament(row: Row): TournamentConfig {
     to_semifinal: row.to_semifinal ?? null,
     semifinal_tables: row.semifinal_tables ?? null,
     grand_final_spots: row.grand_final_spots ?? null,
+    semifinal_seeding: row.semifinal_seeding === "manual" ? "manual" : "snake",
   };
 }
 
 const SELECT =
-  "tournament_num, name, start_date, end_date, required_availability_pct, required_weekly_pct, checkboxes, info_title, info_text, prizes_summary, prizes_text, registration_open, checkin_start_at, total_players, direct_to_grand_final, to_semifinal, semifinal_tables, grand_final_spots";
+  "tournament_num, name, start_date, end_date, required_availability_pct, required_weekly_pct, checkboxes, info_title, info_text, prizes_summary, prizes_text, registration_open, checkin_start_at, total_players, direct_to_grand_final, to_semifinal, semifinal_tables, grand_final_spots, semifinal_seeding";
 
 export type BracketFields = Pick<
   TournamentConfig,

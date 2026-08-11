@@ -769,6 +769,7 @@ export type Database = {
           registration_open: boolean
           required_availability_pct: number
           required_weekly_pct: number
+          semifinal_seeding: string
           semifinal_tables: number | null
           start_date: string
           to_semifinal: number | null
@@ -791,6 +792,7 @@ export type Database = {
           registration_open?: boolean
           required_availability_pct?: number
           required_weekly_pct?: number
+          semifinal_seeding?: string
           semifinal_tables?: number | null
           start_date: string
           to_semifinal?: number | null
@@ -813,6 +815,7 @@ export type Database = {
           registration_open?: boolean
           required_availability_pct?: number
           required_weekly_pct?: number
+          semifinal_seeding?: string
           semifinal_tables?: number | null
           start_date?: string
           to_semifinal?: number | null
