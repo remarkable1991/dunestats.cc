@@ -312,6 +312,17 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
         map.set(key, agg);
       });
     }
+    // Include every league participant (even without uploaded results) so the
+    // projected playoff tables show the players currently in those positions.
+    for (const row of rows) {
+      if (!(SWISS_ROUNDS as readonly string[]).includes(row.round_type)) continue;
+      if (map.has(row.player_name)) continue;
+      map.set(row.player_name, {
+        player: row.player_name,
+        discord: row.discord_username ?? row.player_name,
+        tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0, daysSum: 0, daysCount: 0,
+      });
+    }
     const list = [...map.values()].map((a) => ({
       ...a,
       avgPlacement: a.placements.length ? a.placements.reduce((s, n) => s + n, 0) / a.placements.length : 4,
@@ -323,7 +334,8 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
       if (b.wins !== a.wins) return b.wins - a.wins;
       if (a.avgPlacement !== b.avgPlacement) return a.avgPlacement - b.avgPlacement;
       if (b.vp !== a.vp) return b.vp - a.vp;
-      return b.vpPct - a.vpPct;
+      if (b.vpPct !== a.vpPct) return b.vpPct - a.vpPct;
+      return a.player.localeCompare(b.player);
     });
     return list;
   }, [rows]);
