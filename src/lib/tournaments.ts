@@ -136,6 +136,7 @@ type Row = {
   to_semifinal: number | null;
   semifinal_tables?: number | null;
   grand_final_spots?: number | null;
+  semifinal_seeding?: string | null;
 };
 
 
