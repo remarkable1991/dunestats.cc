@@ -304,7 +304,7 @@ export function EloHistoryChart({ playerKey }: { playerKey: string }) {
                   width={52}
                 />
                 <Tooltip
-                  cursor={{ stroke: "hsl(var(--border))" }}
+                  cursor={{ stroke: "var(--border)" }}
                   wrapperStyle={{ outline: "none", zIndex: 50 }}
                   content={({ active, payload }) => {
                     if (!active || !payload?.length) return null;
@@ -315,11 +315,10 @@ export function EloHistoryChart({ playerKey }: { playerKey: string }) {
                 <Line
                   type="monotone"
                   dataKey="rating"
-                  stroke="hsl(var(--sand, 40 60% 60%))"
-                  className="text-sand"
+                  stroke="var(--sand)"
                   strokeWidth={2}
-                  dot={{ r: 2 }}
-                  activeDot={{ r: 5 }}
+                  dot={{ r: 2, fill: "var(--sand)" }}
+                  activeDot={{ r: 5, fill: "var(--sand)" }}
                   isAnimationActive={false}
                 />
               </LineChart>
