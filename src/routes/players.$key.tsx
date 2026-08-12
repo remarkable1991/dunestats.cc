@@ -4,7 +4,9 @@ import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
-import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown, Target, History, type LucideIcon } from "lucide-react";
+import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown, Target, History, TrendingUp, type LucideIcon } from "lucide-react";
+import { EloHistoryChart } from "@/components/EloHistoryChart";
+
 import { ScreenshotButton } from "@/components/ScreenshotButton";
 import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 import { useChampions, isChampion, winCount } from "@/lib/champions";
@@ -394,7 +396,13 @@ function ProfilePage() {
               })}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3 mb-8">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+              <QuickJump
+                icon={TrendingUp}
+                title="ELO History"
+                subtitle="Interactive rating graph & match progression"
+                target="elo-history"
+              />
               <QuickJump
                 icon={Trophy}
                 title="Achievements & Trophies"
@@ -415,24 +423,26 @@ function ProfilePage() {
               />
             </div>
 
-            {closingIn.length > 0 && (
-              <section className="mb-8">
-                <h2 className="font-display text-xl mb-3 flex items-center gap-2">
-                  <Target className="size-5 text-sand" /> Closing In
-                </h2>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {closingIn.map((a) => (
-                    <AchievementBadge key={a.id} a={a} featured />
-                  ))}
-                </div>
-              </section>
-            )}
+            <EloHistoryChart playerKey={playerKey} />
 
             {achievements.length > 0 && (
               <section id="achievements" className="mb-8 scroll-mt-24">
+                {closingIn.length > 0 && (
+                  <div className="mb-6 rounded-lg border border-sand/40 bg-gradient-to-br from-card to-card/40 p-4">
+                    <h2 className="font-display text-xl mb-3 flex items-center gap-2">
+                      <Target className="size-5 text-sand" /> Closing In
+                    </h2>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {closingIn.map((a) => (
+                        <AchievementBadge key={a.id} a={a} featured />
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <h2 className="font-display text-xl mb-3 flex items-center gap-2">
                   <Trophy className="size-5 text-sand" /> Trophy Cabinet
                 </h2>
+
                 <div className="flex flex-wrap items-center gap-3 mb-3">
                   <div className="inline-flex rounded-full border border-border/60 bg-card/60 p-0.5">
                     {([
