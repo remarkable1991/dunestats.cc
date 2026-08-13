@@ -147,6 +147,8 @@ const PLACEMENT_COLORS = ["#F59E0B", "#CBD5E1", "#B45309", "#DC2626"];
 
 const ORD = ["1st", "2nd", "3rd", "4th"];
 
+const ORD = ["1st", "2nd", "3rd", "4th"];
+
 function RatingCard({
   label,
   elo,
