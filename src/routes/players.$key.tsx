@@ -145,51 +145,96 @@ const ACH_TAGS: Array<{ v: string; label: string }> = [
 
 const PLACEMENT_COLORS = ["#E2B859", "#94A3B8", "#D97706", "#EF4444"];
 
-function PlacementBreakdown({ p }: { p: { total: number; c: number[] } }) {
+const ORD = ["1st", "2nd", "3rd", "4th"];
+
+function RatingCard({
+  label,
+  elo,
+  rank,
+  version,
+  p,
+}: {
+  label: string;
+  elo: number | null;
+  rank: number | null;
+  version: string;
+  p: { total: number; c: number[] };
+}) {
   const total = p.total;
   const pct = (n: number) => (total ? (n / total) * 100 : 0);
-  const p1 = pct(p.c[0]);
-  const p2 = pct(p.c[1]);
-  const p3 = pct(p.c[2]);
-  const p4 = pct(p.c[3]);
+  const [p1, p2, p3, p4] = [pct(p.c[0]), pct(p.c[1]), pct(p.c[2]), pct(p.c[3])];
   const top2 = p1 + p2;
-
-  if (!total) return <div className="text-xs text-muted-foreground mt-2">No games yet</div>;
-
-  const top2Cls = top2 > 54 ? "text-emerald-400" : top2 < 46 ? "text-red-400" : "text-muted-foreground";
-  const p1Cls = p1 > 28 ? "text-emerald-400" : p1 < 22 ? "text-red-400" : "text-muted-foreground";
-  const p2Cls = p1 < 28 && p2 < 20 ? "text-amber-400" : "text-muted-foreground";
-  const lowCls = p4 > 26 || p3 + p4 > 52 ? "text-red-400" : "text-muted-foreground";
   const f = (n: number) => `${Math.round(n)}%`;
+
+  const top2Cls = top2 > 54 ? "text-emerald-400" : top2 < 46 ? "text-red-400" : "text-sand";
+  const p1Cls = p1 > 28 ? "text-emerald-400" : p1 < 22 ? "text-red-400" : "text-foreground/80";
+  const p2Cls = p1 < 28 && p2 < 20 ? "text-amber-400" : "text-foreground/80";
+  const lowCls = p4 > 26 || p3 + p4 > 52 ? "text-red-400" : "text-foreground/80";
+  const cls = [p1Cls, p2Cls, lowCls, lowCls];
+  const pcts = [p1, p2, p3, p4];
 
   return (
     <>
-      <div className="mt-2 flex flex-wrap gap-1">
+      {/* Row 1: header */}
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+        <div className="text-[11px] text-muted-foreground tabular-nums">{total} Games Played</div>
+      </div>
+
+      {/* Row 2: elo + rank / top 2 */}
+      <div className="mt-1 flex items-end justify-between gap-2">
+        <Link
+          to="/leaderboard"
+          hash={version}
+          className="flex items-baseline gap-2 hover:opacity-80 transition-opacity"
+        >
+          <span className="font-display text-3xl text-sand tabular-nums">{elo != null ? Math.round(elo) : "—"}</span>
+          {rank != null && <span className="text-xs text-muted-foreground tabular-nums">#{rank}</span>}
+        </Link>
+        <span
+          className={`rounded-full border border-border/60 bg-secondary/40 px-2 py-0.5 text-[11px] font-semibold tabular-nums ${top2Cls}`}
+        >
+          Top 2: {total ? f(top2) : "—"}
+        </span>
+      </div>
+
+      {/* Row 3: placement counts */}
+      <div className="mt-2 grid grid-cols-4 gap-1">
         {p.c.map((n, i) => (
           <span
             key={i}
-            className="rounded-full border border-border/60 bg-secondary/40 px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground"
+            className={`rounded-full border border-border/60 bg-secondary/40 px-1 py-0.5 text-center text-[10px] tabular-nums ${cls[i]}`}
           >
-            {i + 1}
-            {["st", "nd", "rd", "th"][i]}: {n}
+            {ORD[i]}: {n}x
           </span>
         ))}
       </div>
-      <div className="mt-2 flex h-1.5 w-full overflow-hidden rounded-full bg-secondary/60">
-        {[p1, p2, p3, p4].map((w, i) => (
-          <div key={i} style={{ width: `${w}%`, backgroundColor: PLACEMENT_COLORS[i] }} />
-        ))}
-      </div>
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] tabular-nums">
-        <span className={top2Cls}>Top 2 {f(top2)}</span>
-        <span className={p1Cls}>1st {f(p1)}</span>
-        <span className={p2Cls}>2nd {f(p2)}</span>
-        <span className={lowCls}>3rd {f(p3)}</span>
-        <span className={lowCls}>4th {f(p4)}</span>
-      </div>
+
+      {/* Row 4: distribution bar */}
+      {total ? (
+        <div className="mt-2 flex h-7 w-full overflow-hidden rounded-md bg-secondary/60">
+          {pcts.map((w, i) => (
+            <div
+              key={i}
+              title={`${ORD[i]} Place: ${f(w)} (${p.c[i]} games)`}
+              style={{ width: `${w}%`, minWidth: "12px", backgroundColor: PLACEMENT_COLORS[i] }}
+              className="flex items-center justify-center overflow-hidden"
+            >
+              {w >= 12 && (
+                <span className={`text-[10px] font-bold tabular-nums ${cls[i]}`}>
+                  {ORD[i]} {f(w)}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-2 text-xs text-muted-foreground">No games yet</div>
+      )}
     </>
   );
 }
+
 
 function ProfilePage() {
 
