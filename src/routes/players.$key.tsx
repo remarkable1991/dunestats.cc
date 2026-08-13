@@ -180,6 +180,7 @@ function RatingCard({
     "text-amber-600",
     "text-red-400",
   ];
+  const pcts = [p1, p2, p3, p4];
 
   return (
     <>
