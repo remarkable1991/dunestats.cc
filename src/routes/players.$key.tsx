@@ -247,6 +247,31 @@ function ProfilePage() {
   const [achTab, setAchTab] = useState<"all" | "unlocked" | "progress">("all");
   const [achTag, setAchTag] = useState<string>("all");
   const [achScope, setAchScope] = useState<"lifetime" | "seasonal">("lifetime");
+  const [ranks, setRanks] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let mounted = true;
+    if (ratings.length === 0) {
+      setRanks({});
+      return;
+    }
+    Promise.all(
+      ratings.map(async (r) => {
+        const { count } = await supabase
+          .from("player_ratings")
+          .select("player_key", { count: "exact", head: true })
+          .eq("game_version", r.game_version)
+          .gt("elo", Number(r.elo));
+        return [r.game_version, (count ?? 0) + 1] as const;
+      }),
+    ).then((entries) => {
+      if (mounted) setRanks(Object.fromEntries(entries));
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [ratings]);
+
 
   const champions = useChampions();
   const champion = isChampion(champions, playerKey);
