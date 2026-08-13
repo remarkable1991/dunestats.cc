@@ -168,12 +168,18 @@ function RatingCard({
   const top2 = p1 + p2;
   const f = (n: number) => `${Math.round(n)}%`;
 
-  const top2Cls = top2 > 54 ? "text-emerald-400" : top2 < 46 ? "text-red-400" : "text-sand";
-  const p1Cls = p1 > 28 ? "text-emerald-400" : p1 < 22 ? "text-red-400" : "text-foreground/80";
-  const p2Cls = p1 < 28 && p2 < 20 ? "text-amber-400" : "text-foreground/80";
-  const lowCls = p4 > 26 || p3 + p4 > 52 ? "text-red-400" : "text-foreground/80";
-  const cls = [p1Cls, p2Cls, lowCls, lowCls];
-  const pcts = [p1, p2, p3, p4];
+  const top2Cls =
+    top2 > 54
+      ? "bg-emerald-950/80 border border-emerald-500/50 text-emerald-400 font-semibold"
+      : top2 < 46
+        ? "bg-red-950/80 border border-red-500/50 text-red-400 font-semibold"
+        : "bg-amber-950/80 border border-amber-500/50 text-amber-300 font-semibold";
+  const pillCls = [
+    "text-amber-400",
+    "text-slate-200",
+    "text-amber-600",
+    "text-red-400",
+  ];
 
   return (
     <>
@@ -194,7 +200,7 @@ function RatingCard({
           {rank != null && <span className="text-xs text-muted-foreground tabular-nums">#{rank}</span>}
         </Link>
         <span
-          className={`rounded-full border border-border/60 bg-secondary/40 px-2 py-0.5 text-[11px] font-semibold tabular-nums ${top2Cls}`}
+          className={`rounded-full px-2 py-0.5 text-[11px] tabular-nums ${top2Cls}`}
         >
           Top 2: {total ? f(top2) : "—"}
         </span>
@@ -205,7 +211,7 @@ function RatingCard({
         {p.c.map((n, i) => (
           <span
             key={i}
-            className={`rounded-full border border-border/60 bg-secondary/40 px-1 py-0.5 text-center text-[10px] tabular-nums ${cls[i]}`}
+            className={`rounded-full border border-border/60 bg-slate-800/80 px-1 py-0.5 text-center text-[10px] font-medium tabular-nums ${pillCls[i]}`}
           >
             {ORD[i]}: {n}x
           </span>
@@ -223,7 +229,7 @@ function RatingCard({
               className="flex items-center justify-center overflow-hidden"
             >
               {w >= 12 && (
-                <span className={`text-[10px] font-bold tabular-nums ${cls[i]}`}>
+                <span className="text-[10px] font-bold tabular-nums text-slate-950">
                   {ORD[i]} {f(w)}
                 </span>
               )}
