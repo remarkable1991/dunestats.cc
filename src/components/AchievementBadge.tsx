@@ -8,6 +8,9 @@ export type AchievementTier = {
   target: number;
   current: number;
   is_unlocked: boolean;
+  description?: string | null;
+  missing_items?: string[] | null;
+  sp_reward?: number | null;
 };
 
 export type Achievement = {
@@ -21,6 +24,8 @@ export type Achievement = {
   description: string;
   is_unlocked: boolean;
   is_seasonal?: boolean | null;
+  tags?: string[] | null;
+  sp_reward?: number | null;
   missing_items: string[] | null;
   tiers?: AchievementTier[] | null;
 };
@@ -80,15 +85,15 @@ export function AchievementBadge({ a, featured = false }: { a: Achievement; feat
   const unlocked = sel ? sel.is_unlocked : a.is_unlocked;
   const tierName = sel ? sel.tier : a.tier;
   const pct = target ? Math.round(Math.min(1, current / target) * 100) : 0;
+  const spReward = (sel?.sp_reward ?? a.sp_reward) ?? null;
 
-  // Missing items are reported for the achievement's current working tier only.
-  const isCurrentTier = !sel || sel.tier === a.tier;
-  const missing = (a.missing_items ?? []).filter(Boolean);
-  const showMissing = !unlocked && isCurrentTier && missing.length > 0;
+  const missing = ((sel ? sel.missing_items : a.missing_items) ?? []).filter(Boolean);
+  const showMissing = !unlocked && missing.length > 0;
 
+  const baseDescription = sel?.description ?? a.description;
   const description = sel?.req
-    ? `(${sel.tier} Target) ${sel.req} — ${a.description.replace(/^\([^)]*\)\s*/, "")}`
-    : a.description;
+    ? `(${sel.tier} Target) ${sel.req} — ${baseDescription.replace(/^\([^)]*\)\s*/, "")}`
+    : baseDescription;
 
   return (
     <div
@@ -141,6 +146,20 @@ export function AchievementBadge({ a, featured = false }: { a: Achievement; feat
         )}
 
         <p className="text-xs text-muted-foreground mt-2">{description}</p>
+
+        {spReward != null && (
+          <div className="mt-2">
+            <span
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                unlocked
+                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                  : "bg-sand/10 text-sand border-sand/30"
+              }`}
+            >
+              {unlocked ? `\u2713 +${spReward} SP Earned` : `\u26A1 Reward: +${spReward} SP`}
+            </span>
+          </div>
+        )}
 
         <div className="mt-3">
           <div className="h-2 w-full rounded-full bg-secondary/60 overflow-hidden">

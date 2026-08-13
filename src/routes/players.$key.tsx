@@ -130,6 +130,67 @@ function QuickJump({
   );
 }
 
+const ACH_TAGS: Array<{ v: string; label: string }> = [
+  { v: "all", label: "All Tags" },
+  { v: "Base Set", label: "Base Set" },
+  { v: "Rise of Ix", label: "Rise of Ix" },
+  { v: "Uprising", label: "Uprising" },
+  { v: "Leader Play", label: "Leader Play" },
+  { v: "Leader Wins", label: "Leader Wins" },
+  { v: "Expansion Modes", label: "Expansion Modes" },
+  { v: "Tournaments", label: "Tournaments" },
+  { v: "Social & Community", label: "Social & Community" },
+  { v: "rare", label: "Rare & Legendary" },
+];
+
+const PLACEMENT_COLORS = ["#E2B859", "#94A3B8", "#D97706", "#EF4444"];
+
+function PlacementBreakdown({ p }: { p: { total: number; c: number[] } }) {
+  const total = p.total;
+  const pct = (n: number) => (total ? (n / total) * 100 : 0);
+  const p1 = pct(p.c[0]);
+  const p2 = pct(p.c[1]);
+  const p3 = pct(p.c[2]);
+  const p4 = pct(p.c[3]);
+  const top2 = p1 + p2;
+
+  if (!total) return <div className="text-xs text-muted-foreground mt-2">No games yet</div>;
+
+  const top2Cls = top2 > 54 ? "text-emerald-400" : top2 < 46 ? "text-red-400" : "text-muted-foreground";
+  const p1Cls = p1 > 28 ? "text-emerald-400" : p1 < 22 ? "text-red-400" : "text-muted-foreground";
+  const p2Cls = p1 < 28 && p2 < 20 ? "text-amber-400" : "text-muted-foreground";
+  const lowCls = p4 > 26 || p3 + p4 > 52 ? "text-red-400" : "text-muted-foreground";
+  const f = (n: number) => `${Math.round(n)}%`;
+
+  return (
+    <>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {p.c.map((n, i) => (
+          <span
+            key={i}
+            className="rounded-full border border-border/60 bg-secondary/40 px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground"
+          >
+            {i + 1}
+            {["st", "nd", "rd", "th"][i]}: {n}
+          </span>
+        ))}
+      </div>
+      <div className="mt-2 flex h-1.5 w-full overflow-hidden rounded-full bg-secondary/60">
+        {[p1, p2, p3, p4].map((w, i) => (
+          <div key={i} style={{ width: `${w}%`, backgroundColor: PLACEMENT_COLORS[i] }} />
+        ))}
+      </div>
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] tabular-nums">
+        <span className={top2Cls}>Top 2 {f(top2)}</span>
+        <span className={p1Cls}>1st {f(p1)}</span>
+        <span className={p2Cls}>2nd {f(p2)}</span>
+        <span className={lowCls}>3rd {f(p3)}</span>
+        <span className={lowCls}>4th {f(p4)}</span>
+      </div>
+    </>
+  );
+}
+
 function ProfilePage() {
 
   const { key } = Route.useParams();
@@ -138,7 +199,8 @@ function ProfilePage() {
   const [matches, setMatches] = useState<MatchRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [achTab, setAchTab] = useState<"all" | "unlocked" | "progress" | "rare">("all");
+  const [achTab, setAchTab] = useState<"all" | "unlocked" | "progress">("all");
+  const [achTag, setAchTag] = useState<string>("all");
   const [achScope, setAchScope] = useState<"lifetime" | "seasonal">("lifetime");
 
   const champions = useChampions();
@@ -194,14 +256,34 @@ function ProfilePage() {
   );
 
   const shownAchievements = useMemo(() => {
-    const arr = [...scopedAchievements];
-    if (achTab === "unlocked") return arr.filter((a) => a.is_unlocked);
-    if (achTab === "progress") return arr.filter((a) => !a.is_unlocked);
-    if (achTab === "rare") return arr.filter((a) => a.rarity === "Rare" || a.rarity === "Legendary");
+    let arr = [...scopedAchievements];
+    if (achTab === "unlocked") arr = arr.filter((a) => a.is_unlocked);
+    if (achTab === "progress") arr = arr.filter((a) => !a.is_unlocked);
+    if (achTag === "rare") arr = arr.filter((a) => a.rarity === "Rare" || a.rarity === "Legendary");
+    else if (achTag !== "all") arr = arr.filter((a) => (a.tags ?? []).includes(achTag));
     return arr;
-  }, [scopedAchievements, achTab]);
+  }, [scopedAchievements, achTab, achTag]);
 
-
+  const placementStats = useMemo(() => {
+    const empty = () => ({ total: 0, c: [0, 0, 0, 0] });
+    const out: Record<string, { total: number; c: number[] }> = {
+      overall: empty(),
+      base: empty(),
+      ix: empty(),
+      uprising: empty(),
+    };
+    for (const m of matches) {
+      const gv = m.games?.game_version;
+      const idx = Math.min(4, Math.max(1, m.placement)) - 1;
+      out.overall.total += 1;
+      out.overall.c[idx] += 1;
+      if (gv && out[gv]) {
+        out[gv].total += 1;
+        out[gv].c[idx] += 1;
+      }
+    }
+    return out;
+  }, [matches]);
 
   const displayName = ratings[0]?.display_name ?? playerKey;
   const claimed = ratings.some((r) => r.claimed_by);
@@ -379,18 +461,20 @@ function ProfilePage() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
               {GAME_VERSIONS.map((v) => {
                 const r = ratings.find((x) => x.game_version === v.value);
+                const p = placementStats[v.value];
                 return (
                   <Card
                     key={v.value}
                     className={`p-4 border-border/60 bg-card/70 ${v.value === "overall" ? "ring-1 ring-sand/40" : ""}`}
                   >
-                    <div className="text-xs uppercase tracking-wider text-muted-foreground">{v.label}</div>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <div className="text-xs uppercase tracking-wider text-muted-foreground">{v.label}</div>
+                      <div className="text-[11px] text-muted-foreground tabular-nums">{p.total} Games Played</div>
+                    </div>
                     <div className="font-display text-3xl text-sand mt-1">
                       {r ? Math.round(Number(r.elo)) : "—"}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {r ? `${r.wins}W · ${r.games_played} games · ${r.top2} top-2` : "No games yet"}
-                    </div>
+                    <PlacementBreakdown p={p} />
                   </Card>
                 );
               })}
@@ -446,8 +530,8 @@ function ProfilePage() {
                 <div className="flex flex-wrap items-center gap-3 mb-3">
                   <div className="inline-flex rounded-full border border-border/60 bg-card/60 p-0.5">
                     {([
-                      { v: "lifetime", label: "Lifetime" },
-                      { v: "seasonal", label: "Current Season" },
+                      { v: "lifetime", label: "\u{1F310} Lifetime" },
+                      { v: "seasonal", label: "\u{1F5D3}\uFE0F Current Season" },
                     ] as const).map((s) => (
                       <button
                         key={s.v}
@@ -465,12 +549,27 @@ function ProfilePage() {
                   </div>
                   <Tabs value={achTab} onValueChange={(v) => setAchTab(v as typeof achTab)}>
                     <TabsList className="bg-card/60 border border-border/60">
-                      <TabsTrigger value="all" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">All</TabsTrigger>
+                      <TabsTrigger value="all" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">All Statuses</TabsTrigger>
                       <TabsTrigger value="unlocked" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">Unlocked</TabsTrigger>
                       <TabsTrigger value="progress" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">In Progress</TabsTrigger>
-                      <TabsTrigger value="rare" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">Rare &amp; Legendary</TabsTrigger>
                     </TabsList>
                   </Tabs>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                  {ACH_TAGS.map((t) => (
+                    <button
+                      key={t.v}
+                      type="button"
+                      onClick={() => setAchTag(t.v)}
+                      className={`rounded-full border px-3 py-1 text-xs transition ${
+                        achTag === t.v
+                          ? "border-sand/70 bg-sand/15 text-sand"
+                          : "border-border/60 bg-card/60 text-muted-foreground hover:border-sand/40 hover:text-foreground"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
                 </div>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {shownAchievements.map((a) => (
