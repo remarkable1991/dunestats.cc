@@ -512,14 +512,14 @@ function ProfilePage() {
                     key={v.value}
                     className={`p-4 border-border/60 bg-card/70 ${v.value === "overall" ? "ring-1 ring-sand/40" : ""}`}
                   >
-                    <div className="flex items-baseline justify-between gap-2">
-                      <div className="text-xs uppercase tracking-wider text-muted-foreground">{v.label}</div>
-                      <div className="text-[11px] text-muted-foreground tabular-nums">{p.total} Games Played</div>
-                    </div>
-                    <div className="font-display text-3xl text-sand mt-1">
-                      {r ? Math.round(Number(r.elo)) : "—"}
-                    </div>
-                    <PlacementBreakdown p={p} />
+                    <RatingCard
+                      label={v.label}
+                      version={v.value}
+                      elo={r ? Number(r.elo) : null}
+                      rank={ranks[v.value] ?? null}
+                      p={p}
+                    />
+
                   </Card>
                 );
               })}
