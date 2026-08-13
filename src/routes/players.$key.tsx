@@ -143,7 +143,7 @@ const ACH_TAGS: Array<{ v: string; label: string }> = [
   { v: "rare", label: "Rare & Legendary" },
 ];
 
-const PLACEMENT_COLORS = ["#E2B859", "#94A3B8", "#D97706", "#EF4444"];
+const PLACEMENT_COLORS = ["#F59E0B", "#CBD5E1", "#B45309", "#DC2626"];
 
 const ORD = ["1st", "2nd", "3rd", "4th"];
 
