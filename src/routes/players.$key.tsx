@@ -264,6 +264,27 @@ function ProfilePage() {
     return arr;
   }, [scopedAchievements, achTab, achTag]);
 
+  const placementStats = useMemo(() => {
+    const empty = () => ({ total: 0, c: [0, 0, 0, 0] });
+    const out: Record<string, { total: number; c: number[] }> = {
+      overall: empty(),
+      base: empty(),
+      ix: empty(),
+      uprising: empty(),
+    };
+    for (const m of matches) {
+      const gv = m.games?.game_version;
+      const idx = Math.min(4, Math.max(1, m.placement)) - 1;
+      out.overall.total += 1;
+      out.overall.c[idx] += 1;
+      if (gv && out[gv]) {
+        out[gv].total += 1;
+        out[gv].c[idx] += 1;
+      }
+    }
+    return out;
+  }, [matches]);
+
   const displayName = ratings[0]?.display_name ?? playerKey;
   const claimed = ratings.some((r) => r.claimed_by);
 
