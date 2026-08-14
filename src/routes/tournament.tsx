@@ -15,7 +15,14 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { parseScreenshot, saveGame } from "@/lib/games.functions";
@@ -26,7 +33,18 @@ import { translateLeader } from "@/lib/leader-translate";
 import { useChampions, isChampion } from "@/lib/champions";
 import { tournamentModes } from "@/lib/tournament-config";
 import { toast } from "sonner";
-import { Image as ImageIcon, Loader2, Trophy, Upload as UploadIcon, CheckCircle2, Maximize2, HelpCircle } from "lucide-react";
+import {
+  Image as ImageIcon,
+  Loader2,
+  Trophy,
+  Upload as UploadIcon,
+  CheckCircle2,
+  Maximize2,
+  HelpCircle,
+  Clock,
+  AlertTriangle,
+  PlayCircle,
+} from "lucide-react";
 import { Calendar, Sword, History, ExternalLink } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -60,9 +78,15 @@ export const Route = createFileRoute("/tournament")({
   head: () => ({
     meta: [
       { title: "Live Tournament · Strategy Arena" },
-      { name: "description", content: "Live Dune Imperium tournament brackets, standings, registration and results on Strategy Arena." },
+      {
+        name: "description",
+        content: "Live Dune Imperium tournament brackets, standings, registration and results on Strategy Arena.",
+      },
       { property: "og:title", content: "Live Tournament · Strategy Arena" },
-      { property: "og:description", content: "Live Dune Imperium tournament brackets, standings, registration and results." },
+      {
+        property: "og:description",
+        content: "Live Dune Imperium tournament brackets, standings, registration and results.",
+      },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://dunestats.cc/tournament" },
     ],
@@ -98,8 +122,16 @@ export const Route = createFileRoute("/tournament")({
 const SWISS_ROUNDS = ["Game 1", "Game 2", "Game 3"] as const;
 const PLAYOFF_ROUNDS = ["Finals"] as const;
 const TABLE_OPTIONS = [
-  "Table 1","Table 2","Table 3","Table 4","Table 5","Table 6","Table 7",
-  "Semi Final 1","Semi Final 2","Grand Final!",
+  "Table 1",
+  "Table 2",
+  "Table 3",
+  "Table 4",
+  "Table 5",
+  "Table 6",
+  "Table 7",
+  "Semi Final 1",
+  "Semi Final 2",
+  "Grand Final!",
 ];
 
 type Row = {
@@ -119,6 +151,46 @@ type Row = {
   updated_at: string;
 };
 
+type MatchSchedule = {
+  id: string;
+  tournament_num: number;
+  round_type: string;
+  table_identifier: string;
+  match_code: string;
+  mode: "live" | "async";
+  thread_id: string | null;
+  status: string;
+  suggested_slots: Array<{ label: string; time_text: string }> | null;
+  votes: Record<string, string[]> | null;
+  votes_count: number;
+  confirmed_slot: string | null;
+  confirmed_time_text: string | null;
+  confirmed_timestamp: string | null;
+};
+
+/** Helpers for parsing and formatting schedule dates in browser timezone */
+function parseScheduleTime(raw: string | null | undefined): Date | null {
+  if (!raw) return null;
+  const str = String(raw).trim();
+  const matchDiscord = str.match(/<t:(\d+)/);
+  if (matchDiscord) return new Date(parseInt(matchDiscord[1], 10) * 1000);
+  if (/^\d{10}$/.test(str)) return new Date(parseInt(str, 10) * 1000);
+  if (/^\d{13}$/.test(str)) return new Date(parseInt(str, 10));
+  const parsed = Date.parse(str);
+  if (!isNaN(parsed)) return new Date(parsed);
+  return null;
+}
+
+function formatScheduleDate(date: Date): string {
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 /** Days from first upload of a table (min created_at) to last update (max updated_at). */
 function tableDaysToFinish(rows: Row[]): number | null {
   if (!rows.length) return null;
@@ -135,22 +207,36 @@ function fmtDays(d: number | null): string {
 }
 type Shot = { tournament_num: number; round_type: string; table_identifier: string; image_url: string };
 
-function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { tournamentNum: number; onBack: () => void; focusRound?: string; focusTable?: string }) {
+function CurrentTournament({
+  tournamentNum,
+  onBack,
+  focusRound,
+  focusTable,
+}: {
+  tournamentNum: number;
+  onBack: () => void;
+  focusRound?: string;
+  focusTable?: string;
+}) {
   const [rows, setRows] = useState<Row[]>([]);
+  const [schedules, setSchedules] = useState<MatchSchedule[]>([]);
   const [shots, setShots] = useState<Shot[]>([]);
   const [loading, setLoading] = useState(true);
   const [displayMode, setDisplayMode] = useState<"player" | "discord">("player");
   const [logTab, setLogTab] = useState<"swiss" | "playoffs">("swiss");
+  const [selectedVotingSchedule, setSelectedVotingSchedule] = useState<MatchSchedule | null>(null);
   const uploadRef = useRef<HTMLDivElement>(null);
 
-  // Upload panel state (mirrors /upload but routed to tournament_matches)
+  // Upload panel state
   const [round, setRound] = useState<string>("Game 1");
   const [tableId, setTableId] = useState<string>("Table 1");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [parsedRows, setParsedRows] = useState<{ placement: number; player_name: string; leader_name: string; points: number }[]>([]);
+  const [parsedRows, setParsedRows] = useState<
+    { placement: number; player_name: string; leader_name: string; points: number }[]
+  >([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [myKeys, setMyKeys] = useState<Set<string>>(new Set());
   const [board, setBoard] = useState<"base" | "uprising">("uprising");
@@ -159,7 +245,7 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
   const [hasImmortality, setHasImmortality] = useState(false);
   const [hasBaseLeaders, setHasBaseLeaders] = useState(false);
   const [tpOpen, setTpOpen] = useState(false);
-  const [heatmapKey, setHeatmapKey] = useState<string | null>(null); // "round__table"
+  const [heatmapKey, setHeatmapKey] = useState<string | null>(null);
   const isT14 = tournamentNum === 14;
   type SaveResult = Awaited<ReturnType<typeof saveGame>>;
   const [lastSave, setLastSave] = useState<SaveResult | null>(null);
@@ -169,12 +255,12 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
   }, []);
 
   useEffect(() => {
-    if (!userId) { setMyKeys(new Set()); return; }
+    if (!userId) {
+      setMyKeys(new Set());
+      return;
+    }
     void (async () => {
-      const { data } = await supabase
-        .from("player_ratings")
-        .select("player_key")
-        .eq("claimed_by", userId);
+      const { data } = await supabase.from("player_ratings").select("player_key").eq("claimed_by", userId);
       setMyKeys(new Set((data ?? []).map((r) => r.player_key)));
     })();
   }, [userId]);
@@ -182,7 +268,6 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
   const isMine = (name: string) => myKeys.has(name.toLowerCase().trim());
   const champions = useChampions();
   const titles = usePlayerTitles();
-
 
   const [formatLine, setFormatLine] = useState<string | null>(null);
   const [plan, setPlan] = useState(() => bracketPlan(null));
@@ -199,21 +284,55 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
 
   const refresh = async () => {
     setLoading(true);
-    const [r, s] = await Promise.all([
+    const [r, s, sched] = await Promise.all([
       supabase.from("tournament_matches").select("*").eq("tournament_num", tournamentNum),
       supabase.from("tournament_table_screenshots").select("*").eq("tournament_num", tournamentNum),
+      supabase.from("tournament_match_schedules").select("*").eq("tournament_num", tournamentNum),
     ]);
     setRows((r.data ?? []) as Row[]);
     setShots((s.data ?? []) as Shot[]);
+    setSchedules((sched.data ?? []) as MatchSchedule[]);
     setLoading(false);
   };
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    void refresh();
+  }, [tournamentNum]);
+
+  // Fast schedule map: "round__table" -> MatchSchedule
+  const scheduleMap = useMemo(() => {
+    const map = new Map<string, MatchSchedule>();
+    for (const s of schedules) {
+      map.set(`${s.round_type}__${s.table_identifier}`, s);
+    }
+    return map;
+  }, [schedules]);
+
+  // Confirmed upcoming matches sorted chronologically
+  const upcomingConfirmed = useMemo(() => {
+    const now = Date.now();
+    return schedules
+      .filter((s) => s.status === "confirmed" && (s.confirmed_timestamp || s.confirmed_time_text))
+      .map((s) => {
+        const d = parseScheduleTime(s.confirmed_timestamp || s.confirmed_time_text);
+        return { schedule: s, date: d, timeMs: d ? d.getTime() : 9999999999999 };
+      })
+      .sort((a, b) => a.timeMs - b.timeMs);
+  }, [schedules]);
 
   // ===== TP scoring + standings =====
   const standings = useMemo(() => {
-    type Agg = { player: string; discord: string; tp: number; wins: number; placements: number[]; vp: number; vpShareSum: number; daysSum: number; daysCount: number };
+    type Agg = {
+      player: string;
+      discord: string;
+      tp: number;
+      wins: number;
+      placements: number[];
+      vp: number;
+      vpShareSum: number;
+      daysSum: number;
+      daysCount: number;
+    };
     const map = new Map<string, Agg>();
-    // Group rows by (round, table)
     const tables = new Map<string, Row[]>();
     for (const row of rows) {
       const k = `${row.round_type}__${row.table_identifier}`;
@@ -221,7 +340,6 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
       tables.get(k)!.push(row);
     }
     for (const tableRows of tables.values()) {
-      // Only score if all 4 placements & points are present
       const ranked = tableRows
         .filter((r) => r.placement && r.points != null)
         .sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9));
@@ -237,23 +355,42 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
       ].map((v) => Math.max(0, v));
       ranked.forEach((r, i) => {
         const key = r.player_name;
-        const agg = map.get(key) ?? { player: r.player_name, discord: r.discord_username ?? r.player_name, tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0, daysSum: 0, daysCount: 0 };
+        const agg = map.get(key) ?? {
+          player: r.player_name,
+          discord: r.discord_username ?? r.player_name,
+          tp: 0,
+          wins: 0,
+          placements: [],
+          vp: 0,
+          vpShareSum: 0,
+          daysSum: 0,
+          daysCount: 0,
+        };
         agg.tp += tps[i];
         if (r.placement === 1) agg.wins += 1;
         agg.placements.push(r.placement ?? 0);
         agg.vp += r.points ?? 0;
         agg.vpShareSum += tableVpTotal > 0 ? (r.points ?? 0) / tableVpTotal : 0;
-        if (tDays != null) { agg.daysSum += tDays; agg.daysCount += 1; }
+        if (tDays != null) {
+          agg.daysSum += tDays;
+          agg.daysCount += 1;
+        }
         if (r.discord_username) agg.discord = r.discord_username;
         map.set(key, agg);
       });
     }
-    // Include unranked players with 0s so leaderboard shows everyone
     for (const row of rows) {
       if (!map.has(row.player_name)) {
         map.set(row.player_name, {
-          player: row.player_name, discord: row.discord_username ?? row.player_name,
-          tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0, daysSum: 0, daysCount: 0,
+          player: row.player_name,
+          discord: row.discord_username ?? row.player_name,
+          tp: 0,
+          wins: 0,
+          placements: [],
+          vp: 0,
+          vpShareSum: 0,
+          daysSum: 0,
+          daysCount: 0,
         });
       }
     }
@@ -273,10 +410,18 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
     return list;
   }, [rows]);
 
-  // League-only standings: recompute using ONLY Swiss round rows so playoff
-  // projections don't shift as Semi/Grand Final results get uploaded.
   const leagueStandings = useMemo(() => {
-    type Agg = { player: string; discord: string; tp: number; wins: number; placements: number[]; vp: number; vpShareSum: number; daysSum: number; daysCount: number };
+    type Agg = {
+      player: string;
+      discord: string;
+      tp: number;
+      wins: number;
+      placements: number[];
+      vp: number;
+      vpShareSum: number;
+      daysSum: number;
+      daysCount: number;
+    };
     const map = new Map<string, Agg>();
     const tables = new Map<string, Row[]>();
     for (const row of rows) {
@@ -301,26 +446,43 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
       ].map((v) => Math.max(0, v));
       ranked.forEach((r, i) => {
         const key = r.player_name;
-        const agg = map.get(key) ?? { player: r.player_name, discord: r.discord_username ?? r.player_name, tp: 0, wins: 0, placements: [] as number[], vp: 0, vpShareSum: 0, daysSum: 0, daysCount: 0 };
+        const agg = map.get(key) ?? {
+          player: r.player_name,
+          discord: r.discord_username ?? r.player_name,
+          tp: 0,
+          wins: 0,
+          placements: [] as number[],
+          vp: 0,
+          vpShareSum: 0,
+          daysSum: 0,
+          daysCount: 0,
+        };
         agg.tp += tps[i];
         if (r.placement === 1) agg.wins += 1;
         agg.placements.push(r.placement ?? 0);
         agg.vp += r.points ?? 0;
         agg.vpShareSum += tableVpTotal > 0 ? (r.points ?? 0) / tableVpTotal : 0;
-        if (tDays != null) { agg.daysSum += tDays; agg.daysCount += 1; }
+        if (tDays != null) {
+          agg.daysSum += tDays;
+          agg.daysCount += 1;
+        }
         if (r.discord_username) agg.discord = r.discord_username;
         map.set(key, agg);
       });
     }
-    // Include every league participant (even without uploaded results) so the
-    // projected playoff tables show the players currently in those positions.
     for (const row of rows) {
       if (!(SWISS_ROUNDS as readonly string[]).includes(row.round_type)) continue;
       if (map.has(row.player_name)) continue;
       map.set(row.player_name, {
         player: row.player_name,
         discord: row.discord_username ?? row.player_name,
-        tp: 0, wins: 0, placements: [], vp: 0, vpShareSum: 0, daysSum: 0, daysCount: 0,
+        tp: 0,
+        wins: 0,
+        placements: [],
+        vp: 0,
+        vpShareSum: 0,
+        daysSum: 0,
+        daysCount: 0,
       });
     }
     const list = [...map.values()].map((a) => ({
@@ -350,12 +512,9 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
     };
   }, [leagueStandings, plan]);
 
-  // Actual SF winners (placement=1 in each Semi Final table), if uploaded.
   const semiWinners = useMemo(() => {
     const winnerFor = (needle: RegExp) => {
-      const row = rows.find(
-        (r) => r.round_type === "Finals" && needle.test(r.table_identifier) && r.placement === 1,
-      );
+      const row = rows.find((r) => r.round_type === "Finals" && needle.test(r.table_identifier) && r.placement === 1);
       if (!row) return null;
       return { player: row.player_name, discord: row.discord_username ?? row.player_name };
     };
@@ -387,7 +546,6 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
     });
   }, [rows]);
 
-  // Auto-publish Semi Finals once League Phase is fully complete.
   const semisPublished = useMemo(
     () => rows.some((r) => r.round_type === "Finals" && /^Semi Final/i.test(r.table_identifier)),
     [rows],
@@ -396,9 +554,7 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
     () => swissProgress.length > 0 && swissProgress.every((r) => r.total > 0 && r.completed === r.total),
     [swissProgress],
   );
-  // Semi Final seating: automatic (snake seeded from the league standings) or
-  // manual (an admin imports a CSV with the Semi Final tables, which publishes them).
-  // The mode is configured per tournament in Admin → Tournaments.
+
   const seededRef = useRef(false);
   useEffect(() => {
     if (seedingMode !== "snake") return;
@@ -421,8 +577,6 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
     })();
   }, [seedingMode, userId, leagueComplete, semisPublished, playoffs, plan.tables, tournamentNum]);
 
-
-  // Detect whether the Grand Final table already exists / has been fully scored.
   const grandFinalRows = useMemo(
     () => rows.filter((r) => r.round_type === "Finals" && /grand/i.test(r.table_identifier)),
     [rows],
@@ -433,7 +587,6 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
     [grandFinalRows],
   );
 
-  // Auto-publish the Grand Final table once BOTH semi finals have a winner.
   const promoteGFRef = useRef(false);
   useEffect(() => {
     if (!userId || !semisPublished) return;
@@ -441,7 +594,6 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
     const tableCount = Math.max(1, plan.tables);
     const won = semiWinners.all.slice(0, tableCount);
     if (won.length !== tableCount || won.some((w) => !w)) return;
-    // Top league finishers that are not already qualified through a Semi Final win.
     const winners = won.map((w) => w!.player);
     const seatsLeft = Math.max(0, plan.gfSpots - winners.length);
     const seeds = leagueStandings
@@ -467,8 +619,6 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
     })();
   }, [userId, semisPublished, grandFinalExists, semiWinners, leagueStandings, plan, tournamentNum]);
 
-
-  // Auto-archive the tournament to Hall of Fame once the Grand Final is scored.
   const archiveRef = useRef(false);
   useEffect(() => {
     if (!userId || !grandFinalComplete) return;
@@ -490,16 +640,11 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
     })();
   }, [userId, grandFinalComplete, tournamentNum, onBack]);
 
-  // ===== Standings view (Total with GF bonus vs League Phase only) =====
   const [standingsView, setStandingsView] = useState<"total" | "league">("total");
 
-  // Total standing: uses everything, but the top-2 league finishers earned +25 TP
-  // for skipping the semi finals (direct-to-Grand-Final bye bonus).
   const totalStandings = useMemo(() => {
     const grandBonus = new Set(leagueStandings.slice(0, plan.gf).map((p) => p.player));
-    const boosted = standings.map((s) =>
-      grandBonus.has(s.player) ? { ...s, tp: s.tp + 25 } : s,
-    );
+    const boosted = standings.map((s) => (grandBonus.has(s.player) ? { ...s, tp: s.tp + 25 } : s));
     boosted.sort((a, b) => {
       if (b.tp !== a.tp) return b.tp - a.tp;
       if (b.wins !== a.wins) return b.wins - a.wins;
@@ -510,14 +655,10 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
     return boosted;
   }, [standings, leagueStandings, plan.gf]);
 
-  const displayStandings = semisPublished
-    ? (standingsView === "total" ? totalStandings : leagueStandings)
-    : standings;
+  const displayStandings = semisPublished ? (standingsView === "total" ? totalStandings : leagueStandings) : standings;
 
-  // Helper: get screenshot URL for a table
   const shotFor = (rt: string, ti: string) => shots.find((s) => s.round_type === rt && s.table_identifier === ti);
 
-  // ===== Match logs grouped =====
   const groupedLogs = useMemo(() => {
     const inSwiss = (rt: string) => (SWISS_ROUNDS as readonly string[]).includes(rt);
     const filter = logTab === "swiss" ? inSwiss : (rt: string) => !inSwiss(rt);
@@ -532,7 +673,6 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
     return byRound;
   }, [rows, logTab]);
 
-  // ===== Upload handlers =====
   const onFile = async (f: File | null) => {
     setFile(f);
     if (preview) URL.revokeObjectURL(preview);
@@ -543,12 +683,14 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
       const b64 = await fileToBase64(f);
       const res = await parseScreenshot({ data: { imageBase64: b64, mimeType: f.type || "image/png" } });
       const rawDetected = res.results.map((r) => ({
-        placement: r.placement, player_name: r.player_name, leader_name: translateLeader(r.leader_name) ?? (r.leader_name ?? ""), points: r.points,
+        placement: r.placement,
+        player_name: r.player_name,
+        leader_name: translateLeader(r.leader_name) ?? r.leader_name ?? "",
+        points: r.points,
       }));
       const detected = await normalizeNames(rawDetected);
       setParsedRows(detected);
 
-      // Auto-detect board version + expansions from leaders
       const sug = detectExpansions(detected.map((d) => d.leader_name));
       setBoard(sug.board_version);
       setHasIx(sug.has_rise_of_ix);
@@ -556,7 +698,6 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
       setHasEpic(false);
       setHasImmortality(false);
 
-      // Auto-detect Round + Table by matching detected players to known tournament rows
       const detectedKeys = detected.map((d) => d.player_name.toLowerCase().trim()).filter(Boolean);
       const groups = new Map<string, { round: string; table: string; players: string[] }>();
       for (const r of rows) {
@@ -571,7 +712,10 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
           const hit = g.players.some((p) => p === dk || p.includes(dk) || dk.includes(p));
           return acc + (hit ? 1 : 0);
         }, 0);
-        if (score > bestScore) { bestScore = score; best = { round: g.round, table: g.table }; }
+        if (score > bestScore) {
+          bestScore = score;
+          best = { round: g.round, table: g.table };
+        }
       }
       if (best && bestScore >= 2) {
         setRound(best.round);
@@ -582,15 +726,17 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not read screenshot");
-    } finally { setParsing(false); }
+    } finally {
+      setParsing(false);
+    }
   };
 
   const openSubmitFor = (rt: string, ti: string) => {
-    setRound(rt); setTableId(ti);
+    setRound(rt);
+    setTableId(ti);
     uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  // Auto-scroll to a specific round/table when arriving via a deep link
   useEffect(() => {
     if (loading || !focusRound || !focusTable) return;
     if (/final/i.test(focusRound)) setLogTab("playoffs");
@@ -622,8 +768,6 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
           points: r.points,
         })),
         tournament: { num: tournamentNum, round, table: tableId },
-        // Tournament re-uploads: same 4 scores are expected; skip the global
-        // dedupe prompt so admins can re-upload without an extra click.
         confirmDuplicate: true,
       });
       if (result.status === "ok") {
@@ -634,178 +778,308 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
             : "Global leaderboard updated (tournament write skipped).",
         );
       }
-      setFile(null); setPreview(null); setParsedRows([]);
+      setFile(null);
+      setPreview(null);
+      setParsedRows([]);
       await refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Submission failed");
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-      <div className="space-y-8">
-        <Button variant="ghost" size="sm" onClick={onBack} className="text-sand hover:text-sand -mb-4">
-          <ArrowLeft className="size-4 mr-1" /> Back to Current Tournaments
-        </Button>
-        <header className="flex items-end justify-between flex-wrap gap-4">
-          <div>
-            <h2 className="font-display text-3xl flex items-center gap-2"><Trophy className="size-7 text-sand" /> Live Tournament #{tournamentNum}</h2>
-            <p className="text-muted-foreground">Live standings update as match screenshots are uploaded.</p>
-            {formatLine && (
-              <p className="mt-2 inline-flex items-center gap-2 rounded-md border border-sand/40 bg-sand/10 px-3 py-1.5 text-xs text-sand">
-                <Sword className="size-3.5" /> {formatLine}
+    <div className="space-y-8">
+      <Button variant="ghost" size="sm" onClick={onBack} className="text-sand hover:text-sand -mb-4">
+        <ArrowLeft className="size-4 mr-1" /> Back to Current Tournaments
+      </Button>
+      <header className="flex items-end justify-between flex-wrap gap-4">
+        <div>
+          <h2 className="font-display text-3xl flex items-center gap-2">
+            <Trophy className="size-7 text-sand" /> Live Tournament #{tournamentNum}
+          </h2>
+          <p className="text-muted-foreground">Live standings update as match screenshots are uploaded.</p>
+          {formatLine && (
+            <p className="mt-2 inline-flex items-center gap-2 rounded-md border border-sand/40 bg-sand/10 px-3 py-1.5 text-xs text-sand">
+              <Sword className="size-3.5" /> {formatLine}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="border-sand/60 text-sand hover:bg-sand/10"
+          >
+            <UploadIcon className="size-4 mr-1" /> Upload now
+          </Button>
+          <Label className="text-xs text-muted-foreground">Display:</Label>
+          <span className={displayMode === "player" ? "text-sand" : "text-muted-foreground text-sm"}>Direwolf</span>
+          <Switch
+            checked={displayMode === "discord"}
+            onCheckedChange={(c) => setDisplayMode(c ? "discord" : "player")}
+          />
+          <span className={displayMode === "discord" ? "text-sand" : "text-muted-foreground text-sm"}>Discord</span>
+        </div>
+      </header>
+
+      <Dialog open={tpOpen} onOpenChange={setTpOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              Tournament Points (TP) <HelpCircle className="size-5 text-coral" />
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground pt-2 space-y-3">
+              <p>
+                Your final Tournament Points (TP) are based on how you finish, adjusted by how close everyone was to the
+                winner's score:
               </p>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-              }
-              className="border-sand/60 text-sand hover:bg-sand/10"
-            >
-              <UploadIcon className="size-4 mr-1" /> Upload now
-            </Button>
-            <Label className="text-xs text-muted-foreground">Display:</Label>
-            <span className={displayMode === "player" ? "text-sand" : "text-muted-foreground text-sm"}>Direwolf</span>
-            <Switch checked={displayMode === "discord"} onCheckedChange={(c) => setDisplayMode(c ? "discord" : "player")} />
-            <span className={displayMode === "discord" ? "text-sand" : "text-muted-foreground text-sm"}>Discord</span>
-          </div>
-        </header>
+              <p>
+                <strong>1st Place (Base: 20 TP):</strong> Earns an extra +1 TP for every Victory Point they win by ahead
+                of 2nd place.
+              </p>
+              <p>
+                <strong>2nd, 3rd, &amp; 4th Place (Base: 15, 10, 5 TP):</strong> Lose -1 TP for every Victory Point they
+                fall behind the winner (clamped to a minimum of 0).
+              </p>
+              <p className="text-sand font-medium">
+                In short: Winning by a lot gives you a massive bonus. If you lose, keeping the score close saves your
+                tournament rank!
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
 
-        <Dialog open={tpOpen} onOpenChange={setTpOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">Tournament Points (TP) <HelpCircle className="size-5 text-coral" /></DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground pt-2 space-y-3">
-                <p>Your final Tournament Points (TP) are based on how you finish, adjusted by how close everyone was to the winner's score:</p>
-                <p><strong>1st Place (Base: 20 TP):</strong> Earns an extra +1 TP for every Victory Point they win by ahead of 2nd place.</p>
-                <p><strong>2nd, 3rd, &amp; 4th Place (Base: 15, 10, 5 TP):</strong> Lose -1 TP for every Victory Point they fall behind the winner (clamped to a minimum of 0).</p>
-                <p className="text-sand font-medium">In short: Winning by a lot gives you a massive bonus. If you lose, keeping the score close saves your tournament rank!</p>
-              </DialogDescription>
-            </DialogHeader>
-          </DialogContent>
-        </Dialog>
-
-        {loading ? (
-          <div className="flex justify-center py-12"><Loader2 className="size-6 animate-spin text-sand" /></div>
-        ) : (
-          <>
-            {/* League Phase Progress */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {swissProgress.map((p) => (
-                <Card
-                  key={p.round}
-                  onClick={() => {
-                    setLogTab("swiss");
-                    requestAnimationFrame(() => {
-                      const el = document.getElementById(`round-${p.round.replace(/\s+/g, "-")}`);
-                      el?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    });
-                  }}
-                  className="p-4 border-border/60 bg-card/70 shadow-arena cursor-pointer hover:border-sand transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-display text-sm">{p.round}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {p.completed}/{p.total} played ({p.pct}%)
-                    </span>
+      {/* Suggested Slots & Voting Dialog */}
+      <Dialog
+        open={!!selectedVotingSchedule}
+        onOpenChange={(open) => {
+          if (!open) setSelectedVotingSchedule(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="size-5 text-sand" /> Suggested Time Slots &amp; Votes
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground pt-2 space-y-3">
+              {selectedVotingSchedule && (
+                <div>
+                  <div className="font-medium text-foreground mb-1">
+                    [{selectedVotingSchedule.match_code}] {selectedVotingSchedule.round_type}{" "}
+                    {selectedVotingSchedule.table_identifier}
                   </div>
-                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full bg-sand transition-all duration-500"
-                      style={{ width: `${p.pct}%` }}
-                    />
+                  <div className="text-xs text-sand mb-4">
+                    Status:{" "}
+                    {selectedVotingSchedule.status === "conflict"
+                      ? "⚠️ Conflict (Needs Admin/Host)"
+                      : `⏳ Pending Votes (${selectedVotingSchedule.votes_count}/4 Voted)`}
                   </div>
-                </Card>
-              ))}
-            </div>
 
-            {/* Standings */}
-            <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
-              <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-                <h3 className="font-display text-xl">Live Standings</h3>
-                {semisPublished && (
-                  <Tabs value={standingsView} onValueChange={(v) => setStandingsView(v as "total" | "league")}>
-                    <TabsList>
-                      <TabsTrigger value="total">Total (with GF bonus)</TabsTrigger>
-                      <TabsTrigger value="league">League Phase Only</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                )}
-              </div>
-              {semisPublished && (
-                <p className="text-xs text-muted-foreground mb-3 italic">
-                  {standingsView === "total"
-                    ? "Total standing includes all games. Players who finished top-2 in the league phase get +25 TP for their direct-to-Grand-Final bye."
-                    : "League phase standing only counts the three Swiss games."}
-                </p>
-              )}
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-muted-foreground text-xs uppercase">
-                    <tr className="border-b border-border/40">
-                      <th className="text-left py-2 px-2">#</th>
-                      <th className="text-left py-2 px-2">Player</th>
-                      <th className="text-right py-2 px-2 cursor-pointer" onClick={() => setTpOpen(true)}>
-                        <span className="inline-flex items-center gap-1">
-                          TP <HelpCircle className="size-3.5 text-coral" />
-                        </span>
-                      </th>
-                      <th className="text-right py-2 px-2">Wins</th>
-                      <th className="text-right py-2 px-2">Avg Place</th>
-                      <th className="text-right py-2 px-2">VP</th>
-                      <th className="text-right py-2 px-2">VP %</th>
-                      <th className="text-right py-2 px-2">Games</th>
-                      <th className="text-right py-2 px-2" title="Average days to finish per table">D2F</th>
-                      <th className="text-left py-2 px-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayStandings.map((s, i) => {
-                      const rank = i + 1;
-                      const grandKeys = new Set(playoffs.grand.map((p) => p.player));
-                      const gold = grandKeys.has(s.player);
-                      const silver = !gold && rank > plan.gf && rank <= plan.gf + plan.semi;
-                      const mine = isMine(s.player);
+                  <div className="space-y-2 mb-4">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                      Suggested Options:
+                    </div>
+                    {(selectedVotingSchedule.suggested_slots || []).map((slot, idx) => {
+                      const d = parseScheduleTime(slot.time_text);
+                      const displayTime = d ? formatScheduleDate(d) : slot.time_text;
                       return (
-                        <tr key={s.player} className={`border-b border-border/20 ${mine ? "bg-sand/15 ring-2 ring-sand" : gold ? "bg-amber-500/10 ring-1 ring-amber-400/60" : silver ? "bg-slate-400/5 ring-1 ring-slate-400/40" : ""}`}>
-                          <td className="py-2 px-2 font-mono">{rank}</td>
-                          <td className="py-2 px-2 font-medium">
-                            <Link
-                              to="/players/$key"
-                              params={{ key: s.player.toLowerCase().trim() }}
-                              className="hover:underline underline-offset-2 transition-colors"
-                              style={{ color: colorForKey(titles, s.player) }}
-                            >
-                              {displayMode === "discord" ? s.discord : s.player}
-                            </Link>
-                            {isChampion(champions, s.player) && (
-                              <Trophy className="inline size-4 text-sand ml-1 -mt-0.5" aria-label="Hall of Fame Champion" />
-                            )}
-                          </td>
-                          <td className="py-2 px-2 text-right font-mono text-sand">{s.tp}</td>
-                          <td className="py-2 px-2 text-right font-mono">{s.wins}</td>
-                          <td className="py-2 px-2 text-right font-mono">{s.placements.length ? s.avgPlacement.toFixed(2) : "—"}</td>
-                          <td className="py-2 px-2 text-right font-mono">{s.vp}</td>
-                          <td className="py-2 px-2 text-right font-mono">{s.placements.length ? `${s.vpPct.toFixed(1)}%` : "—"}</td>
-                          <td className="py-2 px-2 text-right font-mono">{s.placements.length}</td>
-                          <td className="py-2 px-2 text-right font-mono text-muted-foreground">{fmtDays(s.avgDays)}</td>
-                          <td className="py-2 px-2 text-xs">
-                            {gold && <Badge className="bg-amber-500/80 text-black">Direct to Grand Finals</Badge>}
-                            {silver && <Badge variant="outline" className="border-slate-300/60 text-slate-200">Qualified for Semi Finals</Badge>}
-                          </td>
-                        </tr>
+                        <div
+                          key={idx}
+                          className="flex items-center gap-2 rounded border border-border/60 bg-muted/30 p-2 text-sm"
+                        >
+                          <span className="text-base">{slot.label}</span>
+                          <span className="font-medium">{displayTime}</span>
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground italic">
+                    React directly inside the Discord match thread to vote for your slots, or run{" "}
+                    <code className="text-sand">/confirm</code> to lock in an agreed time!
+                  </p>
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="size-6 animate-spin text-sand" />
+        </div>
+      ) : (
+        <>
+          {/* Confirmed Upcoming Live Matches Quick Bar */}
+          {upcomingConfirmed.length > 0 && (
+            <Card className="p-4 border-sand/40 bg-gradient-to-r from-sand/10 via-card/70 to-card shadow-arena">
+              <div className="flex items-center gap-2 font-display text-sm text-sand mb-3">
+                <Calendar className="size-4" /> Confirmed Match Schedule ({upcomingConfirmed.length})
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                {upcomingConfirmed.map(({ schedule, date }) => {
+                  const isPast = date && date.getTime() < Date.now();
+                  const timeText = date ? formatScheduleDate(date) : schedule.confirmed_time_text || "Confirmed";
+                  return (
+                    <div
+                      key={schedule.id}
+                      onClick={() => {
+                        const el = document.getElementById(
+                          `table-${schedule.round_type.replace(/\s+/g, "-")}-${schedule.table_identifier.replace(/\s+/g, "-")}`,
+                        );
+                        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }}
+                      className="flex items-center justify-between rounded-md border border-border/60 bg-background/50 p-2 text-xs cursor-pointer hover:border-sand transition-colors"
+                    >
+                      <div className="font-medium truncate mr-2">
+                        <span className="text-sand mr-1">[{schedule.match_code}]</span>
+                        <span>
+                          {schedule.round_type} · {schedule.table_identifier}
+                        </span>
+                      </div>
+                      <span className={`shrink-0 font-mono ${isPast ? "text-coral" : "text-emerald-400"}`}>
+                        {timeText}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </Card>
+          )}
 
-            {/* Playoff bracket — projections only while the Semi Finals aren't published yet */}
-            {!semisPublished && (() => {
+          {/* League Phase Progress */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {swissProgress.map((p) => (
+              <Card
+                key={p.round}
+                onClick={() => {
+                  setLogTab("swiss");
+                  requestAnimationFrame(() => {
+                    const el = document.getElementById(`round-${p.round.replace(/\s+/g, "-")}`);
+                    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  });
+                }}
+                className="p-4 border-border/60 bg-card/70 shadow-arena cursor-pointer hover:border-sand transition-colors"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-display text-sm">{p.round}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {p.completed}/{p.total} played ({p.pct}%)
+                  </span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                  <div className="h-full bg-sand transition-all duration-500" style={{ width: `${p.pct}%` }} />
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Standings */}
+          <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+              <h3 className="font-display text-xl">Live Standings</h3>
+              {semisPublished && (
+                <Tabs value={standingsView} onValueChange={(v) => setStandingsView(v as "total" | "league")}>
+                  <TabsList>
+                    <TabsTrigger value="total">Total (with GF bonus)</TabsTrigger>
+                    <TabsTrigger value="league">League Phase Only</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
+            </div>
+            {semisPublished && (
+              <p className="text-xs text-muted-foreground mb-3 italic">
+                {standingsView === "total"
+                  ? "Total standing includes all games. Players who finished top-2 in the league phase get +25 TP for their direct-to-Grand-Final bye."
+                  : "League phase standing only counts the three Swiss games."}
+              </p>
+            )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-muted-foreground text-xs uppercase">
+                  <tr className="border-b border-border/40">
+                    <th className="text-left py-2 px-2">#</th>
+                    <th className="text-left py-2 px-2">Player</th>
+                    <th className="text-right py-2 px-2 cursor-pointer" onClick={() => setTpOpen(true)}>
+                      <span className="inline-flex items-center gap-1">
+                        TP <HelpCircle className="size-3.5 text-coral" />
+                      </span>
+                    </th>
+                    <th className="text-right py-2 px-2">Wins</th>
+                    <th className="text-right py-2 px-2">Avg Place</th>
+                    <th className="text-right py-2 px-2">VP</th>
+                    <th className="text-right py-2 px-2">VP %</th>
+                    <th className="text-right py-2 px-2">Games</th>
+                    <th className="text-right py-2 px-2" title="Average days to finish per table">
+                      D2F
+                    </th>
+                    <th className="text-left py-2 px-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayStandings.map((s, i) => {
+                    const rank = i + 1;
+                    const grandKeys = new Set(playoffs.grand.map((p) => p.player));
+                    const gold = grandKeys.has(s.player);
+                    const silver = !gold && rank > plan.gf && rank <= plan.gf + plan.semi;
+                    const mine = isMine(s.player);
+                    return (
+                      <tr
+                        key={s.player}
+                        className={`border-b border-border/20 ${mine ? "bg-sand/15 ring-2 ring-sand" : gold ? "bg-amber-500/10 ring-1 ring-amber-400/60" : silver ? "bg-slate-400/5 ring-1 ring-slate-400/40" : ""}`}
+                      >
+                        <td className="py-2 px-2 font-mono">{rank}</td>
+                        <td className="py-2 px-2 font-medium">
+                          <Link
+                            to="/players/$key"
+                            params={{ key: s.player.toLowerCase().trim() }}
+                            className="hover:underline underline-offset-2 transition-colors"
+                            style={{ color: colorForKey(titles, s.player) }}
+                          >
+                            {displayMode === "discord" ? s.discord : s.player}
+                          </Link>
+                          {isChampion(champions, s.player) && (
+                            <Trophy
+                              className="inline size-4 text-sand ml-1 -mt-0.5"
+                              aria-label="Hall of Fame Champion"
+                            />
+                          )}
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono text-sand">{s.tp}</td>
+                        <td className="py-2 px-2 text-right font-mono">{s.wins}</td>
+                        <td className="py-2 px-2 text-right font-mono">
+                          {s.placements.length ? s.avgPlacement.toFixed(2) : "—"}
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono">{s.vp}</td>
+                        <td className="py-2 px-2 text-right font-mono">
+                          {s.placements.length ? `${s.vpPct.toFixed(1)}%` : "—"}
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono">{s.placements.length}</td>
+                        <td className="py-2 px-2 text-right font-mono text-muted-foreground">{fmtDays(s.avgDays)}</td>
+                        <td className="py-2 px-2 text-xs">
+                          {gold && <Badge className="bg-amber-500/80 text-black">Direct to Grand Finals</Badge>}
+                          {silver && (
+                            <Badge variant="outline" className="border-slate-300/60 text-slate-200">
+                              Qualified for Semi Finals
+                            </Badge>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          {/* Playoff bracket */}
+          {!semisPublished &&
+            (() => {
               const rankOf = new Map(leagueStandings.map((p, i) => [p.player, i + 1]));
               const label = (p: { player: string; discord: string }) => {
                 const name = displayMode === "discord" ? p.discord : p.player;
@@ -813,312 +1087,456 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
                 return r ? `${name} (#${r})` : name;
               };
               return (
-              <>
-                <Card className="p-4 border-border/60 bg-card/70 shadow-arena">
-                  <h3 className="font-display text-lg">Semi Final seating</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {seedingMode === "snake" ? (
-                      <>
-                        <span className="text-sand">Automatic (snake seeding)</span> — tables are built from the league
-                        standings (1-8-9-16, 2-7-10-15, …) as soon as the league phase is finished.
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-sand">Manual seating</span> — the Semi Final tables are published by the
-                        organisers once seating is decided.
-                      </>
-                    )}
+                <>
+                  <Card className="p-4 border-border/60 bg-card/70 shadow-arena">
+                    <h3 className="font-display text-lg">Semi Final seating</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {seedingMode === "snake" ? (
+                        <>
+                          <span className="text-sand">Automatic (snake seeding)</span> — tables are built from the
+                          league standings (1-8-9-16, 2-7-10-15, …) as soon as the league phase is finished.
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-sand">Manual seating</span> — the Semi Final tables are published by the
+                          organisers once seating is decided.
+                        </>
+                      )}
+                    </p>
+                  </Card>
+                  <p className="text-xs text-muted-foreground italic">
+                    {seedingMode === "snake"
+                      ? "Projected Semi Finals based on current standings."
+                      : "Semi Final tables will appear once the organisers publish the seating."}
                   </p>
-                </Card>
-                <p className="text-xs text-muted-foreground italic">
-                  {seedingMode === "snake"
-                    ? "Projected Semi Finals based on current standings."
-                    : "Semi Final tables will appear once the organisers publish the seating."}
-                </p>
-                {seedingMode === "snake" && (
-                  <div className="grid md:grid-cols-3 gap-4">
-                    {playoffs.semiTables.map((t, i) => (
+                  {seedingMode === "snake" && (
+                    <div className="grid md:grid-cols-3 gap-4">
+                      {playoffs.semiTables.map((t, i) => (
+                        <BracketCard key={i} title={`Semi Final ${i + 1}`} players={t.map(label)} accent="slate" />
+                      ))}
                       <BracketCard
-                        key={i}
-                        title={`Semi Final ${i + 1}`}
-                        players={t.map(label)}
-                        accent="slate"
+                        title="Grand Final!"
+                        players={[
+                          ...playoffs.grand.slice(0, Math.max(0, plan.gfSpots - plan.tables)).map(label),
+                          ...Array.from({ length: Math.min(plan.tables, plan.gfSpots) }, (_, i) => `Winner SF${i + 1}`),
+                        ]}
+                        accent="amber"
                       />
-                    ))}
-                    <BracketCard title="Grand Final!" players={[
-                      ...playoffs.grand
-                        .slice(0, Math.max(0, plan.gfSpots - plan.tables))
-                        .map(label),
-                      ...Array.from({ length: Math.min(plan.tables, plan.gfSpots) }, (_, i) => `Winner SF${i + 1}`),
-                    ]} accent="amber" />
-                  </div>
-                )}
-              </>
+                    </div>
+                  )}
+                </>
               );
             })()}
 
-
-
-
-            {/* Match logs */}
-            <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
-              <h3 className="font-display text-xl mb-4">Match Logs</h3>
-              <Tabs value={logTab} onValueChange={(v) => setLogTab(v as "swiss" | "playoffs")}>
-                <TabsList>
-                  <TabsTrigger value="swiss">League Phase</TabsTrigger>
-                  <TabsTrigger value="playoffs">Finals</TabsTrigger>
-                </TabsList>
-                <TabsContent value={logTab} className="mt-4 space-y-6">
-                   {[...groupedLogs.entries()].sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true })).map(([rt, tables]) => (
-                     <div key={rt} id={`round-${rt.replace(/\s+/g, "-")}`} className="scroll-mt-24">
+          {/* Match logs */}
+          <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
+            <h3 className="font-display text-xl mb-4">Match Logs</h3>
+            <Tabs value={logTab} onValueChange={(v) => setLogTab(v as "swiss" | "playoffs")}>
+              <TabsList>
+                <TabsTrigger value="swiss">League Phase</TabsTrigger>
+                <TabsTrigger value="playoffs">Finals</TabsTrigger>
+              </TabsList>
+              <TabsContent value={logTab} className="mt-4 space-y-6">
+                {[...groupedLogs.entries()]
+                  .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+                  .map(([rt, tables]) => (
+                    <div key={rt} id={`round-${rt.replace(/\s+/g, "-")}`} className="scroll-mt-24">
                       <h4 className="font-display text-lg text-sand mb-2">{rt}</h4>
                       <div className="grid md:grid-cols-2 gap-3">
-                        {[...tables.entries()].sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true })).map(([ti, players]) => {
-                          const shot = shotFor(rt, ti);
-                          const sorted = [...players].sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9));
-                          const finished = players.filter((p) => p.placement != null && p.points != null).length >= 4;
-                          const tDays = finished ? tableDaysToFinish(players) : null;
-                          return (
-                            <div
-                              key={ti}
-                              id={`table-${rt.replace(/\s+/g, "-")}-${ti.replace(/\s+/g, "-")}`}
-                              className={`border rounded-md p-3 bg-background/40 scroll-mt-24 transition-colors ${
-                                focusRound === rt && focusTable === ti
-                                  ? "border-sand ring-2 ring-sand/60"
-                                  : "border-border/40"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-medium">{ti}</span>
-                                  {isT14 && players[0]?.table_score != null && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setHeatmapKey(`${rt}__${ti}`)}
-                                      className="inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-[11px] text-sand hover:bg-sand/25 transition"
-                                      title="View availability heatmap"
-                                    >
-                                      <Sparkles className="size-3" /> Match Quality {players[0].table_score}
-                                    </button>
-                                  )}
-                                  {tDays != null && (
-                                    <span
-                                      className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground"
-                                      title="Days from first upload of this table to last update"
-                                    >
-                                      ⏱ {fmtDays(tDays)}
-                                    </span>
+                        {[...tables.entries()]
+                          .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+                          .map(([ti, players]) => {
+                            const shot = shotFor(rt, ti);
+                            const sorted = [...players].sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9));
+                            const finished = players.filter((p) => p.placement != null && p.points != null).length >= 4;
+                            const tDays = finished ? tableDaysToFinish(players) : null;
+                            const sched = scheduleMap.get(`${rt}__${ti}`);
+
+                            // Confirmed schedule dates
+                            const schedDate = sched
+                              ? parseScheduleTime(sched.confirmed_timestamp || sched.confirmed_time_text)
+                              : null;
+                            const isPast = schedDate && schedDate.getTime() < Date.now();
+                            const timeDisplay = schedDate
+                              ? formatScheduleDate(schedDate)
+                              : sched?.confirmed_time_text || null;
+
+                            return (
+                              <div
+                                key={ti}
+                                id={`table-${rt.replace(/\s+/g, "-")}-${ti.replace(/\s+/g, "-")}`}
+                                className={`border rounded-md p-3 bg-background/40 scroll-mt-24 transition-colors ${
+                                  focusRound === rt && focusTable === ti
+                                    ? "border-sand ring-2 ring-sand/60"
+                                    : "border-border/40"
+                                }`}
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-medium">{ti}</span>
+                                    {sched?.match_code && (
+                                      <span className="font-mono text-[11px] bg-secondary/60 text-sand px-1.5 py-0.5 rounded">
+                                        {sched.match_code}
+                                      </span>
+                                    )}
+
+                                    {/* Scheduling & Date Status Badges */}
+                                    {sched && !finished && (
+                                      <>
+                                        {sched.status === "confirmed" && (
+                                          <span
+                                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                                              isPast
+                                                ? "border-coral/60 bg-coral/15 text-coral"
+                                                : "border-emerald-500/60 bg-emerald-500/15 text-emerald-400"
+                                            }`}
+                                            title={
+                                              isPast
+                                                ? "Match start time has passed (playing or awaiting upload)"
+                                                : "Confirmed match start time"
+                                            }
+                                          >
+                                            <Calendar className="size-3" />
+                                            {isPast ? `🔴 Playing (${timeDisplay})` : `📅 ${timeDisplay}`}
+                                          </span>
+                                        )}
+
+                                        {sched.status === "ongoing" && sched.mode === "async" && (
+                                          <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/60 bg-sky-500/15 px-2 py-0.5 text-[11px] text-sky-400 font-medium">
+                                            <PlayCircle className="size-3" /> Ongoing Game
+                                          </span>
+                                        )}
+
+                                        {(sched.status === "pending_votes" || sched.status === "published") && (
+                                          <button
+                                            type="button"
+                                            onClick={() => setSelectedVotingSchedule(sched)}
+                                            className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-400 hover:bg-amber-500/20 transition cursor-pointer"
+                                            title="Click to view suggested slots and votes"
+                                          >
+                                            <Clock className="size-3" /> {sched.votes_count}/4 Voted
+                                          </button>
+                                        )}
+
+                                        {sched.status === "conflict" && (
+                                          <button
+                                            type="button"
+                                            onClick={() => setSelectedVotingSchedule(sched)}
+                                            className="inline-flex items-center gap-1 rounded-full border border-coral/60 bg-coral/15 px-2 py-0.5 text-[11px] text-coral hover:bg-coral/25 transition cursor-pointer"
+                                            title="Click to view votes"
+                                          >
+                                            <AlertTriangle className="size-3" /> Conflict
+                                          </button>
+                                        )}
+                                      </>
+                                    )}
+
+                                    {isT14 && players[0]?.table_score != null && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setHeatmapKey(`${rt}__${ti}`)}
+                                        className="inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-[11px] text-sand hover:bg-sand/25 transition"
+                                        title="View availability heatmap"
+                                      >
+                                        <Sparkles className="size-3" /> Match Quality {players[0].table_score}
+                                      </button>
+                                    )}
+                                    {tDays != null && (
+                                      <span
+                                        className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground"
+                                        title="Days from first upload of this table to last update"
+                                      >
+                                        ⏱ {fmtDays(tDays)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {shot ? (
+                                    <ScreenshotLightbox
+                                      path={shot.image_url}
+                                      trigger={
+                                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white">
+                                          <ImageIcon className="size-4 mr-1" /> See results
+                                        </Button>
+                                      }
+                                    />
+                                  ) : (
+                                    <Button size="sm" variant="outline" onClick={() => openSubmitFor(rt, ti)}>
+                                      Submit Table Results
+                                    </Button>
                                   )}
                                 </div>
-                                {shot ? (
-                                  <ScreenshotLightbox
-                                    path={shot.image_url}
-                                    trigger={
-                                      <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white">
-                                        <ImageIcon className="size-4 mr-1" /> See results
-                                      </Button>
-                                    }
-                                  />
-                                ) : (
-                                  <Button size="sm" variant="outline" onClick={() => openSubmitFor(rt, ti)}>Submit Table Results</Button>
-                                )}
+                                <ul className="space-y-1 text-sm">
+                                  {sorted.map((p) => (
+                                    <li
+                                      key={p.id}
+                                      className={`flex justify-between gap-2 px-2 py-0.5 rounded ${isMine(p.player_name) ? "bg-sand/15 ring-1 ring-sand/60" : ""}`}
+                                    >
+                                      <span>
+                                        <span className="font-mono text-muted-foreground mr-2">
+                                          {p.placement ?? "—"}
+                                        </span>
+                                        {displayMode === "discord"
+                                          ? (p.discord_username ?? p.player_name)
+                                          : p.player_name}
+                                      </span>
+                                      <span className="font-mono text-sand">{p.points ?? "—"} VP</span>
+                                    </li>
+                                  ))}
+                                </ul>
                               </div>
-                              <ul className="space-y-1 text-sm">
-                                {sorted.map((p) => (
-                                  <li key={p.id} className={`flex justify-between gap-2 px-2 py-0.5 rounded ${isMine(p.player_name) ? "bg-sand/15 ring-1 ring-sand/60" : ""}`}>
-                                    <span><span className="font-mono text-muted-foreground mr-2">{p.placement ?? "—"}</span>{displayMode === "discord" ? (p.discord_username ?? p.player_name) : p.player_name}</span>
-                                    <span className="font-mono text-sand">{p.points ?? "—"} VP</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
                       </div>
                     </div>
                   ))}
-                </TabsContent>
-              </Tabs>
-            </Card>
+              </TabsContent>
+            </Tabs>
+          </Card>
 
-            {/* Inline submission panel */}
-            <div ref={uploadRef as any} className="scroll-mt-24">
-              <div className="flex items-center gap-2 mb-4">
-                <UploadIcon className="size-6 text-sand" />
-                <h3 className="font-display text-2xl">Submit Table Results</h3>
-              </div>
-              <p className="text-muted-foreground mb-6 text-sm">
-                Drop your Dune Imperium Digital end-screen screenshot — Round &amp; Table auto-detect from the detected players.
-                Confirm the board version + expansions, then submit.
-              </p>
-              {!userId && <p className="text-coral text-sm mb-3">Sign in to submit results.</p>}
+          {/* Inline submission panel */}
+          <div ref={uploadRef as any} className="scroll-mt-24">
+            <div className="flex items-center gap-2 mb-4">
+              <UploadIcon className="size-6 text-sand" />
+              <h3 className="font-display text-2xl">Submit Table Results</h3>
+            </div>
+            <p className="text-muted-foreground mb-6 text-sm">
+              Drop your Dune Imperium Digital end-screen screenshot — Round &amp; Table auto-detect from the detected
+              players. Confirm the board version + expansions, then submit.
+            </p>
+            {!userId && <p className="text-coral text-sm mb-3">Sign in to submit results.</p>}
 
-              <div className="grid lg:grid-cols-2 gap-6">
-                <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Screenshot</Label>
-                      <label
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f && f.type.startsWith("image/")) void onFile(f); }}
-                        className="flex flex-col items-center justify-center border-2 border-dashed border-border/70 rounded-lg p-8 cursor-pointer hover:border-sand transition-colors bg-background/40"
-                      >
-                        {preview ? (
-                          <img src={preview} alt="preview" className="max-h-72 rounded shadow-arena" />
-                        ) : (
-                          <>
-                            <UploadIcon className="size-8 text-sand mb-2" />
-                            <span className="text-sm text-muted-foreground text-center">
-                              Click, drag &amp; drop a screenshot (PNG / JPG)
-                            </span>
-                          </>
-                        )}
-                        <Input type="file" accept="image/*" className="hidden" onChange={(e) => void onFile(e.target.files?.[0] ?? null)} />
-                      </label>
-                      <div className="mt-3 flex items-start gap-3 rounded-md border border-border/50 bg-background/30 p-2">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <button type="button" className="relative group shrink-0">
-                              <img src={exampleMatch.url} alt="Example end-screen" className="h-20 w-auto rounded border border-border/60 group-hover:border-sand transition" />
-                              <span className="absolute inset-0 flex items-center justify-center bg-background/40 opacity-0 group-hover:opacity-100 rounded">
-                                <Maximize2 className="size-4 text-sand" />
-                              </span>
-                            </button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-4xl p-2">
-                            <img src={exampleMatch.url} alt="Example end-screen" className="w-full h-auto rounded" />
-                          </DialogContent>
-                        </Dialog>
-                        <p className="text-xs text-muted-foreground">
-                          Example end-screen — your screenshot should look like this. Click to expand.
-                        </p>
-                      </div>
-                      {parsing && (
-                        <p className="text-sm text-sand mt-2 flex items-center gap-2">
-                          <Loader2 className="size-4 animate-spin" /> Analysing screenshot with AI…
-                        </p>
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
+                <div className="space-y-4">
+                  <div>
+                    <Label>Screenshot</Label>
+                    <label
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const f = e.dataTransfer.files?.[0];
+                        if (f && f.type.startsWith("image/")) void onFile(f);
+                      }}
+                      className="flex flex-col items-center justify-center border-2 border-dashed border-border/70 rounded-lg p-8 cursor-pointer hover:border-sand transition-colors bg-background/40"
+                    >
+                      {preview ? (
+                        <img src={preview} alt="preview" className="max-h-72 rounded shadow-arena" />
+                      ) : (
+                        <>
+                          <UploadIcon className="size-8 text-sand mb-2" />
+                          <span className="text-sm text-muted-foreground text-center">
+                            Click, drag &amp; drop a screenshot (PNG / JPG)
+                          </span>
+                        </>
                       )}
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
+                      />
+                    </label>
+                    <div className="mt-3 flex items-start gap-3 rounded-md border border-border/50 bg-background/30 p-2">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <button type="button" className="relative group shrink-0">
+                            <img
+                              src={exampleMatch.url}
+                              alt="Example end-screen"
+                              className="h-20 w-auto rounded border border-border/60 group-hover:border-sand transition"
+                            />
+                            <span className="absolute inset-0 flex items-center justify-center bg-background/40 opacity-0 group-hover:opacity-100 rounded">
+                              <Maximize2 className="size-4 text-sand" />
+                            </span>
+                          </button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl p-2">
+                          <img src={exampleMatch.url} alt="Example end-screen" className="w-full h-auto rounded" />
+                        </DialogContent>
+                      </Dialog>
+                      <p className="text-xs text-muted-foreground">
+                        Example end-screen — your screenshot should look like this. Click to expand.
+                      </p>
                     </div>
+                    {parsing && (
+                      <p className="text-sm text-sand mt-2 flex items-center gap-2">
+                        <Loader2 className="size-4 animate-spin" /> Analysing screenshot with AI…
+                      </p>
+                    )}
+                  </div>
 
-                    <div className="space-y-4 pt-2">
-                      <div>
-                        <Label className="mb-2 block">Board version <span className="text-coral">*</span></Label>
-                        <RadioGroup value={board} onValueChange={(v) => setBoard(v as "base" | "uprising")} className="grid grid-cols-2 gap-2">
-                          <label className="flex items-center gap-2 border border-border/60 rounded-md px-3 py-2 cursor-pointer hover:border-sand">
-                            <RadioGroupItem value="base" /> <span>Base Game</span>
-                          </label>
-                          <label className="flex items-center gap-2 border border-border/60 rounded-md px-3 py-2 cursor-pointer hover:border-sand">
-                            <RadioGroupItem value="uprising" /> <span>Uprising</span>
-                          </label>
-                        </RadioGroup>
-                      </div>
-                      <div>
-                        <Label className="mb-2 block">Expansions (optional)</Label>
-                        <div className="space-y-2">
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <Checkbox checked={hasIx} onCheckedChange={(c) => { setHasIx(!!c); if (!c) setHasEpic(false); }} />
-                            Rise of Ix
-                          </label>
-                          <label className={`flex items-center gap-2 ${hasIx ? "cursor-pointer" : "opacity-40 cursor-not-allowed"}`}>
-                            <Checkbox checked={hasEpic} disabled={!hasIx} onCheckedChange={(c) => setHasEpic(!!c)} />
-                            Epic Mode <span className="text-xs text-muted-foreground">(requires Rise of Ix)</span>
-                          </label>
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <Checkbox checked={hasImmortality} onCheckedChange={(c) => setHasImmortality(!!c)} />
-                            Immortality
-                          </label>
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <Checkbox checked={hasBaseLeaders} onCheckedChange={(c) => setHasBaseLeaders(!!c)} />
-                            Base Leaders
-                          </label>
-                        </div>
+                  <div className="space-y-4 pt-2">
+                    <div>
+                      <Label className="mb-2 block">
+                        Board version <span className="text-coral">*</span>
+                      </Label>
+                      <RadioGroup
+                        value={board}
+                        onValueChange={(v) => setBoard(v as "base" | "uprising")}
+                        className="grid grid-cols-2 gap-2"
+                      >
+                        <label className="flex items-center gap-2 border border-border/60 rounded-md px-3 py-2 cursor-pointer hover:border-sand">
+                          <RadioGroupItem value="base" /> <span>Base Game</span>
+                        </label>
+                        <label className="flex items-center gap-2 border border-border/60 rounded-md px-3 py-2 cursor-pointer hover:border-sand">
+                          <RadioGroupItem value="uprising" /> <span>Uprising</span>
+                        </label>
+                      </RadioGroup>
+                    </div>
+                    <div>
+                      <Label className="mb-2 block">Expansions (optional)</Label>
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={hasIx}
+                            onCheckedChange={(c) => {
+                              setHasIx(!!c);
+                              if (!c) setHasEpic(false);
+                            }}
+                          />
+                          Rise of Ix
+                        </label>
+                        <label
+                          className={`flex items-center gap-2 ${hasIx ? "cursor-pointer" : "opacity-40 cursor-not-allowed"}`}
+                        >
+                          <Checkbox checked={hasEpic} disabled={!hasIx} onCheckedChange={(c) => setHasEpic(!!c)} />
+                          Epic Mode <span className="text-xs text-muted-foreground">(requires Rise of Ix)</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox checked={hasImmortality} onCheckedChange={(c) => setHasImmortality(!!c)} />
+                          Immortality
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox checked={hasBaseLeaders} onCheckedChange={(c) => setHasBaseLeaders(!!c)} />
+                          Base Leaders
+                        </label>
                       </div>
                     </div>
                   </div>
-                </Card>
+                </div>
+              </Card>
 
-                <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
-                  <h4 className="font-display text-lg mb-3">Detected results</h4>
-                  <div className="grid grid-cols-3 gap-2 mb-4">
-                    <div>
-                      <Label className="text-xs">Tournament</Label>
-                      <Select value={String(tournamentNum)} disabled>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent><SelectItem value={String(tournamentNum)}>{tournamentNum}</SelectItem></SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-xs">Round Type</Label>
-                      <Select value={round} onValueChange={setRound}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {[...SWISS_ROUNDS, ...PLAYOFF_ROUNDS].map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-xs">Table</Label>
-                      <Select value={tableId} onValueChange={setTableId}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {TABLE_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
+              <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
+                <h4 className="font-display text-lg mb-3">Detected results</h4>
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <div>
+                    <Label className="text-xs">Tournament</Label>
+                    <Select value={String(tournamentNum)} disabled>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={String(tournamentNum)}>{tournamentNum}</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+                  <div>
+                    <Label className="text-xs">Round Type</Label>
+                    <Select value={round} onValueChange={setRound}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[...SWISS_ROUNDS, ...PLAYOFF_ROUNDS].map((r) => (
+                          <SelectItem key={r} value={r}>
+                            {r}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Table</Label>
+                    <Select value={tableId} onValueChange={setTableId}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TABLE_OPTIONS.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-                  {parsedRows.length === 0 ? (
-                    <p className="text-sm text-muted-foreground italic">
-                      Upload a screenshot to see detected players here.
-                    </p>
-                  ) : (
-                    <ul className="space-y-1.5 text-sm">
-                      {parsedRows.slice().sort((a, b) => a.placement - b.placement).map((r, i) => (
+                {parsedRows.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">
+                    Upload a screenshot to see detected players here.
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5 text-sm">
+                    {parsedRows
+                      .slice()
+                      .sort((a, b) => a.placement - b.placement)
+                      .map((r, i) => (
                         <li
                           key={i}
                           className="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_44px] gap-2 items-center rounded-md px-1 py-1.5"
                         >
-                          <span className="font-display text-sand text-sm w-4 text-center tabular-nums">{r.placement}</span>
+                          <span className="font-display text-sand text-sm w-4 text-center tabular-nums">
+                            {r.placement}
+                          </span>
                           <span className="truncate font-medium">{r.player_name}</span>
                           <span className="truncate text-muted-foreground">{r.leader_name || "?"}</span>
                           <span className="text-center font-mono text-sand tabular-nums">{r.points}</span>
                         </li>
                       ))}
-                    </ul>
+                  </ul>
+                )}
+
+                <Button
+                  onClick={submitResults}
+                  disabled={saving || !userId || parsedRows.length === 0}
+                  className="w-full mt-4"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" /> Submitting…
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="size-4" /> Submit to {round} · {tableId}
+                    </>
                   )}
+                </Button>
+              </Card>
+            </div>
 
-                  <Button
-                    onClick={submitResults}
-                    disabled={saving || !userId || parsedRows.length === 0}
-                    className="w-full mt-4"
-                  >
-                    {saving ? <><Loader2 className="size-4 animate-spin" /> Submitting…</> : <><CheckCircle2 className="size-4" /> Submit to {round} · {tableId}</>}
-                  </Button>
-                </Card>
-              </div>
-
-              {lastSave && (
-                <Card className="p-4 mt-6 border-sand/40 bg-card/70">
-                  <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle2 className="size-5 text-emerald-400" />
-                    <h4 className="font-display text-lg">Match saved</h4>
-                    <TournamentTag num={lastSave.tournament_num} />
-                  </div>
-                  <ul className="space-y-1 text-sm">
-                    {[...lastSave.deltas].sort((a, b) => a.placement - b.placement).map((d, i) => (
+            {lastSave && (
+              <Card className="p-4 mt-6 border-sand/40 bg-card/70">
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle2 className="size-5 text-emerald-400" />
+                  <h4 className="font-display text-lg">Match saved</h4>
+                  <TournamentTag num={lastSave.tournament_num} />
+                </div>
+                <ul className="space-y-1 text-sm">
+                  {[...lastSave.deltas]
+                    .sort((a, b) => a.placement - b.placement)
+                    .map((d, i) => (
                       <li key={i} className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex size-5 items-center justify-center rounded bg-secondary/60 text-[10px] font-bold">{d.placement}</span>
+                        <span className="inline-flex size-5 items-center justify-center rounded bg-secondary/60 text-[10px] font-bold">
+                          {d.placement}
+                        </span>
                         <span className="font-medium">{d.player_name}</span>
-                        <EloDeltaLine version={lastSave.game_version} overall={d.overall_delta} versionDelta={d.version_delta} />
+                        <EloDeltaLine
+                          version={lastSave.game_version}
+                          overall={d.overall_delta}
+                          versionDelta={d.version_delta}
+                        />
                       </li>
                     ))}
-                  </ul>
-                </Card>
-              )}
-            </div>
-          </>
-        )}
-        {isT14 && heatmapKey && (() => {
+                </ul>
+              </Card>
+            )}
+          </div>
+        </>
+      )}
+      {isT14 &&
+        heatmapKey &&
+        (() => {
           const [rt, ti] = heatmapKey.split("__");
           const tableRows = rows.filter((r) => r.round_type === rt && r.table_identifier === ti);
           const players: HeatmapPlayer[] = tableRows.map((r) => ({
@@ -1130,14 +1548,16 @@ function CurrentTournament({ tournamentNum, onBack, focusRound, focusTable }: { 
           return (
             <AvailabilityHeatmap
               open={true}
-              onOpenChange={(v) => { if (!v) setHeatmapKey(null); }}
+              onOpenChange={(v) => {
+                if (!v) setHeatmapKey(null);
+              }}
               tableId={`${rt} · ${ti}`}
               matchQuality={tableRows[0]?.table_score ?? null}
               players={players}
             />
           );
         })()}
-      </div>
+    </div>
   );
 }
 
@@ -1148,7 +1568,11 @@ function BracketCard({ title, players, accent }: { title: string; players: strin
       <h3 className="font-display text-lg mb-3">{title}</h3>
       <ul className="space-y-1 text-sm">
         {players.length === 0 && <li className="text-muted-foreground italic">Awaiting standings…</li>}
-        {players.map((p, i) => <li key={i} className="font-mono">{i + 1}. {p}</li>)}
+        {players.map((p, i) => (
+          <li key={i} className="font-mono">
+            {i + 1}. {p}
+          </li>
+        ))}
       </ul>
     </Card>
   );
@@ -1166,11 +1590,30 @@ function ScreenshotLightbox({ path, trigger }: { path: string; trigger?: React.R
   return (
     <Dialog open={open} onOpenChange={onOpen}>
       <DialogTrigger asChild>
-        {trigger ?? <button className="text-sand hover:text-sand/80" title="View screenshot"><ImageIcon className="size-4" /></button>}
+        {trigger ?? (
+          <button className="text-sand hover:text-sand/80" title="View screenshot">
+            <ImageIcon className="size-4" />
+          </button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-4xl p-2 bg-background/95 backdrop-blur-md">
-        {url ? <SupabaseImage bucket="match-screenshots" src={url} alt="Screenshot" className="w-full h-auto rounded max-h-[80vh] object-contain" /> : <div className="flex justify-center py-12"><Loader2 className="size-6 animate-spin" /></div>}
-        <div className="flex justify-end mt-2"><Button variant="outline" size="sm" onClick={() => setOpen(false)}>Close</Button></div>
+        {url ? (
+          <SupabaseImage
+            bucket="match-screenshots"
+            src={url}
+            alt="Screenshot"
+            className="w-full h-auto rounded max-h-[80vh] object-contain"
+          />
+        ) : (
+          <div className="flex justify-center py-12">
+            <Loader2 className="size-6 animate-spin" />
+          </div>
+        )}
+        <div className="flex justify-end mt-2">
+          <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
+            Close
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -1179,7 +1622,10 @@ function ScreenshotLightbox({ path, trigger }: { path: string; trigger?: React.R
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
-    r.onload = () => { const s = String(r.result); resolve(s.includes(",") ? s.split(",")[1] : s); };
+    r.onload = () => {
+      const s = String(r.result);
+      resolve(s.includes(",") ? s.split(",")[1] : s);
+    };
     r.onerror = reject;
     r.readAsDataURL(file);
   });
@@ -1193,7 +1639,7 @@ const TAB_ORDER: TopTab[] = ["future", "current", "previous"];
 function TournamentPage() {
   const [tab, setTab] = useState<TopTab>("current");
   const [prev, setPrev] = useState<TopTab>("current");
-  const dir = TAB_ORDER.indexOf(tab) - TAB_ORDER.indexOf(prev); // +1 right, -1 left
+  const dir = TAB_ORDER.indexOf(tab) - TAB_ORDER.indexOf(prev);
 
   const switchTo = (next: TopTab) => {
     if (next === tab) return;
@@ -1202,15 +1648,20 @@ function TournamentPage() {
   };
 
   const buttons: { id: TopTab; title: string; subtitle: string; icon: React.ReactNode }[] = [
-    { id: "future",   title: "Future Tournaments",   subtitle: "Register Now",        icon: <Calendar className="size-5" /> },
-    { id: "current",  title: "Current Tournaments",  subtitle: "Active Battlegrounds", icon: <Sword className="size-5" /> },
-    { id: "previous", title: "Previous Tournaments", subtitle: "Hall of Fame",        icon: <History className="size-5" /> },
+    { id: "future", title: "Future Tournaments", subtitle: "Register Now", icon: <Calendar className="size-5" /> },
+    {
+      id: "current",
+      title: "Current Tournaments",
+      subtitle: "Active Battlegrounds",
+      icon: <Sword className="size-5" />,
+    },
+    { id: "previous", title: "Previous Tournaments", subtitle: "Hall of Fame", icon: <History className="size-5" /> },
   ];
 
-  // animate-in slide direction: moving to higher idx → enter from right; lower idx → enter from left
-  const slideClass = dir >= 0
-    ? "animate-in slide-in-from-right-10 fade-in duration-300"
-    : "animate-in slide-in-from-left-10 fade-in duration-300";
+  const slideClass =
+    dir >= 0
+      ? "animate-in slide-in-from-right-10 fade-in duration-300"
+      : "animate-in slide-in-from-left-10 fade-in duration-300";
 
   return (
     <div className="min-h-screen">
@@ -1226,7 +1677,9 @@ function TournamentPage() {
           <AdminTournamentsLink />
         </header>
 
-        <div className="mb-8"><CheckinBanner /></div>
+        <div className="mb-8">
+          <CheckinBanner />
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-8">
           {buttons.map((b) => {
@@ -1275,10 +1728,7 @@ function FutureTournaments() {
       const { data: auth } = await supabase.auth.getUser();
       const uid = auth.user?.id;
       if (!uid) return;
-      const { data } = await supabase
-        .from("tournament_registrations")
-        .select("tournament_num")
-        .eq("user_id", uid);
+      const { data } = await supabase.from("tournament_registrations").select("tournament_num").eq("user_id", uid);
       setRegistered(new Set((data ?? []).map((r) => r.tournament_num)));
     })();
   }, []);
@@ -1314,14 +1764,18 @@ function FutureTournaments() {
       </div>
 
       {open.map((t) => (
-        <Card key={t.tournament_num} className="p-6 sm:p-8 border-sand/40 bg-gradient-to-br from-card via-card to-card/40 space-y-4">
+        <Card
+          key={t.tournament_num}
+          className="p-6 sm:p-8 border-sand/40 bg-gradient-to-br from-card via-card to-card/40 space-y-4"
+        >
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
               <Trophy className="size-6 text-sand" />
               <div>
                 <h3 className="font-display text-2xl">{t.info_title?.trim() || t.name}</h3>
                 <p className="text-xs text-muted-foreground">
-                  Tournament #{t.tournament_num} · {formatLongDate(t.start_date)} → {formatLongDate(t.end_date)} ({tournamentDayCount(t)} days)
+                  Tournament #{t.tournament_num} · {formatLongDate(t.start_date)} → {formatLongDate(t.end_date)} (
+                  {tournamentDayCount(t)} days)
                 </p>
               </div>
             </div>
@@ -1340,9 +1794,7 @@ function FutureTournaments() {
           </div>
 
           <PrizesInfo summary={t.prizes_summary} details={t.prizes_text} />
-
           <TruncatedInfoText text={t.info_text} />
-
 
           <div className="text-xs text-muted-foreground">
             Check-in opens {checkinStart(t).toLocaleString()} · Tournament starts 24 hours later · Minimum availability{" "}
@@ -1353,7 +1805,6 @@ function FutureTournaments() {
     </div>
   );
 }
-
 
 type TournamentSummaryCard = {
   num: number;
@@ -1380,7 +1831,6 @@ function CurrentTournamentsHub() {
 
   useEffect(() => {
     if (search.t != null && search.t !== selected) setSelected(search.t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.t]);
 
   useEffect(() => {
@@ -1393,7 +1843,12 @@ function CurrentTournamentsHub() {
           .from("tournament_matches")
           .select("placement, points, round_type, table_identifier")
           .eq("tournament_num", num);
-        const rows = (data ?? []) as { placement: number | null; points: number | null; round_type: string; table_identifier: string }[];
+        const rows = (data ?? []) as {
+          placement: number | null;
+          points: number | null;
+          round_type: string;
+          table_identifier: string;
+        }[];
         const tables = new Map<string, { filled: number }>();
         for (const r of rows) {
           const key = `${r.round_type}__${r.table_identifier}`;
@@ -1405,11 +1860,16 @@ function CurrentTournamentsHub() {
         const hasGrand = rows.some((r) => /grand/i.test(r.table_identifier));
         const grandComplete = rows.some((r) => /grand/i.test(r.table_identifier) && r.placement != null);
         const hasSemi = rows.some((r) => /semi/i.test(r.table_identifier));
-        // Expected bracket size: published tables + the finals tables still to come.
         let total = tables.size;
-        if (hasSemi && !hasGrand) total += 1; // Grand Final still to be published
+        if (hasSemi && !hasGrand) total += 1;
         const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-        const phase = grandComplete ? "Champion Crowned" : hasGrand ? "Grand Finals" : hasSemi ? "Semi Finals" : "League Phase";
+        const phase = grandComplete
+          ? "Champion Crowned"
+          : hasGrand
+            ? "Grand Finals"
+            : hasSemi
+              ? "Semi Finals"
+              : "League Phase";
         const profile = tournamentModes(num);
         summaries.push({
           num,
@@ -1430,7 +1890,9 @@ function CurrentTournamentsHub() {
       if (!cancelled) setCards(summaries.filter((c) => c.totalCells > 0));
     };
     void load();
-    const onFocus = () => { if (document.visibilityState === "visible") void load(); };
+    const onFocus = () => {
+      if (document.visibilityState === "visible") void load();
+    };
     document.addEventListener("visibilitychange", onFocus);
     window.addEventListener("focus", onFocus);
     return () => {
@@ -1439,7 +1901,6 @@ function CurrentTournamentsHub() {
       window.removeEventListener("focus", onFocus);
     };
   }, []);
-
 
   if (selected != null) {
     return (
@@ -1490,7 +1951,9 @@ function CurrentTournamentsHub() {
             <div className="mt-4">
               <div className="flex items-center justify-between text-xs mb-1">
                 <span className="text-muted-foreground">Progress</span>
-                <span className="text-sand font-mono">{c.completedCells}/{c.totalCells} · {c.progressPct}%</span>
+                <span className="text-sand font-mono">
+                  {c.completedCells}/{c.totalCells} · {c.progressPct}%
+                </span>
               </div>
               <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
                 <div className="h-full bg-sand transition-all duration-500" style={{ width: `${c.progressPct}%` }} />
@@ -1526,11 +1989,18 @@ type PastRow = {
   has_immortality: boolean;
 };
 
-function configBadge(r: { board_version: string; has_rise_of_ix: boolean; has_epic_mode: boolean; has_immortality: boolean }): string {
+function configBadge(r: {
+  board_version: string;
+  has_rise_of_ix: boolean;
+  has_epic_mode: boolean;
+  has_immortality: boolean;
+}): string {
   if (r.board_version === "uprising") {
     return r.has_immortality ? "Uprising + Immortality" : "Uprising Base";
   }
-  const ix = r.has_rise_of_ix, ep = r.has_epic_mode, im = r.has_immortality;
+  const ix = r.has_rise_of_ix,
+    ep = r.has_epic_mode,
+    im = r.has_immortality;
   if (ix && ep && im) return "Base + Rise of Ix + Immortality (Epic Mode)";
   if (ix && im) return "Base + Rise of Ix + Immortality";
   if (ix && ep) return "Base + Rise of Ix (Epic Mode)";
@@ -1538,8 +2008,6 @@ function configBadge(r: { board_version: string; has_rise_of_ix: boolean; has_ep
   if (im) return "Base + Immortality";
   return "Base Game";
 }
-
-// ─── Hall of Fame ───────────────────────────────────────────────────────────
 
 type ModeFlags = { hasIx: boolean; hasEpic: boolean; hasImmo: boolean; hasUprising: boolean };
 
@@ -1564,8 +2032,18 @@ function ModeBadges({ flags, size = 28 }: { flags: ModeFlags; size?: number }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       {items.map((it) => (
-        <span key={it.key} className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-background/40 border border-border/60 rounded-full pl-1 pr-2 py-0.5">
-          <img src={it.src} alt={it.label} width={size} height={size} className="rounded-full" style={{ width: size, height: size }} />
+        <span
+          key={it.key}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-background/40 border border-border/60 rounded-full pl-1 pr-2 py-0.5"
+        >
+          <img
+            src={it.src}
+            alt={it.label}
+            width={size}
+            height={size}
+            className="rounded-full"
+            style={{ width: size, height: size }}
+          />
           <span>{it.label}</span>
         </span>
       ))}
@@ -1600,13 +2078,18 @@ function PreviousTournaments() {
       for (let from = 0; ; from += page) {
         const { data, error } = await supabase
           .from("past_tournament_results")
-          .select("id, tournament_num, round_type, table_identifier, player_name, leader_name, points, placement, board_version, has_rise_of_ix, has_epic_mode, has_immortality")
+          .select(
+            "id, tournament_num, round_type, table_identifier, player_name, leader_name, points, placement, board_version, has_rise_of_ix, has_epic_mode, has_immortality",
+          )
           .order("tournament_num", { ascending: false })
           .order("round_type")
           .order("table_identifier")
           .order("placement")
           .range(from, from + page - 1);
-        if (error) { console.error(error); break; }
+        if (error) {
+          console.error(error);
+          break;
+        }
         all.push(...((data ?? []) as PastRow[]));
         if (!data || data.length < page) break;
       }
@@ -1639,7 +2122,11 @@ function PreviousTournaments() {
   }, [rows]);
 
   if (loading) {
-    return <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Loading archive…</div>;
+    return (
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" /> Loading archive…
+      </div>
+    );
   }
 
   if (selected != null) {
@@ -1648,19 +2135,18 @@ function PreviousTournaments() {
       setSelected(null);
       return null;
     }
-    return (
-      <TournamentDeepDive
-        tournament={t}
-        onBack={() => setSelected(null)}
-      />
-    );
+    return <TournamentDeepDive tournament={t} onBack={() => setSelected(null)} />;
   }
 
   return (
     <div className="space-y-8">
       <header>
-        <h2 className="font-display text-3xl flex items-center gap-2"><Trophy className="size-7 text-sand" /> Hall of Fame</h2>
-        <p className="text-muted-foreground text-sm">Twelve tournaments. Twelve champions. Tap any trophy to open the full bracket.</p>
+        <h2 className="font-display text-3xl flex items-center gap-2">
+          <Trophy className="size-7 text-sand" /> Hall of Fame
+        </h2>
+        <p className="text-muted-foreground text-sm">
+          Twelve tournaments. Twelve champions. Tap any trophy to open the full bracket.
+        </p>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1701,8 +2187,6 @@ function PreviousTournaments() {
   );
 }
 
-// ─── Tournament deep-dive ──────────────────────────────────────────────────
-
 type TournamentSummary = {
   num: number;
   rows: PastRow[];
@@ -1725,12 +2209,12 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
     return m;
   }, [rows]);
 
-  const grandFinalKey = useMemo(
-    () => [...finalsByTable.keys()].find((k) => /grand/i.test(k)) ?? null,
-    [finalsByTable],
-  );
+  const grandFinalKey = useMemo(() => [...finalsByTable.keys()].find((k) => /grand/i.test(k)) ?? null, [finalsByTable]);
   const semiKeys = useMemo(
-    () => [...finalsByTable.keys()].filter((k) => /semi/i.test(k)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+    () =>
+      [...finalsByTable.keys()]
+        .filter((k) => /semi/i.test(k))
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
     [finalsByTable],
   );
 
@@ -1743,12 +2227,10 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
       if (!inner.has(r.table_identifier)) inner.set(r.table_identifier, []);
       inner.get(r.table_identifier)!.push(r);
     }
-    for (const inner of m.values())
-      for (const arr of inner.values()) arr.sort((a, b) => a.placement - b.placement);
+    for (const inner of m.values()) for (const arr of inner.values()) arr.sort((a, b) => a.placement - b.placement);
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }));
   }, [rows]);
 
-  // Per-tournament standings (TP / Wins / Avg / VP) — same formula as live.
   const standings = useMemo(() => {
     type Agg = { player: string; tp: number; wins: number; placements: number[]; vp: number };
     const map = new Map<string, Agg>();
@@ -1780,7 +2262,10 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
       });
     }
     return [...map.values()]
-      .map((a) => ({ ...a, avg: a.placements.length ? a.placements.reduce((s, n) => s + n, 0) / a.placements.length : 0 }))
+      .map((a) => ({
+        ...a,
+        avg: a.placements.length ? a.placements.reduce((s, n) => s + n, 0) / a.placements.length : 0,
+      }))
       .sort((a, b) => b.tp - a.tp || b.wins - a.wins || a.avg - b.avg || b.vp - a.vp);
   }, [rows]);
 
@@ -1794,7 +2279,6 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
         <Trophy className="size-7 text-sand" /> Tournament #{num}
       </h2>
 
-      {/* Header card mirrors the Hall of Fame card */}
       <Card className="p-6 border-sand/40 bg-gradient-to-br from-card to-card/40">
         <div className="flex items-center gap-4">
           <div className="relative flex items-center justify-center size-20 rounded-full bg-gradient-to-br from-sand/40 to-sand/10 border border-sand/50 shadow-inner">
@@ -1811,12 +2295,13 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
             <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
               <UsersIcon className="size-3.5" /> {playerCount} players competed
             </div>
-            <div className="mt-3"><ModeBadges flags={modes} size={24} /></div>
+            <div className="mt-3">
+              <ModeBadges flags={modes} size={24} />
+            </div>
           </div>
         </div>
       </Card>
 
-      {/* Bracket */}
       <section className="space-y-4">
         <h3 className="font-display text-xl text-sand">Bracket</h3>
         {grandFinalKey ? (
@@ -1833,7 +2318,6 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
         )}
       </section>
 
-      {/* Per-tournament leaderboard */}
       <section className="space-y-3">
         <h3 className="font-display text-xl text-sand">Tournament Leaderboard</h3>
         <Card className="p-0 overflow-hidden">
@@ -1866,7 +2350,6 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
         </Card>
       </section>
 
-      {/* Qualification rounds */}
       <section className="space-y-3">
         <h3 className="font-display text-xl text-sand">Qualification Rounds</h3>
         <Accordion type="multiple" className="space-y-2">
@@ -1893,7 +2376,17 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
   );
 }
 
-function BracketTable({ title, rows, accent, compact }: { title: string; rows: PastRow[]; accent?: boolean; compact?: boolean }) {
+function BracketTable({
+  title,
+  rows,
+  accent,
+  compact,
+}: {
+  title: string;
+  rows: PastRow[];
+  accent?: boolean;
+  compact?: boolean;
+}) {
   return (
     <Card className={`p-3 ${accent ? "border-sand/60 bg-gradient-to-br from-sand/5 to-card" : "bg-background/40"}`}>
       <div className="flex items-center justify-between mb-2">
@@ -1920,7 +2413,9 @@ function BracketTable({ title, rows, accent, compact }: { title: string; rows: P
               <TableCell className={compact ? "py-1" : ""}>
                 <PlayerLink name={r.player_name} />
               </TableCell>
-              <TableCell className={`text-muted-foreground text-xs ${compact ? "py-1" : ""}`}>{r.leader_name ?? "—"}</TableCell>
+              <TableCell className={`text-muted-foreground text-xs ${compact ? "py-1" : ""}`}>
+                {r.leader_name ?? "—"}
+              </TableCell>
               <TableCell className={`text-right tabular-nums ${compact ? "py-1" : ""}`}>{r.points}</TableCell>
             </TableRow>
           ))}
@@ -1929,8 +2424,6 @@ function BracketTable({ title, rows, accent, compact }: { title: string; rows: P
     </Card>
   );
 }
-
-// ─── Lifetime master stats table ───────────────────────────────────────────
 
 type LifetimeAgg = {
   player: string;
@@ -1961,7 +2454,6 @@ function HallOfFameMasterTable({ tournaments }: { tournaments: TournamentSummary
       const playersInT = new Set<string>();
       const grand = new Set<string>();
       const semi = new Set<string>();
-      // group by (round, table)
       const tables = new Map<string, PastRow[]>();
       for (const r of t.rows) {
         playersInT.add(r.player_name);
@@ -1971,7 +2463,6 @@ function HallOfFameMasterTable({ tournaments }: { tournaments: TournamentSummary
         if (!tables.has(k)) tables.set(k, []);
         tables.get(k)!.push(r);
       }
-      // TP per table
       for (const tr of tables.values()) {
         const ranked = [...tr].filter((r) => r.placement && r.points != null).sort((a, b) => a.placement - b.placement);
         if (ranked.length < 4) continue;
@@ -1982,12 +2473,16 @@ function HallOfFameMasterTable({ tournaments }: { tournaments: TournamentSummary
           Math.max(0, 10 - (vps[0] - vps[2])),
           Math.max(0, 5 - (vps[0] - vps[3])),
         ].map((v) => Math.max(0, v));
-        ranked.forEach((r, i) => { ensure(r.player_name).tp += tps[i]; });
+        ranked.forEach((r, i) => {
+          ensure(r.player_name).tp += tps[i];
+        });
       }
       for (const p of playersInT) ensure(p).played += 1;
       for (const p of semi) ensure(p).semiFinals += 1;
       for (const p of grand) ensure(p).grandFinals += 1;
-      const winnerRow = t.rows.find((r) => r.round_type === "Finals" && /grand/i.test(r.table_identifier) && r.placement === 1);
+      const winnerRow = t.rows.find(
+        (r) => r.round_type === "Finals" && /grand/i.test(r.table_identifier) && r.placement === 1,
+      );
       if (winnerRow) ensure(winnerRow.player_name).wins += 1;
     }
     return [...m.values()];
@@ -1998,16 +2493,23 @@ function HallOfFameMasterTable({ tournaments }: { tournaments: TournamentSummary
     const arr = needle ? lifetime.filter((r) => r.player.toLowerCase().includes(needle)) : lifetime;
     const valOf = (r: LifetimeAgg): number => {
       switch (sortKey) {
-        case "wins": return r.wins;
-        case "grandFinals": return r.grandFinals;
-        case "semiFinals": return r.semiFinals;
-        case "played": return r.played;
-        case "tp": return r.tp;
-        case "tpPer": return r.played ? r.tp / r.played : 0;
+        case "wins":
+          return r.wins;
+        case "grandFinals":
+          return r.grandFinals;
+        case "semiFinals":
+          return r.semiFinals;
+        case "played":
+          return r.played;
+        case "tp":
+          return r.tp;
+        case "tpPer":
+          return r.played ? r.tp / r.played : 0;
       }
     };
     const sorted = [...arr].sort((a, b) => {
-      const av = valOf(a), bv = valOf(b);
+      const av = valOf(a),
+        bv = valOf(b);
       if (av === bv) return a.player.localeCompare(b.player);
       return sortDir === "desc" ? bv - av : av - bv;
     });
@@ -2022,7 +2524,11 @@ function HallOfFameMasterTable({ tournaments }: { tournaments: TournamentSummary
         <button
           type="button"
           onClick={() => {
-            if (!active) { setSortKey(key); setSortDir("desc"); return; }
+            if (!active) {
+              setSortKey(key);
+              setSortDir("desc");
+              return;
+            }
             setSortDir((d) => (d === "desc" ? "asc" : "desc"));
           }}
           className={`inline-flex items-center gap-1 hover:text-sand ${active ? "text-sand" : ""}`}
@@ -2037,15 +2543,12 @@ function HallOfFameMasterTable({ tournaments }: { tournaments: TournamentSummary
     <section className="space-y-3">
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="font-display text-2xl text-sand flex items-center gap-2"><Trophy className="size-5" /> Lifetime Hall of Fame</h3>
+          <h3 className="font-display text-2xl text-sand flex items-center gap-2">
+            <Trophy className="size-5" /> Lifetime Hall of Fame
+          </h3>
           <p className="text-xs text-muted-foreground">Aggregated across every archived tournament.</p>
         </div>
-        <Input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search player…"
-          className="max-w-xs"
-        />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search player…" className="max-w-xs" />
       </div>
       <Card className="p-0 overflow-hidden">
         <Table>
@@ -2079,7 +2582,9 @@ function HallOfFameMasterTable({ tournaments }: { tournaments: TournamentSummary
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground italic py-6">No players match.</TableCell>
+                <TableCell colSpan={7} className="text-center text-muted-foreground italic py-6">
+                  No players match.
+                </TableCell>
               </TableRow>
             )}
           </TableBody>
