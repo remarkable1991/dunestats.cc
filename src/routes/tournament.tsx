@@ -1048,6 +1048,8 @@ function CurrentTournament({
                             const sorted = [...players].sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9));
                             const finished = players.filter((p) => p.placement != null && p.points != null).length >= 4;
                             const tDays = finished ? tableDaysToFinish(players) : null;
+                            const sched = scheduleFor(rt, ti);
+                            const canStart = isAdmin || players.some((p) => isMine(p.player_name));
                             return (
                               <div
                                 key={ti}
@@ -1060,7 +1062,26 @@ function CurrentTournament({
                               >
                                 <div className="flex items-center justify-between mb-2">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-medium">{ti}</span>
+                                    <span className="font-medium">
+                                      {rt} · {ti}
+                                    </span>
+                                    {isAdmin && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setRosterKey(`${rt}__${ti}`)}
+                                        title="Edit roster"
+                                        className="text-muted-foreground hover:text-sand transition"
+                                      >
+                                        <Pencil className="size-3.5" />
+                                      </button>
+                                    )}
+                                    <TableScheduleControls
+                                      schedule={sched}
+                                      finished={finished}
+                                      canStart={canStart}
+                                      title={`Dune Imperium · ${rt} · ${ti}`}
+                                      onChanged={refresh}
+                                    />
                                     {isT14 && players[0]?.table_score != null && (
                                       <button
                                         type="button"
@@ -1108,6 +1129,14 @@ function CurrentTournament({
                                         {displayMode === "discord"
                                           ? (p.discord_username ?? p.player_name)
                                           : p.player_name}
+                                        {p.is_backup && (
+                                          <span
+                                            className="ml-2 inline-flex items-center rounded-full border border-sky-500/40 bg-sky-500/10 px-1.5 text-[10px] text-sky-300"
+                                            title="Backup player — this result does not count toward their own standings"
+                                          >
+                                            🛡️ Backup
+                                          </span>
+                                        )}
                                       </span>
                                       <span className="font-mono text-sand">{p.points ?? "—"} VP</span>
                                     </li>
@@ -1364,6 +1393,33 @@ function CurrentTournament({
           </div>
         </>
       )}
+      {rosterKey &&
+        (() => {
+          const [rt, ti] = rosterKey.split("__");
+          const seats = rows
+            .filter((r) => r.round_type === rt && r.table_identifier === ti)
+            .sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9))
+            .map((r) => ({
+              id: r.id,
+              player_name: r.player_name,
+              discord_username: r.discord_username,
+              is_backup: r.is_backup,
+            }));
+          return (
+            <RosterEditDialog
+              open={true}
+              onOpenChange={(v) => {
+                if (!v) setRosterKey(null);
+              }}
+              tournamentNum={tournamentNum}
+              roundType={rt}
+              tableIdentifier={ti}
+              seats={seats}
+              existingPlayers={allTournamentPlayers}
+              onSaved={refresh}
+            />
+          );
+        })()}
       {isT14 &&
         heatmapKey &&
         (() => {
