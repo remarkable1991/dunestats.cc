@@ -624,6 +624,72 @@ export type Database = {
         }
         Relationships: []
       }
+      tournament_match_schedules: {
+        Row: {
+          confirmed_slot: string | null
+          confirmed_time_text: string | null
+          confirmed_timestamp: string | null
+          created_at: string | null
+          id: string
+          match_code: string
+          message_id: string
+          mode: string
+          player_discord_ids: string[]
+          player_names: string[]
+          round_type: string
+          status: string
+          suggested_slots: Json
+          table_identifier: string
+          thread_id: string
+          tournament_num: number
+          updated_at: string | null
+          votes: Json
+          votes_count: number
+        }
+        Insert: {
+          confirmed_slot?: string | null
+          confirmed_time_text?: string | null
+          confirmed_timestamp?: string | null
+          created_at?: string | null
+          id?: string
+          match_code: string
+          message_id: string
+          mode?: string
+          player_discord_ids?: string[]
+          player_names?: string[]
+          round_type: string
+          status?: string
+          suggested_slots?: Json
+          table_identifier: string
+          thread_id: string
+          tournament_num: number
+          updated_at?: string | null
+          votes?: Json
+          votes_count?: number
+        }
+        Update: {
+          confirmed_slot?: string | null
+          confirmed_time_text?: string | null
+          confirmed_timestamp?: string | null
+          created_at?: string | null
+          id?: string
+          match_code?: string
+          message_id?: string
+          mode?: string
+          player_discord_ids?: string[]
+          player_names?: string[]
+          round_type?: string
+          status?: string
+          suggested_slots?: Json
+          table_identifier?: string
+          thread_id?: string
+          tournament_num?: number
+          updated_at?: string | null
+          votes?: Json
+          votes_count?: number
+        }
+        Relationships: []
+      }
       tournament_matches: {
         Row: {
           created_at: string
@@ -895,7 +961,7 @@ export type Database = {
       }
       dismiss_user_notification: {
         Args: { p_notification_type: string; p_reference_id?: string }
-        Returns: Json
+        Returns: undefined
       }
       get_all_storage_files: {
         Args: { bucket_name: string }
@@ -996,7 +1062,7 @@ export type Database = {
         Args: { p_game_id: string }
         Returns: undefined
       }
-      touch_last_sign_in: { Args: never; Returns: Json }
+      touch_last_sign_in: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
