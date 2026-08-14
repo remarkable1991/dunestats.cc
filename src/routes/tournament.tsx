@@ -41,9 +41,6 @@ import {
   CheckCircle2,
   Maximize2,
   HelpCircle,
-  Clock,
-  AlertTriangle,
-  PlayCircle,
 } from "lucide-react";
 import { Calendar, Sword, History, ExternalLink } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -151,46 +148,6 @@ type Row = {
   updated_at: string;
 };
 
-type MatchSchedule = {
-  id: string;
-  tournament_num: number;
-  round_type: string;
-  table_identifier: string;
-  match_code: string;
-  mode: "live" | "async";
-  thread_id: string | null;
-  status: string;
-  suggested_slots: Array<{ label: string; time_text: string }> | null;
-  votes: Record<string, string[]> | null;
-  votes_count: number;
-  confirmed_slot: string | null;
-  confirmed_time_text: string | null;
-  confirmed_timestamp: string | null;
-};
-
-/** Helpers for parsing and formatting schedule dates in browser timezone */
-function parseScheduleTime(raw: string | null | undefined): Date | null {
-  if (!raw) return null;
-  const str = String(raw).trim();
-  const matchDiscord = str.match(/<t:(\d+)/);
-  if (matchDiscord) return new Date(parseInt(matchDiscord[1], 10) * 1000);
-  if (/^\d{10}$/.test(str)) return new Date(parseInt(str, 10) * 1000);
-  if (/^\d{13}$/.test(str)) return new Date(parseInt(str, 10));
-  const parsed = Date.parse(str);
-  if (!isNaN(parsed)) return new Date(parsed);
-  return null;
-}
-
-function formatScheduleDate(date: Date): string {
-  return new Intl.DateTimeFormat(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
 /** Days from first upload of a table (min created_at) to last update (max updated_at). */
 function tableDaysToFinish(rows: Row[]): number | null {
   if (!rows.length) return null;
@@ -219,15 +176,13 @@ function CurrentTournament({
   focusTable?: string;
 }) {
   const [rows, setRows] = useState<Row[]>([]);
-  const [schedules, setSchedules] = useState<MatchSchedule[]>([]);
   const [shots, setShots] = useState<Shot[]>([]);
   const [loading, setLoading] = useState(true);
   const [displayMode, setDisplayMode] = useState<"player" | "discord">("player");
   const [logTab, setLogTab] = useState<"swiss" | "playoffs">("swiss");
-  const [selectedVotingSchedule, setSelectedVotingSchedule] = useState<MatchSchedule | null>(null);
   const uploadRef = useRef<HTMLDivElement>(null);
 
-  // Upload panel state
+  // Upload panel state (mirrors /upload but routed to tournament_matches)
   const [round, setRound] = useState<string>("Game 1");
   const [tableId, setTableId] = useState<string>("Table 1");
   const [file, setFile] = useState<File | null>(null);
@@ -245,7 +200,7 @@ function CurrentTournament({
   const [hasImmortality, setHasImmortality] = useState(false);
   const [hasBaseLeaders, setHasBaseLeaders] = useState(false);
   const [tpOpen, setTpOpen] = useState(false);
-  const [heatmapKey, setHeatmapKey] = useState<string | null>(null);
+  const [heatmapKey, setHeatmapKey] = useState<string | null>(null); // "round__table"
   const isT14 = tournamentNum === 14;
   type SaveResult = Awaited<ReturnType<typeof saveGame>>;
   const [lastSave, setLastSave] = useState<SaveResult | null>(null);
@@ -284,40 +239,17 @@ function CurrentTournament({
 
   const refresh = async () => {
     setLoading(true);
-    const [r, s, sched] = await Promise.all([
+    const [r, s] = await Promise.all([
       supabase.from("tournament_matches").select("*").eq("tournament_num", tournamentNum),
       supabase.from("tournament_table_screenshots").select("*").eq("tournament_num", tournamentNum),
-      supabase.from("tournament_match_schedules").select("*").eq("tournament_num", tournamentNum),
     ]);
     setRows((r.data ?? []) as Row[]);
     setShots((s.data ?? []) as Shot[]);
-    setSchedules((sched.data ?? []) as MatchSchedule[]);
     setLoading(false);
   };
   useEffect(() => {
     void refresh();
-  }, [tournamentNum]);
-
-  // Fast schedule map: "round__table" -> MatchSchedule
-  const scheduleMap = useMemo(() => {
-    const map = new Map<string, MatchSchedule>();
-    for (const s of schedules) {
-      map.set(`${s.round_type}__${s.table_identifier}`, s);
-    }
-    return map;
-  }, [schedules]);
-
-  // Confirmed upcoming matches sorted chronologically
-  const upcomingConfirmed = useMemo(() => {
-    const now = Date.now();
-    return schedules
-      .filter((s) => s.status === "confirmed" && (s.confirmed_timestamp || s.confirmed_time_text))
-      .map((s) => {
-        const d = parseScheduleTime(s.confirmed_timestamp || s.confirmed_time_text);
-        return { schedule: s, date: d, timeMs: d ? d.getTime() : 9999999999999 };
-      })
-      .sort((a, b) => a.timeMs - b.timeMs);
-  }, [schedules]);
+  }, []);
 
   // ===== TP scoring + standings =====
   const standings = useMemo(() => {
@@ -333,6 +265,7 @@ function CurrentTournament({
       daysCount: number;
     };
     const map = new Map<string, Agg>();
+    // Group rows by (round, table)
     const tables = new Map<string, Row[]>();
     for (const row of rows) {
       const k = `${row.round_type}__${row.table_identifier}`;
@@ -340,6 +273,7 @@ function CurrentTournament({
       tables.get(k)!.push(row);
     }
     for (const tableRows of tables.values()) {
+      // Only score if all 4 placements & points are present
       const ranked = tableRows
         .filter((r) => r.placement && r.points != null)
         .sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9));
@@ -379,6 +313,7 @@ function CurrentTournament({
         map.set(key, agg);
       });
     }
+    // Include unranked players with 0s so leaderboard shows everyone
     for (const row of rows) {
       if (!map.has(row.player_name)) {
         map.set(row.player_name, {
@@ -410,6 +345,8 @@ function CurrentTournament({
     return list;
   }, [rows]);
 
+  // League-only standings: recompute using ONLY Swiss round rows so playoff
+  // projections don't shift as Semi/Grand Final results get uploaded.
   const leagueStandings = useMemo(() => {
     type Agg = {
       player: string;
@@ -470,6 +407,8 @@ function CurrentTournament({
         map.set(key, agg);
       });
     }
+    // Include every league participant (even without uploaded results) so the
+    // projected playoff tables show the players currently in those positions.
     for (const row of rows) {
       if (!(SWISS_ROUNDS as readonly string[]).includes(row.round_type)) continue;
       if (map.has(row.player_name)) continue;
@@ -512,6 +451,7 @@ function CurrentTournament({
     };
   }, [leagueStandings, plan]);
 
+  // Actual SF winners (placement=1 in each Semi Final table), if uploaded.
   const semiWinners = useMemo(() => {
     const winnerFor = (needle: RegExp) => {
       const row = rows.find((r) => r.round_type === "Finals" && needle.test(r.table_identifier) && r.placement === 1);
@@ -546,6 +486,7 @@ function CurrentTournament({
     });
   }, [rows]);
 
+  // Auto-publish Semi Finals once League Phase is fully complete.
   const semisPublished = useMemo(
     () => rows.some((r) => r.round_type === "Finals" && /^Semi Final/i.test(r.table_identifier)),
     [rows],
@@ -554,7 +495,9 @@ function CurrentTournament({
     () => swissProgress.length > 0 && swissProgress.every((r) => r.total > 0 && r.completed === r.total),
     [swissProgress],
   );
-
+  // Semi Final seating: automatic (snake seeded from the league standings) or
+  // manual (an admin imports a CSV with the Semi Final tables, which publishes them).
+  // The mode is configured per tournament in Admin → Tournaments.
   const seededRef = useRef(false);
   useEffect(() => {
     if (seedingMode !== "snake") return;
@@ -577,6 +520,7 @@ function CurrentTournament({
     })();
   }, [seedingMode, userId, leagueComplete, semisPublished, playoffs, plan.tables, tournamentNum]);
 
+  // Detect whether the Grand Final table already exists / has been fully scored.
   const grandFinalRows = useMemo(
     () => rows.filter((r) => r.round_type === "Finals" && /grand/i.test(r.table_identifier)),
     [rows],
@@ -587,6 +531,7 @@ function CurrentTournament({
     [grandFinalRows],
   );
 
+  // Auto-publish the Grand Final table once BOTH semi finals have a winner.
   const promoteGFRef = useRef(false);
   useEffect(() => {
     if (!userId || !semisPublished) return;
@@ -594,6 +539,7 @@ function CurrentTournament({
     const tableCount = Math.max(1, plan.tables);
     const won = semiWinners.all.slice(0, tableCount);
     if (won.length !== tableCount || won.some((w) => !w)) return;
+    // Top league finishers that are not already qualified through a Semi Final win.
     const winners = won.map((w) => w!.player);
     const seatsLeft = Math.max(0, plan.gfSpots - winners.length);
     const seeds = leagueStandings
@@ -619,6 +565,7 @@ function CurrentTournament({
     })();
   }, [userId, semisPublished, grandFinalExists, semiWinners, leagueStandings, plan, tournamentNum]);
 
+  // Auto-archive the tournament to Hall of Fame once the Grand Final is scored.
   const archiveRef = useRef(false);
   useEffect(() => {
     if (!userId || !grandFinalComplete) return;
@@ -640,8 +587,11 @@ function CurrentTournament({
     })();
   }, [userId, grandFinalComplete, tournamentNum, onBack]);
 
+  // ===== Standings view (Total with GF bonus vs League Phase only) =====
   const [standingsView, setStandingsView] = useState<"total" | "league">("total");
 
+  // Total standing: uses everything, but the top-2 league finishers earned +25 TP
+  // for skipping the semi finals (direct-to-Grand-Final bye bonus).
   const totalStandings = useMemo(() => {
     const grandBonus = new Set(leagueStandings.slice(0, plan.gf).map((p) => p.player));
     const boosted = standings.map((s) => (grandBonus.has(s.player) ? { ...s, tp: s.tp + 25 } : s));
@@ -657,8 +607,10 @@ function CurrentTournament({
 
   const displayStandings = semisPublished ? (standingsView === "total" ? totalStandings : leagueStandings) : standings;
 
+  // Helper: get screenshot URL for a table
   const shotFor = (rt: string, ti: string) => shots.find((s) => s.round_type === rt && s.table_identifier === ti);
 
+  // ===== Match logs grouped =====
   const groupedLogs = useMemo(() => {
     const inSwiss = (rt: string) => (SWISS_ROUNDS as readonly string[]).includes(rt);
     const filter = logTab === "swiss" ? inSwiss : (rt: string) => !inSwiss(rt);
@@ -673,6 +625,7 @@ function CurrentTournament({
     return byRound;
   }, [rows, logTab]);
 
+  // ===== Upload handlers =====
   const onFile = async (f: File | null) => {
     setFile(f);
     if (preview) URL.revokeObjectURL(preview);
@@ -691,6 +644,7 @@ function CurrentTournament({
       const detected = await normalizeNames(rawDetected);
       setParsedRows(detected);
 
+      // Auto-detect board version + expansions from leaders
       const sug = detectExpansions(detected.map((d) => d.leader_name));
       setBoard(sug.board_version);
       setHasIx(sug.has_rise_of_ix);
@@ -698,6 +652,7 @@ function CurrentTournament({
       setHasEpic(false);
       setHasImmortality(false);
 
+      // Auto-detect Round + Table by matching detected players to known tournament rows
       const detectedKeys = detected.map((d) => d.player_name.toLowerCase().trim()).filter(Boolean);
       const groups = new Map<string, { round: string; table: string; players: string[] }>();
       for (const r of rows) {
@@ -737,6 +692,7 @@ function CurrentTournament({
     uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  // Auto-scroll to a specific round/table when arriving via a deep link
   useEffect(() => {
     if (loading || !focusRound || !focusTable) return;
     if (/final/i.test(focusRound)) setLogTab("playoffs");
@@ -768,6 +724,8 @@ function CurrentTournament({
           points: r.points,
         })),
         tournament: { num: tournamentNum, round, table: tableId },
+        // Tournament re-uploads: same 4 scores are expected; skip the global
+        // dedupe prompt so admins can re-upload without an extra click.
         confirmDuplicate: true,
       });
       if (result.status === "ok") {
@@ -853,105 +811,12 @@ function CurrentTournament({
         </DialogContent>
       </Dialog>
 
-      {/* Suggested Slots & Voting Dialog */}
-      <Dialog
-        open={!!selectedVotingSchedule}
-        onOpenChange={(open) => {
-          if (!open) setSelectedVotingSchedule(null);
-        }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Clock className="size-5 text-sand" /> Suggested Time Slots &amp; Votes
-            </DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground pt-2 space-y-3">
-              {selectedVotingSchedule && (
-                <div>
-                  <div className="font-medium text-foreground mb-1">
-                    [{selectedVotingSchedule.match_code}] {selectedVotingSchedule.round_type}{" "}
-                    {selectedVotingSchedule.table_identifier}
-                  </div>
-                  <div className="text-xs text-sand mb-4">
-                    Status:{" "}
-                    {selectedVotingSchedule.status === "conflict"
-                      ? "⚠️ Conflict (Needs Admin/Host)"
-                      : `⏳ Pending Votes (${selectedVotingSchedule.votes_count}/4 Voted)`}
-                  </div>
-
-                  <div className="space-y-2 mb-4">
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
-                      Suggested Options:
-                    </div>
-                    {(selectedVotingSchedule.suggested_slots || []).map((slot, idx) => {
-                      const d = parseScheduleTime(slot.time_text);
-                      const displayTime = d ? formatScheduleDate(d) : slot.time_text;
-                      return (
-                        <div
-                          key={idx}
-                          className="flex items-center gap-2 rounded border border-border/60 bg-muted/30 p-2 text-sm"
-                        >
-                          <span className="text-base">{slot.label}</span>
-                          <span className="font-medium">{displayTime}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <p className="text-xs text-muted-foreground italic">
-                    React directly inside the Discord match thread to vote for your slots, or run{" "}
-                    <code className="text-sand">/confirm</code> to lock in an agreed time!
-                  </p>
-                </div>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
-
       {loading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="size-6 animate-spin text-sand" />
         </div>
       ) : (
         <>
-          {/* Confirmed Upcoming Live Matches Quick Bar */}
-          {upcomingConfirmed.length > 0 && (
-            <Card className="p-4 border-sand/40 bg-gradient-to-r from-sand/10 via-card/70 to-card shadow-arena">
-              <div className="flex items-center gap-2 font-display text-sm text-sand mb-3">
-                <Calendar className="size-4" /> Confirmed Match Schedule ({upcomingConfirmed.length})
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                {upcomingConfirmed.map(({ schedule, date }) => {
-                  const isPast = date && date.getTime() < Date.now();
-                  const timeText = date ? formatScheduleDate(date) : schedule.confirmed_time_text || "Confirmed";
-                  return (
-                    <div
-                      key={schedule.id}
-                      onClick={() => {
-                        const el = document.getElementById(
-                          `table-${schedule.round_type.replace(/\s+/g, "-")}-${schedule.table_identifier.replace(/\s+/g, "-")}`,
-                        );
-                        el?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      }}
-                      className="flex items-center justify-between rounded-md border border-border/60 bg-background/50 p-2 text-xs cursor-pointer hover:border-sand transition-colors"
-                    >
-                      <div className="font-medium truncate mr-2">
-                        <span className="text-sand mr-1">[{schedule.match_code}]</span>
-                        <span>
-                          {schedule.round_type} · {schedule.table_identifier}
-                        </span>
-                      </div>
-                      <span className={`shrink-0 font-mono ${isPast ? "text-coral" : "text-emerald-400"}`}>
-                        {timeText}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          )}
-
           {/* League Phase Progress */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {swissProgress.map((p) => (
@@ -1077,7 +942,7 @@ function CurrentTournament({
             </div>
           </Card>
 
-          {/* Playoff bracket */}
+          {/* Playoff bracket — projections only while the Semi Finals aren't published yet */}
           {!semisPublished &&
             (() => {
               const rankOf = new Map(leagueStandings.map((p, i) => [p.player, i + 1]));
@@ -1150,17 +1015,6 @@ function CurrentTournament({
                             const sorted = [...players].sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9));
                             const finished = players.filter((p) => p.placement != null && p.points != null).length >= 4;
                             const tDays = finished ? tableDaysToFinish(players) : null;
-                            const sched = scheduleMap.get(`${rt}__${ti}`);
-
-                            // Confirmed schedule dates
-                            const schedDate = sched
-                              ? parseScheduleTime(sched.confirmed_timestamp || sched.confirmed_time_text)
-                              : null;
-                            const isPast = schedDate && schedDate.getTime() < Date.now();
-                            const timeDisplay = schedDate
-                              ? formatScheduleDate(schedDate)
-                              : sched?.confirmed_time_text || null;
-
                             return (
                               <div
                                 key={ti}
@@ -1174,63 +1028,6 @@ function CurrentTournament({
                                 <div className="flex items-center justify-between mb-2">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <span className="font-medium">{ti}</span>
-                                    {sched?.match_code && (
-                                      <span className="font-mono text-[11px] bg-secondary/60 text-sand px-1.5 py-0.5 rounded">
-                                        {sched.match_code}
-                                      </span>
-                                    )}
-
-                                    {/* Scheduling & Date Status Badges */}
-                                    {sched && !finished && (
-                                      <>
-                                        {sched.status === "confirmed" && (
-                                          <span
-                                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                                              isPast
-                                                ? "border-coral/60 bg-coral/15 text-coral"
-                                                : "border-emerald-500/60 bg-emerald-500/15 text-emerald-400"
-                                            }`}
-                                            title={
-                                              isPast
-                                                ? "Match start time has passed (playing or awaiting upload)"
-                                                : "Confirmed match start time"
-                                            }
-                                          >
-                                            <Calendar className="size-3" />
-                                            {isPast ? `🔴 Playing (${timeDisplay})` : `📅 ${timeDisplay}`}
-                                          </span>
-                                        )}
-
-                                        {sched.status === "ongoing" && sched.mode === "async" && (
-                                          <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/60 bg-sky-500/15 px-2 py-0.5 text-[11px] text-sky-400 font-medium">
-                                            <PlayCircle className="size-3" /> Ongoing Game
-                                          </span>
-                                        )}
-
-                                        {(sched.status === "pending_votes" || sched.status === "published") && (
-                                          <button
-                                            type="button"
-                                            onClick={() => setSelectedVotingSchedule(sched)}
-                                            className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-400 hover:bg-amber-500/20 transition cursor-pointer"
-                                            title="Click to view suggested slots and votes"
-                                          >
-                                            <Clock className="size-3" /> {sched.votes_count}/4 Voted
-                                          </button>
-                                        )}
-
-                                        {sched.status === "conflict" && (
-                                          <button
-                                            type="button"
-                                            onClick={() => setSelectedVotingSchedule(sched)}
-                                            className="inline-flex items-center gap-1 rounded-full border border-coral/60 bg-coral/15 px-2 py-0.5 text-[11px] text-coral hover:bg-coral/25 transition cursor-pointer"
-                                            title="Click to view votes"
-                                          >
-                                            <AlertTriangle className="size-3" /> Conflict
-                                          </button>
-                                        )}
-                                      </>
-                                    )}
-
                                     {isT14 && players[0]?.table_score != null && (
                                       <button
                                         type="button"
@@ -1639,7 +1436,7 @@ const TAB_ORDER: TopTab[] = ["future", "current", "previous"];
 function TournamentPage() {
   const [tab, setTab] = useState<TopTab>("current");
   const [prev, setPrev] = useState<TopTab>("current");
-  const dir = TAB_ORDER.indexOf(tab) - TAB_ORDER.indexOf(prev);
+  const dir = TAB_ORDER.indexOf(tab) - TAB_ORDER.indexOf(prev); // +1 right, -1 left
 
   const switchTo = (next: TopTab) => {
     if (next === tab) return;
@@ -1658,6 +1455,7 @@ function TournamentPage() {
     { id: "previous", title: "Previous Tournaments", subtitle: "Hall of Fame", icon: <History className="size-5" /> },
   ];
 
+  // animate-in slide direction: moving to higher idx → enter from right; lower idx → enter from left
   const slideClass =
     dir >= 0
       ? "animate-in slide-in-from-right-10 fade-in duration-300"
@@ -1794,6 +1592,7 @@ function FutureTournaments() {
           </div>
 
           <PrizesInfo summary={t.prizes_summary} details={t.prizes_text} />
+
           <TruncatedInfoText text={t.info_text} />
 
           <div className="text-xs text-muted-foreground">
@@ -1831,6 +1630,7 @@ function CurrentTournamentsHub() {
 
   useEffect(() => {
     if (search.t != null && search.t !== selected) setSelected(search.t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.t]);
 
   useEffect(() => {
@@ -1860,8 +1660,9 @@ function CurrentTournamentsHub() {
         const hasGrand = rows.some((r) => /grand/i.test(r.table_identifier));
         const grandComplete = rows.some((r) => /grand/i.test(r.table_identifier) && r.placement != null);
         const hasSemi = rows.some((r) => /semi/i.test(r.table_identifier));
+        // Expected bracket size: published tables + the finals tables still to come.
         let total = tables.size;
-        if (hasSemi && !hasGrand) total += 1;
+        if (hasSemi && !hasGrand) total += 1; // Grand Final still to be published
         const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
         const phase = grandComplete
           ? "Champion Crowned"
@@ -2008,6 +1809,8 @@ function configBadge(r: {
   if (im) return "Base + Immortality";
   return "Base Game";
 }
+
+// ─── Hall of Fame ───────────────────────────────────────────────────────────
 
 type ModeFlags = { hasIx: boolean; hasEpic: boolean; hasImmo: boolean; hasUprising: boolean };
 
@@ -2187,6 +1990,8 @@ function PreviousTournaments() {
   );
 }
 
+// ─── Tournament deep-dive ──────────────────────────────────────────────────
+
 type TournamentSummary = {
   num: number;
   rows: PastRow[];
@@ -2231,6 +2036,7 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }));
   }, [rows]);
 
+  // Per-tournament standings (TP / Wins / Avg / VP) — same formula as live.
   const standings = useMemo(() => {
     type Agg = { player: string; tp: number; wins: number; placements: number[]; vp: number };
     const map = new Map<string, Agg>();
@@ -2279,6 +2085,7 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
         <Trophy className="size-7 text-sand" /> Tournament #{num}
       </h2>
 
+      {/* Header card mirrors the Hall of Fame card */}
       <Card className="p-6 border-sand/40 bg-gradient-to-br from-card to-card/40">
         <div className="flex items-center gap-4">
           <div className="relative flex items-center justify-center size-20 rounded-full bg-gradient-to-br from-sand/40 to-sand/10 border border-sand/50 shadow-inner">
@@ -2302,6 +2109,7 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
         </div>
       </Card>
 
+      {/* Bracket */}
       <section className="space-y-4">
         <h3 className="font-display text-xl text-sand">Bracket</h3>
         {grandFinalKey ? (
@@ -2318,6 +2126,7 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
         )}
       </section>
 
+      {/* Per-tournament leaderboard */}
       <section className="space-y-3">
         <h3 className="font-display text-xl text-sand">Tournament Leaderboard</h3>
         <Card className="p-0 overflow-hidden">
@@ -2350,6 +2159,7 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
         </Card>
       </section>
 
+      {/* Qualification rounds */}
       <section className="space-y-3">
         <h3 className="font-display text-xl text-sand">Qualification Rounds</h3>
         <Accordion type="multiple" className="space-y-2">
@@ -2425,6 +2235,8 @@ function BracketTable({
   );
 }
 
+// ─── Lifetime master stats table ───────────────────────────────────────────
+
 type LifetimeAgg = {
   player: string;
   wins: number;
@@ -2454,6 +2266,7 @@ function HallOfFameMasterTable({ tournaments }: { tournaments: TournamentSummary
       const playersInT = new Set<string>();
       const grand = new Set<string>();
       const semi = new Set<string>();
+      // group by (round, table)
       const tables = new Map<string, PastRow[]>();
       for (const r of t.rows) {
         playersInT.add(r.player_name);
@@ -2463,6 +2276,7 @@ function HallOfFameMasterTable({ tournaments }: { tournaments: TournamentSummary
         if (!tables.has(k)) tables.set(k, []);
         tables.get(k)!.push(r);
       }
+      // TP per table
       for (const tr of tables.values()) {
         const ranked = [...tr].filter((r) => r.placement && r.points != null).sort((a, b) => a.placement - b.placement);
         if (ranked.length < 4) continue;
