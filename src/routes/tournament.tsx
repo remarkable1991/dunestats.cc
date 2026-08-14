@@ -70,6 +70,10 @@ import {
 } from "@/lib/tournaments";
 
 import { AvailabilityHeatmap, type HeatmapPlayer } from "@/components/AvailabilityHeatmap";
+import { TableScheduleControls } from "@/components/TableScheduleControls";
+import { RosterEditDialog } from "@/components/RosterEditDialog";
+import { type MatchSchedule, SCHEDULE_SELECT } from "@/lib/match-schedules";
+import { Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/tournament")({
   head: () => ({
@@ -144,6 +148,7 @@ type Row = {
   table_score: number | null;
   player_compatibility_score: number | null;
   player_availability: string[] | null;
+  is_backup: boolean | null;
   created_at: string;
   updated_at: string;
 };
@@ -177,6 +182,9 @@ function CurrentTournament({
 }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [shots, setShots] = useState<Shot[]>([]);
+  const [schedules, setSchedules] = useState<MatchSchedule[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [rosterKey, setRosterKey] = useState<string | null>(null); // "round__table"
   const [loading, setLoading] = useState(true);
   const [displayMode, setDisplayMode] = useState<"player" | "discord">("player");
   const [logTab, setLogTab] = useState<"swiss" | "playoffs">("swiss");
@@ -221,6 +229,22 @@ function CurrentTournament({
   }, [userId]);
 
   const isMine = (name: string) => myKeys.has(name.toLowerCase().trim());
+  useEffect(() => {
+    if (!userId) {
+      setIsAdmin(false);
+      return;
+    }
+    void (async () => {
+      const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+      setIsAdmin((data ?? []).some((r) => r.role === "admin"));
+    })();
+  }, [userId]);
+  const scheduleFor = (rt: string, ti: string) =>
+    schedules.find((s) => s.round_type === rt && s.table_identifier === ti) ?? null;
+  const allTournamentPlayers = useMemo(
+    () => new Set(rows.filter((r) => !r.is_backup).map((r) => r.player_name.toLowerCase().trim())),
+    [rows],
+  );
   const champions = useChampions();
   const titles = usePlayerTitles();
 
@@ -239,12 +263,15 @@ function CurrentTournament({
 
   const refresh = async () => {
     setLoading(true);
-    const [r, s] = await Promise.all([
+    const [r, s, sc] = await Promise.all([
       supabase.from("tournament_matches").select("*").eq("tournament_num", tournamentNum),
       supabase.from("tournament_table_screenshots").select("*").eq("tournament_num", tournamentNum),
+      supabase.from("tournament_match_schedules").select(SCHEDULE_SELECT).eq("tournament_num", tournamentNum),
     ]);
     setRows((r.data ?? []) as Row[]);
     setShots((s.data ?? []) as Shot[]);
+    // Schedules are optional — tables without a Discord schedule render normally.
+    setSchedules((sc.data ?? []) as unknown as MatchSchedule[]);
     setLoading(false);
   };
   useEffect(() => {
@@ -288,6 +315,8 @@ function CurrentTournament({
         Math.max(0, 5 - (vps[0] - vps[3])),
       ].map((v) => Math.max(0, v));
       ranked.forEach((r, i) => {
+        // Substitutes ("backup" seats) do not score for their own standings.
+        if (r.is_backup) return;
         const key = r.player_name;
         const agg = map.get(key) ?? {
           player: r.player_name,
@@ -315,6 +344,7 @@ function CurrentTournament({
     }
     // Include unranked players with 0s so leaderboard shows everyone
     for (const row of rows) {
+      if (row.is_backup) continue;
       if (!map.has(row.player_name)) {
         map.set(row.player_name, {
           player: row.player_name,
@@ -382,6 +412,8 @@ function CurrentTournament({
         Math.max(0, 5 - (vps[0] - vps[3])),
       ].map((v) => Math.max(0, v));
       ranked.forEach((r, i) => {
+        // Substitutes ("backup" seats) do not score for their own standings.
+        if (r.is_backup) return;
         const key = r.player_name;
         const agg = map.get(key) ?? {
           player: r.player_name,
@@ -411,6 +443,7 @@ function CurrentTournament({
     // projected playoff tables show the players currently in those positions.
     for (const row of rows) {
       if (!(SWISS_ROUNDS as readonly string[]).includes(row.round_type)) continue;
+      if (row.is_backup) continue;
       if (map.has(row.player_name)) continue;
       map.set(row.player_name, {
         player: row.player_name,
