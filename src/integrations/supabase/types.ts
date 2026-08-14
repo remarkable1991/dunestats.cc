@@ -695,6 +695,7 @@ export type Database = {
           created_at: string
           discord_username: string | null
           id: string
+          is_backup: boolean
           leader_name: string | null
           placement: number | null
           player_availability: Json | null
@@ -711,6 +712,7 @@ export type Database = {
           created_at?: string
           discord_username?: string | null
           id?: string
+          is_backup?: boolean
           leader_name?: string | null
           placement?: number | null
           player_availability?: Json | null
@@ -727,6 +729,7 @@ export type Database = {
           created_at?: string
           discord_username?: string | null
           id?: string
+          is_backup?: boolean
           leader_name?: string | null
           placement?: number | null
           player_availability?: Json | null
@@ -941,6 +944,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_table_roster: {
+        Args: {
+          p_players: Json
+          p_round_type: string
+          p_table_identifier: string
+          p_tournament_num: number
+        }
+        Returns: Json
+      }
       archive_tournament: {
         Args: {
           p_board: string
@@ -1015,6 +1027,14 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      mark_async_game_started: {
+        Args: {
+          p_round_type: string
+          p_table_identifier: string
+          p_tournament_num: number
+        }
+        Returns: Json
       }
       promote_to_grandfinal: {
         Args: { p_players: string[]; p_tournament_num: number }
