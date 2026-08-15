@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
-import { Sparkles, Users as UsersIcon } from "lucide-react";
+import { Sparkles, Users as UsersIcon, Copy, Clock } from "lucide-react";
+import { toast } from "sonner";
+import { discordEpoch, parseSuggestedSlots } from "@/lib/match-schedules";
 
 export type HeatmapPlayer = {
   player_name: string;
@@ -9,8 +11,6 @@ export type HeatmapPlayer = {
   player_compatibility_score: number | null;
   player_availability: string[] | null; // ISO timestamps
 };
-
-type Slot = { key: string; date: Date; count: number };
 
 /** Round a Date down to the local half hour. */
 function halfHourFloor(d: Date) {
@@ -21,6 +21,7 @@ function halfHourFloor(d: Date) {
 }
 
 const HOURS = Array.from({ length: 48 }, (_, i) => i); // 0..47 half hours
+const HALF_HOUR = 30 * 60 * 1000;
 
 function densityClass(count: number): string {
   switch (count) {
@@ -50,18 +51,33 @@ function fmtScore(n: number | string | null | undefined): string {
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }
 
+const localFmt = (d: Date) =>
+  d.toLocaleString(undefined, { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
+
+function copyDiscord(epochSec: number) {
+  const code = `<t:${epochSec}:F>`;
+  void navigator.clipboard
+    .writeText(code)
+    .then(() => toast.success(`Copied ${code}`))
+    .catch(() => toast.error("Could not copy to clipboard"));
+}
+
 export function AvailabilityHeatmap({
   open,
   onOpenChange,
   tableId,
   matchQuality,
   players,
+  suggestedSlots,
+  myPlayerName,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   tableId: string;
   matchQuality: number | null;
   players: HeatmapPlayer[];
+  suggestedSlots?: unknown;
+  myPlayerName?: string | null;
 }) {
   const { dayList, slotMatrix } = useMemo(() => {
     // Aggregate counts per local half-hour slot
@@ -77,7 +93,6 @@ export function AvailabilityHeatmap({
         counts.set(k, (counts.get(k) ?? 0) + 1);
       }
     }
-    // Determine window: from earliest local day to +28 days
     const times = [...counts.keys()];
     if (times.length === 0) {
       return { dayList: [] as Date[], slotMatrix: new Map<string, number>() };
@@ -85,9 +100,16 @@ export function AvailabilityHeatmap({
     times.sort((a, b) => a - b);
     const first = new Date(times[0]);
     first.setHours(0, 0, 0, 0);
+    const lastDay = new Date(times[times.length - 1]);
+    lastDay.setHours(0, 0, 0, 0);
+    // Only render days that actually contain availability (drop trailing blank days)
+    const span = Math.min(
+      28,
+      Math.floor((lastDay.getTime() - first.getTime()) / (24 * 3600 * 1000)) + 1,
+    );
 
     const dayList: Date[] = [];
-    for (let i = 0; i < 28; i++) {
+    for (let i = 0; i < span; i++) {
       const d = new Date(first);
       d.setDate(first.getDate() + i);
       dayList.push(d);
@@ -96,12 +118,48 @@ export function AvailabilityHeatmap({
     for (const [k, c] of counts) {
       const d = new Date(k);
       const dayIdx = Math.floor((d.getTime() - dayList[0].getTime()) / (24 * 3600 * 1000));
-      if (dayIdx < 0 || dayIdx >= 28) continue;
+      if (dayIdx < 0 || dayIdx >= span) continue;
       const halfHourIdx = d.getHours() * 2 + (d.getMinutes() >= 30 ? 1 : 0);
       slotMatrix.set(`${dayIdx}:${halfHourIdx}`, c);
     }
     return { dayList, slotMatrix };
   }, [players]);
+
+  const suggestions = useMemo(() => parseSuggestedSlots(suggestedSlots), [suggestedSlots]);
+
+  /** 2h windows where everybody (or everybody but you) is free. */
+  const windows = useMemo(() => {
+    const perSlot = new Map<number, Set<string>>();
+    for (const p of players) {
+      for (const iso of p.player_availability ?? []) {
+        const k = halfHourFloor(new Date(iso)).getTime();
+        if (!perSlot.has(k)) perSlot.set(k, new Set());
+        perSlot.get(k)!.add(p.player_name);
+      }
+    }
+    const total = players.length;
+    const me = myPlayerName ?? null;
+    const starts = [...perSlot.keys()].sort((a, b) => a - b);
+    const all: { start: number; kind: "all" | "others" }[] = [];
+    for (const s of starts) {
+      const sets = [0, 1, 2, 3].map((i) => perSlot.get(s + i * HALF_HOUR));
+      if (sets.some((x) => !x)) continue;
+      const common = players
+        .map((p) => p.player_name)
+        .filter((n) => sets.every((set) => set!.has(n)));
+      if (common.length === total && total > 0) all.push({ start: s, kind: "all" });
+      else if (me && common.length === total - 1 && !common.includes(me)) all.push({ start: s, kind: "others" });
+    }
+    // Greedy de-overlap so the list stays readable
+    const out: { start: number; kind: "all" | "others" }[] = [];
+    let lastEnd = -Infinity;
+    for (const w of all) {
+      if (w.start < lastEnd) continue;
+      out.push(w);
+      lastEnd = w.start + 4 * HALF_HOUR;
+    }
+    return out.slice(0, 12);
+  }, [players, myPlayerName]);
 
   const dayFmt = new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "2-digit" });
   const timeFmt = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
@@ -119,11 +177,72 @@ export function AvailabilityHeatmap({
             )}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            30-minute slots across the 4-week tournament window in your local timezone.
+            30-minute slots in your local timezone. Click any time to copy its Discord timestamp code.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-auto space-y-4">
+          {(suggestions.length > 0 || windows.length > 0) && (
+            <Card className="p-4 border-border/60 bg-card/70 space-y-4">
+              {suggestions.length > 0 && (
+                <div>
+                  <h3 className="font-display text-sm text-sand mb-2 flex items-center gap-2">
+                    <Clock className="size-4" /> Suggested slots
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {suggestions.map((s, i) => {
+                      const e = discordEpoch(s.time_text);
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          disabled={e == null}
+                          onClick={() => e != null && copyDiscord(e)}
+                          className="inline-flex items-center gap-2 rounded-md border border-sand/40 bg-sand/10 px-3 py-1.5 text-xs hover:bg-sand/20 transition disabled:opacity-50"
+                        >
+                          <span className="font-display text-sand">{s.label || String.fromCharCode(65 + i)}</span>
+                          <span className="tabular-nums">{e != null ? localFmt(new Date(e * 1000)) : s.time_text}</span>
+                          <Copy className="size-3 opacity-60" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {windows.length > 0 && (
+                <div>
+                  <h3 className="font-display text-sm text-sand mb-2 flex items-center gap-2">
+                    <Sparkles className="size-4" /> Other 2-hour options
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {windows.map((w) => {
+                      const epoch = Math.floor(w.start / 1000);
+                      const isAll = w.kind === "all";
+                      return (
+                        <button
+                          key={w.start}
+                          type="button"
+                          onClick={() => copyDiscord(epoch)}
+                          className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs transition ${
+                            isAll
+                              ? "border-emerald-400/50 bg-emerald-500/10 hover:bg-emerald-500/20"
+                              : "border-border/60 bg-background/40 hover:bg-background/70"
+                          }`}
+                          title={isAll ? "Everyone is free for 2 hours" : "Everyone but you is free for 2 hours"}
+                        >
+                          <span className="tabular-nums">{localFmt(new Date(w.start))}</span>
+                          <span className="text-[10px] text-muted-foreground">{isAll ? "all free" : "all but you"}</span>
+                          <Copy className="size-3 opacity-60" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
+
           {dayList.length === 0 ? (
             <p className="text-sm text-muted-foreground italic">No availability recorded for this table.</p>
           ) : (
@@ -148,8 +267,10 @@ export function AvailabilityHeatmap({
                       const slotStart = new Date(d);
                       slotStart.setHours(Math.floor(h / 2), (h % 2) * 30, 0, 0);
                       return (
-                        <div
+                        <button
                           key={h}
+                          type="button"
+                          onClick={() => copyDiscord(Math.floor(slotStart.getTime() / 1000))}
                           title={`${dayFmt.format(d)} · ${timeFmt.format(slotStart)} — ${densityLabel(c)}`}
                           className={`h-4 border-r border-b transition-colors ${densityClass(c)}`}
                         />

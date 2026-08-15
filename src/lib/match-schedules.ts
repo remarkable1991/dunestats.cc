@@ -11,10 +11,29 @@ export type MatchSchedule = {
   confirmed_time_text: string | null;
   confirmed_timestamp: string | null;
   player_names: string[] | null;
+  suggested_slots?: unknown;
 };
 
+export type SuggestedSlot = { label: string; time_text: string };
+
+/** Extract the unix epoch (seconds) from a Discord timestamp tag like <t:123:F>. */
+export function discordEpoch(text: string): number | null {
+  const m = String(text ?? "").match(/<t:(\d+)(?::[a-zA-Z])?>/);
+  if (m) return Number(m[1]);
+  if (/^\d{9,10}$/.test(String(text ?? "").trim())) return Number(String(text).trim());
+  return null;
+}
+
+export function parseSuggestedSlots(raw: unknown): SuggestedSlot[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((s): s is Record<string, unknown> => !!s && typeof s === "object")
+    .map((s) => ({ label: String(s.label ?? ""), time_text: String(s.time_text ?? "") }))
+    .filter((s) => s.time_text.length > 0);
+}
+
 export const SCHEDULE_SELECT =
-  "id, tournament_num, round_type, table_identifier, match_code, mode, status, votes_count, confirmed_slot, confirmed_time_text, confirmed_timestamp, player_names";
+  "id, tournament_num, round_type, table_identifier, match_code, mode, status, votes_count, confirmed_slot, confirmed_time_text, confirmed_timestamp, player_names, suggested_slots";
 
 /** Parse an ISO date, a unix timestamp (s or ms) or a loose date string. */
 export function parseScheduleTime(s: MatchSchedule | null | undefined): Date | null {

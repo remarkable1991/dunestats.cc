@@ -1448,6 +1448,8 @@ function CurrentTournament({
               tableId={`${rt} · ${ti}`}
               matchQuality={tableRows[0]?.table_score ?? null}
               players={players}
+              suggestedSlots={scheduleFor(rt, ti)?.suggested_slots}
+              myPlayerName={tableRows.find((r) => isMine(r.player_name))?.player_name ?? null}
             />
           );
         })()}
