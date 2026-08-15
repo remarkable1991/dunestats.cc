@@ -824,12 +824,17 @@ export type Database = {
       }
       tournaments: {
         Row: {
+          board_version: string
           checkboxes: Json
           checkin_start_at: string | null
           created_at: string
           direct_to_grand_final: number | null
           end_date: string
           grand_final_spots: number | null
+          has_base_leaders: boolean
+          has_epic_mode: boolean
+          has_immortality: boolean
+          has_rise_of_ix: boolean
           info_text: string | null
           info_title: string | null
           name: string
@@ -847,12 +852,17 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          board_version?: string
           checkboxes?: Json
           checkin_start_at?: string | null
           created_at?: string
           direct_to_grand_final?: number | null
           end_date: string
           grand_final_spots?: number | null
+          has_base_leaders?: boolean
+          has_epic_mode?: boolean
+          has_immortality?: boolean
+          has_rise_of_ix?: boolean
           info_text?: string | null
           info_title?: string | null
           name: string
@@ -870,12 +880,17 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          board_version?: string
           checkboxes?: Json
           checkin_start_at?: string | null
           created_at?: string
           direct_to_grand_final?: number | null
           end_date?: string
           grand_final_spots?: number | null
+          has_base_leaders?: boolean
+          has_epic_mode?: boolean
+          has_immortality?: boolean
+          has_rise_of_ix?: boolean
           info_text?: string | null
           info_title?: string | null
           name?: string
