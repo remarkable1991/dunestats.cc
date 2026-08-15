@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { TOURNAMENT_MODES } from "@/lib/tournament-config";
+import { knownTournamentNums, loadTournamentModes } from "@/lib/tournament-config";
 
 /**
  * Detect which tournament a match belongs to by matching player names against
@@ -22,7 +22,8 @@ export async function detectTournamentFromPlayers(
   );
   if (names.length < 3) return null;
 
-  const nums = Object.keys(TOURNAMENT_MODES).map((n) => Number(n));
+  await loadTournamentModes();
+  const nums = knownTournamentNums();
   if (nums.length === 0) return null;
 
   const { data, error } = await supabase
