@@ -42,6 +42,14 @@ function densityLabel(count: number): string {
   }
 }
 
+/** Format a score, keeping one decimal when it isn't a whole number. */
+function fmtScore(n: number | string | null | undefined): string {
+  if (n == null) return "\u2014";
+  const v = typeof n === "string" ? Number(n) : n;
+  if (!Number.isFinite(v)) return String(n);
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
 export function AvailabilityHeatmap({
   open,
   onOpenChange,
@@ -106,7 +114,7 @@ export function AvailabilityHeatmap({
             <UsersIcon className="size-5 text-sand" /> {tableId} — Availability Map
             {matchQuality != null && (
               <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-xs text-sand">
-                <Sparkles className="size-3" /> Match Quality {matchQuality}
+                <Sparkles className="size-3" /> Match Quality {fmtScore(matchQuality)}
               </span>
             )}
           </DialogTitle>
@@ -165,7 +173,7 @@ export function AvailabilityHeatmap({
                     <div className="font-medium truncate">{p.player_name}</div>
                     {p.discord_username && <div className="text-[10px] text-muted-foreground truncate">@{p.discord_username}</div>}
                   </div>
-                  <span className="font-mono text-sand">{p.player_compatibility_score ?? "—"}</span>
+                  <span className="font-mono text-sand">{fmtScore(p.player_compatibility_score)}</span>
                 </li>
               ))}
             </ul>

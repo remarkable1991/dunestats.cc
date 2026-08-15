@@ -31,7 +31,7 @@ import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
 import { translateLeader } from "@/lib/leader-translate";
 import { useChampions, isChampion } from "@/lib/champions";
-import { tournamentModes } from "@/lib/tournament-config";
+import { loadTournamentModes, tournamentModes } from "@/lib/tournament-config";
 import { toast } from "sonner";
 import {
   Image as ImageIcon,
@@ -162,6 +162,14 @@ function tableDaysToFinish(rows: Row[]): number | null {
   const days = (Math.max(...updated) - Math.min(...created)) / 86400000;
   return days < 0 ? 0 : days;
 }
+/** Format a score, keeping one decimal when it isn't a whole number. */
+function fmtScore(n: number | string | null | undefined): string {
+  if (n == null) return "\u2014";
+  const v = typeof n === "string" ? Number(n) : n;
+  if (!Number.isFinite(v)) return String(n);
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
 function fmtDays(d: number | null): string {
   if (d == null) return "—";
   if (d < 1) return "<1d";
@@ -209,7 +217,6 @@ function CurrentTournament({
   const [hasBaseLeaders, setHasBaseLeaders] = useState(false);
   const [tpOpen, setTpOpen] = useState(false);
   const [heatmapKey, setHeatmapKey] = useState<string | null>(null); // "round__table"
-  const isT14 = tournamentNum === 14;
   type SaveResult = Awaited<ReturnType<typeof saveGame>>;
   const [lastSave, setLastSave] = useState<SaveResult | null>(null);
 
@@ -370,7 +377,8 @@ function CurrentTournament({
       if (b.wins !== a.wins) return b.wins - a.wins;
       if (a.avgPlacement !== b.avgPlacement) return a.avgPlacement - b.avgPlacement;
       if (b.vp !== a.vp) return b.vp - a.vp;
-      return b.vpPct - a.vpPct;
+      if (b.vpPct !== a.vpPct) return b.vpPct - a.vpPct;
+      return a.player.localeCompare(b.player);
     });
     return list;
   }, [rows]);
@@ -633,7 +641,8 @@ function CurrentTournament({
       if (b.wins !== a.wins) return b.wins - a.wins;
       if (a.avgPlacement !== b.avgPlacement) return a.avgPlacement - b.avgPlacement;
       if (b.vp !== a.vp) return b.vp - a.vp;
-      return b.vpPct - a.vpPct;
+      if (b.vpPct !== a.vpPct) return b.vpPct - a.vpPct;
+      return a.player.localeCompare(b.player);
     });
     return boosted;
   }, [standings, leagueStandings, plan.gf]);
@@ -1082,14 +1091,14 @@ function CurrentTournament({
                                       title={`Dune Imperium · ${rt} · ${ti}`}
                                       onChanged={refresh}
                                     />
-                                    {isT14 && players[0]?.table_score != null && (
+                                    {players[0]?.table_score != null && (
                                       <button
                                         type="button"
                                         onClick={() => setHeatmapKey(`${rt}__${ti}`)}
                                         className="inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-[11px] text-sand hover:bg-sand/25 transition"
                                         title="View availability heatmap"
                                       >
-                                        <Sparkles className="size-3" /> Match Quality {players[0].table_score}
+                                        <Sparkles className="size-3" /> Match Quality {fmtScore(players[0].table_score)}
                                       </button>
                                     )}
                                     {tDays != null && (
@@ -1420,8 +1429,7 @@ function CurrentTournament({
             />
           );
         })()}
-      {isT14 &&
-        heatmapKey &&
+      {heatmapKey &&
         (() => {
           const [rt, ti] = heatmapKey.split("__");
           const tableRows = rows.filter((r) => r.round_type === rt && r.table_identifier === ti);
@@ -1725,6 +1733,7 @@ function CurrentTournamentsHub() {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
+      await loadTournamentModes();
       const summaries: TournamentSummaryCard[] = [];
       const activeNums = await fetchActiveTournamentNums();
       for (const num of activeNums) {

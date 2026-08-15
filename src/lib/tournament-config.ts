@@ -45,9 +45,52 @@ export const TOURNAMENT_MODES: Record<number, TournamentModeProfile> = {
   },
 };
 
+/**
+ * Modes loaded from the `tournaments` table (admin-editable). These override
+ * the hardcoded TOURNAMENT_MODES fallback above.
+ */
+const DB_MODES: Record<number, TournamentModeProfile> = {};
+
+export function modeSubtitle(p: Omit<TournamentModeProfile, "subtitle">): string {
+  const parts = [p.board_version === "uprising" ? "Uprising" : "Base"];
+  if (p.has_rise_of_ix) parts.push("Rise of Ix");
+  if (p.has_immortality) parts.push("Immortality");
+  if (p.has_epic_mode) parts.push("Epic");
+  if (p.has_base_leaders) parts.push("Base leaders");
+  return `${parts.join(" + ")} \u00b7 ${p.has_epic_mode ? "14" : "11"} VP`;
+}
+
+/** Fetch per-tournament mode configuration from Supabase into the local cache. */
+export async function loadTournamentModes(): Promise<Record<number, TournamentModeProfile>> {
+  const { supabase } = await import("@/integrations/supabase/client");
+  const { data } = await supabase
+    .from("tournaments")
+    .select(
+      "tournament_num, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders",
+    );
+  for (const row of (data ?? []) as any[]) {
+    const base = {
+      board_version: (row.board_version === "base" ? "base" : "uprising") as "base" | "uprising",
+      has_rise_of_ix: !!row.has_rise_of_ix,
+      has_epic_mode: !!row.has_epic_mode,
+      has_immortality: !!row.has_immortality,
+      has_base_leaders: !!row.has_base_leaders,
+    };
+    DB_MODES[Number(row.tournament_num)] = { ...base, subtitle: modeSubtitle(base) };
+  }
+  return DB_MODES;
+}
+
+/** Tournament numbers with a known mode profile (DB first, code fallback). */
+export function knownTournamentNums(): number[] {
+  return Array.from(
+    new Set([...Object.keys(DB_MODES), ...Object.keys(TOURNAMENT_MODES)].map(Number)),
+  );
+}
+
 export function tournamentModes(num: number | null | undefined): TournamentModeProfile | null {
   if (num == null) return null;
-  return TOURNAMENT_MODES[num] ?? null;
+  return DB_MODES[num] ?? TOURNAMENT_MODES[num] ?? null;
 }
 
 export function checkinEndUtc(): Date {

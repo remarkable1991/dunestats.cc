@@ -59,6 +59,11 @@ type Draft = {
   semifinal_tables: string;
   grand_final_spots: string;
   semifinal_seeding: "snake" | "manual";
+  board_version: "base" | "uprising";
+  has_rise_of_ix: boolean;
+  has_epic_mode: boolean;
+  has_immortality: boolean;
+  has_base_leaders: boolean;
 };
 
 function toDraft(t: TournamentConfig): Draft {
@@ -82,6 +87,11 @@ function toDraft(t: TournamentConfig): Draft {
     semifinal_tables: t.semifinal_tables == null ? "" : String(t.semifinal_tables),
     grand_final_spots: t.grand_final_spots == null ? "" : String(t.grand_final_spots),
     semifinal_seeding: t.semifinal_seeding,
+    board_version: t.board_version,
+    has_rise_of_ix: t.has_rise_of_ix,
+    has_epic_mode: t.has_epic_mode,
+    has_immortality: t.has_immortality,
+    has_base_leaders: t.has_base_leaders,
   };
 }
 
@@ -113,6 +123,11 @@ function emptyDraft(nextNum: number): Draft {
     semifinal_tables: "",
     grand_final_spots: "",
     semifinal_seeding: "snake",
+    board_version: "uprising",
+    has_rise_of_ix: false,
+    has_epic_mode: false,
+    has_immortality: false,
+    has_base_leaders: false,
   };
 }
 
@@ -326,6 +341,11 @@ function TournamentForm({
       semifinal_tables: semiTables,
       grand_final_spots: gfSpots,
       semifinal_seeding: draft.semifinal_seeding,
+      board_version: draft.board_version,
+      has_rise_of_ix: draft.has_rise_of_ix,
+      has_epic_mode: draft.has_epic_mode,
+      has_immortality: draft.has_immortality,
+      has_base_leaders: draft.has_base_leaders,
     };
     const { error } = await supabase.from("tournaments").upsert(payload, { onConflict: "tournament_num" });
     setSaving(false);
@@ -421,6 +441,52 @@ function TournamentForm({
             <p className="text-[11px] text-muted-foreground mt-1">Leave empty to use direct seeds + one winner per Semi Final table.</p>
           </div>
         </div>
+        <div className="pt-2">
+          <Label className="text-xs text-muted-foreground">Game modes</Label>
+          <div className="flex gap-2 mt-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={draft.board_version === "uprising" ? "default" : "outline"}
+              className={draft.board_version === "uprising" ? "bg-sand text-background hover:bg-sand/90" : ""}
+              onClick={() => set("board_version", "uprising")}
+            >
+              Uprising board
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={draft.board_version === "base" ? "default" : "outline"}
+              className={draft.board_version === "base" ? "bg-sand text-background hover:bg-sand/90" : ""}
+              onClick={() => set("board_version", "base")}
+            >
+              Base board
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {([
+              ["has_rise_of_ix", "Rise of Ix"],
+              ["has_immortality", "Immortality"],
+              ["has_epic_mode", "Epic mode"],
+              ["has_base_leaders", "Base leaders"],
+            ] as const).map(([key, label]) => (
+              <Button
+                key={key}
+                type="button"
+                size="sm"
+                variant={draft[key] ? "default" : "outline"}
+                className={draft[key] ? "bg-sand text-background hover:bg-sand/90" : ""}
+                onClick={() => set(key, !draft[key])}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Uploads detected as this tournament automatically apply these expansions.
+          </p>
+        </div>
+
         <div className="pt-2">
           <Label className="text-xs text-muted-foreground">Semi Final seating</Label>
           <div className="flex gap-2 mt-1">
