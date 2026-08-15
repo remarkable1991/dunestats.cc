@@ -162,6 +162,14 @@ function tableDaysToFinish(rows: Row[]): number | null {
   const days = (Math.max(...updated) - Math.min(...created)) / 86400000;
   return days < 0 ? 0 : days;
 }
+/** Format a score, keeping one decimal when it isn't a whole number. */
+function fmtScore(n: number | string | null | undefined): string {
+  if (n == null) return "\u2014";
+  const v = typeof n === "string" ? Number(n) : n;
+  if (!Number.isFinite(v)) return String(n);
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
 function fmtDays(d: number | null): string {
   if (d == null) return "—";
   if (d < 1) return "<1d";
@@ -209,7 +217,6 @@ function CurrentTournament({
   const [hasBaseLeaders, setHasBaseLeaders] = useState(false);
   const [tpOpen, setTpOpen] = useState(false);
   const [heatmapKey, setHeatmapKey] = useState<string | null>(null); // "round__table"
-  const isT14 = tournamentNum === 14;
   type SaveResult = Awaited<ReturnType<typeof saveGame>>;
   const [lastSave, setLastSave] = useState<SaveResult | null>(null);
 
@@ -1726,6 +1733,7 @@ function CurrentTournamentsHub() {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
+      await loadTournamentModes();
       const summaries: TournamentSummaryCard[] = [];
       const activeNums = await fetchActiveTournamentNums();
       for (const num of activeNums) {

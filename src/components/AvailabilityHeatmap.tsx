@@ -165,7 +165,7 @@ export function AvailabilityHeatmap({
                     <div className="font-medium truncate">{p.player_name}</div>
                     {p.discord_username && <div className="text-[10px] text-muted-foreground truncate">@{p.discord_username}</div>}
                   </div>
-                  <span className="font-mono text-sand">{p.player_compatibility_score ?? "—"}</span>
+                  <span className="font-mono text-sand">{fmtScore(p.player_compatibility_score)}</span>
                 </li>
               ))}
             </ul>
