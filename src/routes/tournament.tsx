@@ -73,6 +73,8 @@ import { AvailabilityHeatmap, type HeatmapPlayer } from "@/components/Availabili
 import { TableScheduleControls } from "@/components/TableScheduleControls";
 import { RosterEditDialog } from "@/components/RosterEditDialog";
 import { type MatchSchedule, SCHEDULE_SELECT } from "@/lib/match-schedules";
+import { tableSlug } from "@/lib/tournament-slug";
+
 import { Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/tournament")({
