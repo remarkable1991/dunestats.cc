@@ -232,11 +232,12 @@ function TableDetailPage() {
             <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
               {schedule.mode ?? "—"} · {schedule.status ?? "—"}
             </span>
-            {confirmed && (
+            {confirmed && finished && (
               <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-300">
                 📅 {formatLocalMatchTime(confirmed)}
               </span>
             )}
+
             <TableScheduleControls
               schedule={schedule}
               finished={finished}
