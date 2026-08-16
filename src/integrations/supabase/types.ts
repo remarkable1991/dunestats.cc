@@ -636,6 +636,7 @@ export type Database = {
           mode: string
           player_discord_ids: string[]
           player_names: string[]
+          reminders_sent: string[] | null
           round_type: string
           status: string
           suggested_slots: Json
@@ -657,6 +658,7 @@ export type Database = {
           mode?: string
           player_discord_ids?: string[]
           player_names?: string[]
+          reminders_sent?: string[] | null
           round_type: string
           status?: string
           suggested_slots?: Json
@@ -678,6 +680,7 @@ export type Database = {
           mode?: string
           player_discord_ids?: string[]
           player_names?: string[]
+          reminders_sent?: string[] | null
           round_type?: string
           status?: string
           suggested_slots?: Json
