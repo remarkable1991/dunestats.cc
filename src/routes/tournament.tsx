@@ -1071,9 +1071,14 @@ function CurrentTournament({
                               >
                                 <div className="flex items-center justify-between mb-2">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-medium">
+                                    <Link
+                                      to="/tournament/$num/$table"
+                                      params={{ num: String(tournamentNum), table: tableSlug(rt, ti) }}
+                                      className="font-medium hover:text-sand underline-offset-4 hover:underline transition"
+                                    >
                                       {rt} · {ti}
-                                    </span>
+                                    </Link>
+
                                     {isAdmin && (
                                       <button
                                         type="button"
