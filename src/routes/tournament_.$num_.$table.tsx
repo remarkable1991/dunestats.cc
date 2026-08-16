@@ -21,7 +21,7 @@ import {
 import { slugMatches, tableSlug } from "@/lib/tournament-slug";
 import { ArrowLeft, CheckCircle2, Clock, Loader2, Sparkles, Trophy, XCircle } from "lucide-react";
 
-export const Route = createFileRoute("/tournament_/$num/$table")({
+export const Route = createFileRoute("/tournament_/$num_/$table")({
   head: ({ params }) => {
     const title = `Tournament #${params.num} · ${params.table} · Strategy Arena`;
     const description = `Match details, scheduling votes, availability map and results for table ${params.table} in Strategy Arena tournament #${params.num}.`;
