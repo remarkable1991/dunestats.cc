@@ -62,23 +62,44 @@ function copyDiscord(epochSec: number) {
     .catch(() => toast.error("Could not copy to clipboard"));
 }
 
-export function AvailabilityHeatmap({
-  open,
-  onOpenChange,
-  tableId,
-  matchQuality,
-  players,
-  suggestedSlots,
-  myPlayerName,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
+export type HeatmapBodyProps = {
   tableId: string;
   matchQuality: number | null;
   players: HeatmapPlayer[];
   suggestedSlots?: unknown;
   myPlayerName?: string | null;
-}) {
+};
+
+export function AvailabilityHeatmap({
+  open,
+  onOpenChange,
+  ...body
+}: HeatmapBodyProps & { open: boolean; onOpenChange: (v: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 font-display">
+            <UsersIcon className="size-5 text-sand" /> {body.tableId} — Availability Map
+            {body.matchQuality != null && (
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-xs text-sand">
+                <Sparkles className="size-3" /> Match Quality {fmtScore(body.matchQuality)}
+              </span>
+            )}
+          </DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground">
+            30-minute slots in your local timezone. Click any time to copy its Discord timestamp code.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 overflow-auto">
+          <HeatmapBody {...body} />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function HeatmapBody({ players, suggestedSlots, myPlayerName }: HeatmapBodyProps) {
   const { dayList, slotMatrix } = useMemo(() => {
     // Aggregate counts per local half-hour slot
     const counts = new Map<number, number>(); // key: epoch ms of local half-hour
@@ -127,6 +148,16 @@ export function AvailabilityHeatmap({
 
   const suggestions = useMemo(() => parseSuggestedSlots(suggestedSlots), [suggestedSlots]);
 
+  /** Epoch (ms) of every already-suggested slot, so alternatives stay distinct. */
+  const suggestedStarts = useMemo(() => {
+    const s = new Set<number>();
+    for (const sug of suggestions) {
+      const e = discordEpoch(sug.time_text);
+      if (e != null) s.add(halfHourFloor(new Date(e * 1000)).getTime());
+    }
+    return s;
+  }, [suggestions]);
+
   /** 2h windows where everybody (or everybody but you) is free. */
   const windows = useMemo(() => {
     const perSlot = new Map<number, Set<string>>();
@@ -150,158 +181,145 @@ export function AvailabilityHeatmap({
       if (common.length === total && total > 0) all.push({ start: s, kind: "all" });
       else if (me && common.length === total - 1 && !common.includes(me)) all.push({ start: s, kind: "others" });
     }
-    // Greedy de-overlap so the list stays readable
+    // Greedy de-overlap so the list stays readable, and never repeat a
+    // window that overlaps one of the suggested slots above.
     const out: { start: number; kind: "all" | "others" }[] = [];
     let lastEnd = -Infinity;
     for (const w of all) {
       if (w.start < lastEnd) continue;
+      const clashes = [...suggestedStarts].some(
+        (s) => Math.abs(s - w.start) < 4 * HALF_HOUR,
+      );
+      if (clashes) continue;
       out.push(w);
       lastEnd = w.start + 4 * HALF_HOUR;
     }
     return out.slice(0, 12);
-  }, [players, myPlayerName]);
+  }, [players, myPlayerName, suggestedStarts]);
 
   const dayFmt = new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "2-digit" });
   const timeFmt = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 font-display">
-            <UsersIcon className="size-5 text-sand" /> {tableId} — Availability Map
-            {matchQuality != null && (
-              <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-xs text-sand">
-                <Sparkles className="size-3" /> Match Quality {fmtScore(matchQuality)}
-              </span>
-            )}
-          </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
-            30-minute slots in your local timezone. Click any time to copy its Discord timestamp code.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-auto space-y-4">
-          {(suggestions.length > 0 || windows.length > 0) && (
-            <Card className="p-4 border-border/60 bg-card/70 space-y-4">
-              {suggestions.length > 0 && (
-                <div>
-                  <h3 className="font-display text-sm text-sand mb-2 flex items-center gap-2">
-                    <Clock className="size-4" /> Suggested slots
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {suggestions.map((s, i) => {
-                      const e = discordEpoch(s.time_text);
-                      return (
-                        <button
-                          key={i}
-                          type="button"
-                          disabled={e == null}
-                          onClick={() => e != null && copyDiscord(e)}
-                          className="inline-flex items-center gap-2 rounded-md border border-sand/40 bg-sand/10 px-3 py-1.5 text-xs hover:bg-sand/20 transition disabled:opacity-50"
-                        >
-                          <span className="font-display text-sand">{s.label || String.fromCharCode(65 + i)}</span>
-                          <span className="tabular-nums">{e != null ? localFmt(new Date(e * 1000)) : s.time_text}</span>
-                          <Copy className="size-3 opacity-60" />
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {windows.length > 0 && (
-                <div>
-                  <h3 className="font-display text-sm text-sand mb-2 flex items-center gap-2">
-                    <Sparkles className="size-4" /> Other 2-hour options
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {windows.map((w) => {
-                      const epoch = Math.floor(w.start / 1000);
-                      const isAll = w.kind === "all";
-                      return (
-                        <button
-                          key={w.start}
-                          type="button"
-                          onClick={() => copyDiscord(epoch)}
-                          className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs transition ${
-                            isAll
-                              ? "border-emerald-400/50 bg-emerald-500/10 hover:bg-emerald-500/20"
-                              : "border-border/60 bg-background/40 hover:bg-background/70"
-                          }`}
-                          title={isAll ? "Everyone is free for 2 hours" : "Everyone but you is free for 2 hours"}
-                        >
-                          <span className="tabular-nums">{localFmt(new Date(w.start))}</span>
-                          <span className="text-[10px] text-muted-foreground">{isAll ? "all free" : "all but you"}</span>
-                          <Copy className="size-3 opacity-60" />
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </Card>
-          )}
-
-          {dayList.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No availability recorded for this table.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <div className="inline-block min-w-full">
-                {/* Header row: hours */}
-                <div className="grid" style={{ gridTemplateColumns: `120px repeat(48, minmax(14px, 1fr))` }}>
-                  <div className="sticky left-0 bg-background z-10" />
-                  {HOURS.map((h) => (
-                    <div key={h} className="text-[9px] text-muted-foreground text-center border-b border-border/20 tabular-nums">
-                      {h % 2 === 0 ? `${(h / 2).toString().padStart(2, "0")}` : ""}
-                    </div>
-                  ))}
-                </div>
-                {dayList.map((d, di) => (
-                  <div key={di} className="grid" style={{ gridTemplateColumns: `120px repeat(48, minmax(14px, 1fr))` }}>
-                    <div className="sticky left-0 bg-background z-10 pr-2 py-0.5 text-xs text-muted-foreground border-r border-border/30">
-                      {dayFmt.format(d)}
-                    </div>
-                    {HOURS.map((h) => {
-                      const c = slotMatrix.get(`${di}:${h}`) ?? 0;
-                      const slotStart = new Date(d);
-                      slotStart.setHours(Math.floor(h / 2), (h % 2) * 30, 0, 0);
-                      return (
-                        <button
-                          key={h}
-                          type="button"
-                          onClick={() => copyDiscord(Math.floor(slotStart.getTime() / 1000))}
-                          title={`${dayFmt.format(d)} · ${timeFmt.format(slotStart)} — ${densityLabel(c)}`}
-                          className={`h-4 border-r border-b transition-colors ${densityClass(c)}`}
-                        />
-                      );
-                    })}
-                  </div>
-                ))}
+    <div className="space-y-4">
+      {(suggestions.length > 0 || windows.length > 0) && (
+        <Card className="p-4 border-border/60 bg-card/70 space-y-4">
+          {suggestions.length > 0 && (
+            <div>
+              <h3 className="font-display text-sm text-sand mb-2 flex items-center gap-2">
+                <Clock className="size-4" /> Suggested slots
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map((s, i) => {
+                  const e = discordEpoch(s.time_text);
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      disabled={e == null}
+                      onClick={() => e != null && copyDiscord(e)}
+                      className="inline-flex items-center gap-2 rounded-md border border-sand/40 bg-sand/10 px-3 py-1.5 text-xs hover:bg-sand/20 transition disabled:opacity-50"
+                    >
+                      <span className="font-display text-sand">{s.label || String.fromCharCode(65 + i)}</span>
+                      <span className="tabular-nums">{e != null ? localFmt(new Date(e * 1000)) : s.time_text}</span>
+                      <Copy className="size-3 opacity-60" />
+                    </button>
+                  );
+                })}
               </div>
-              <Legend />
             </div>
           )}
 
-          <Card className="p-4 border-border/60 bg-card/70">
-            <h3 className="font-display text-sm text-sand mb-2 flex items-center gap-2">
-              <Sparkles className="size-4" /> Players &amp; Compatibility
-            </h3>
-            <ul className="grid sm:grid-cols-2 gap-2 text-sm">
-              {players.map((p) => (
-                <li key={p.player_name} className="flex items-center justify-between border border-border/40 rounded-md px-3 py-2 bg-background/40">
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{p.player_name}</div>
-                    {p.discord_username && <div className="text-[10px] text-muted-foreground truncate">@{p.discord_username}</div>}
-                  </div>
-                  <span className="font-mono text-sand">{fmtScore(p.player_compatibility_score)}</span>
-                </li>
+          {windows.length > 0 && (
+            <div>
+              <h3 className="font-display text-sm text-sand mb-2 flex items-center gap-2">
+                <Sparkles className="size-4" /> Other 2-hour options
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {windows.map((w) => {
+                  const epoch = Math.floor(w.start / 1000);
+                  const isAll = w.kind === "all";
+                  return (
+                    <button
+                      key={w.start}
+                      type="button"
+                      onClick={() => copyDiscord(epoch)}
+                      className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs transition ${
+                        isAll
+                          ? "border-emerald-400/50 bg-emerald-500/10 hover:bg-emerald-500/20"
+                          : "border-border/60 bg-background/40 hover:bg-background/70"
+                      }`}
+                      title={isAll ? "Everyone is free for 2 hours" : "Everyone but you is free for 2 hours"}
+                    >
+                      <span className="tabular-nums">{localFmt(new Date(w.start))}</span>
+                      <span className="text-[10px] text-muted-foreground">{isAll ? "all free" : "all but you"}</span>
+                      <Copy className="size-3 opacity-60" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {dayList.length === 0 ? (
+        <p className="text-sm text-muted-foreground italic">No availability recorded for this table.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <div className="inline-block min-w-full">
+            {/* Header row: hours */}
+            <div className="grid" style={{ gridTemplateColumns: `120px repeat(48, minmax(14px, 1fr))` }}>
+              <div className="sticky left-0 bg-background z-10" />
+              {HOURS.map((h) => (
+                <div key={h} className="text-[9px] text-muted-foreground text-center border-b border-border/20 tabular-nums">
+                  {h % 2 === 0 ? `${(h / 2).toString().padStart(2, "0")}` : ""}
+                </div>
               ))}
-            </ul>
-          </Card>
+            </div>
+            {dayList.map((d, di) => (
+              <div key={di} className="grid" style={{ gridTemplateColumns: `120px repeat(48, minmax(14px, 1fr))` }}>
+                <div className="sticky left-0 bg-background z-10 pr-2 py-0.5 text-xs text-muted-foreground border-r border-border/30">
+                  {dayFmt.format(d)}
+                </div>
+                {HOURS.map((h) => {
+                  const c = slotMatrix.get(`${di}:${h}`) ?? 0;
+                  const slotStart = new Date(d);
+                  slotStart.setHours(Math.floor(h / 2), (h % 2) * 30, 0, 0);
+                  return (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => copyDiscord(Math.floor(slotStart.getTime() / 1000))}
+                      title={`${dayFmt.format(d)} · ${timeFmt.format(slotStart)} — ${densityLabel(c)}`}
+                      className={`h-4 border-r border-b transition-colors ${densityClass(c)}`}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          <Legend />
         </div>
-      </DialogContent>
-    </Dialog>
+      )}
+
+      <Card className="p-4 border-border/60 bg-card/70">
+        <h3 className="font-display text-sm text-sand mb-2 flex items-center gap-2">
+          <Sparkles className="size-4" /> Players &amp; Compatibility
+        </h3>
+        <ul className="grid sm:grid-cols-2 gap-2 text-sm">
+          {players.map((p) => (
+            <li key={p.player_name} className="flex items-center justify-between border border-border/40 rounded-md px-3 py-2 bg-background/40">
+              <div className="min-w-0">
+                <div className="font-medium truncate">{p.player_name}</div>
+                {p.discord_username && <div className="text-[10px] text-muted-foreground truncate">@{p.discord_username}</div>}
+              </div>
+              <span className="font-mono text-sand">{fmtScore(p.player_compatibility_score)}</span>
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </div>
   );
 }
 

@@ -73,6 +73,8 @@ import { AvailabilityHeatmap, type HeatmapPlayer } from "@/components/Availabili
 import { TableScheduleControls } from "@/components/TableScheduleControls";
 import { RosterEditDialog } from "@/components/RosterEditDialog";
 import { type MatchSchedule, SCHEDULE_SELECT } from "@/lib/match-schedules";
+import { tableSlug } from "@/lib/tournament-slug";
+
 import { Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/tournament")({
@@ -1071,9 +1073,14 @@ function CurrentTournament({
                               >
                                 <div className="flex items-center justify-between mb-2">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-medium">
+                                    <Link
+                                      to="/tournament/$num/$table"
+                                      params={{ num: String(tournamentNum), table: tableSlug(rt, ti) }}
+                                      className="font-medium hover:text-sand underline-offset-4 hover:underline transition"
+                                    >
                                       {rt} · {ti}
-                                    </span>
+                                    </Link>
+
                                     {isAdmin && (
                                       <button
                                         type="button"

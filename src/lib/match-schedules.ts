@@ -11,7 +11,10 @@ export type MatchSchedule = {
   confirmed_time_text: string | null;
   confirmed_timestamp: string | null;
   player_names: string[] | null;
+  player_discord_ids?: string[] | null;
+  votes?: unknown;
   suggested_slots?: unknown;
+  thread_id?: string | null;
 };
 
 export type SuggestedSlot = { label: string; time_text: string };
@@ -32,8 +35,33 @@ export function parseSuggestedSlots(raw: unknown): SuggestedSlot[] {
     .filter((s) => s.time_text.length > 0);
 }
 
+export type VoterState = {
+  player_name: string;
+  discord_id: string | null;
+  voted: boolean;
+  labels: string[];
+};
+
+/**
+ * Pair the schedule's player list with its vote map so the UI can show who
+ * already voted and who is still holding the table up.
+ */
+export function voterStates(s: MatchSchedule | null | undefined): VoterState[] {
+  if (!s) return [];
+  const names = s.player_names ?? [];
+  const ids = s.player_discord_ids ?? [];
+  const votes = (s.votes && typeof s.votes === "object" ? (s.votes as Record<string, unknown>) : {}) ?? {};
+  return names.map((name, i) => {
+    const id = ids[i] != null ? String(ids[i]) : null;
+    const raw = id ? votes[id] : undefined;
+    const labels = Array.isArray(raw) ? raw.map((x) => String(x)) : [];
+    return { player_name: name, discord_id: id, voted: labels.length > 0, labels };
+  });
+}
+
 export const SCHEDULE_SELECT =
-  "id, tournament_num, round_type, table_identifier, match_code, mode, status, votes_count, confirmed_slot, confirmed_time_text, confirmed_timestamp, player_names, suggested_slots";
+  "id, tournament_num, round_type, table_identifier, match_code, mode, status, votes_count, confirmed_slot, confirmed_time_text, confirmed_timestamp, player_names, player_discord_ids, votes, suggested_slots, thread_id";
+
 
 /** Parse an ISO date, a unix timestamp (s or ms) or a loose date string. */
 export function parseScheduleTime(s: MatchSchedule | null | undefined): Date | null {
