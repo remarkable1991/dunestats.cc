@@ -31,6 +31,7 @@ import { Route as PlayersKeyRouteImport } from './routes/players.$key'
 import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
 import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
 import { Route as AdminTournamentsRouteImport } from './routes/admin/tournaments'
+import { Route as TournamentNumTableRouteImport } from './routes/tournament_.$num.$table'
 import { Route as LeadersOriginSlugRouteImport } from './routes/leaders.$origin.$slug'
 
 const UploadRoute = UploadRouteImport.update({
@@ -143,6 +144,11 @@ const AdminTournamentsRoute = AdminTournamentsRouteImport.update({
   path: '/admin/tournaments',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TournamentNumTableRoute = TournamentNumTableRouteImport.update({
+  id: '/$table',
+  path: '/$table',
+  getParentRoute: () => TournamentNumRoute,
+} as any)
 const LeadersOriginSlugRoute = LeadersOriginSlugRouteImport.update({
   id: '/leaders/$origin/$slug',
   path: '/leaders/$origin/$slug',
@@ -171,8 +177,9 @@ export interface FileRoutesByFullPath {
   '/match/$matchId': typeof MatchMatchIdRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
-  '/tournament/$num': typeof TournamentNumRoute
+  '/tournament/$num': typeof TournamentNumRouteWithChildren
   '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
+  '/tournament/$num/$table': typeof TournamentNumTableRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -196,8 +203,9 @@ export interface FileRoutesByTo {
   '/match/$matchId': typeof MatchMatchIdRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
-  '/tournament/$num': typeof TournamentNumRoute
+  '/tournament/$num': typeof TournamentNumRouteWithChildren
   '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
+  '/tournament/$num/$table': typeof TournamentNumTableRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -222,8 +230,9 @@ export interface FileRoutesById {
   '/match/$matchId': typeof MatchMatchIdRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
-  '/tournament_/$num': typeof TournamentNumRoute
+  '/tournament_/$num': typeof TournamentNumRouteWithChildren
   '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
+  '/tournament_/$num/$table': typeof TournamentNumTableRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -251,6 +260,7 @@ export interface FileRouteTypes {
     | '/r/$username'
     | '/tournament/$num'
     | '/leaders/$origin/$slug'
+    | '/tournament/$num/$table'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -276,6 +286,7 @@ export interface FileRouteTypes {
     | '/r/$username'
     | '/tournament/$num'
     | '/leaders/$origin/$slug'
+    | '/tournament/$num/$table'
   id:
     | '__root__'
     | '/'
@@ -301,6 +312,7 @@ export interface FileRouteTypes {
     | '/r/$username'
     | '/tournament_/$num'
     | '/leaders/$origin/$slug'
+    | '/tournament_/$num/$table'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -325,7 +337,7 @@ export interface RootRouteChildren {
   MatchMatchIdRoute: typeof MatchMatchIdRoute
   PlayersKeyRoute: typeof PlayersKeyRoute
   RUsernameRoute: typeof RUsernameRoute
-  TournamentNumRoute: typeof TournamentNumRoute
+  TournamentNumRoute: typeof TournamentNumRouteWithChildren
   LeadersOriginSlugRoute: typeof LeadersOriginSlugRoute
 }
 
@@ -485,6 +497,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTournamentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tournament_/$num/$table': {
+      id: '/tournament_/$num/$table'
+      path: '/$table'
+      fullPath: '/tournament/$num/$table'
+      preLoaderRoute: typeof TournamentNumTableRouteImport
+      parentRoute: typeof TournamentNumRoute
+    }
     '/leaders/$origin/$slug': {
       id: '/leaders/$origin/$slug'
       path: '/leaders/$origin/$slug'
@@ -494,6 +513,18 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface TournamentNumRouteChildren {
+  TournamentNumTableRoute: typeof TournamentNumTableRoute
+}
+
+const TournamentNumRouteChildren: TournamentNumRouteChildren = {
+  TournamentNumTableRoute: TournamentNumTableRoute,
+}
+
+const TournamentNumRouteWithChildren = TournamentNumRoute._addFileChildren(
+  TournamentNumRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -517,7 +548,7 @@ const rootRouteChildren: RootRouteChildren = {
   MatchMatchIdRoute: MatchMatchIdRoute,
   PlayersKeyRoute: PlayersKeyRoute,
   RUsernameRoute: RUsernameRoute,
-  TournamentNumRoute: TournamentNumRoute,
+  TournamentNumRoute: TournamentNumRouteWithChildren,
   LeadersOriginSlugRoute: LeadersOriginSlugRoute,
 }
 export const routeTree = rootRouteImport
