@@ -657,7 +657,10 @@ function UploadPage() {
                         ? "Confirm & submit"
                         : detectedTournamentNum != null && detectedTable && !notATournamentGame
                           ? `Submit to ${tRound} · ${tTable}`
-                          : "Submit match"}
+                          : candidate && !detectedTable && uploadMode === "tournament"
+                            ? "Submit for admin approval"
+                            : "Submit match"}
+
                     </>
                   )}
                 </Button>
