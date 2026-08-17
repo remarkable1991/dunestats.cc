@@ -168,8 +168,25 @@ export async function submitMatch(input: SubmitMatchInput): Promise<SubmitMatchR
     }
   }
 
-  return { status: "ok", saveResult, publicMatchId, tournamentApplied };
+  // 6. Queue for admin approval instead of writing the tournament table
+  let pendingReview = false;
+  if (!input.tournament && input.pendingTournament) {
+    const { error } = await supabase.from("tournament_pending_matches").insert({
+      game_id: saveResult.game_id,
+      tournament_num: input.pendingTournament.num,
+      round_type: input.pendingTournament.round,
+      table_identifier: input.pendingTournament.table,
+      submitted_by: input.userId,
+      detected_players: rows,
+      unmatched: input.pendingTournament.unmatched,
+    });
+    if (error) console.error("Pending tournament review insert failed:", error);
+    else pendingReview = true;
+  }
+
+  return { status: "ok", saveResult, publicMatchId, tournamentApplied, pendingReview };
 }
+
 
 /** Look up which (round, table) inside a tournament matches a set of detected players. */
 export async function detectTournamentTable(
