@@ -31,6 +31,7 @@ import { Route as PlayersKeyRouteImport } from './routes/players.$key'
 import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
 import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
 import { Route as AdminTournamentsRouteImport } from './routes/admin/tournaments'
+import { Route as AdminMatchApprovalsRouteImport } from './routes/admin/match-approvals'
 import { Route as TournamentNumTableRouteImport } from './routes/tournament_.$num_.$table'
 import { Route as LeadersOriginSlugRouteImport } from './routes/leaders.$origin.$slug'
 
@@ -144,6 +145,11 @@ const AdminTournamentsRoute = AdminTournamentsRouteImport.update({
   path: '/admin/tournaments',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminMatchApprovalsRoute = AdminMatchApprovalsRouteImport.update({
+  id: '/admin/match-approvals',
+  path: '/admin/match-approvals',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TournamentNumTableRoute = TournamentNumTableRouteImport.update({
   id: '/tournament_/$num_/$table',
   path: '/tournament/$num/$table',
@@ -172,6 +178,7 @@ export interface FileRoutesByFullPath {
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
   '/upload': typeof UploadRoute
+  '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/tournaments': typeof AdminTournamentsRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/match/$matchId': typeof MatchMatchIdRoute
@@ -198,6 +205,7 @@ export interface FileRoutesByTo {
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
   '/upload': typeof UploadRoute
+  '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/tournaments': typeof AdminTournamentsRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/match/$matchId': typeof MatchMatchIdRoute
@@ -225,6 +233,7 @@ export interface FileRoutesById {
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
   '/upload': typeof UploadRoute
+  '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/tournaments': typeof AdminTournamentsRoute
   '/auth_/callback': typeof AuthCallbackRoute
   '/match/$matchId': typeof MatchMatchIdRoute
@@ -253,6 +262,7 @@ export interface FileRouteTypes {
     | '/tournament'
     | '/tournament-register'
     | '/upload'
+    | '/admin/match-approvals'
     | '/admin/tournaments'
     | '/auth/callback'
     | '/match/$matchId'
@@ -279,6 +289,7 @@ export interface FileRouteTypes {
     | '/tournament'
     | '/tournament-register'
     | '/upload'
+    | '/admin/match-approvals'
     | '/admin/tournaments'
     | '/auth/callback'
     | '/match/$matchId'
@@ -305,6 +316,7 @@ export interface FileRouteTypes {
     | '/tournament'
     | '/tournament-register'
     | '/upload'
+    | '/admin/match-approvals'
     | '/admin/tournaments'
     | '/auth_/callback'
     | '/match/$matchId'
@@ -332,6 +344,7 @@ export interface RootRouteChildren {
   TournamentRoute: typeof TournamentRoute
   TournamentRegisterRoute: typeof TournamentRegisterRoute
   UploadRoute: typeof UploadRoute
+  AdminMatchApprovalsRoute: typeof AdminMatchApprovalsRoute
   AdminTournamentsRoute: typeof AdminTournamentsRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   MatchMatchIdRoute: typeof MatchMatchIdRoute
@@ -498,6 +511,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTournamentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/match-approvals': {
+      id: '/admin/match-approvals'
+      path: '/admin/match-approvals'
+      fullPath: '/admin/match-approvals'
+      preLoaderRoute: typeof AdminMatchApprovalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tournament_/$num_/$table': {
       id: '/tournament_/$num_/$table'
       path: '/tournament/$num/$table'
@@ -532,6 +552,7 @@ const rootRouteChildren: RootRouteChildren = {
   TournamentRoute: TournamentRoute,
   TournamentRegisterRoute: TournamentRegisterRoute,
   UploadRoute: UploadRoute,
+  AdminMatchApprovalsRoute: AdminMatchApprovalsRoute,
   AdminTournamentsRoute: AdminTournamentsRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   MatchMatchIdRoute: MatchMatchIdRoute,
