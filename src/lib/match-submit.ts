@@ -25,6 +25,16 @@ export type SubmitMatchInput = {
   hasBaseLeaders: boolean;
   rows: SubmitMatchRow[];
   tournament: SubmitMatchTournament | null;
+  /**
+   * When set, the match is saved globally and queued for admin approval as a
+   * tournament game instead of being written into the tournament table.
+   */
+  pendingTournament?: {
+    num: number;
+    round: string | null;
+    table: string | null;
+    unmatched: Array<{ detected: string; suggested: string | null }>;
+  } | null;
   /** Skip duplicate check (user confirmed the duplicate warning). */
   confirmDuplicate?: boolean;
 };
@@ -38,7 +48,9 @@ export type SubmitMatchResult =
       saveResult: SaveGameResult;
       publicMatchId: string;
       tournamentApplied: boolean;
+      pendingReview: boolean;
     };
+
 
 /**
  * Unified upload pipeline used by /upload and /tournament.
