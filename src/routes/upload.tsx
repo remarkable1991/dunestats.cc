@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { parseScreenshot, saveGame } from "@/lib/games.functions";
 import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
-import { detectTournamentFromPlayers } from "@/lib/tournament-detect";
+import { detectTournamentFromPlayers, detectTournamentCandidate, type TournamentCandidate } from "@/lib/tournament-detect";
 import { tournamentModes } from "@/lib/tournament-config";
 import { translateLeader, isCanonicalLeader, CANONICAL_LEADERS } from "@/lib/leader-translate";
 import { submitMatch, detectTournamentTable } from "@/lib/match-submit";
@@ -69,6 +69,9 @@ function UploadPage() {
   const [detectedTournamentNum, setDetectedTournamentNum] = useState<number | null>(null);
   const [detectedTable, setDetectedTable] = useState<{ round: string; table: string } | null>(null);
   const [notATournamentGame, setNotATournamentGame] = useState(false);
+  const [candidate, setCandidate] = useState<TournamentCandidate | null>(null);
+  const [uploadMode, setUploadMode] = useState<"standard" | "tournament">("tournament");
+
   const [tRound, setTRound] = useState<string>("Game 1");
   const [tTable, setTTable] = useState<string>("Table 1");
   type SaveResult = Awaited<ReturnType<typeof saveGame>>;
@@ -109,6 +112,9 @@ function UploadPage() {
     setDetectedTournamentNum(null);
     setDetectedTable(null);
     setNotATournamentGame(false);
+    setCandidate(null);
+    setUploadMode("tournament");
+
     if (preview) URL.revokeObjectURL(preview);
     setPreview(f ? URL.createObjectURL(f) : null);
     if (f) await analyze(f);
@@ -146,7 +152,9 @@ function UploadPage() {
 
       // Auto-tag tournament + apply that tournament's mode profile
       // (e.g. T14 forces Immortality on). Config lives in tournament-config.ts.
-      const tNum = await detectTournamentFromPlayers(detected.map((d) => d.player_name));
+      const exactNum = await detectTournamentFromPlayers(detected.map((d) => d.player_name));
+      const cand = await detectTournamentCandidate(detected.map((d) => d.player_name));
+      const tNum = exactNum ?? cand?.num ?? null;
       setDetectedTournamentNum(tNum);
       const profile = tournamentModes(tNum);
       if (profile) {
@@ -159,14 +167,23 @@ function UploadPage() {
 
       // If the players match a known tournament table, remember which slot
       // so we can offer to update it as part of this submit.
-      if (tNum) {
-        const slot = await detectTournamentTable(tNum, detected.map((d) => d.player_name));
+      if (exactNum) {
+        const slot = await detectTournamentTable(exactNum, detected.map((d) => d.player_name));
         if (slot) {
           setDetectedTable(slot);
           setTRound(slot.round);
           setTTable(slot.table);
         }
+      } else if (cand) {
+        // Partial match (e.g. one player registered under a different name).
+        // Offer the uploader a standard upload or a flagged tournament upload.
+        setCandidate(cand);
+        setTRound(cand.round);
+        setTTable(cand.table);
+        setUploadMode("tournament");
       }
+
+
 
 
       const unknown = detected.filter((d) => !isCanonicalLeader(d.leader_name)).length;
@@ -195,6 +212,15 @@ function UploadPage() {
     const tournament = tournamentActive
       ? { num: detectedTournamentNum, round: tRound, table: tTable }
       : null;
+    const pendingTournament =
+      !tournament && candidate && uploadMode === "tournament"
+        ? {
+            num: candidate.num,
+            round: tRound,
+            table: tTable,
+            unmatched: candidate.unmatched,
+          }
+        : null;
 
     setSaving(true);
     setCheckingDup(!confirmDuplicate);
@@ -214,6 +240,7 @@ function UploadPage() {
           points: r.points,
         })),
         tournament,
+        pendingTournament,
         confirmDuplicate,
       });
       if (result.status === "duplicate") {
@@ -224,9 +251,12 @@ function UploadPage() {
       setLastMatchId(result.publicMatchId);
       if (result.tournamentApplied) {
         toast.success(`Submitted to Tournament #${tournament!.num} · ${tournament!.round} · ${tournament!.table} and global leaderboard.`);
+      } else if (result.pendingReview) {
+        toast.success("Match saved and flagged for admin approval as a tournament game.");
       } else {
         toast.success("Match submitted! ELO updated.");
       }
+
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -491,7 +521,79 @@ function UploadPage() {
                     </label>
                   </div>
                 )}
+                {candidate && !detectedTable && (
+                  <div className="mt-3 rounded-md border border-amber-500/50 bg-amber-500/5 p-3 space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-amber-300">
+                      <Trophy className="size-4" />
+                      <span className="font-medium">
+                        Possible Tournament #{candidate.num} match — {candidate.matched.length} of{" "}
+                        {candidate.rosterSize} players recognised
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {candidate.round} · {candidate.table}
+                    </p>
+                    {candidate.unmatched.map((u) => (
+                      <p key={u.detected} className="text-xs text-muted-foreground">
+                        <span className="text-foreground font-medium">{u.detected}</span> is not on this
+                        table{" "}
+                        {u.suggested ? (
+                          <>
+                            — likely registered as{" "}
+                            <span className="text-sand font-medium">{u.suggested}</span>. An admin can
+                            confirm and correct the roster name.
+                          </>
+                        ) : (
+                          "— an admin will need to confirm this table."
+                        )}
+                      </p>
+                    ))}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setUploadMode("tournament")}
+                        className={`text-xs rounded-md border px-3 py-2 transition ${uploadMode === "tournament" ? "border-sand bg-sand/15 text-sand" : "border-border/60 text-muted-foreground hover:border-sand/60"}`}
+                      >
+                        Upload as tournament game (needs admin approval)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUploadMode("standard")}
+                        className={`text-xs rounded-md border px-3 py-2 transition ${uploadMode === "standard" ? "border-sand bg-sand/15 text-sand" : "border-border/60 text-muted-foreground hover:border-sand/60"}`}
+                      >
+                        Upload as standard game
+                      </button>
+                    </div>
+                    {uploadMode === "tournament" && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">Round</Label>
+                          <Select value={tRound} onValueChange={setTRound}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {Array.from(new Set([candidate.round, ...TOURNAMENT_ROUND_OPTIONS])).map((r) => (
+                                <SelectItem key={r} value={r}>{r}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Table</Label>
+                          <Select value={tTable} onValueChange={setTTable}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {Array.from(new Set([candidate.table, ...TOURNAMENT_TABLE_OPTIONS])).map((t) => (
+                                <SelectItem key={t} value={t}>{t}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {detectedTournamentNum != null && detectedTable && (
+
                   <div className="mt-3 rounded-md border border-sand/50 bg-sand/5 p-3 space-y-2">
                     <div className="flex items-center gap-2 text-sm text-sand">
                       <Trophy className="size-4" />
@@ -555,7 +657,10 @@ function UploadPage() {
                         ? "Confirm & submit"
                         : detectedTournamentNum != null && detectedTable && !notATournamentGame
                           ? `Submit to ${tRound} · ${tTable}`
-                          : "Submit match"}
+                          : candidate && !detectedTable && uploadMode === "tournament"
+                            ? "Submit for admin approval"
+                            : "Submit match"}
+
                     </>
                   )}
                 </Button>
