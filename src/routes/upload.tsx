@@ -212,6 +212,15 @@ function UploadPage() {
     const tournament = tournamentActive
       ? { num: detectedTournamentNum, round: tRound, table: tTable }
       : null;
+    const pendingTournament =
+      !tournament && candidate && uploadMode === "tournament"
+        ? {
+            num: candidate.num,
+            round: tRound,
+            table: tTable,
+            unmatched: candidate.unmatched,
+          }
+        : null;
 
     setSaving(true);
     setCheckingDup(!confirmDuplicate);
@@ -231,6 +240,7 @@ function UploadPage() {
           points: r.points,
         })),
         tournament,
+        pendingTournament,
         confirmDuplicate,
       });
       if (result.status === "duplicate") {
@@ -241,9 +251,12 @@ function UploadPage() {
       setLastMatchId(result.publicMatchId);
       if (result.tournamentApplied) {
         toast.success(`Submitted to Tournament #${tournament!.num} · ${tournament!.round} · ${tournament!.table} and global leaderboard.`);
+      } else if (result.pendingReview) {
+        toast.success("Match saved and flagged for admin approval as a tournament game.");
       } else {
         toast.success("Match submitted! ELO updated.");
       }
+
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
     } finally {
