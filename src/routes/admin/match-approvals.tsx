@@ -106,10 +106,10 @@ function MatchApprovals() {
     try {
       const { error } = await supabase.rpc("approve_pending_tournament_match", {
         p_id: row.id,
-        p_round: f.round || null,
-        p_table: f.table || null,
+        p_round: f.round || undefined,
+        p_table: f.table || undefined,
         p_name_fixes: f.fixes,
-        p_match_code: f.matchCode.trim() || null,
+        p_match_code: f.matchCode.trim() || undefined,
       });
       if (error) throw error;
       toast.success("Approved — tournament table updated.");
@@ -126,7 +126,7 @@ function MatchApprovals() {
     try {
       const { error } = await supabase.rpc("reject_pending_tournament_match", {
         p_id: row.id,
-        p_note: null,
+        p_note: undefined,
       });
       if (error) throw error;
       toast.success("Submission rejected — the game stays on the global leaderboard.");
