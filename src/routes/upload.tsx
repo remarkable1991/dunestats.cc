@@ -112,6 +112,9 @@ function UploadPage() {
     setDetectedTournamentNum(null);
     setDetectedTable(null);
     setNotATournamentGame(false);
+    setCandidate(null);
+    setUploadMode("tournament");
+
     if (preview) URL.revokeObjectURL(preview);
     setPreview(f ? URL.createObjectURL(f) : null);
     if (f) await analyze(f);
