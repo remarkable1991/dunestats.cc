@@ -146,7 +146,9 @@ function UploadPage() {
 
       // Auto-tag tournament + apply that tournament's mode profile
       // (e.g. T14 forces Immortality on). Config lives in tournament-config.ts.
-      const tNum = await detectTournamentFromPlayers(detected.map((d) => d.player_name));
+      const exactNum = await detectTournamentFromPlayers(detected.map((d) => d.player_name));
+      const cand = await detectTournamentCandidate(detected.map((d) => d.player_name));
+      const tNum = exactNum ?? cand?.num ?? null;
       setDetectedTournamentNum(tNum);
       const profile = tournamentModes(tNum);
       if (profile) {
@@ -159,14 +161,23 @@ function UploadPage() {
 
       // If the players match a known tournament table, remember which slot
       // so we can offer to update it as part of this submit.
-      if (tNum) {
-        const slot = await detectTournamentTable(tNum, detected.map((d) => d.player_name));
+      if (exactNum) {
+        const slot = await detectTournamentTable(exactNum, detected.map((d) => d.player_name));
         if (slot) {
           setDetectedTable(slot);
           setTRound(slot.round);
           setTTable(slot.table);
         }
+      } else if (cand) {
+        // Partial match (e.g. one player registered under a different name).
+        // Offer the uploader a standard upload or a flagged tournament upload.
+        setCandidate(cand);
+        setTRound(cand.round);
+        setTTable(cand.table);
+        setUploadMode("tournament");
       }
+
+
 
 
       const unknown = detected.filter((d) => !isCanonicalLeader(d.leader_name)).length;
