@@ -747,6 +747,62 @@ export type Database = {
         }
         Relationships: []
       }
+      tournament_pending_matches: {
+        Row: {
+          created_at: string
+          detected_players: Json
+          game_id: string | null
+          id: string
+          note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          round_type: string | null
+          status: string
+          submitted_by: string | null
+          table_identifier: string | null
+          tournament_num: number
+          unmatched: Json
+        }
+        Insert: {
+          created_at?: string
+          detected_players?: Json
+          game_id?: string | null
+          id?: string
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          round_type?: string | null
+          status?: string
+          submitted_by?: string | null
+          table_identifier?: string | null
+          tournament_num: number
+          unmatched?: Json
+        }
+        Update: {
+          created_at?: string
+          detected_players?: Json
+          game_id?: string | null
+          id?: string
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          round_type?: string | null
+          status?: string
+          submitted_by?: string | null
+          table_identifier?: string | null
+          tournament_num?: number
+          unmatched?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_pending_matches_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tournament_registrations: {
         Row: {
           active_on_discord: boolean
@@ -971,6 +1027,16 @@ export type Database = {
         }
         Returns: Json
       }
+      approve_pending_tournament_match: {
+        Args: {
+          p_id: string
+          p_match_code?: string
+          p_name_fixes?: Json
+          p_round?: string
+          p_table?: string
+        }
+        Returns: Json
+      }
       archive_tournament: {
         Args: {
           p_board: string
@@ -1067,6 +1133,10 @@ export type Database = {
         Returns: Json
       }
       recalculate_sandbox_overall_vp_elo: { Args: never; Returns: undefined }
+      reject_pending_tournament_match: {
+        Args: { p_id: string; p_note?: string }
+        Returns: Json
+      }
       save_game_with_ratings: {
         Args: {
           p_board_version: string
