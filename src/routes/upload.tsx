@@ -521,7 +521,79 @@ function UploadPage() {
                     </label>
                   </div>
                 )}
+                {candidate && !detectedTable && (
+                  <div className="mt-3 rounded-md border border-amber-500/50 bg-amber-500/5 p-3 space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-amber-300">
+                      <Trophy className="size-4" />
+                      <span className="font-medium">
+                        Possible Tournament #{candidate.num} match — {candidate.matched.length} of{" "}
+                        {candidate.rosterSize} players recognised
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {candidate.round} · {candidate.table}
+                    </p>
+                    {candidate.unmatched.map((u) => (
+                      <p key={u.detected} className="text-xs text-muted-foreground">
+                        <span className="text-foreground font-medium">{u.detected}</span> is not on this
+                        table{" "}
+                        {u.suggested ? (
+                          <>
+                            — likely registered as{" "}
+                            <span className="text-sand font-medium">{u.suggested}</span>. An admin can
+                            confirm and correct the roster name.
+                          </>
+                        ) : (
+                          "— an admin will need to confirm this table."
+                        )}
+                      </p>
+                    ))}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setUploadMode("tournament")}
+                        className={`text-xs rounded-md border px-3 py-2 transition ${uploadMode === "tournament" ? "border-sand bg-sand/15 text-sand" : "border-border/60 text-muted-foreground hover:border-sand/60"}`}
+                      >
+                        Upload as tournament game (needs admin approval)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUploadMode("standard")}
+                        className={`text-xs rounded-md border px-3 py-2 transition ${uploadMode === "standard" ? "border-sand bg-sand/15 text-sand" : "border-border/60 text-muted-foreground hover:border-sand/60"}`}
+                      >
+                        Upload as standard game
+                      </button>
+                    </div>
+                    {uploadMode === "tournament" && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">Round</Label>
+                          <Select value={tRound} onValueChange={setTRound}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {Array.from(new Set([candidate.round, ...TOURNAMENT_ROUND_OPTIONS])).map((r) => (
+                                <SelectItem key={r} value={r}>{r}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Table</Label>
+                          <Select value={tTable} onValueChange={setTTable}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {Array.from(new Set([candidate.table, ...TOURNAMENT_TABLE_OPTIONS])).map((t) => (
+                                <SelectItem key={t} value={t}>{t}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {detectedTournamentNum != null && detectedTable && (
+
                   <div className="mt-3 rounded-md border border-sand/50 bg-sand/5 p-3 space-y-2">
                     <div className="flex items-center gap-2 text-sm text-sand">
                       <Trophy className="size-4" />
