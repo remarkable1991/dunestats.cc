@@ -33,7 +33,7 @@ export const TOURNAMENT_MODES: Record<number, TournamentModeProfile> = {
     has_epic_mode: false,
     has_immortality: false,
     has_base_leaders: false,
-    subtitle: "Uprising · 11 VP",
+    subtitle: "Uprising\u00a0",
   },
   14: {
     board_version: "uprising",
@@ -41,7 +41,7 @@ export const TOURNAMENT_MODES: Record<number, TournamentModeProfile> = {
     has_epic_mode: false,
     has_immortality: true,
     has_base_leaders: false,
-    subtitle: "Uprising + Immortality · 11 VP",
+    subtitle: "Uprising + Immortality\u00a0",
   },
 };
 
@@ -57,7 +57,7 @@ export function modeSubtitle(p: Omit<TournamentModeProfile, "subtitle">): string
   if (p.has_immortality) parts.push("Immortality");
   if (p.has_epic_mode) parts.push("Epic");
   if (p.has_base_leaders) parts.push("Base leaders");
-  return `${parts.join(" + ")} \u00b7 ${p.has_epic_mode ? "14" : "11"} VP`;
+  return `${parts.join(" + ")}\u00a0`;
 }
 
 /** Fetch per-tournament mode configuration from Supabase into the local cache. */
