@@ -1066,13 +1066,67 @@ function CurrentTournament({
 
           {/* Match logs */}
           <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
-            <h3 className="font-display text-xl mb-4">Match Logs</h3>
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+              <h3 className="font-display text-xl">Match Logs</h3>
+              <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                {userId && (
+                  <button
+                    type="button"
+                    onClick={() => setLogMine((v) => !v)}
+                    className={`rounded-full border px-2.5 py-1 transition ${
+                      logMine
+                        ? "border-sand bg-sand/20 text-sand"
+                        : "border-border/60 text-muted-foreground hover:text-sand"
+                    }`}
+                  >
+                    Only my games
+                  </button>
+                )}
+                <div className="inline-flex rounded-full border border-border/60 overflow-hidden">
+                  {(["all", "played", "unplayed"] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setLogStatus(s)}
+                      className={`px-2.5 py-1 capitalize transition ${
+                        logStatus === s ? "bg-sand/20 text-sand" : "text-muted-foreground hover:text-sand"
+                      }`}
+                    >
+                      {s === "all" ? "Both" : s}
+                    </button>
+                  ))}
+                </div>
+                <div className="inline-flex rounded-full border border-border/60 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setLogSort("table")}
+                    className={`px-2.5 py-1 transition ${
+                      logSort === "table" ? "bg-sand/20 text-sand" : "text-muted-foreground hover:text-sand"
+                    }`}
+                  >
+                    Game &amp; table
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLogSort("time")}
+                    className={`px-2.5 py-1 transition ${
+                      logSort === "time" ? "bg-sand/20 text-sand" : "text-muted-foreground hover:text-sand"
+                    }`}
+                  >
+                    {tournamentPlayMode(tournamentNum) === "live" ? "Scheduled date" : "Start time"}
+                  </button>
+                </div>
+              </div>
+            </div>
             <Tabs value={logTab} onValueChange={(v) => setLogTab(v as "swiss" | "playoffs")}>
               <TabsList>
                 <TabsTrigger value="swiss">League Phase</TabsTrigger>
                 <TabsTrigger value="playoffs">Finals</TabsTrigger>
               </TabsList>
               <TabsContent value={logTab} className="mt-4 space-y-6">
+                {groupedLogs.size === 0 && (
+                  <p className="text-sm text-muted-foreground">No matches match the current filters.</p>
+                )}
                 {[...groupedLogs.entries()]
                   .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
                   .map(([rt, tables]) => (
@@ -1080,7 +1134,13 @@ function CurrentTournament({
                       <h4 className="font-display text-lg text-sand mb-2">{rt}</h4>
                       <div className="grid md:grid-cols-2 gap-3">
                         {[...tables.entries()]
-                          .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+                          .sort(([a, ra], [b, rb]) =>
+                            logSort === "time"
+                              ? tableTime(rt, a, ra) - tableTime(rt, b, rb) ||
+                                a.localeCompare(b, undefined, { numeric: true })
+                              : a.localeCompare(b, undefined, { numeric: true }),
+                          )
+
                           .map(([ti, players]) => {
                             const shot = shotFor(rt, ti);
                             const sorted = [...players].sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9));
