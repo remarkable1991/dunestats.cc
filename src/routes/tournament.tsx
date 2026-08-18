@@ -1942,9 +1942,11 @@ function CurrentTournamentsHub() {
                 <div className="mt-2 text-[11px] uppercase tracking-wide text-sand/80">{c.phase}</div>
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-4 flex items-center gap-2 flex-wrap">
+              <TournamentPlayModeBadge num={c.num} />
               <ModeBadges flags={c.modes} size={22} />
             </div>
+
             <div className="mt-4">
               <div className="flex items-center justify-between text-xs mb-1">
                 <span className="text-muted-foreground">Progress</span>
