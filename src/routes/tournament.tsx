@@ -655,6 +655,15 @@ function CurrentTournament({
   const shotFor = (rt: string, ti: string) => shots.find((s) => s.round_type === rt && s.table_identifier === ti);
 
   // ===== Match logs grouped =====
+  /** Sort key for a table: confirmed schedule time, else first upload time. */
+  const tableTime = (rt: string, ti: string, players: Row[]): number => {
+    const sched = scheduleFor(rt, ti);
+    const when = parseScheduleTime(sched);
+    if (when) return when.getTime();
+    const created = players.map((p) => new Date(p.created_at).getTime()).filter((n) => !isNaN(n));
+    return created.length ? Math.min(...created) : Number.POSITIVE_INFINITY;
+  };
+
   const groupedLogs = useMemo(() => {
     const inSwiss = (rt: string) => (SWISS_ROUNDS as readonly string[]).includes(rt);
     const filter = logTab === "swiss" ? inSwiss : (rt: string) => !inSwiss(rt);
@@ -666,8 +675,19 @@ function CurrentTournament({
       if (!tables.has(r.table_identifier)) tables.set(r.table_identifier, []);
       tables.get(r.table_identifier)!.push(r);
     }
+    // Apply the table-level filters (mine / played / unplayed)
+    for (const [rt, tables] of [...byRound.entries()]) {
+      for (const [ti, players] of [...tables.entries()]) {
+        const played = players.filter((p) => p.placement != null && p.points != null).length >= 4;
+        if (logStatus === "played" && !played) tables.delete(ti);
+        else if (logStatus === "unplayed" && played) tables.delete(ti);
+        else if (logMine && !players.some((p) => isMine(p.player_name))) tables.delete(ti);
+      }
+      if (tables.size === 0) byRound.delete(rt);
+    }
     return byRound;
-  }, [rows, logTab]);
+  }, [rows, logTab, logStatus, logMine, myKeys]);
+
 
   // ===== Upload handlers =====
   const onFile = async (f: File | null) => {
