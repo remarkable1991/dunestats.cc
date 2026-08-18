@@ -1871,7 +1871,7 @@ function CurrentTournamentsHub() {
         summaries.push({
           num,
           title: `Tournament #${num}`,
-          subtitle: profile?.subtitle ?? "Uprising · 11 VP",
+          subtitle: profile?.subtitle ?? "Uprising\u00a0",
           modes: {
             hasIx: profile?.has_rise_of_ix ?? false,
             hasEpic: profile?.has_epic_mode ?? false,
