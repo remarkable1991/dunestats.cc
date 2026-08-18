@@ -72,8 +72,10 @@ import {
 import { AvailabilityHeatmap, type HeatmapPlayer } from "@/components/AvailabilityHeatmap";
 import { TableScheduleControls } from "@/components/TableScheduleControls";
 import { RosterEditDialog } from "@/components/RosterEditDialog";
-import { type MatchSchedule, SCHEDULE_SELECT } from "@/lib/match-schedules";
+import { type MatchSchedule, SCHEDULE_SELECT, parseScheduleTime } from "@/lib/match-schedules";
 import { tableSlug } from "@/lib/tournament-slug";
+import { TournamentPlayModeBadge, tournamentPlayMode } from "@/components/TournamentPlayModeBadge";
+
 
 import { Pencil } from "lucide-react";
 
@@ -198,6 +200,10 @@ function CurrentTournament({
   const [loading, setLoading] = useState(true);
   const [displayMode, setDisplayMode] = useState<"player" | "discord">("player");
   const [logTab, setLogTab] = useState<"swiss" | "playoffs">("swiss");
+  const [logMine, setLogMine] = useState(false);
+  const [logStatus, setLogStatus] = useState<"all" | "played" | "unplayed">("all");
+  const [logSort, setLogSort] = useState<"table" | "time">("table");
+
   const uploadRef = useRef<HTMLDivElement>(null);
 
   // Upload panel state (mirrors /upload but routed to tournament_matches)
@@ -655,6 +661,15 @@ function CurrentTournament({
   const shotFor = (rt: string, ti: string) => shots.find((s) => s.round_type === rt && s.table_identifier === ti);
 
   // ===== Match logs grouped =====
+  /** Sort key for a table: confirmed schedule time, else first upload time. */
+  const tableTime = (rt: string, ti: string, players: Row[]): number => {
+    const sched = scheduleFor(rt, ti);
+    const when = parseScheduleTime(sched);
+    if (when) return when.getTime();
+    const created = players.map((p) => new Date(p.created_at).getTime()).filter((n) => !isNaN(n));
+    return created.length ? Math.min(...created) : Number.POSITIVE_INFINITY;
+  };
+
   const groupedLogs = useMemo(() => {
     const inSwiss = (rt: string) => (SWISS_ROUNDS as readonly string[]).includes(rt);
     const filter = logTab === "swiss" ? inSwiss : (rt: string) => !inSwiss(rt);
@@ -666,8 +681,20 @@ function CurrentTournament({
       if (!tables.has(r.table_identifier)) tables.set(r.table_identifier, []);
       tables.get(r.table_identifier)!.push(r);
     }
+    // Apply the table-level filters (mine / played / unplayed)
+    for (const [rt, tables] of [...byRound.entries()]) {
+      for (const [ti, players] of [...tables.entries()]) {
+        const played = players.filter((p) => p.placement != null && p.points != null).length >= 4;
+        const statusOk = logStatus === "all" || (logStatus === "played" ? played : !played);
+        const mineOk = !logMine || players.some((p) => isMine(p.player_name));
+        if (!statusOk || !mineOk) tables.delete(ti);
+
+      }
+      if (tables.size === 0) byRound.delete(rt);
+    }
     return byRound;
-  }, [rows, logTab]);
+  }, [rows, logTab, logStatus, logMine, myKeys]);
+
 
   // ===== Upload handlers =====
   const onFile = async (f: File | null) => {
@@ -798,9 +825,11 @@ function CurrentTournament({
       </Button>
       <header className="flex items-end justify-between flex-wrap gap-4">
         <div>
-          <h2 className="font-display text-3xl flex items-center gap-2">
+          <h2 className="font-display text-3xl flex items-center gap-2 flex-wrap">
             <Trophy className="size-7 text-sand" /> Live Tournament #{tournamentNum}
+            <TournamentPlayModeBadge num={tournamentNum} size={20} />
           </h2>
+
           <p className="text-muted-foreground">Live standings update as match screenshots are uploaded.</p>
           {formatLine && (
             <p className="mt-2 inline-flex items-center gap-2 rounded-md border border-sand/40 bg-sand/10 px-3 py-1.5 text-xs text-sand">
@@ -1039,13 +1068,67 @@ function CurrentTournament({
 
           {/* Match logs */}
           <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
-            <h3 className="font-display text-xl mb-4">Match Logs</h3>
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+              <h3 className="font-display text-xl">Match Logs</h3>
+              <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                {userId && (
+                  <button
+                    type="button"
+                    onClick={() => setLogMine((v) => !v)}
+                    className={`rounded-full border px-2.5 py-1 transition ${
+                      logMine
+                        ? "border-sand bg-sand/20 text-sand"
+                        : "border-border/60 text-muted-foreground hover:text-sand"
+                    }`}
+                  >
+                    Only my games
+                  </button>
+                )}
+                <div className="inline-flex rounded-full border border-border/60 overflow-hidden">
+                  {(["all", "played", "unplayed"] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setLogStatus(s)}
+                      className={`px-2.5 py-1 capitalize transition ${
+                        logStatus === s ? "bg-sand/20 text-sand" : "text-muted-foreground hover:text-sand"
+                      }`}
+                    >
+                      {s === "all" ? "Both" : s}
+                    </button>
+                  ))}
+                </div>
+                <div className="inline-flex rounded-full border border-border/60 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setLogSort("table")}
+                    className={`px-2.5 py-1 transition ${
+                      logSort === "table" ? "bg-sand/20 text-sand" : "text-muted-foreground hover:text-sand"
+                    }`}
+                  >
+                    Game &amp; table
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLogSort("time")}
+                    className={`px-2.5 py-1 transition ${
+                      logSort === "time" ? "bg-sand/20 text-sand" : "text-muted-foreground hover:text-sand"
+                    }`}
+                  >
+                    {tournamentPlayMode(tournamentNum) === "live" ? "Scheduled date" : "Start time"}
+                  </button>
+                </div>
+              </div>
+            </div>
             <Tabs value={logTab} onValueChange={(v) => setLogTab(v as "swiss" | "playoffs")}>
               <TabsList>
                 <TabsTrigger value="swiss">League Phase</TabsTrigger>
                 <TabsTrigger value="playoffs">Finals</TabsTrigger>
               </TabsList>
               <TabsContent value={logTab} className="mt-4 space-y-6">
+                {groupedLogs.size === 0 && (
+                  <p className="text-sm text-muted-foreground">No matches match the current filters.</p>
+                )}
                 {[...groupedLogs.entries()]
                   .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
                   .map(([rt, tables]) => (
@@ -1053,7 +1136,13 @@ function CurrentTournament({
                       <h4 className="font-display text-lg text-sand mb-2">{rt}</h4>
                       <div className="grid md:grid-cols-2 gap-3">
                         {[...tables.entries()]
-                          .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+                          .sort(([a, ra], [b, rb]) =>
+                            logSort === "time"
+                              ? tableTime(rt, a, ra) - tableTime(rt, b, rb) ||
+                                a.localeCompare(b, undefined, { numeric: true })
+                              : a.localeCompare(b, undefined, { numeric: true }),
+                          )
+
                           .map(([ti, players]) => {
                             const shot = shotFor(rt, ti);
                             const sorted = [...players].sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9));
@@ -1853,9 +1942,11 @@ function CurrentTournamentsHub() {
                 <div className="mt-2 text-[11px] uppercase tracking-wide text-sand/80">{c.phase}</div>
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-4 flex items-center gap-2 flex-wrap">
+              <TournamentPlayModeBadge num={c.num} />
               <ModeBadges flags={c.modes} size={22} />
             </div>
+
             <div className="mt-4">
               <div className="flex items-center justify-between text-xs mb-1">
                 <span className="text-muted-foreground">Progress</span>
