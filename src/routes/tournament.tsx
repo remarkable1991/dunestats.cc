@@ -825,9 +825,11 @@ function CurrentTournament({
       </Button>
       <header className="flex items-end justify-between flex-wrap gap-4">
         <div>
-          <h2 className="font-display text-3xl flex items-center gap-2">
+          <h2 className="font-display text-3xl flex items-center gap-2 flex-wrap">
             <Trophy className="size-7 text-sand" /> Live Tournament #{tournamentNum}
+            <TournamentPlayModeBadge num={tournamentNum} size={20} />
           </h2>
+
           <p className="text-muted-foreground">Live standings update as match screenshots are uploaded.</p>
           {formatLine && (
             <p className="mt-2 inline-flex items-center gap-2 rounded-md border border-sand/40 bg-sand/10 px-3 py-1.5 text-xs text-sand">
