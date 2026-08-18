@@ -679,9 +679,10 @@ function CurrentTournament({
     for (const [rt, tables] of [...byRound.entries()]) {
       for (const [ti, players] of [...tables.entries()]) {
         const played = players.filter((p) => p.placement != null && p.points != null).length >= 4;
-        if (logStatus === "played" && !played) tables.delete(ti);
-        else if (logStatus === "unplayed" && played) tables.delete(ti);
-        else if (logMine && !players.some((p) => isMine(p.player_name))) tables.delete(ti);
+        const statusOk = logStatus === "all" || (logStatus === "played" ? played : !played);
+        const mineOk = !logMine || players.some((p) => isMine(p.player_name));
+        if (!statusOk || !mineOk) tables.delete(ti);
+
       }
       if (tables.size === 0) byRound.delete(rt);
     }
