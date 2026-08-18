@@ -198,6 +198,10 @@ function CurrentTournament({
   const [loading, setLoading] = useState(true);
   const [displayMode, setDisplayMode] = useState<"player" | "discord">("player");
   const [logTab, setLogTab] = useState<"swiss" | "playoffs">("swiss");
+  const [logMine, setLogMine] = useState(false);
+  const [logStatus, setLogStatus] = useState<"all" | "played" | "unplayed">("all");
+  const [logSort, setLogSort] = useState<"table" | "time">("table");
+
   const uploadRef = useRef<HTMLDivElement>(null);
 
   // Upload panel state (mirrors /upload but routed to tournament_matches)
