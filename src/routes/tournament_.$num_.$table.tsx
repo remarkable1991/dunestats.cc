@@ -162,6 +162,7 @@ function TableDetailPage() {
         players={heatmapPlayers}
         suggestedSlots={schedule?.suggested_slots}
         myPlayerName={seats.find((r) => isMine(r.player_name))?.player_name ?? null}
+        playMode={tournamentPlayMode(tournamentNum)}
       />
     </Card>
   );
