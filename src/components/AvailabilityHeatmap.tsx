@@ -205,7 +205,7 @@ export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = 
 
   return (
     <div className="space-y-4">
-      {(suggestions.length > 0 || windows.length > 0) && (
+      {(suggestions.length > 0 || (playMode === "live" && windows.length > 0)) && (
         <Card className="p-4 border-border/60 bg-card/70 space-y-4">
           {suggestions.length > 0 && (
             <div>
