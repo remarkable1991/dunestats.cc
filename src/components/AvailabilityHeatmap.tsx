@@ -68,6 +68,8 @@ export type HeatmapBodyProps = {
   players: HeatmapPlayer[];
   suggestedSlots?: unknown;
   myPlayerName?: string | null;
+  /** "live" tournaments show suggested alternative 2h slots; "async" hides them. */
+  playMode?: "live" | "async";
 };
 
 export function AvailabilityHeatmap({
