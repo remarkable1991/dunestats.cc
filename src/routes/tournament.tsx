@@ -1180,7 +1180,7 @@ function CurrentTournament({
                             const canStart = isAdmin || players.some((p) => isMine(p.player_name));
                             return (
                               <div
-                                key={ti}
+                                key={`${rt}__${ti}`}
                                 id={`table-${rt.replace(/\s+/g, "-")}-${ti.replace(/\s+/g, "-")}`}
                                 className={`border rounded-md p-3 bg-background/40 scroll-mt-24 transition-colors ${
                                   focusRound === rt && focusTable === ti
