@@ -1215,16 +1215,16 @@ function CurrentTournament({
                                       title={`Dune Imperium · ${rt} · ${ti}`}
                                       onChanged={refresh}
                                     />
-                                    {players[0]?.table_score != null && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setHeatmapKey(`${rt}__${ti}`)}
-                                        className="inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-[11px] text-sand hover:bg-sand/25 transition"
-                                        title="View availability heatmap"
-                                      >
-                                        <Sparkles className="size-3" /> Match Quality {fmtScore(players[0].table_score)}
-                                      </button>
-                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => setHeatmapKey(`${rt}__${ti}`)}
+                                      className="inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-[11px] text-sand hover:bg-sand/25 transition"
+                                      title="Open the availability map for this table"
+                                    >
+                                      📅 Availability Map
+                                      {players[0]?.table_score != null && ` (Score: ${fmtScore(players[0].table_score)})`}
+                                    </button>
+
                                     {tDays != null && (
                                       <span
                                         className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground"
