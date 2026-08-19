@@ -233,7 +233,7 @@ export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = 
             </div>
           )}
 
-          {windows.length > 0 && (
+          {playMode === "live" && windows.length > 0 && (
             <div>
               <h3 className="font-display text-sm text-sand mb-2 flex items-center gap-2">
                 <Sparkles className="size-4" /> Other 2-hour options
