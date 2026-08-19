@@ -1956,16 +1956,31 @@ function CurrentTournamentsHub() {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {(cards ?? []).map((c) => (
+        {(cards ?? []).map((c) => {
+          const live = tournamentPlayMode(c.num) === "live";
+          const accent = live ? "teal" : "coral";
+          return (
           <button
             key={c.num}
             onClick={() => setSelected(c.num)}
-            className="text-left group rounded-xl border border-border bg-card/50 hover:bg-card hover:border-sand transition-all p-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-sand"
+            className={`text-left group rounded-xl border bg-card/50 hover:bg-card transition-all p-5 focus:outline-none focus-visible:ring-2 ${
+              live
+                ? "border-teal/40 hover:border-teal focus-visible:ring-teal"
+                : "border-coral/40 hover:border-coral focus-visible:ring-coral"
+            }`}
           >
             <div className="flex items-center gap-4">
-              <div className="relative flex items-center justify-center size-16 rounded-full bg-gradient-to-br from-sand/30 to-sand/5 border border-sand/40 shadow-inner">
-                <Trophy className="size-7 text-sand" />
-                <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center size-7 rounded-full bg-background text-sand font-display text-sm border border-sand/60">
+              <div
+                className={`relative flex items-center justify-center size-16 rounded-full border shadow-inner ${
+                  live ? "bg-teal/10 border-teal/40" : "bg-coral/10 border-coral/40"
+                }`}
+              >
+                <Trophy className={`size-7 ${live ? "text-teal" : "text-coral"}`} />
+                <span
+                  className={`absolute -bottom-1 -right-1 inline-flex items-center justify-center size-7 rounded-full bg-background font-display text-sm border ${
+                    live ? "text-teal border-teal/60" : "text-coral border-coral/60"
+                  }`}
+                >
                   {c.num}
                 </span>
               </div>
@@ -1979,6 +1994,7 @@ function CurrentTournamentsHub() {
               <TournamentPlayModeBadge num={c.num} />
               <ModeBadges flags={c.modes} size={22} />
             </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">{playModeDescription(c.num)}</p>
 
             <div className="mt-4">
               <div className="flex items-center justify-between text-xs mb-1">
@@ -1988,14 +2004,23 @@ function CurrentTournamentsHub() {
                 </span>
               </div>
               <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                <div className="h-full bg-sand transition-all duration-500" style={{ width: `${c.progressPct}%` }} />
+                <div
+                  className={`h-full transition-all duration-500 ${live ? "bg-teal" : "bg-coral"}`}
+                  style={{ width: `${c.progressPct}%` }}
+                />
               </div>
             </div>
-            <div className="mt-3 text-[11px] uppercase tracking-wide text-sand/80 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div
+              className={`mt-3 text-[11px] uppercase tracking-wide opacity-0 group-hover:opacity-100 transition-opacity ${
+                live ? "text-teal" : "text-coral"
+              }`}
+            >
               Enter tournament →
             </div>
           </button>
-        ))}
+          );
+        })}
+
         {cards === null && (
           <div className="col-span-full flex items-center gap-2 text-muted-foreground">
             <Loader2 className="size-4 animate-spin" /> Loading tournaments…
