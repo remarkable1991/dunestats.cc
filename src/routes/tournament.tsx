@@ -1215,15 +1215,20 @@ function CurrentTournament({
                                       title={`Dune Imperium · ${rt} · ${ti}`}
                                       onChanged={refresh}
                                     />
-                                    <button
-                                      type="button"
-                                      onClick={() => setHeatmapKey(`${rt}__${ti}`)}
-                                      className="inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-[11px] text-sand hover:bg-sand/25 transition"
-                                      title="Open the availability map for this table"
-                                    >
-                                      📅 Availability Map
-                                      {players[0]?.table_score != null && ` (Score: ${fmtScore(players[0].table_score)})`}
-                                    </button>
+                                    {(players[0]?.table_score != null ||
+                                      players.some((p) => (p.player_availability?.length ?? 0) > 0)) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setHeatmapKey(`${rt}__${ti}`)}
+                                        className="inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-[11px] text-sand hover:bg-sand/25 transition"
+                                        title="Open the availability map for this table"
+                                      >
+                                        📅 Availability Map
+                                        {players[0]?.table_score != null &&
+                                          ` (Score: ${fmtScore(players[0].table_score)})`}
+                                      </button>
+                                    )}
+
 
                                     {tDays != null && (
                                       <span
