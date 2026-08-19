@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SupabaseImage } from "@/components/SupabaseImage";
 import { signedUrlOrR2 } from "@/lib/storage-r2";
 import { HeatmapBody, type HeatmapPlayer } from "@/components/AvailabilityHeatmap";
+import { tournamentPlayMode } from "@/components/TournamentPlayModeBadge";
 import { TableScheduleControls } from "@/components/TableScheduleControls";
 import {
   type MatchSchedule,
