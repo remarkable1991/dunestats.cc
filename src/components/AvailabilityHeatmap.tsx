@@ -68,6 +68,8 @@ export type HeatmapBodyProps = {
   players: HeatmapPlayer[];
   suggestedSlots?: unknown;
   myPlayerName?: string | null;
+  /** "live" tournaments show suggested alternative 2h slots; "async" hides them. */
+  playMode?: "live" | "async";
 };
 
 export function AvailabilityHeatmap({
@@ -100,7 +102,7 @@ export function AvailabilityHeatmap({
   );
 }
 
-export function HeatmapBody({ players, suggestedSlots, myPlayerName }: HeatmapBodyProps) {
+export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = "async" }: HeatmapBodyProps) {
   const { dayList, slotMatrix } = useMemo(() => {
     // Aggregate counts per local half-hour slot
     const counts = new Map<number, number>(); // key: epoch ms of local half-hour
@@ -203,7 +205,7 @@ export function HeatmapBody({ players, suggestedSlots, myPlayerName }: HeatmapBo
 
   return (
     <div className="space-y-4">
-      {(suggestions.length > 0 || windows.length > 0) && (
+      {(suggestions.length > 0 || (playMode === "live" && windows.length > 0)) && (
         <Card className="p-4 border-border/60 bg-card/70 space-y-4">
           {suggestions.length > 0 && (
             <div>
@@ -231,7 +233,7 @@ export function HeatmapBody({ players, suggestedSlots, myPlayerName }: HeatmapBo
             </div>
           )}
 
-          {windows.length > 0 && (
+          {playMode === "live" && windows.length > 0 && (
             <div>
               <h3 className="font-display text-sm text-sand mb-2 flex items-center gap-2">
                 <Sparkles className="size-4" /> Other 2-hour options
