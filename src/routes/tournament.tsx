@@ -1958,7 +1958,6 @@ function CurrentTournamentsHub() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {(cards ?? []).map((c) => {
           const live = tournamentPlayMode(c.num) === "live";
-          const accent = live ? "teal" : "coral";
           return (
           <button
             key={c.num}
