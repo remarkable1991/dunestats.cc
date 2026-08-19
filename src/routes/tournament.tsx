@@ -859,7 +859,7 @@ function CurrentTournament({
             <TournamentPlayModeBadge num={tournamentNum} size={20} />
           </h2>
 
-          <p className="text-muted-foreground">Live standings update as match screenshots are uploaded.</p>
+          <p className="text-muted-foreground">{playModeDescription(tournamentNum)}</p>
           {formatLine && (
             <p className="mt-2 inline-flex items-center gap-2 rounded-md border border-sand/40 bg-sand/10 px-3 py-1.5 text-xs text-sand">
               <Sword className="size-3.5" /> {formatLine}
