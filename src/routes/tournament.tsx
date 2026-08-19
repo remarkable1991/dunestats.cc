@@ -1158,21 +1158,20 @@ function CurrentTournament({
                 {groupedLogs.size === 0 && (
                   <p className="text-sm text-muted-foreground">No matches match the current filters.</p>
                 )}
-                {[...groupedLogs.entries()]
-                  .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
-                  .map(([rt, tables]) => (
-                    <div key={rt} id={`round-${rt.replace(/\s+/g, "-")}`} className="scroll-mt-24">
-                      <h4 className="font-display text-lg text-sand mb-2">{rt}</h4>
+                {logSections
+                  .map((section, si) => (
+                    <div
+                      key={section.title ?? "chrono"}
+                      id={section.title ? `round-${section.title.replace(/\s+/g, "-")}` : `chrono-${si}`}
+                      className="scroll-mt-24"
+                    >
+                      {section.title && (
+                        <h4 className="font-display text-lg text-sand mb-2">{section.title}</h4>
+                      )}
                       <div className="grid md:grid-cols-2 gap-3">
-                        {[...tables.entries()]
-                          .sort(([a, ra], [b, rb]) =>
-                            logSort === "time"
-                              ? tableTime(rt, a, ra) - tableTime(rt, b, rb) ||
-                                a.localeCompare(b, undefined, { numeric: true })
-                              : a.localeCompare(b, undefined, { numeric: true }),
-                          )
+                        {section.entries
+                          .map(({ rt, ti, players }) => {
 
-                          .map(([ti, players]) => {
                             const shot = shotFor(rt, ti);
                             const sorted = [...players].sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9));
                             const finished = players.filter((p) => p.placement != null && p.points != null).length >= 4;
