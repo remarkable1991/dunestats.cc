@@ -74,7 +74,7 @@ import { TableScheduleControls } from "@/components/TableScheduleControls";
 import { RosterEditDialog } from "@/components/RosterEditDialog";
 import { type MatchSchedule, SCHEDULE_SELECT, parseScheduleTime } from "@/lib/match-schedules";
 import { tableSlug } from "@/lib/tournament-slug";
-import { TournamentPlayModeBadge, tournamentPlayMode } from "@/components/TournamentPlayModeBadge";
+import { TournamentPlayModeBadge, tournamentPlayMode, playModeDescription } from "@/components/TournamentPlayModeBadge";
 
 
 import { Pencil } from "lucide-react";
@@ -695,6 +695,35 @@ function CurrentTournament({
     return byRound;
   }, [rows, logTab, logStatus, logMine, myKeys]);
 
+  /**
+   * Log sections: grouped per round for "table" sort, one flat chronological
+   * list across all rounds for "time" sort.
+   */
+  const logSections = useMemo(() => {
+    const all: { rt: string; ti: string; players: Row[] }[] = [];
+    for (const [rt, tables] of groupedLogs) {
+      for (const [ti, players] of tables) all.push({ rt, ti, players });
+    }
+    if (logSort === "time") {
+      all.sort(
+        (a, b) =>
+          tableTime(a.rt, a.ti, a.players) - tableTime(b.rt, b.ti, b.players) ||
+          a.rt.localeCompare(b.rt, undefined, { numeric: true }) ||
+          a.ti.localeCompare(b.ti, undefined, { numeric: true }),
+      );
+      return [{ title: null as string | null, entries: all }];
+    }
+    const rounds = [...groupedLogs.keys()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    return rounds.map((rt) => ({
+      title: rt as string | null,
+      entries: all
+        .filter((e) => e.rt === rt)
+        .sort((a, b) => a.ti.localeCompare(b.ti, undefined, { numeric: true })),
+    }));
+  }, [groupedLogs, logSort, schedules]);
+
+
+
 
   // ===== Upload handlers =====
   const onFile = async (f: File | null) => {
@@ -830,7 +859,7 @@ function CurrentTournament({
             <TournamentPlayModeBadge num={tournamentNum} size={20} />
           </h2>
 
-          <p className="text-muted-foreground">Live standings update as match screenshots are uploaded.</p>
+          <p className="text-muted-foreground">{playModeDescription(tournamentNum)}</p>
           {formatLine && (
             <p className="mt-2 inline-flex items-center gap-2 rounded-md border border-sand/40 bg-sand/10 px-3 py-1.5 text-xs text-sand">
               <Sword className="size-3.5" /> {formatLine}
@@ -1129,21 +1158,20 @@ function CurrentTournament({
                 {groupedLogs.size === 0 && (
                   <p className="text-sm text-muted-foreground">No matches match the current filters.</p>
                 )}
-                {[...groupedLogs.entries()]
-                  .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
-                  .map(([rt, tables]) => (
-                    <div key={rt} id={`round-${rt.replace(/\s+/g, "-")}`} className="scroll-mt-24">
-                      <h4 className="font-display text-lg text-sand mb-2">{rt}</h4>
+                {logSections
+                  .map((section, si) => (
+                    <div
+                      key={section.title ?? "chrono"}
+                      id={section.title ? `round-${section.title.replace(/\s+/g, "-")}` : `chrono-${si}`}
+                      className="scroll-mt-24"
+                    >
+                      {section.title && (
+                        <h4 className="font-display text-lg text-sand mb-2">{section.title}</h4>
+                      )}
                       <div className="grid md:grid-cols-2 gap-3">
-                        {[...tables.entries()]
-                          .sort(([a, ra], [b, rb]) =>
-                            logSort === "time"
-                              ? tableTime(rt, a, ra) - tableTime(rt, b, rb) ||
-                                a.localeCompare(b, undefined, { numeric: true })
-                              : a.localeCompare(b, undefined, { numeric: true }),
-                          )
+                        {section.entries
+                          .map(({ rt, ti, players }) => {
 
-                          .map(([ti, players]) => {
                             const shot = shotFor(rt, ti);
                             const sorted = [...players].sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9));
                             const finished = players.filter((p) => p.placement != null && p.points != null).length >= 4;
@@ -1152,7 +1180,7 @@ function CurrentTournament({
                             const canStart = isAdmin || players.some((p) => isMine(p.player_name));
                             return (
                               <div
-                                key={ti}
+                                key={`${rt}__${ti}`}
                                 id={`table-${rt.replace(/\s+/g, "-")}-${ti.replace(/\s+/g, "-")}`}
                                 className={`border rounded-md p-3 bg-background/40 scroll-mt-24 transition-colors ${
                                   focusRound === rt && focusTable === ti
@@ -1187,16 +1215,21 @@ function CurrentTournament({
                                       title={`Dune Imperium · ${rt} · ${ti}`}
                                       onChanged={refresh}
                                     />
-                                    {players[0]?.table_score != null && (
+                                    {(players[0]?.table_score != null ||
+                                      players.some((p) => (p.player_availability?.length ?? 0) > 0)) && (
                                       <button
                                         type="button"
                                         onClick={() => setHeatmapKey(`${rt}__${ti}`)}
                                         className="inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-[11px] text-sand hover:bg-sand/25 transition"
-                                        title="View availability heatmap"
+                                        title="Open the availability map for this table"
                                       >
-                                        <Sparkles className="size-3" /> Match Quality {fmtScore(players[0].table_score)}
+                                        📅 Availability Map
+                                        {players[0]?.table_score != null &&
+                                          ` (Score: ${fmtScore(players[0].table_score)})`}
                                       </button>
                                     )}
+
+
                                     {tDays != null && (
                                       <span
                                         className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground"
@@ -1923,16 +1956,30 @@ function CurrentTournamentsHub() {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {(cards ?? []).map((c) => (
+        {(cards ?? []).map((c) => {
+          const live = tournamentPlayMode(c.num) === "live";
+          return (
           <button
             key={c.num}
             onClick={() => setSelected(c.num)}
-            className="text-left group rounded-xl border border-border bg-card/50 hover:bg-card hover:border-sand transition-all p-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-sand"
+            className={`text-left group rounded-xl border bg-card/50 hover:bg-card transition-all p-5 focus:outline-none focus-visible:ring-2 ${
+              live
+                ? "border-teal/40 hover:border-teal focus-visible:ring-teal"
+                : "border-coral/40 hover:border-coral focus-visible:ring-coral"
+            }`}
           >
             <div className="flex items-center gap-4">
-              <div className="relative flex items-center justify-center size-16 rounded-full bg-gradient-to-br from-sand/30 to-sand/5 border border-sand/40 shadow-inner">
-                <Trophy className="size-7 text-sand" />
-                <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center size-7 rounded-full bg-background text-sand font-display text-sm border border-sand/60">
+              <div
+                className={`relative flex items-center justify-center size-16 rounded-full border shadow-inner ${
+                  live ? "bg-teal/10 border-teal/40" : "bg-coral/10 border-coral/40"
+                }`}
+              >
+                <Trophy className={`size-7 ${live ? "text-teal" : "text-coral"}`} />
+                <span
+                  className={`absolute -bottom-1 -right-1 inline-flex items-center justify-center size-7 rounded-full bg-background font-display text-sm border ${
+                    live ? "text-teal border-teal/60" : "text-coral border-coral/60"
+                  }`}
+                >
                   {c.num}
                 </span>
               </div>
@@ -1946,6 +1993,7 @@ function CurrentTournamentsHub() {
               <TournamentPlayModeBadge num={c.num} />
               <ModeBadges flags={c.modes} size={22} />
             </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">{playModeDescription(c.num)}</p>
 
             <div className="mt-4">
               <div className="flex items-center justify-between text-xs mb-1">
@@ -1955,14 +2003,23 @@ function CurrentTournamentsHub() {
                 </span>
               </div>
               <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                <div className="h-full bg-sand transition-all duration-500" style={{ width: `${c.progressPct}%` }} />
+                <div
+                  className={`h-full transition-all duration-500 ${live ? "bg-teal" : "bg-coral"}`}
+                  style={{ width: `${c.progressPct}%` }}
+                />
               </div>
             </div>
-            <div className="mt-3 text-[11px] uppercase tracking-wide text-sand/80 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div
+              className={`mt-3 text-[11px] uppercase tracking-wide opacity-0 group-hover:opacity-100 transition-opacity ${
+                live ? "text-teal" : "text-coral"
+              }`}
+            >
               Enter tournament →
             </div>
           </button>
-        ))}
+          );
+        })}
+
         {cards === null && (
           <div className="col-span-full flex items-center gap-2 text-muted-foreground">
             <Loader2 className="size-4 animate-spin" /> Loading tournaments…

@@ -83,9 +83,10 @@ export function AvailabilityHeatmap({
             <UsersIcon className="size-5 text-sand" /> {body.tableId} — Availability Map
             {body.matchQuality != null && (
               <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-xs text-sand">
-                <Sparkles className="size-3" /> Match Quality {fmtScore(body.matchQuality)}
+                📅 Availability Map (Score: {fmtScore(body.matchQuality)})
               </span>
             )}
+
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
             30-minute slots in your local timezone. Click any time to copy its Discord timestamp code.

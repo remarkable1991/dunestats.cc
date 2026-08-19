@@ -314,8 +314,9 @@ function TableDetailPage() {
           </Button>
           {rows[0]?.table_score != null && (
             <span className="inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-xs text-sand">
-              <Sparkles className="size-3" /> Match Quality {fmtScore(rows[0].table_score)}
+              📅 Availability Map (Score: {fmtScore(rows[0].table_score)})
             </span>
+
           )}
         </div>
 
