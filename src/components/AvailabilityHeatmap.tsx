@@ -102,7 +102,7 @@ export function AvailabilityHeatmap({
   );
 }
 
-export function HeatmapBody({ players, suggestedSlots, myPlayerName }: HeatmapBodyProps) {
+export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = "async" }: HeatmapBodyProps) {
   const { dayList, slotMatrix } = useMemo(() => {
     // Aggregate counts per local half-hour slot
     const counts = new Map<number, number>(); // key: epoch ms of local half-hour
