@@ -695,6 +695,35 @@ function CurrentTournament({
     return byRound;
   }, [rows, logTab, logStatus, logMine, myKeys]);
 
+  /**
+   * Log sections: grouped per round for "table" sort, one flat chronological
+   * list across all rounds for "time" sort.
+   */
+  const logSections = useMemo(() => {
+    const all: { rt: string; ti: string; players: Row[] }[] = [];
+    for (const [rt, tables] of groupedLogs) {
+      for (const [ti, players] of tables) all.push({ rt, ti, players });
+    }
+    if (logSort === "time") {
+      all.sort(
+        (a, b) =>
+          tableTime(a.rt, a.ti, a.players) - tableTime(b.rt, b.ti, b.players) ||
+          a.rt.localeCompare(b.rt, undefined, { numeric: true }) ||
+          a.ti.localeCompare(b.ti, undefined, { numeric: true }),
+      );
+      return [{ title: null as string | null, entries: all }];
+    }
+    const rounds = [...groupedLogs.keys()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    return rounds.map((rt) => ({
+      title: rt as string | null,
+      entries: all
+        .filter((e) => e.rt === rt)
+        .sort((a, b) => a.ti.localeCompare(b.ti, undefined, { numeric: true })),
+    }));
+  }, [groupedLogs, logSort, schedules]);
+
+
+
 
   // ===== Upload handlers =====
   const onFile = async (f: File | null) => {
