@@ -95,12 +95,13 @@
   --sidebar-accent-foreground: oklch(0.95 0.02 80);
   --sidebar-border: oklch(0.35 0.025 250 / 0.6);
   --sidebar-ring: oklch(0.76 0.14 70);
-  /* Brand */
-  --sand: oklch(0.76 0.14 70);
+  /* Brand — sampled from the Strategy Arena logo */
+  --sand: #d9943b;
   --sand-foreground: oklch(0.18 0.03 250);
-  --coral: oklch(0.66 0.20 25);
-  --teal: oklch(0.72 0.13 200);
+  --coral: #e75651;
+  --teal: #3cb4c6;
   --arena: oklch(0.18 0.03 250);
+
   --gradient-arena: radial-gradient(ellipse at top, oklch(0.30 0.05 60 / 0.45), transparent 60%),
     linear-gradient(180deg, oklch(0.22 0.03 250) 0%, oklch(0.18 0.03 250) 100%);
   --gradient-sand: linear-gradient(135deg, oklch(0.80 0.14 80), oklch(0.65 0.16 50));
