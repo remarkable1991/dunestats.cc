@@ -1,18 +1,22 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { SupabaseImage } from "@/components/SupabaseImage";
 import { signedUrlOrR2 } from "@/lib/storage-r2";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Copy, Link as LinkIcon, Trophy, Medal, Award, Maximize2, Loader2, ArrowLeft } from "lucide-react";
+import { Copy, Link as LinkIcon, Trophy, Medal, Award, Maximize2, Loader2, ArrowLeft, Pencil } from "lucide-react";
 import { TournamentTag } from "@/components/EloDelta";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useLeaderPortraits } from "@/lib/leader-portraits";
+
 
 export const Route = createFileRoute("/match/$matchId")({
   head: ({ params }) => ({
