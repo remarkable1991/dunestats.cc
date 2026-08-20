@@ -87,10 +87,14 @@ export type Database = {
           elo_delta_overall: number
           game_id: string
           id: string
+          is_leaver: boolean | null
           leader_name: string | null
           placement: number
           player_name: string
           points: number
+          solaris: number | null
+          spice: number | null
+          water: number | null
         }
         Insert: {
           created_at?: string
@@ -98,10 +102,14 @@ export type Database = {
           elo_delta_overall?: number
           game_id: string
           id?: string
+          is_leaver?: boolean | null
           leader_name?: string | null
           placement: number
           player_name: string
           points?: number
+          solaris?: number | null
+          spice?: number | null
+          water?: number | null
         }
         Update: {
           created_at?: string
@@ -109,10 +117,14 @@ export type Database = {
           elo_delta_overall?: number
           game_id?: string
           id?: string
+          is_leaver?: boolean | null
           leader_name?: string | null
           placement?: number
           player_name?: string
           points?: number
+          solaris?: number | null
+          spice?: number | null
+          water?: number | null
         }
         Relationships: [
           {
@@ -130,6 +142,7 @@ export type Database = {
           board_version: string | null
           created_at: string
           created_by: string | null
+          end_round: number | null
           game_version: Database["public"]["Enums"]["game_version"]
           has_base_leaders: boolean
           has_epic_mode: boolean
@@ -146,6 +159,7 @@ export type Database = {
           board_version?: string | null
           created_at?: string
           created_by?: string | null
+          end_round?: number | null
           game_version: Database["public"]["Enums"]["game_version"]
           has_base_leaders?: boolean
           has_epic_mode?: boolean
@@ -162,6 +176,7 @@ export type Database = {
           board_version?: string | null
           created_at?: string
           created_by?: string | null
+          end_round?: number | null
           game_version?: Database["public"]["Enums"]["game_version"]
           has_base_leaders?: boolean
           has_epic_mode?: boolean
