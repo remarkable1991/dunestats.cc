@@ -1,18 +1,22 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { SupabaseImage } from "@/components/SupabaseImage";
 import { signedUrlOrR2 } from "@/lib/storage-r2";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Copy, Link as LinkIcon, Trophy, Medal, Award, Maximize2, Loader2, ArrowLeft } from "lucide-react";
+import { Copy, Link as LinkIcon, Trophy, Medal, Award, Maximize2, Loader2, ArrowLeft, Pencil } from "lucide-react";
 import { TournamentTag } from "@/components/EloDelta";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useLeaderPortraits } from "@/lib/leader-portraits";
+
 
 export const Route = createFileRoute("/match/$matchId")({
   head: ({ params }) => ({
@@ -33,6 +37,10 @@ type ResultRow = {
   points: number;
   elo_delta: number | null;
   elo_delta_overall: number | null;
+  spice: number | null;
+  solaris: number | null;
+  water: number | null;
+  is_leaver: boolean | null;
 };
 
 type RatingTotals = {
@@ -51,6 +59,7 @@ type GameRow = {
   has_epic_mode: boolean;
   has_immortality: boolean;
   has_base_leaders: boolean;
+  end_round: number | null;
   image_url: string | null;
   tournament_num: number | null;
   game_results: ResultRow[];
@@ -68,6 +77,8 @@ function MatchDetailsPage() {
   const [vpDeltas, setVpDeltas] = useState<Record<string, number>>({});
   const [totals, setTotals] = useState<Record<string, RatingTotals>>({});
   const [tourneyTable, setTourneyTable] = useState<{ round: string; table: string } | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const titles = usePlayerTitles();
 
   useEffect(() => {
@@ -75,7 +86,7 @@ function MatchDetailsPage() {
     (async () => {
       setLoading(true);
       const select =
-        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, image_url, tournament_num, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall)";
+        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, end_round, image_url, tournament_num, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, spice, solaris, water, is_leaver)";
       let q = supabase.from("games").select(select).limit(1);
       q = UUID_RE.test(matchId)
         ? q.or(`public_match_id.eq.${matchId},id.eq.${matchId}`)
@@ -135,7 +146,33 @@ function MatchDetailsPage() {
     return () => {
       cancelled = true;
     };
-  }, [matchId]);
+  }, [matchId, reloadKey]);
+
+  // Can the signed-in user edit this match? (admin or a participant)
+  useEffect(() => {
+    if (!game) return;
+    let cancelled = false;
+    void (async () => {
+      const { data: userRes } = await supabase.auth.getUser();
+      const uid = userRes.user?.id;
+      if (!uid) { if (!cancelled) setCanEdit(false); return; }
+      const names = new Set(game.game_results.map((r) => r.player_name.toLowerCase().trim()));
+      const [{ data: roles }, { data: prof }, { data: claimed }] = await Promise.all([
+        supabase.from("user_roles").select("role").eq("user_id", uid),
+        supabase.from("profiles").select("username").eq("id", uid).maybeSingle(),
+        supabase.from("player_ratings").select("player_key").eq("claimed_by", uid),
+      ]);
+      if (cancelled) return;
+      const isAdmin = (roles ?? []).some((r) => r.role === "admin");
+      const mine = new Set<string>();
+      if (prof?.username) mine.add(prof.username.toLowerCase().trim());
+      (claimed ?? []).forEach((r) => r.player_key && mine.add(r.player_key.toLowerCase().trim()));
+      setCanEdit(isAdmin || [...mine].some((n) => names.has(n)));
+    })();
+    return () => { cancelled = true; };
+  }, [game?.id]);
+
+
 
   const leaderSlugs = game
     ? Array.from(
@@ -245,6 +282,7 @@ function MatchDetailsPage() {
   if (game.has_epic_mode) tags.push("Epic");
   if (game.has_immortality) tags.push("Immortality");
   if (game.has_base_leaders) tags.push("Base Leaders");
+  if (game.end_round !== null && game.end_round !== undefined) tags.push(`Round ${game.end_round}`);
 
   const created = new Date(game.created_at);
 
@@ -266,10 +304,16 @@ function MatchDetailsPage() {
               {created.toLocaleString()} · {relativeTime(created)}
             </p>
           </div>
-          <Button variant="outline" onClick={copyLink}>
-            <Copy className="size-4" /> Copy link
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={copyLink}>
+              <Copy className="size-4" /> Copy link
+            </Button>
+            {canEdit && (
+              <EditMatchDialog game={game} onSaved={() => setReloadKey((k) => k + 1)} />
+            )}
+          </div>
         </div>
+
 
         <div className="flex flex-wrap items-center gap-2 mb-6">
           <TournamentTag num={game.tournament_num} round={tourneyTable?.round} table={tourneyTable?.table} />
@@ -316,14 +360,21 @@ function MatchDetailsPage() {
                         <div className="size-10 rounded border border-border/50 bg-card/60" />
                       )}
                       <div className="min-w-0 flex-1">
-                        <Link
-                          to="/players/$key"
-                          params={{ key }}
-                          className="block truncate font-medium hover:underline underline-offset-2"
-                          style={{ color: colorForKey(titles, r.player_name) }}
-                        >
-                          {r.player_name}
-                        </Link>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Link
+                            to="/players/$key"
+                            params={{ key }}
+                            className="block truncate font-medium hover:underline underline-offset-2"
+                            style={{ color: colorForKey(titles, r.player_name) }}
+                          >
+                            {r.player_name}
+                          </Link>
+                          {r.is_leaver && (
+                            <span className="shrink-0 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-coral/50 bg-coral/10 text-coral">
+                              Leaver
+                            </span>
+                          )}
+                        </div>
                         {leaderRoute ? (
                           <Link
                             to="/leaders/$origin/$slug"
@@ -337,7 +388,9 @@ function MatchDetailsPage() {
                             {r.leader_name ?? "—"}
                           </div>
                         )}
+                        <ResourcePips spice={r.spice} solaris={r.solaris} water={r.water} />
                       </div>
+
                       <div className="text-right">
                         <div className="font-display text-sand text-2xl tabular-nums leading-none">
                           {r.points}
@@ -468,3 +521,252 @@ function relativeTime(d: Date): string {
 
 // keep notFound import usage happy for tree-shaking check
 void notFound;
+
+function ResourcePips({
+  spice,
+  solaris,
+  water,
+}: {
+  spice: number | null;
+  solaris: number | null;
+  water: number | null;
+}) {
+  const items: Array<[string, string, number | null]> = [
+    ["🟠", "Spice", spice],
+    ["⚪", "Solaris", solaris],
+    ["💧", "Water", water],
+  ];
+  const shown = items.filter(([, , v]) => v !== null && v !== undefined);
+  if (shown.length === 0) return null;
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground tabular-nums">
+      {shown.map(([icon, label, v]) => (
+        <span key={label} title={label} className="inline-flex items-center gap-1">
+          <span aria-hidden>{icon}</span>
+          {v}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+type PlayerForm = {
+  player_name: string;
+  leader_name: string | null;
+  placement: number;
+  spice: string;
+  solaris: string;
+  water: string;
+  is_leaver: boolean;
+};
+
+const numToStr = (n: number | null | undefined) =>
+  n === null || n === undefined ? "" : String(n);
+
+function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [endRound, setEndRound] = useState(numToStr(game.end_round));
+  const [board, setBoard] = useState<"base" | "uprising">(
+    game.board_version === "uprising" ? "uprising" : "base",
+  );
+  const [ix, setIx] = useState(game.has_rise_of_ix);
+  const [immo, setImmo] = useState(game.has_immortality);
+  const [epic, setEpic] = useState(game.has_epic_mode);
+  const [baseLeaders, setBaseLeaders] = useState(game.has_base_leaders);
+  const [players, setPlayers] = useState<PlayerForm[]>([]);
+
+  const reset = useCallback(() => {
+    setEndRound(numToStr(game.end_round));
+    setBoard(game.board_version === "uprising" ? "uprising" : "base");
+    setIx(game.has_rise_of_ix);
+    setImmo(game.has_immortality);
+    setEpic(game.has_epic_mode);
+    setBaseLeaders(game.has_base_leaders);
+    setPlayers(
+      [...game.game_results]
+        .sort((a, b) => a.placement - b.placement)
+        .map((r) => ({
+          player_name: r.player_name,
+          leader_name: r.leader_name,
+          placement: r.placement,
+          spice: numToStr(r.spice),
+          solaris: numToStr(r.solaris),
+          water: numToStr(r.water),
+          is_leaver: r.is_leaver ?? false,
+        })),
+    );
+  }, [game]);
+
+  useEffect(() => { reset(); }, [reset]);
+
+  const setPlayer = (i: number, patch: Partial<PlayerForm>) =>
+    setPlayers((ps) => ps.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const rpc = (supabase as unknown as {
+        rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
+      }).rpc;
+      const { error } = await rpc("update_match_details", {
+        p_game_id: game.id,
+        p_end_round: endRound.trim() === "" ? null : Number(endRound),
+        p_board_version: board,
+        p_has_rise_of_ix: ix,
+        p_has_epic_mode: epic,
+        p_has_immortality: immo,
+        p_has_base_leaders: baseLeaders,
+        p_players: players.map((p) => ({
+          player_name: p.player_name,
+          spice: p.spice.trim() === "" ? null : Number(p.spice),
+          solaris: p.solaris.trim() === "" ? null : Number(p.solaris),
+          water: p.water.trim() === "" ? null : Number(p.water),
+          is_leaver: p.is_leaver,
+        })),
+      });
+      if (error) throw new Error(error.message);
+      toast.success("Match details updated!");
+      setOpen(false);
+      onSaved();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save match details");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (o) reset(); }}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <Pencil className="size-4" /> Edit match details
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-display">Edit match details</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-5">
+          <section className="space-y-3">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Match settings
+            </h3>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">End round (optional)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={endRound}
+                  onChange={(e) => setEndRound(e.target.value)}
+                  placeholder="—"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Board version</Label>
+                <select
+                  value={board}
+                  onChange={(e) => setBoard(e.target.value === "uprising" ? "uprising" : "base")}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="base">Base</option>
+                  <option value="uprising">Uprising</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <ToggleRow label="Rise of Ix" checked={ix} onChange={setIx} />
+              <ToggleRow label="Immortality" checked={immo} onChange={setImmo} />
+              <ToggleRow label="Epic Mode" checked={epic} onChange={setEpic} />
+              <ToggleRow label="Base Leaders" checked={baseLeaders} onChange={setBaseLeaders} />
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Players
+            </h3>
+            {players.map((p, i) => (
+              <div key={p.player_name + i} className="rounded-md border border-border/50 p-3 space-y-3 bg-background/40">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">
+                      {p.placement}. {p.player_name}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">{p.leader_name ?? "—"}</div>
+                  </div>
+                  <ToggleRow
+                    label="Mark as leaver"
+                    checked={p.is_leaver}
+                    onChange={(v) => setPlayer(i, { is_leaver: v })}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <Label className="text-xs">🟠 Spice</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={p.spice}
+                      onChange={(e) => setPlayer(i, { spice: e.target.value })}
+                      placeholder="—"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">⚪ Solaris</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={p.solaris}
+                      onChange={(e) => setPlayer(i, { solaris: e.target.value })}
+                      placeholder="—"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">💧 Water</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={p.water}
+                      onChange={(e) => setPlayer(i, { water: e.target.value })}
+                      placeholder="—"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </section>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={save} disabled={saving}>
+              {saving && <Loader2 className="size-4 animate-spin" />} Save changes
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ToggleRow({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-sm cursor-pointer">
+      <Switch checked={checked} onCheckedChange={onChange} />
+      <span>{label}</span>
+    </label>
+  );
+}
