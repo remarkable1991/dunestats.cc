@@ -77,6 +77,8 @@ function MatchDetailsPage() {
   const [vpDeltas, setVpDeltas] = useState<Record<string, number>>({});
   const [totals, setTotals] = useState<Record<string, RatingTotals>>({});
   const [tourneyTable, setTourneyTable] = useState<{ round: string; table: string } | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const titles = usePlayerTitles();
 
   useEffect(() => {
@@ -84,7 +86,7 @@ function MatchDetailsPage() {
     (async () => {
       setLoading(true);
       const select =
-        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, image_url, tournament_num, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall)";
+        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, end_round, image_url, tournament_num, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, spice, solaris, water, is_leaver)";
       let q = supabase.from("games").select(select).limit(1);
       q = UUID_RE.test(matchId)
         ? q.or(`public_match_id.eq.${matchId},id.eq.${matchId}`)
