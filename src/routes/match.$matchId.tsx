@@ -146,7 +146,33 @@ function MatchDetailsPage() {
     return () => {
       cancelled = true;
     };
-  }, [matchId]);
+  }, [matchId, reloadKey]);
+
+  // Can the signed-in user edit this match? (admin or a participant)
+  useEffect(() => {
+    if (!game) return;
+    let cancelled = false;
+    void (async () => {
+      const { data: userRes } = await supabase.auth.getUser();
+      const uid = userRes.user?.id;
+      if (!uid) { if (!cancelled) setCanEdit(false); return; }
+      const names = new Set(game.game_results.map((r) => r.player_name.toLowerCase().trim()));
+      const [{ data: roles }, { data: prof }, { data: claimed }] = await Promise.all([
+        supabase.from("user_roles").select("role").eq("user_id", uid),
+        supabase.from("profiles").select("username").eq("id", uid).maybeSingle(),
+        supabase.from("player_ratings").select("player_key").eq("claimed_by", uid),
+      ]);
+      if (cancelled) return;
+      const isAdmin = (roles ?? []).some((r) => r.role === "admin");
+      const mine = new Set<string>();
+      if (prof?.username) mine.add(prof.username.toLowerCase().trim());
+      (claimed ?? []).forEach((r) => r.player_key && mine.add(r.player_key.toLowerCase().trim()));
+      setCanEdit(isAdmin || [...mine].some((n) => names.has(n)));
+    })();
+    return () => { cancelled = true; };
+  }, [game?.id]);
+
+
 
   const leaderSlugs = game
     ? Array.from(
