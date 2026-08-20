@@ -521,3 +521,252 @@ function relativeTime(d: Date): string {
 
 // keep notFound import usage happy for tree-shaking check
 void notFound;
+
+function ResourcePips({
+  spice,
+  solaris,
+  water,
+}: {
+  spice: number | null;
+  solaris: number | null;
+  water: number | null;
+}) {
+  const items: Array<[string, string, number | null]> = [
+    ["🟠", "Spice", spice],
+    ["⚪", "Solaris", solaris],
+    ["💧", "Water", water],
+  ];
+  const shown = items.filter(([, , v]) => v !== null && v !== undefined);
+  if (shown.length === 0) return null;
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground tabular-nums">
+      {shown.map(([icon, label, v]) => (
+        <span key={label} title={label} className="inline-flex items-center gap-1">
+          <span aria-hidden>{icon}</span>
+          {v}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+type PlayerForm = {
+  player_name: string;
+  leader_name: string | null;
+  placement: number;
+  spice: string;
+  solaris: string;
+  water: string;
+  is_leaver: boolean;
+};
+
+const numToStr = (n: number | null | undefined) =>
+  n === null || n === undefined ? "" : String(n);
+
+function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [endRound, setEndRound] = useState(numToStr(game.end_round));
+  const [board, setBoard] = useState<"base" | "uprising">(
+    game.board_version === "uprising" ? "uprising" : "base",
+  );
+  const [ix, setIx] = useState(game.has_rise_of_ix);
+  const [immo, setImmo] = useState(game.has_immortality);
+  const [epic, setEpic] = useState(game.has_epic_mode);
+  const [baseLeaders, setBaseLeaders] = useState(game.has_base_leaders);
+  const [players, setPlayers] = useState<PlayerForm[]>([]);
+
+  const reset = useCallback(() => {
+    setEndRound(numToStr(game.end_round));
+    setBoard(game.board_version === "uprising" ? "uprising" : "base");
+    setIx(game.has_rise_of_ix);
+    setImmo(game.has_immortality);
+    setEpic(game.has_epic_mode);
+    setBaseLeaders(game.has_base_leaders);
+    setPlayers(
+      [...game.game_results]
+        .sort((a, b) => a.placement - b.placement)
+        .map((r) => ({
+          player_name: r.player_name,
+          leader_name: r.leader_name,
+          placement: r.placement,
+          spice: numToStr(r.spice),
+          solaris: numToStr(r.solaris),
+          water: numToStr(r.water),
+          is_leaver: r.is_leaver ?? false,
+        })),
+    );
+  }, [game]);
+
+  useEffect(() => { reset(); }, [reset]);
+
+  const setPlayer = (i: number, patch: Partial<PlayerForm>) =>
+    setPlayers((ps) => ps.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const rpc = (supabase as unknown as {
+        rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
+      }).rpc;
+      const { error } = await rpc("update_match_details", {
+        p_game_id: game.id,
+        p_end_round: endRound.trim() === "" ? null : Number(endRound),
+        p_board_version: board,
+        p_has_rise_of_ix: ix,
+        p_has_epic_mode: epic,
+        p_has_immortality: immo,
+        p_has_base_leaders: baseLeaders,
+        p_players: players.map((p) => ({
+          player_name: p.player_name,
+          spice: p.spice.trim() === "" ? null : Number(p.spice),
+          solaris: p.solaris.trim() === "" ? null : Number(p.solaris),
+          water: p.water.trim() === "" ? null : Number(p.water),
+          is_leaver: p.is_leaver,
+        })),
+      });
+      if (error) throw new Error(error.message);
+      toast.success("Match details updated!");
+      setOpen(false);
+      onSaved();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save match details");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (o) reset(); }}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <Pencil className="size-4" /> Edit match details
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-display">Edit match details</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-5">
+          <section className="space-y-3">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Match settings
+            </h3>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">End round (optional)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={endRound}
+                  onChange={(e) => setEndRound(e.target.value)}
+                  placeholder="—"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Board version</Label>
+                <select
+                  value={board}
+                  onChange={(e) => setBoard(e.target.value === "uprising" ? "uprising" : "base")}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="base">Base</option>
+                  <option value="uprising">Uprising</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <ToggleRow label="Rise of Ix" checked={ix} onChange={setIx} />
+              <ToggleRow label="Immortality" checked={immo} onChange={setImmo} />
+              <ToggleRow label="Epic Mode" checked={epic} onChange={setEpic} />
+              <ToggleRow label="Base Leaders" checked={baseLeaders} onChange={setBaseLeaders} />
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Players
+            </h3>
+            {players.map((p, i) => (
+              <div key={p.player_name + i} className="rounded-md border border-border/50 p-3 space-y-3 bg-background/40">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">
+                      {p.placement}. {p.player_name}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">{p.leader_name ?? "—"}</div>
+                  </div>
+                  <ToggleRow
+                    label="Mark as leaver"
+                    checked={p.is_leaver}
+                    onChange={(v) => setPlayer(i, { is_leaver: v })}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <Label className="text-xs">🟠 Spice</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={p.spice}
+                      onChange={(e) => setPlayer(i, { spice: e.target.value })}
+                      placeholder="—"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">⚪ Solaris</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={p.solaris}
+                      onChange={(e) => setPlayer(i, { solaris: e.target.value })}
+                      placeholder="—"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">💧 Water</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={p.water}
+                      onChange={(e) => setPlayer(i, { water: e.target.value })}
+                      placeholder="—"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </section>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={save} disabled={saving}>
+              {saving && <Loader2 className="size-4 animate-spin" />} Save changes
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ToggleRow({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-sm cursor-pointer">
+      <Switch checked={checked} onCheckedChange={onChange} />
+      <span>{label}</span>
+    </label>
+  );
+}
