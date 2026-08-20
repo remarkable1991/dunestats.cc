@@ -360,14 +360,21 @@ function MatchDetailsPage() {
                         <div className="size-10 rounded border border-border/50 bg-card/60" />
                       )}
                       <div className="min-w-0 flex-1">
-                        <Link
-                          to="/players/$key"
-                          params={{ key }}
-                          className="block truncate font-medium hover:underline underline-offset-2"
-                          style={{ color: colorForKey(titles, r.player_name) }}
-                        >
-                          {r.player_name}
-                        </Link>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Link
+                            to="/players/$key"
+                            params={{ key }}
+                            className="block truncate font-medium hover:underline underline-offset-2"
+                            style={{ color: colorForKey(titles, r.player_name) }}
+                          >
+                            {r.player_name}
+                          </Link>
+                          {r.is_leaver && (
+                            <span className="shrink-0 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-coral/50 bg-coral/10 text-coral">
+                              Leaver
+                            </span>
+                          )}
+                        </div>
                         {leaderRoute ? (
                           <Link
                             to="/leaders/$origin/$slug"
@@ -381,7 +388,9 @@ function MatchDetailsPage() {
                             {r.leader_name ?? "—"}
                           </div>
                         )}
+                        <ResourcePips spice={r.spice} solaris={r.solaris} water={r.water} />
                       </div>
+
                       <div className="text-right">
                         <div className="font-display text-sand text-2xl tabular-nums leading-none">
                           {r.points}
