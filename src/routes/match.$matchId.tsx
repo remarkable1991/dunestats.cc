@@ -37,6 +37,10 @@ type ResultRow = {
   points: number;
   elo_delta: number | null;
   elo_delta_overall: number | null;
+  spice: number | null;
+  solaris: number | null;
+  water: number | null;
+  is_leaver: boolean | null;
 };
 
 type RatingTotals = {
@@ -55,6 +59,7 @@ type GameRow = {
   has_epic_mode: boolean;
   has_immortality: boolean;
   has_base_leaders: boolean;
+  end_round: number | null;
   image_url: string | null;
   tournament_num: number | null;
   game_results: ResultRow[];
