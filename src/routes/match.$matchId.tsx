@@ -282,6 +282,7 @@ function MatchDetailsPage() {
   if (game.has_epic_mode) tags.push("Epic");
   if (game.has_immortality) tags.push("Immortality");
   if (game.has_base_leaders) tags.push("Base Leaders");
+  if (game.end_round !== null && game.end_round !== undefined) tags.push(`Round ${game.end_round}`);
 
   const created = new Date(game.created_at);
 
@@ -303,10 +304,16 @@ function MatchDetailsPage() {
               {created.toLocaleString()} · {relativeTime(created)}
             </p>
           </div>
-          <Button variant="outline" onClick={copyLink}>
-            <Copy className="size-4" /> Copy link
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={copyLink}>
+              <Copy className="size-4" /> Copy link
+            </Button>
+            {canEdit && (
+              <EditMatchDialog game={game} onSaved={() => setReloadKey((k) => k + 1)} />
+            )}
+          </div>
         </div>
+
 
         <div className="flex flex-wrap items-center gap-2 mb-6">
           <TournamentTag num={game.tournament_num} round={tourneyTable?.round} table={tourneyTable?.table} />
