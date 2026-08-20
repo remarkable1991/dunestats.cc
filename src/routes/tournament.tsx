@@ -2015,7 +2015,7 @@ function CurrentTournamentsHub() {
                 live ? "text-teal" : "text-coral"
               }`}
             >
-              Enter tournament →
+              VIEW TOURNAMENT →
             </div>
           </button>
           );
