@@ -158,6 +158,9 @@ export function useNotifications() {
         supabase.rpc("dismiss_user_notification", { p_notification_type: type, p_reference_id: ref }),
       ),
     );
+    // Small events ("since your last login") are derived from the last sign-in
+    // trace, so move the trace forward or they come back on the next load.
+    await supabase.rpc("touch_last_sign_in");
   }, [data]);
 
   const unreadCount =
