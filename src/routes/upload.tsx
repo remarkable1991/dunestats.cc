@@ -24,7 +24,7 @@ import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 
 const TOURNAMENT_ROUND_OPTIONS = ["Game 1", "Game 2", "Game 3", "Finals"] as const;
 const TOURNAMENT_TABLE_OPTIONS = [
-  "Table 1","Table 2","Table 3","Table 4","Table 5","Table 6","Table 7",
+  ...Array.from({ length: 12 }, (_, i) => `Table ${i + 1}`),
   "Semi Final 1","Semi Final 2","Grand Final!",
 ];
 
@@ -617,7 +617,7 @@ function UploadPage() {
                             <Select value={tRound} onValueChange={setTRound}>
                               <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
-                                {TOURNAMENT_ROUND_OPTIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                                {Array.from(new Set([...TOURNAMENT_ROUND_OPTIONS, tRound].filter(Boolean) as string[])).map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                               </SelectContent>
                             </Select>
                           </div>
@@ -626,7 +626,7 @@ function UploadPage() {
                             <Select value={tTable} onValueChange={setTTable}>
                               <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
-                                {TOURNAMENT_TABLE_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                {Array.from(new Set([...TOURNAMENT_TABLE_OPTIONS, tTable].filter(Boolean) as string[])).map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                               </SelectContent>
                             </Select>
                           </div>
