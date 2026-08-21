@@ -24,7 +24,7 @@ import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 
 const TOURNAMENT_ROUND_OPTIONS = ["Game 1", "Game 2", "Game 3", "Finals"] as const;
 const TOURNAMENT_TABLE_OPTIONS = [
-  "Table 1","Table 2","Table 3","Table 4","Table 5","Table 6","Table 7",
+  ...Array.from({ length: 12 }, (_, i) => `Table ${i + 1}`),
   "Semi Final 1","Semi Final 2","Grand Final!",
 ];
 
