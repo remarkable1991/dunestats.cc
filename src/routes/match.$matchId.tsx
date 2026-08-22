@@ -859,3 +859,144 @@ function ToggleRow({
     </label>
   );
 }
+
+function AgentSilhouettes({ count, hex }: { count: number; hex: string }) {
+  return (
+    <span className="flex items-center gap-1" title={`${count} agents`}>
+      {Array.from({ length: count }).map((_, i) => (
+        <span
+          key={i}
+          className="block size-2.5 rounded-t-full rounded-b-sm"
+          style={{ backgroundColor: hex, opacity: 0.85 }}
+        />
+      ))}
+    </span>
+  );
+}
+
+/** Section A — Landsraad bar: High Council seats + Swordmaster recruits. */
+function LandsraadBar({ players }: { players: ResultRow[] }) {
+  const council = players.filter((p) => p.has_high_council);
+  const sword = players.filter((p) => p.has_swordmaster);
+  const seats = Array.from({ length: 4 }, (_, i) => council[i] ?? null);
+  return (
+    <Card className="mb-6 p-4 border-border/60 bg-card/70">
+      <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
+        <div>
+          <h2 className="font-display text-sm uppercase tracking-wider text-muted-foreground mb-2">
+            High Council
+          </h2>
+          <div className="flex flex-wrap gap-3">
+            {seats.map((p, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span
+                  className="size-9 rounded-full flex items-center justify-center text-[10px] font-display"
+                  style={
+                    p
+                      ? { backgroundColor: colorHex(p.player_color), color: "#0b0b0b" }
+                      : { border: "1px dashed hsl(var(--border))", color: "hsl(var(--muted-foreground))" }
+                  }
+                >
+                  {i + 1}
+                </span>
+                <span className="text-xs text-muted-foreground max-w-[9rem] truncate">
+                  {p ? p.player_name : "Empty seat"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="md:border-l md:border-border/50 md:pl-4">
+          <h2 className="font-display text-sm uppercase tracking-wider text-muted-foreground mb-2">
+            Swordmaster
+          </h2>
+          {sword.length === 0 ? (
+            <div className="text-xs text-muted-foreground">None recruited</div>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              {sword.map((p, i) => (
+                <div key={i} className="flex items-center gap-1.5 text-xs">
+                  <ShieldCheck className="size-4" style={{ color: colorHex(p.player_color) }} />
+                  <span className="max-w-[9rem] truncate">{p.player_name}</span>
+                  <AgentSilhouettes count={3} hex={colorHex(p.player_color)} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+/** Section C — conflict card with the four board quadrants. */
+function ConflictCard({
+  players,
+  title,
+  endRound,
+  portraits,
+}: {
+  players: ResultRow[];
+  title: string | null;
+  endRound: number | null;
+  portraits: Record<string, string | null>;
+}) {
+  const bySlot = (slot: number) =>
+    players.find((p) => p.player_slot === slot) ?? players[slot - 1] ?? null;
+  const quads = [bySlot(1), bySlot(2), bySlot(4), bySlot(3)];
+  const anyCombat = players.some(
+    (p) => p.combat_strength !== null || p.garrison_troops !== null,
+  );
+  if (!title && !anyCombat) return null;
+  return (
+    <Card className="p-4 border-border/60 bg-card/70 w-full md:w-[26rem]">
+      <div className="mb-3">
+        <h2 className="font-display text-lg leading-tight">{title ?? "Conflict"}</h2>
+        {endRound !== null && endRound !== undefined && (
+          <div className="text-xs text-muted-foreground">Round {endRound} of 10</div>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {quads.map((p, i) => {
+          if (!p) {
+            return (
+              <div key={i} className="rounded border border-dashed border-border/50 h-20" />
+            );
+          }
+          const route = p.leader_name ? leaderRouteFor(p.leader_name) : null;
+          const portrait = route ? portraits[route.slug] : null;
+          const hex = colorHex(p.player_color);
+          return (
+            <div
+              key={i}
+              className="rounded border border-border/50 bg-background/40 p-2 flex items-center gap-2"
+              style={{ borderLeft: `3px solid ${hex}` }}
+            >
+              <div className="size-9 rounded overflow-hidden bg-card/60 shrink-0">
+                {portrait && (
+                  <SupabaseImage bucket="leader-portraits" src={portrait} alt="" className="w-full h-full object-cover" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs truncate">{p.player_name}</div>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded border border-red-500/50 bg-red-500/15 text-red-300 px-1.5 py-0.5 text-[11px] tabular-nums">
+                    <Swords className="size-3" />
+                    {p.combat_strength ?? 0}
+                  </span>
+                  <span
+                    className="inline-flex items-center gap-1 text-[11px] tabular-nums text-muted-foreground"
+                    title="Garrison troops"
+                  >
+                    <span className="size-2.5 rounded-[2px]" style={{ backgroundColor: hex }} />
+                    {p.garrison_troops ?? 0}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
