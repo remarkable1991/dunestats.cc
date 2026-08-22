@@ -350,12 +350,28 @@ function MatchDetailsPage() {
 
         <div className="flex flex-wrap items-center gap-2 mb-6">
           <TournamentTag num={game.tournament_num} round={tourneyTable?.round} table={tourneyTable?.table} />
+          {game.ai_scan_status === "Yes" && (
+            <span className="text-xs px-2 py-0.5 rounded border border-emerald-500/50 bg-emerald-500/10 text-emerald-400">
+              ✓ AI Verified
+            </span>
+          )}
+          {game.ai_scan_status === "Issue detected" && (
+            <span
+              title={game.ai_scan_summary ?? "Scan review needed"}
+              className="text-xs px-2 py-0.5 rounded border border-amber-500/50 bg-amber-500/10 text-amber-400 cursor-help"
+            >
+              ⚠ Scan Review Needed
+            </span>
+          )}
           {tags.map((t) => (
             <span key={t} className="text-xs px-2 py-0.5 rounded bg-secondary/60 text-secondary-foreground">
               {t}
             </span>
           ))}
         </div>
+
+        <LandsraadBar players={bySlot} />
+
 
         <div className="grid gap-6 md:grid-cols-[1fr_auto]">
           <Card className="p-4 border-border/60 bg-card/70">
