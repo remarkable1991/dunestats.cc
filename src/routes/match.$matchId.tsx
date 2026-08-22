@@ -463,12 +463,20 @@ function MatchDetailsPage() {
                         <ResourcePips spice={r.spice} solaris={r.solaris} water={r.water} />
                       </div>
 
-                      <div className="text-right">
-                        <div className="font-display text-sand text-2xl tabular-nums leading-none">
-                          {r.points}
+                      <div className="flex flex-col items-end gap-1">
+                        <AgentSilhouettes count={r.has_swordmaster ? 3 : 2} hex={hex} />
+                        <div className="flex items-center gap-2">
+                          {r.turn_order !== null && r.turn_order !== undefined && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-border/60 text-muted-foreground">
+                              Seat {r.turn_order}
+                            </span>
+                          )}
+                          <span className="size-11 rounded-full border-2 border-sand/70 bg-sand/10 flex items-center justify-center font-display text-sand text-xl tabular-nums">
+                            {r.points}
+                          </span>
                         </div>
-                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">VP</div>
                       </div>
+
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] tabular-nums">
                       <EloTrack label="All" delta={r.elo_delta_overall} total={t?.overall ?? null} />
