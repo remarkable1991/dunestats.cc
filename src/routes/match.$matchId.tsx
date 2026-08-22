@@ -375,39 +375,62 @@ function MatchDetailsPage() {
 
         <div className="grid gap-6 md:grid-cols-[1fr_auto]">
           <Card className="p-4 border-border/60 bg-card/70">
-            <h2 className="font-display text-lg mb-3">Results</h2>
+            <h2 className="font-display text-lg mb-3">Players</h2>
             <div className="space-y-2">
-              {sorted.map((r, i) => {
+              {bySlot.map((r, i) => {
                 const leaderRoute = r.leader_name ? leaderRouteFor(r.leader_name) : null;
                 const portrait = leaderRoute ? portraits[leaderRoute.slug] : null;
                 const key = r.player_name.toLowerCase().trim();
                 const t = totals[key];
                 const vpDelta = vpDeltas[key];
+                const hex = colorHex(r.player_color);
                 return (
                   <div
                     key={i}
-                    className="border border-border/40 rounded px-3 py-2 bg-background/40"
+                    className="border border-border/40 rounded px-3 py-2 bg-background/40 border-l-4"
+                    style={{ borderLeftColor: hex }}
                   >
                     <div className="flex items-center gap-3">
                       <PlacementBadge placement={r.placement} />
-                      {leaderRoute ? (
-                        <Link
-                          to="/leaders/$origin/$slug"
-                          params={{ origin: leaderRoute.origin, slug: leaderRoute.slug }}
-                          className="shrink-0"
-                          title={r.leader_name ?? ""}
-                        >
-                          <div className="size-10 rounded overflow-hidden border border-border/50 bg-card/60">
-                            {portrait ? (
-                              <SupabaseImage bucket="leader-portraits" src={portrait} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full" />
-                            )}
+                      <div className="relative shrink-0">
+                        {leaderRoute ? (
+                          <Link
+                            to="/leaders/$origin/$slug"
+                            params={{ origin: leaderRoute.origin, slug: leaderRoute.slug }}
+                            className="block"
+                            title={r.leader_name ?? ""}
+                          >
+                            <div
+                              className="size-11 rounded-full overflow-hidden bg-card/60"
+                              style={{ boxShadow: `0 0 0 2px ${hex}, 0 0 10px ${hex}66` }}
+                            >
+                              {portrait ? (
+                                <SupabaseImage bucket="leader-portraits" src={portrait} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                  <Swords className="size-4" />
+                                </div>
+                              )}
+                            </div>
+                          </Link>
+                        ) : (
+                          <div
+                            className="size-11 rounded-full bg-card/60 flex items-center justify-center text-muted-foreground"
+                            style={{ boxShadow: `0 0 0 2px ${hex}` }}
+                          >
+                            <Swords className="size-4" />
                           </div>
-                        </Link>
-                      ) : (
-                        <div className="size-10 rounded border border-border/50 bg-card/60" />
-                      )}
+                        )}
+                        {r.has_first_player && (
+                          <span
+                            title="First player"
+                            className="absolute -top-1 -left-1 size-4 rounded-full bg-[#b87333] border border-amber-200/60 text-[8px] flex items-center justify-center text-amber-50"
+                          >
+                            1
+                          </span>
+                        )}
+                      </div>
+
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 min-w-0">
                           <Link
