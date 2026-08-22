@@ -82,48 +82,72 @@ export type Database = {
       }
       game_results: {
         Row: {
+          combat_strength: number | null
           created_at: string
           elo_delta: number
           elo_delta_overall: number
           game_id: string
+          garrison_troops: number | null
+          has_first_player: boolean | null
+          has_high_council: boolean | null
+          has_swordmaster: boolean | null
           id: string
           is_leaver: boolean | null
           leader_name: string | null
           placement: number
+          player_color: string | null
           player_name: string
+          player_slot: number | null
           points: number
           solaris: number | null
           spice: number | null
+          turn_order: number | null
           water: number | null
         }
         Insert: {
+          combat_strength?: number | null
           created_at?: string
           elo_delta?: number
           elo_delta_overall?: number
           game_id: string
+          garrison_troops?: number | null
+          has_first_player?: boolean | null
+          has_high_council?: boolean | null
+          has_swordmaster?: boolean | null
           id?: string
           is_leaver?: boolean | null
           leader_name?: string | null
           placement: number
+          player_color?: string | null
           player_name: string
+          player_slot?: number | null
           points?: number
           solaris?: number | null
           spice?: number | null
+          turn_order?: number | null
           water?: number | null
         }
         Update: {
+          combat_strength?: number | null
           created_at?: string
           elo_delta?: number
           elo_delta_overall?: number
           game_id?: string
+          garrison_troops?: number | null
+          has_first_player?: boolean | null
+          has_high_council?: boolean | null
+          has_swordmaster?: boolean | null
           id?: string
           is_leaver?: boolean | null
           leader_name?: string | null
           placement?: number
+          player_color?: string | null
           player_name?: string
+          player_slot?: number | null
           points?: number
           solaris?: number | null
           spice?: number | null
+          turn_order?: number | null
           water?: number | null
         }
         Relationships: [
@@ -138,8 +162,11 @@ export type Database = {
       }
       games: {
         Row: {
+          ai_scan_status: string | null
+          ai_scan_summary: string | null
           announced_to_discord: boolean | null
           board_version: string | null
+          conflict_title: string | null
           created_at: string
           created_by: string | null
           end_round: number | null
@@ -155,8 +182,11 @@ export type Database = {
           tournament_num: number | null
         }
         Insert: {
+          ai_scan_status?: string | null
+          ai_scan_summary?: string | null
           announced_to_discord?: boolean | null
           board_version?: string | null
+          conflict_title?: string | null
           created_at?: string
           created_by?: string | null
           end_round?: number | null
@@ -172,8 +202,11 @@ export type Database = {
           tournament_num?: number | null
         }
         Update: {
+          ai_scan_status?: string | null
+          ai_scan_summary?: string | null
           announced_to_discord?: boolean | null
           board_version?: string | null
+          conflict_title?: string | null
           created_at?: string
           created_by?: string | null
           end_round?: number | null
