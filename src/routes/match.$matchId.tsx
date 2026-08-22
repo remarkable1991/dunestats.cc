@@ -41,6 +41,14 @@ type ResultRow = {
   solaris: number | null;
   water: number | null;
   is_leaver: boolean | null;
+  player_slot: number | null;
+  turn_order: number | null;
+  player_color: "Green" | "Yellow" | "Red" | "Blue" | string | null;
+  has_first_player: boolean | null;
+  has_high_council: boolean | null;
+  has_swordmaster: boolean | null;
+  combat_strength: number | null;
+  garrison_troops: number | null;
 };
 
 type RatingTotals = {
@@ -62,8 +70,23 @@ type GameRow = {
   end_round: number | null;
   image_url: string | null;
   tournament_num: number | null;
+  conflict_title: string | null;
+  ai_scan_status: "Yes" | "No" | "Issue detected" | string | null;
+  ai_scan_summary: string | null;
   game_results: ResultRow[];
 };
+
+const PLAYER_COLORS: Record<string, string> = {
+  green: "#22c55e",
+  yellow: "#eab308",
+  red: "#ef4444",
+  blue: "#3b82f6",
+};
+
+function colorHex(c: string | null | undefined): string {
+  return PLAYER_COLORS[(c ?? "").toLowerCase().trim()] ?? "#8b8b8b";
+}
+
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
