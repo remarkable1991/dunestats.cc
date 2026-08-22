@@ -1222,6 +1222,7 @@ export type Database = {
       update_match_details: {
         Args: {
           p_board_version: string
+          p_conflict_title?: string
           p_end_round: number
           p_game_id: string
           p_has_base_leaders: boolean

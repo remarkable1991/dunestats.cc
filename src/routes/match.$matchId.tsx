@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Copy, Link as LinkIcon, Trophy, Medal, Award, Maximize2, Loader2, ArrowLeft, Pencil } from "lucide-react";
+import { Copy, Link as LinkIcon, Trophy, Medal, Award, Maximize2, Loader2, ArrowLeft, Pencil, Swords, ShieldCheck } from "lucide-react";
 import { TournamentTag } from "@/components/EloDelta";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
@@ -41,6 +41,14 @@ type ResultRow = {
   solaris: number | null;
   water: number | null;
   is_leaver: boolean | null;
+  player_slot: number | null;
+  turn_order: number | null;
+  player_color: "Green" | "Yellow" | "Red" | "Blue" | string | null;
+  has_first_player: boolean | null;
+  has_high_council: boolean | null;
+  has_swordmaster: boolean | null;
+  combat_strength: number | null;
+  garrison_troops: number | null;
 };
 
 type RatingTotals = {
@@ -62,8 +70,23 @@ type GameRow = {
   end_round: number | null;
   image_url: string | null;
   tournament_num: number | null;
+  conflict_title: string | null;
+  ai_scan_status: "Yes" | "No" | "Issue detected" | string | null;
+  ai_scan_summary: string | null;
   game_results: ResultRow[];
 };
+
+const PLAYER_COLORS: Record<string, string> = {
+  green: "#22c55e",
+  yellow: "#eab308",
+  red: "#ef4444",
+  blue: "#3b82f6",
+};
+
+function colorHex(c: string | null | undefined): string {
+  return PLAYER_COLORS[(c ?? "").toLowerCase().trim()] ?? "#8b8b8b";
+}
+
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -86,7 +109,7 @@ function MatchDetailsPage() {
     (async () => {
       setLoading(true);
       const select =
-        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, end_round, image_url, tournament_num, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, spice, solaris, water, is_leaver)";
+        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, end_round, image_url, tournament_num, conflict_title, ai_scan_status, ai_scan_summary, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, spice, solaris, water, is_leaver, player_slot, turn_order, player_color, has_first_player, has_high_council, has_swordmaster, combat_strength, garrison_troops)";
       let q = supabase.from("games").select(select).limit(1);
       q = UUID_RE.test(matchId)
         ? q.or(`public_match_id.eq.${matchId},id.eq.${matchId}`)
@@ -274,7 +297,9 @@ function MatchDetailsPage() {
   }
 
   const displayId = game.public_match_id ?? game.id;
-  const sorted = [...game.game_results].sort((a, b) => a.placement - b.placement);
+  const bySlot = [...game.game_results].sort(
+    (a, b) => (a.player_slot ?? a.placement) - (b.player_slot ?? b.placement),
+  );
 
   const tags: string[] = [];
   if (game.board_version) tags.push(game.board_version === "uprising" ? "Uprising" : "Base");
@@ -282,7 +307,14 @@ function MatchDetailsPage() {
   if (game.has_epic_mode) tags.push("Epic");
   if (game.has_immortality) tags.push("Immortality");
   if (game.has_base_leaders) tags.push("Base Leaders");
-  if (game.end_round !== null && game.end_round !== undefined) tags.push(`Round ${game.end_round}`);
+  const roundTag =
+    game.end_round !== null && game.end_round !== undefined
+      ? game.conflict_title
+        ? `Round ${game.end_round} · ${game.conflict_title}`
+        : `Round ${game.end_round}`
+      : game.conflict_title;
+  if (roundTag) tags.push(roundTag);
+
 
   const created = new Date(game.created_at);
 
@@ -317,6 +349,19 @@ function MatchDetailsPage() {
 
         <div className="flex flex-wrap items-center gap-2 mb-6">
           <TournamentTag num={game.tournament_num} round={tourneyTable?.round} table={tourneyTable?.table} />
+          {game.ai_scan_status === "Yes" && (
+            <span className="text-xs px-2 py-0.5 rounded border border-emerald-500/50 bg-emerald-500/10 text-emerald-400">
+              ✓ AI Verified
+            </span>
+          )}
+          {game.ai_scan_status === "Issue detected" && (
+            <span
+              title={game.ai_scan_summary ?? "Scan review needed"}
+              className="text-xs px-2 py-0.5 rounded border border-amber-500/50 bg-amber-500/10 text-amber-400 cursor-help"
+            >
+              ⚠ Scan Review Needed
+            </span>
+          )}
           {tags.map((t) => (
             <span key={t} className="text-xs px-2 py-0.5 rounded bg-secondary/60 text-secondary-foreground">
               {t}
@@ -324,41 +369,67 @@ function MatchDetailsPage() {
           ))}
         </div>
 
+        <LandsraadBar players={bySlot} />
+
+
         <div className="grid gap-6 md:grid-cols-[1fr_auto]">
           <Card className="p-4 border-border/60 bg-card/70">
-            <h2 className="font-display text-lg mb-3">Results</h2>
+            <h2 className="font-display text-lg mb-3">Players</h2>
             <div className="space-y-2">
-              {sorted.map((r, i) => {
+              {bySlot.map((r, i) => {
                 const leaderRoute = r.leader_name ? leaderRouteFor(r.leader_name) : null;
                 const portrait = leaderRoute ? portraits[leaderRoute.slug] : null;
                 const key = r.player_name.toLowerCase().trim();
                 const t = totals[key];
                 const vpDelta = vpDeltas[key];
+                const hex = colorHex(r.player_color);
                 return (
                   <div
                     key={i}
-                    className="border border-border/40 rounded px-3 py-2 bg-background/40"
+                    className="border border-border/40 rounded px-3 py-2 bg-background/40 border-l-4"
+                    style={{ borderLeftColor: hex }}
                   >
                     <div className="flex items-center gap-3">
                       <PlacementBadge placement={r.placement} />
-                      {leaderRoute ? (
-                        <Link
-                          to="/leaders/$origin/$slug"
-                          params={{ origin: leaderRoute.origin, slug: leaderRoute.slug }}
-                          className="shrink-0"
-                          title={r.leader_name ?? ""}
-                        >
-                          <div className="size-10 rounded overflow-hidden border border-border/50 bg-card/60">
-                            {portrait ? (
-                              <SupabaseImage bucket="leader-portraits" src={portrait} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full" />
-                            )}
+                      <div className="relative shrink-0">
+                        {leaderRoute ? (
+                          <Link
+                            to="/leaders/$origin/$slug"
+                            params={{ origin: leaderRoute.origin, slug: leaderRoute.slug }}
+                            className="block"
+                            title={r.leader_name ?? ""}
+                          >
+                            <div
+                              className="size-11 rounded-full overflow-hidden bg-card/60"
+                              style={{ boxShadow: `0 0 0 2px ${hex}, 0 0 10px ${hex}66` }}
+                            >
+                              {portrait ? (
+                                <SupabaseImage bucket="leader-portraits" src={portrait} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                  <Swords className="size-4" />
+                                </div>
+                              )}
+                            </div>
+                          </Link>
+                        ) : (
+                          <div
+                            className="size-11 rounded-full bg-card/60 flex items-center justify-center text-muted-foreground"
+                            style={{ boxShadow: `0 0 0 2px ${hex}` }}
+                          >
+                            <Swords className="size-4" />
                           </div>
-                        </Link>
-                      ) : (
-                        <div className="size-10 rounded border border-border/50 bg-card/60" />
-                      )}
+                        )}
+                        {r.has_first_player && (
+                          <span
+                            title="First player"
+                            className="absolute -top-1 -left-1 size-4 rounded-full bg-[#b87333] border border-amber-200/60 text-[8px] flex items-center justify-center text-amber-50"
+                          >
+                            1
+                          </span>
+                        )}
+                      </div>
+
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 min-w-0">
                           <Link
@@ -391,12 +462,20 @@ function MatchDetailsPage() {
                         <ResourcePips spice={r.spice} solaris={r.solaris} water={r.water} />
                       </div>
 
-                      <div className="text-right">
-                        <div className="font-display text-sand text-2xl tabular-nums leading-none">
-                          {r.points}
+                      <div className="flex flex-col items-end gap-1">
+                        <AgentSilhouettes count={r.has_swordmaster ? 3 : 2} hex={hex} />
+                        <div className="flex items-center gap-2">
+                          {r.turn_order !== null && r.turn_order !== undefined && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-border/60 text-muted-foreground">
+                              Seat {r.turn_order}
+                            </span>
+                          )}
+                          <span className="size-11 rounded-full border-2 border-sand/70 bg-sand/10 flex items-center justify-center font-display text-sand text-xl tabular-nums">
+                            {r.points}
+                          </span>
                         </div>
-                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">VP</div>
                       </div>
+
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] tabular-nums">
                       <EloTrack label="All" delta={r.elo_delta_overall} total={t?.overall ?? null} />
@@ -440,6 +519,16 @@ function MatchDetailsPage() {
             </Card>
           )}
         </div>
+
+        <div className="mt-6 flex justify-end">
+          <ConflictCard
+            players={bySlot}
+            title={game.conflict_title}
+            endRound={game.end_round}
+            portraits={portraits}
+          />
+        </div>
+
       </div>
     </div>
   );
@@ -558,6 +647,14 @@ type PlayerForm = {
   solaris: string;
   water: string;
   is_leaver: boolean;
+  player_color: string;
+  player_slot: string;
+  turn_order: string;
+  has_first_player: boolean;
+  has_high_council: boolean;
+  has_swordmaster: boolean;
+  combat_strength: string;
+  garrison_troops: string;
 };
 
 const numToStr = (n: number | null | undefined) =>
@@ -574,6 +671,7 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
   const [immo, setImmo] = useState(game.has_immortality);
   const [epic, setEpic] = useState(game.has_epic_mode);
   const [baseLeaders, setBaseLeaders] = useState(game.has_base_leaders);
+  const [conflictTitle, setConflictTitle] = useState(game.conflict_title ?? "");
   const [players, setPlayers] = useState<PlayerForm[]>([]);
 
   const reset = useCallback(() => {
@@ -583,6 +681,7 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
     setImmo(game.has_immortality);
     setEpic(game.has_epic_mode);
     setBaseLeaders(game.has_base_leaders);
+    setConflictTitle(game.conflict_title ?? "");
     setPlayers(
       [...game.game_results]
         .sort((a, b) => a.placement - b.placement)
@@ -594,6 +693,14 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
           solaris: numToStr(r.solaris),
           water: numToStr(r.water),
           is_leaver: r.is_leaver ?? false,
+          player_color: r.player_color ?? "",
+          player_slot: numToStr(r.player_slot),
+          turn_order: numToStr(r.turn_order),
+          has_first_player: r.has_first_player ?? false,
+          has_high_council: r.has_high_council ?? false,
+          has_swordmaster: r.has_swordmaster ?? false,
+          combat_strength: numToStr(r.combat_strength),
+          garrison_troops: numToStr(r.garrison_troops),
         })),
     );
   }, [game]);
@@ -617,12 +724,21 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
         p_has_epic_mode: epic,
         p_has_immortality: immo,
         p_has_base_leaders: baseLeaders,
+        p_conflict_title: conflictTitle.trim() === "" ? null : conflictTitle.trim(),
         p_players: players.map((p) => ({
           player_name: p.player_name,
           spice: p.spice.trim() === "" ? null : Number(p.spice),
           solaris: p.solaris.trim() === "" ? null : Number(p.solaris),
           water: p.water.trim() === "" ? null : Number(p.water),
           is_leaver: p.is_leaver,
+          player_color: p.player_color || null,
+          player_slot: p.player_slot.trim() === "" ? null : Number(p.player_slot),
+          turn_order: p.turn_order.trim() === "" ? null : Number(p.turn_order),
+          has_first_player: p.has_first_player,
+          has_high_council: p.has_high_council,
+          has_swordmaster: p.has_swordmaster,
+          combat_strength: p.combat_strength.trim() === "" ? null : Number(p.combat_strength),
+          garrison_troops: p.garrison_troops.trim() === "" ? null : Number(p.garrison_troops),
         })),
       });
       if (error) throw new Error(error.message);
@@ -677,6 +793,15 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
                 </select>
               </div>
             </div>
+            <div>
+              <Label className="text-xs">Conflict title</Label>
+              <Input
+                value={conflictTitle}
+                onChange={(e) => setConflictTitle(e.target.value)}
+                placeholder="e.g. Battle for Imperial Basin"
+              />
+            </div>
+
             <div className="grid sm:grid-cols-2 gap-3">
               <ToggleRow label="Rise of Ix" checked={ix} onChange={setIx} />
               <ToggleRow label="Immortality" checked={immo} onChange={setImmo} />
@@ -736,7 +861,83 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <Label className="text-xs">Colour</Label>
+                    <select
+                      value={p.player_color}
+                      onChange={(e) => setPlayer(i, { player_color: e.target.value })}
+                      className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                    >
+                      <option value="">—</option>
+                      <option value="Green">Green</option>
+                      <option value="Yellow">Yellow</option>
+                      <option value="Red">Red</option>
+                      <option value="Blue">Blue</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Slot</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={4}
+                      value={p.player_slot}
+                      onChange={(e) => setPlayer(i, { player_slot: e.target.value })}
+                      placeholder="—"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Turn order</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={4}
+                      value={p.turn_order}
+                      onChange={(e) => setPlayer(i, { turn_order: e.target.value })}
+                      placeholder="—"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">⚔ Combat</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={p.combat_strength}
+                      onChange={(e) => setPlayer(i, { combat_strength: e.target.value })}
+                      placeholder="—"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Garrison</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={p.garrison_troops}
+                      onChange={(e) => setPlayer(i, { garrison_troops: e.target.value })}
+                      placeholder="—"
+                    />
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-3 gap-2">
+                  <ToggleRow
+                    label="First player"
+                    checked={p.has_first_player}
+                    onChange={(v) => setPlayer(i, { has_first_player: v })}
+                  />
+                  <ToggleRow
+                    label="High Council"
+                    checked={p.has_high_council}
+                    onChange={(v) => setPlayer(i, { has_high_council: v })}
+                  />
+                  <ToggleRow
+                    label="Swordmaster"
+                    checked={p.has_swordmaster}
+                    onChange={(v) => setPlayer(i, { has_swordmaster: v })}
+                  />
+                </div>
               </div>
+
             ))}
           </section>
 
@@ -768,5 +969,146 @@ function ToggleRow({
       <Switch checked={checked} onCheckedChange={onChange} />
       <span>{label}</span>
     </label>
+  );
+}
+
+function AgentSilhouettes({ count, hex }: { count: number; hex: string }) {
+  return (
+    <span className="flex items-center gap-1" title={`${count} agents`}>
+      {Array.from({ length: count }).map((_, i) => (
+        <span
+          key={i}
+          className="block size-2.5 rounded-t-full rounded-b-sm"
+          style={{ backgroundColor: hex, opacity: 0.85 }}
+        />
+      ))}
+    </span>
+  );
+}
+
+/** Section A — Landsraad bar: High Council seats + Swordmaster recruits. */
+function LandsraadBar({ players }: { players: ResultRow[] }) {
+  const council = players.filter((p) => p.has_high_council);
+  const sword = players.filter((p) => p.has_swordmaster);
+  const seats = Array.from({ length: 4 }, (_, i) => council[i] ?? null);
+  return (
+    <Card className="mb-6 p-4 border-border/60 bg-card/70">
+      <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
+        <div>
+          <h2 className="font-display text-sm uppercase tracking-wider text-muted-foreground mb-2">
+            High Council
+          </h2>
+          <div className="flex flex-wrap gap-3">
+            {seats.map((p, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span
+                  className="size-9 rounded-full flex items-center justify-center text-[10px] font-display"
+                  style={
+                    p
+                      ? { backgroundColor: colorHex(p.player_color), color: "#0b0b0b" }
+                      : { border: "1px dashed hsl(var(--border))", color: "hsl(var(--muted-foreground))" }
+                  }
+                >
+                  {i + 1}
+                </span>
+                <span className="text-xs text-muted-foreground max-w-[9rem] truncate">
+                  {p ? p.player_name : "Empty seat"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="md:border-l md:border-border/50 md:pl-4">
+          <h2 className="font-display text-sm uppercase tracking-wider text-muted-foreground mb-2">
+            Swordmaster
+          </h2>
+          {sword.length === 0 ? (
+            <div className="text-xs text-muted-foreground">None recruited</div>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              {sword.map((p, i) => (
+                <div key={i} className="flex items-center gap-1.5 text-xs">
+                  <ShieldCheck className="size-4" style={{ color: colorHex(p.player_color) }} />
+                  <span className="max-w-[9rem] truncate">{p.player_name}</span>
+                  <AgentSilhouettes count={3} hex={colorHex(p.player_color)} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+/** Section C — conflict card with the four board quadrants. */
+function ConflictCard({
+  players,
+  title,
+  endRound,
+  portraits,
+}: {
+  players: ResultRow[];
+  title: string | null;
+  endRound: number | null;
+  portraits: Record<string, string | null>;
+}) {
+  const bySlot = (slot: number) =>
+    players.find((p) => p.player_slot === slot) ?? players[slot - 1] ?? null;
+  const quads = [bySlot(1), bySlot(2), bySlot(4), bySlot(3)];
+  const anyCombat = players.some(
+    (p) => p.combat_strength !== null || p.garrison_troops !== null,
+  );
+  if (!title && !anyCombat) return null;
+  return (
+    <Card className="p-4 border-border/60 bg-card/70 w-full md:w-[26rem]">
+      <div className="mb-3">
+        <h2 className="font-display text-lg leading-tight">{title ?? "Conflict"}</h2>
+        {endRound !== null && endRound !== undefined && (
+          <div className="text-xs text-muted-foreground">Round {endRound} of 10</div>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {quads.map((p, i) => {
+          if (!p) {
+            return (
+              <div key={i} className="rounded border border-dashed border-border/50 h-20" />
+            );
+          }
+          const route = p.leader_name ? leaderRouteFor(p.leader_name) : null;
+          const portrait = route ? portraits[route.slug] : null;
+          const hex = colorHex(p.player_color);
+          return (
+            <div
+              key={i}
+              className="rounded border border-border/50 bg-background/40 p-2 flex items-center gap-2"
+              style={{ borderLeft: `3px solid ${hex}` }}
+            >
+              <div className="size-9 rounded overflow-hidden bg-card/60 shrink-0">
+                {portrait && (
+                  <SupabaseImage bucket="leader-portraits" src={portrait} alt="" className="w-full h-full object-cover" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs truncate">{p.player_name}</div>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded border border-red-500/50 bg-red-500/15 text-red-300 px-1.5 py-0.5 text-[11px] tabular-nums">
+                    <Swords className="size-3" />
+                    {p.combat_strength ?? 0}
+                  </span>
+                  <span
+                    className="inline-flex items-center gap-1 text-[11px] tabular-nums text-muted-foreground"
+                    title="Garrison troops"
+                  >
+                    <span className="size-2.5 rounded-[2px]" style={{ backgroundColor: hex }} />
+                    {p.garrison_troops ?? 0}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
