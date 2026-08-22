@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Copy, Link as LinkIcon, Trophy, Medal, Award, Maximize2, Loader2, ArrowLeft, Pencil } from "lucide-react";
+import { Copy, Link as LinkIcon, Trophy, Medal, Award, Maximize2, Loader2, ArrowLeft, Pencil, Swords, ShieldCheck } from "lucide-react";
 import { TournamentTag } from "@/components/EloDelta";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
@@ -297,7 +297,6 @@ function MatchDetailsPage() {
   }
 
   const displayId = game.public_match_id ?? game.id;
-  const sorted = [...game.game_results].sort((a, b) => a.placement - b.placement);
   const bySlot = [...game.game_results].sort(
     (a, b) => (a.player_slot ?? a.placement) - (b.player_slot ?? b.placement),
   );
