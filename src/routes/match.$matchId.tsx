@@ -647,6 +647,14 @@ type PlayerForm = {
   solaris: string;
   water: string;
   is_leaver: boolean;
+  player_color: string;
+  player_slot: string;
+  turn_order: string;
+  has_first_player: boolean;
+  has_high_council: boolean;
+  has_swordmaster: boolean;
+  combat_strength: string;
+  garrison_troops: string;
 };
 
 const numToStr = (n: number | null | undefined) =>
@@ -663,6 +671,7 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
   const [immo, setImmo] = useState(game.has_immortality);
   const [epic, setEpic] = useState(game.has_epic_mode);
   const [baseLeaders, setBaseLeaders] = useState(game.has_base_leaders);
+  const [conflictTitle, setConflictTitle] = useState(game.conflict_title ?? "");
   const [players, setPlayers] = useState<PlayerForm[]>([]);
 
   const reset = useCallback(() => {
@@ -672,6 +681,7 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
     setImmo(game.has_immortality);
     setEpic(game.has_epic_mode);
     setBaseLeaders(game.has_base_leaders);
+    setConflictTitle(game.conflict_title ?? "");
     setPlayers(
       [...game.game_results]
         .sort((a, b) => a.placement - b.placement)
@@ -683,6 +693,14 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
           solaris: numToStr(r.solaris),
           water: numToStr(r.water),
           is_leaver: r.is_leaver ?? false,
+          player_color: r.player_color ?? "",
+          player_slot: numToStr(r.player_slot),
+          turn_order: numToStr(r.turn_order),
+          has_first_player: r.has_first_player ?? false,
+          has_high_council: r.has_high_council ?? false,
+          has_swordmaster: r.has_swordmaster ?? false,
+          combat_strength: numToStr(r.combat_strength),
+          garrison_troops: numToStr(r.garrison_troops),
         })),
     );
   }, [game]);
@@ -706,12 +724,21 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
         p_has_epic_mode: epic,
         p_has_immortality: immo,
         p_has_base_leaders: baseLeaders,
+        p_conflict_title: conflictTitle.trim() === "" ? null : conflictTitle.trim(),
         p_players: players.map((p) => ({
           player_name: p.player_name,
           spice: p.spice.trim() === "" ? null : Number(p.spice),
           solaris: p.solaris.trim() === "" ? null : Number(p.solaris),
           water: p.water.trim() === "" ? null : Number(p.water),
           is_leaver: p.is_leaver,
+          player_color: p.player_color || null,
+          player_slot: p.player_slot.trim() === "" ? null : Number(p.player_slot),
+          turn_order: p.turn_order.trim() === "" ? null : Number(p.turn_order),
+          has_first_player: p.has_first_player,
+          has_high_council: p.has_high_council,
+          has_swordmaster: p.has_swordmaster,
+          combat_strength: p.combat_strength.trim() === "" ? null : Number(p.combat_strength),
+          garrison_troops: p.garrison_troops.trim() === "" ? null : Number(p.garrison_troops),
         })),
       });
       if (error) throw new Error(error.message);
