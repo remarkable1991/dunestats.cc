@@ -793,6 +793,15 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
                 </select>
               </div>
             </div>
+            <div>
+              <Label className="text-xs">Conflict title</Label>
+              <Input
+                value={conflictTitle}
+                onChange={(e) => setConflictTitle(e.target.value)}
+                placeholder="e.g. Battle for Imperial Basin"
+              />
+            </div>
+
             <div className="grid sm:grid-cols-2 gap-3">
               <ToggleRow label="Rise of Ix" checked={ix} onChange={setIx} />
               <ToggleRow label="Immortality" checked={immo} onChange={setImmo} />
