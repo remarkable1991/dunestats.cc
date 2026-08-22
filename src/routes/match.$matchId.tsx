@@ -298,6 +298,9 @@ function MatchDetailsPage() {
 
   const displayId = game.public_match_id ?? game.id;
   const sorted = [...game.game_results].sort((a, b) => a.placement - b.placement);
+  const bySlot = [...game.game_results].sort(
+    (a, b) => (a.player_slot ?? a.placement) - (b.player_slot ?? b.placement),
+  );
 
   const tags: string[] = [];
   if (game.board_version) tags.push(game.board_version === "uprising" ? "Uprising" : "Base");
@@ -305,7 +308,14 @@ function MatchDetailsPage() {
   if (game.has_epic_mode) tags.push("Epic");
   if (game.has_immortality) tags.push("Immortality");
   if (game.has_base_leaders) tags.push("Base Leaders");
-  if (game.end_round !== null && game.end_round !== undefined) tags.push(`Round ${game.end_round}`);
+  const roundTag =
+    game.end_round !== null && game.end_round !== undefined
+      ? game.conflict_title
+        ? `Round ${game.end_round} · ${game.conflict_title}`
+        : `Round ${game.end_round}`
+      : game.conflict_title;
+  if (roundTag) tags.push(roundTag);
+
 
   const created = new Date(game.created_at);
 
