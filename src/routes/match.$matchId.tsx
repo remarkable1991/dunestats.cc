@@ -852,7 +852,83 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <Label className="text-xs">Colour</Label>
+                    <select
+                      value={p.player_color}
+                      onChange={(e) => setPlayer(i, { player_color: e.target.value })}
+                      className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                    >
+                      <option value="">—</option>
+                      <option value="Green">Green</option>
+                      <option value="Yellow">Yellow</option>
+                      <option value="Red">Red</option>
+                      <option value="Blue">Blue</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Slot</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={4}
+                      value={p.player_slot}
+                      onChange={(e) => setPlayer(i, { player_slot: e.target.value })}
+                      placeholder="—"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Turn order</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={4}
+                      value={p.turn_order}
+                      onChange={(e) => setPlayer(i, { turn_order: e.target.value })}
+                      placeholder="—"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">⚔ Combat</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={p.combat_strength}
+                      onChange={(e) => setPlayer(i, { combat_strength: e.target.value })}
+                      placeholder="—"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Garrison</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={p.garrison_troops}
+                      onChange={(e) => setPlayer(i, { garrison_troops: e.target.value })}
+                      placeholder="—"
+                    />
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-3 gap-2">
+                  <ToggleRow
+                    label="First player"
+                    checked={p.has_first_player}
+                    onChange={(v) => setPlayer(i, { has_first_player: v })}
+                  />
+                  <ToggleRow
+                    label="High Council"
+                    checked={p.has_high_council}
+                    onChange={(v) => setPlayer(i, { has_high_council: v })}
+                  />
+                  <ToggleRow
+                    label="Swordmaster"
+                    checked={p.has_swordmaster}
+                    onChange={(v) => setPlayer(i, { has_swordmaster: v })}
+                  />
+                </div>
               </div>
+
             ))}
           </section>
 
