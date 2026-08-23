@@ -471,8 +471,7 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
           return acc;
         }, {}),
         availability,
-        timezone:
-          (typeof Intl !== "undefined" && Intl.DateTimeFormat().resolvedOptions().timeZone) || null,
+        timezone: resolveTimezoneLabel(),
         updated_at: new Date().toISOString(),
       };
       const { error: regErr } = userId
