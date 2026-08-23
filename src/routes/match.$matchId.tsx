@@ -558,7 +558,7 @@ function MatchDetailsPage() {
 
         <div className="mt-6 flex justify-end">
           <ConflictCard
-            players={bySlot}
+            players={slotSorted}
             title={game.conflict_title}
             endRound={game.end_round}
             portraits={portraits}
