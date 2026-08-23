@@ -102,6 +102,8 @@ function MatchDetailsPage() {
   const [tourneyTable, setTourneyTable] = useState<{ round: string; table: string } | null>(null);
   const [canEdit, setCanEdit] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [playerOrder, setPlayerOrder] = useState<"placement" | "slot" | "turn">("placement");
+
   const titles = usePlayerTitles();
 
   useEffect(() => {
@@ -297,9 +299,17 @@ function MatchDetailsPage() {
   }
 
   const displayId = game.public_match_id ?? game.id;
-  const bySlot = [...game.game_results].sort(
+  const slotSorted = [...game.game_results].sort(
     (a, b) => (a.player_slot ?? a.placement) - (b.player_slot ?? b.placement),
   );
+  const orderedPlayers = [...game.game_results].sort((a, b) => {
+    if (playerOrder === "slot") return (a.player_slot ?? 99) - (b.player_slot ?? 99);
+    if (playerOrder === "turn") return (a.turn_order ?? 99) - (b.turn_order ?? 99);
+    return a.placement - b.placement;
+  });
+  const hasSlots = game.game_results.some((r) => r.player_slot !== null && r.player_slot !== undefined);
+  const hasTurns = game.game_results.some((r) => r.turn_order !== null && r.turn_order !== undefined);
+
 
   const tags: string[] = [];
   if (game.board_version) tags.push(game.board_version === "uprising" ? "Uprising" : "Base");
@@ -369,14 +379,38 @@ function MatchDetailsPage() {
           ))}
         </div>
 
-        <LandsraadBar players={bySlot} />
+        <LandsraadBar players={slotSorted} />
 
 
         <div className="grid gap-6 md:grid-cols-[1fr_auto]">
           <Card className="p-4 border-border/60 bg-card/70">
-            <h2 className="font-display text-lg mb-3">Players</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <h2 className="font-display text-lg">Players</h2>
+              {(hasSlots || hasTurns) && (
+                <div className="flex items-center gap-1 text-xs">
+                  <span className="text-muted-foreground mr-1">Order by</span>
+                  {([
+                    { k: "placement" as const, label: "Placement", show: true },
+                    { k: "slot" as const, label: "Player slot", show: hasSlots },
+                    { k: "turn" as const, label: "Turn order", show: hasTurns },
+                  ]).filter((o) => o.show).map((o) => (
+                    <button
+                      key={o.k}
+                      onClick={() => setPlayerOrder(o.k)}
+                      className={`px-2 py-1 rounded border ${
+                        playerOrder === o.k
+                          ? "border-sand/60 bg-sand/15 text-sand"
+                          : "border-border/50 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="space-y-2">
-              {bySlot.map((r, i) => {
+              {orderedPlayers.map((r, i) => {
                 const leaderRoute = r.leader_name ? leaderRouteFor(r.leader_name) : null;
                 const portrait = leaderRoute ? portraits[leaderRoute.slug] : null;
                 const key = r.player_name.toLowerCase().trim();
@@ -463,7 +497,9 @@ function MatchDetailsPage() {
                       </div>
 
                       <div className="flex flex-col items-end gap-1">
-                        <AgentSilhouettes count={r.has_swordmaster ? 3 : 2} hex={hex} />
+                        {r.has_swordmaster !== null && r.has_swordmaster !== undefined && (
+                          <AgentSilhouettes count={r.has_swordmaster ? 3 : 2} hex={hex} />
+                        )}
                         <div className="flex items-center gap-2">
                           {r.turn_order !== null && r.turn_order !== undefined && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-border/60 text-muted-foreground">
@@ -522,7 +558,7 @@ function MatchDetailsPage() {
 
         <div className="mt-6 flex justify-end">
           <ConflictCard
-            players={bySlot}
+            players={slotSorted}
             title={game.conflict_title}
             endRound={game.end_round}
             portraits={portraits}
@@ -988,43 +1024,41 @@ function AgentSilhouettes({ count, hex }: { count: number; hex: string }) {
 
 /** Section A — Landsraad bar: High Council seats + Swordmaster recruits. */
 function LandsraadBar({ players }: { players: ResultRow[] }) {
+  const councilKnown = players.some((p) => p.has_high_council !== null && p.has_high_council !== undefined);
+  const swordKnown = players.some((p) => p.has_swordmaster !== null && p.has_swordmaster !== undefined);
   const council = players.filter((p) => p.has_high_council);
   const sword = players.filter((p) => p.has_swordmaster);
-  const seats = Array.from({ length: 4 }, (_, i) => council[i] ?? null);
+  if (council.length === 0 && sword.length === 0) return null;
   return (
     <Card className="mb-6 p-4 border-border/60 bg-card/70">
       <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
-        <div>
-          <h2 className="font-display text-sm uppercase tracking-wider text-muted-foreground mb-2">
-            High Council
-          </h2>
-          <div className="flex flex-wrap gap-3">
-            {seats.map((p, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span
-                  className="size-9 rounded-full flex items-center justify-center text-[10px] font-display"
-                  style={
-                    p
-                      ? { backgroundColor: colorHex(p.player_color), color: "#0b0b0b" }
-                      : { border: "1px dashed hsl(var(--border))", color: "hsl(var(--muted-foreground))" }
-                  }
-                >
-                  {i + 1}
-                </span>
-                <span className="text-xs text-muted-foreground max-w-[9rem] truncate">
-                  {p ? p.player_name : "Empty seat"}
-                </span>
-              </div>
-            ))}
+        {councilKnown && council.length > 0 && (
+          <div>
+            <h2 className="font-display text-sm uppercase tracking-wider text-muted-foreground mb-2">
+              High Council
+            </h2>
+            <div className="flex flex-wrap gap-3">
+              {council.map((p, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span
+                    className="size-9 rounded-full flex items-center justify-center text-[10px] font-display"
+                    style={{ backgroundColor: colorHex(p.player_color), color: "#0b0b0b" }}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className="text-xs text-muted-foreground max-w-[9rem] truncate">
+                    {p.player_name}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="md:border-l md:border-border/50 md:pl-4">
-          <h2 className="font-display text-sm uppercase tracking-wider text-muted-foreground mb-2">
-            Swordmaster
-          </h2>
-          {sword.length === 0 ? (
-            <div className="text-xs text-muted-foreground">None recruited</div>
-          ) : (
+        )}
+        {swordKnown && sword.length > 0 && (
+          <div className="md:border-l md:border-border/50 md:pl-4">
+            <h2 className="font-display text-sm uppercase tracking-wider text-muted-foreground mb-2">
+              Swordmaster
+            </h2>
             <div className="flex flex-wrap gap-3">
               {sword.map((p, i) => (
                 <div key={i} className="flex items-center gap-1.5 text-xs">
@@ -1034,12 +1068,13 @@ function LandsraadBar({ players }: { players: ResultRow[] }) {
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </Card>
   );
 }
+
 
 /** Section C — conflict card with the four board quadrants. */
 function ConflictCard({
@@ -1053,28 +1088,20 @@ function ConflictCard({
   endRound: number | null;
   portraits: Record<string, string | null>;
 }) {
-  const bySlot = (slot: number) =>
-    players.find((p) => p.player_slot === slot) ?? players[slot - 1] ?? null;
-  const quads = [bySlot(1), bySlot(2), bySlot(4), bySlot(3)];
-  const anyCombat = players.some(
-    (p) => p.combat_strength !== null || p.garrison_troops !== null,
-  );
-  if (!title && !anyCombat) return null;
+  const has = (v: number | null | undefined) => v !== null && v !== undefined;
+  const combatants = players.filter((p) => has(p.combat_strength) || has(p.garrison_troops));
+  if (!title && combatants.length === 0) return null;
   return (
     <Card className="p-4 border-border/60 bg-card/70 w-full md:w-[26rem]">
-      <div className="mb-3">
+      <div className={combatants.length ? "mb-3" : ""}>
         <h2 className="font-display text-lg leading-tight">{title ?? "Conflict"}</h2>
         {endRound !== null && endRound !== undefined && (
           <div className="text-xs text-muted-foreground">Round {endRound} of 10</div>
         )}
       </div>
+      {combatants.length > 0 && (
       <div className="grid grid-cols-2 gap-2">
-        {quads.map((p, i) => {
-          if (!p) {
-            return (
-              <div key={i} className="rounded border border-dashed border-border/50 h-20" />
-            );
-          }
+        {combatants.map((p, i) => {
           const route = p.leader_name ? leaderRouteFor(p.leader_name) : null;
           const portrait = route ? portraits[route.slug] : null;
           const hex = colorHex(p.player_color);
@@ -1092,23 +1119,29 @@ function ConflictCard({
               <div className="min-w-0 flex-1">
                 <div className="text-xs truncate">{p.player_name}</div>
                 <div className="mt-1 flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 rounded border border-red-500/50 bg-red-500/15 text-red-300 px-1.5 py-0.5 text-[11px] tabular-nums">
-                    <Swords className="size-3" />
-                    {p.combat_strength ?? 0}
-                  </span>
-                  <span
-                    className="inline-flex items-center gap-1 text-[11px] tabular-nums text-muted-foreground"
-                    title="Garrison troops"
-                  >
-                    <span className="size-2.5 rounded-[2px]" style={{ backgroundColor: hex }} />
-                    {p.garrison_troops ?? 0}
-                  </span>
+                  {has(p.combat_strength) && (
+                    <span className="inline-flex items-center gap-1 rounded border border-red-500/50 bg-red-500/15 text-red-300 px-1.5 py-0.5 text-[11px] tabular-nums">
+                      <Swords className="size-3" />
+                      {p.combat_strength}
+                    </span>
+                  )}
+                  {has(p.garrison_troops) && (
+                    <span
+                      className="inline-flex items-center gap-1 text-[11px] tabular-nums text-muted-foreground"
+                      title="Garrison troops"
+                    >
+                      <span className="size-2.5 rounded-[2px]" style={{ backgroundColor: hex }} />
+                      {p.garrison_troops}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
           );
         })}
       </div>
+      )}
+
     </Card>
   );
 }
