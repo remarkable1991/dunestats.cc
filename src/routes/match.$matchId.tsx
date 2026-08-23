@@ -297,9 +297,17 @@ function MatchDetailsPage() {
   }
 
   const displayId = game.public_match_id ?? game.id;
-  const bySlot = [...game.game_results].sort(
+  const slotSorted = [...game.game_results].sort(
     (a, b) => (a.player_slot ?? a.placement) - (b.player_slot ?? b.placement),
   );
+  const orderedPlayers = [...game.game_results].sort((a, b) => {
+    if (playerOrder === "slot") return (a.player_slot ?? 99) - (b.player_slot ?? 99);
+    if (playerOrder === "turn") return (a.turn_order ?? 99) - (b.turn_order ?? 99);
+    return a.placement - b.placement;
+  });
+  const hasSlots = game.game_results.some((r) => r.player_slot !== null && r.player_slot !== undefined);
+  const hasTurns = game.game_results.some((r) => r.turn_order !== null && r.turn_order !== undefined);
+
 
   const tags: string[] = [];
   if (game.board_version) tags.push(game.board_version === "uprising" ? "Uprising" : "Base");
