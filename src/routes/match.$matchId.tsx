@@ -749,10 +749,10 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
   const save = async () => {
     setSaving(true);
     try {
-      const rpc = (supabase as unknown as {
+      const client = supabase as unknown as {
         rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
-      }).rpc;
-      const { error } = await rpc("update_match_details", {
+      };
+      const { error } = await client.rpc("update_match_details", {
         p_game_id: game.id,
         p_end_round: endRound.trim() === "" ? null : Number(endRound),
         p_board_version: board,
