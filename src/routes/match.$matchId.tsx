@@ -102,6 +102,8 @@ function MatchDetailsPage() {
   const [tourneyTable, setTourneyTable] = useState<{ round: string; table: string } | null>(null);
   const [canEdit, setCanEdit] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [playerOrder, setPlayerOrder] = useState<"placement" | "slot" | "turn">("placement");
+
   const titles = usePlayerTitles();
 
   useEffect(() => {
