@@ -23,6 +23,19 @@ import {
 } from "@/lib/tournaments";
 import discordHint from "@/assets/discord-hint.png.asset.json";
 
+/** e.g. "Europe/Berlin (GMT+02:00)" — IANA zone plus the exact current UTC offset. */
+function resolveTimezoneLabel(): string | null {
+  if (typeof Intl === "undefined") return null;
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const offsetMin = -new Date().getTimezoneOffset();
+  const sign = offsetMin < 0 ? "-" : "+";
+  const abs = Math.abs(offsetMin);
+  const hh = String(Math.floor(abs / 60)).padStart(2, "0");
+  const mm = String(abs % 60).padStart(2, "0");
+  const gmt = `GMT${sign}${hh}:${mm}`;
+  return zone ? `${zone} (${gmt})` : gmt;
+}
+
 export const Route = createFileRoute("/tournament-register")({
   validateSearch: (search: Record<string, unknown>): { t?: number } => ({
     t: search.t != null && Number.isFinite(Number(search.t)) ? Number(search.t) : undefined,
@@ -471,8 +484,7 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
           return acc;
         }, {}),
         availability,
-        timezone:
-          (typeof Intl !== "undefined" && Intl.DateTimeFormat().resolvedOptions().timeZone) || null,
+        timezone: resolveTimezoneLabel(),
         updated_at: new Date().toISOString(),
       };
       const { error: regErr } = userId
