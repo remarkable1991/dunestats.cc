@@ -379,14 +379,38 @@ function MatchDetailsPage() {
           ))}
         </div>
 
-        <LandsraadBar players={bySlot} />
+        <LandsraadBar players={slotSorted} />
 
 
         <div className="grid gap-6 md:grid-cols-[1fr_auto]">
           <Card className="p-4 border-border/60 bg-card/70">
-            <h2 className="font-display text-lg mb-3">Players</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <h2 className="font-display text-lg">Players</h2>
+              {(hasSlots || hasTurns) && (
+                <div className="flex items-center gap-1 text-xs">
+                  <span className="text-muted-foreground mr-1">Order by</span>
+                  {([
+                    { k: "placement" as const, label: "Placement", show: true },
+                    { k: "slot" as const, label: "Player slot", show: hasSlots },
+                    { k: "turn" as const, label: "Turn order", show: hasTurns },
+                  ]).filter((o) => o.show).map((o) => (
+                    <button
+                      key={o.k}
+                      onClick={() => setPlayerOrder(o.k)}
+                      className={`px-2 py-1 rounded border ${
+                        playerOrder === o.k
+                          ? "border-sand/60 bg-sand/15 text-sand"
+                          : "border-border/50 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="space-y-2">
-              {bySlot.map((r, i) => {
+              {orderedPlayers.map((r, i) => {
                 const leaderRoute = r.leader_name ? leaderRouteFor(r.leader_name) : null;
                 const portrait = leaderRoute ? portraits[leaderRoute.slug] : null;
                 const key = r.player_name.toLowerCase().trim();
