@@ -497,7 +497,9 @@ function MatchDetailsPage() {
                       </div>
 
                       <div className="flex flex-col items-end gap-1">
-                        <AgentSilhouettes count={r.has_swordmaster ? 3 : 2} hex={hex} />
+                        {r.has_swordmaster !== null && r.has_swordmaster !== undefined && (
+                          <AgentSilhouettes count={r.has_swordmaster ? 3 : 2} hex={hex} />
+                        )}
                         <div className="flex items-center gap-2">
                           {r.turn_order !== null && r.turn_order !== undefined && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-border/60 text-muted-foreground">
