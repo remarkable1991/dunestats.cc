@@ -1088,28 +1088,20 @@ function ConflictCard({
   endRound: number | null;
   portraits: Record<string, string | null>;
 }) {
-  const bySlot = (slot: number) =>
-    players.find((p) => p.player_slot === slot) ?? players[slot - 1] ?? null;
-  const quads = [bySlot(1), bySlot(2), bySlot(4), bySlot(3)];
-  const anyCombat = players.some(
-    (p) => p.combat_strength !== null || p.garrison_troops !== null,
-  );
-  if (!title && !anyCombat) return null;
+  const has = (v: number | null | undefined) => v !== null && v !== undefined;
+  const combatants = players.filter((p) => has(p.combat_strength) || has(p.garrison_troops));
+  if (!title && combatants.length === 0) return null;
   return (
     <Card className="p-4 border-border/60 bg-card/70 w-full md:w-[26rem]">
-      <div className="mb-3">
+      <div className={combatants.length ? "mb-3" : ""}>
         <h2 className="font-display text-lg leading-tight">{title ?? "Conflict"}</h2>
         {endRound !== null && endRound !== undefined && (
           <div className="text-xs text-muted-foreground">Round {endRound} of 10</div>
         )}
       </div>
+      {combatants.length > 0 && (
       <div className="grid grid-cols-2 gap-2">
-        {quads.map((p, i) => {
-          if (!p) {
-            return (
-              <div key={i} className="rounded border border-dashed border-border/50 h-20" />
-            );
-          }
+        {combatants.map((p, i) => {
           const route = p.leader_name ? leaderRouteFor(p.leader_name) : null;
           const portrait = route ? portraits[route.slug] : null;
           const hex = colorHex(p.player_color);
@@ -1127,23 +1119,29 @@ function ConflictCard({
               <div className="min-w-0 flex-1">
                 <div className="text-xs truncate">{p.player_name}</div>
                 <div className="mt-1 flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 rounded border border-red-500/50 bg-red-500/15 text-red-300 px-1.5 py-0.5 text-[11px] tabular-nums">
-                    <Swords className="size-3" />
-                    {p.combat_strength ?? 0}
-                  </span>
-                  <span
-                    className="inline-flex items-center gap-1 text-[11px] tabular-nums text-muted-foreground"
-                    title="Garrison troops"
-                  >
-                    <span className="size-2.5 rounded-[2px]" style={{ backgroundColor: hex }} />
-                    {p.garrison_troops ?? 0}
-                  </span>
+                  {has(p.combat_strength) && (
+                    <span className="inline-flex items-center gap-1 rounded border border-red-500/50 bg-red-500/15 text-red-300 px-1.5 py-0.5 text-[11px] tabular-nums">
+                      <Swords className="size-3" />
+                      {p.combat_strength}
+                    </span>
+                  )}
+                  {has(p.garrison_troops) && (
+                    <span
+                      className="inline-flex items-center gap-1 text-[11px] tabular-nums text-muted-foreground"
+                      title="Garrison troops"
+                    >
+                      <span className="size-2.5 rounded-[2px]" style={{ backgroundColor: hex }} />
+                      {p.garrison_troops}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
           );
         })}
       </div>
+      )}
+
     </Card>
   );
 }
