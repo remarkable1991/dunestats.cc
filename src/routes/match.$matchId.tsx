@@ -1024,43 +1024,41 @@ function AgentSilhouettes({ count, hex }: { count: number; hex: string }) {
 
 /** Section A — Landsraad bar: High Council seats + Swordmaster recruits. */
 function LandsraadBar({ players }: { players: ResultRow[] }) {
+  const councilKnown = players.some((p) => p.has_high_council !== null && p.has_high_council !== undefined);
+  const swordKnown = players.some((p) => p.has_swordmaster !== null && p.has_swordmaster !== undefined);
   const council = players.filter((p) => p.has_high_council);
   const sword = players.filter((p) => p.has_swordmaster);
-  const seats = Array.from({ length: 4 }, (_, i) => council[i] ?? null);
+  if (!councilKnown && !swordKnown) return null;
   return (
     <Card className="mb-6 p-4 border-border/60 bg-card/70">
       <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
-        <div>
-          <h2 className="font-display text-sm uppercase tracking-wider text-muted-foreground mb-2">
-            High Council
-          </h2>
-          <div className="flex flex-wrap gap-3">
-            {seats.map((p, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span
-                  className="size-9 rounded-full flex items-center justify-center text-[10px] font-display"
-                  style={
-                    p
-                      ? { backgroundColor: colorHex(p.player_color), color: "#0b0b0b" }
-                      : { border: "1px dashed hsl(var(--border))", color: "hsl(var(--muted-foreground))" }
-                  }
-                >
-                  {i + 1}
-                </span>
-                <span className="text-xs text-muted-foreground max-w-[9rem] truncate">
-                  {p ? p.player_name : "Empty seat"}
-                </span>
-              </div>
-            ))}
+        {councilKnown && council.length > 0 && (
+          <div>
+            <h2 className="font-display text-sm uppercase tracking-wider text-muted-foreground mb-2">
+              High Council
+            </h2>
+            <div className="flex flex-wrap gap-3">
+              {council.map((p, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span
+                    className="size-9 rounded-full flex items-center justify-center text-[10px] font-display"
+                    style={{ backgroundColor: colorHex(p.player_color), color: "#0b0b0b" }}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className="text-xs text-muted-foreground max-w-[9rem] truncate">
+                    {p.player_name}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="md:border-l md:border-border/50 md:pl-4">
-          <h2 className="font-display text-sm uppercase tracking-wider text-muted-foreground mb-2">
-            Swordmaster
-          </h2>
-          {sword.length === 0 ? (
-            <div className="text-xs text-muted-foreground">None recruited</div>
-          ) : (
+        )}
+        {swordKnown && sword.length > 0 && (
+          <div className="md:border-l md:border-border/50 md:pl-4">
+            <h2 className="font-display text-sm uppercase tracking-wider text-muted-foreground mb-2">
+              Swordmaster
+            </h2>
             <div className="flex flex-wrap gap-3">
               {sword.map((p, i) => (
                 <div key={i} className="flex items-center gap-1.5 text-xs">
@@ -1070,12 +1068,13 @@ function LandsraadBar({ players }: { players: ResultRow[] }) {
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </Card>
   );
 }
+
 
 /** Section C — conflict card with the four board quadrants. */
 function ConflictCard({
