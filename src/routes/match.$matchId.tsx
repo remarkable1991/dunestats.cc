@@ -1028,7 +1028,7 @@ function LandsraadBar({ players }: { players: ResultRow[] }) {
   const swordKnown = players.some((p) => p.has_swordmaster !== null && p.has_swordmaster !== undefined);
   const council = players.filter((p) => p.has_high_council);
   const sword = players.filter((p) => p.has_swordmaster);
-  if (!councilKnown && !swordKnown) return null;
+  if (council.length === 0 && sword.length === 0) return null;
   return (
     <Card className="mb-6 p-4 border-border/60 bg-card/70">
       <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
