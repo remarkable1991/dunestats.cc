@@ -258,3 +258,9 @@ export async function fetchOpenTournaments(): Promise<TournamentConfig[]> {
   const now = Date.now();
   return all.filter((t) => isRegistrationOpen(t, now)).sort((a, b) => a.tournament_num - b.tournament_num);
 }
+
+/** Fetch a single tournament by number regardless of its registration-open status. */
+export async function fetchTournamentByNum(num: number): Promise<TournamentConfig | null> {
+  const all = await fetchTournaments();
+  return all.find((t) => t.tournament_num === num) ?? null;
+}
