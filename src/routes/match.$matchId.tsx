@@ -103,6 +103,7 @@ function MatchDetailsPage() {
   const [canEdit, setCanEdit] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [playerOrder, setPlayerOrder] = useState<"placement" | "slot" | "turn">("placement");
+  const [leaverBusy, setLeaverBusy] = useState<string | null>(null);
 
   const titles = usePlayerTitles();
 
@@ -310,6 +311,48 @@ function MatchDetailsPage() {
   const hasSlots = game.game_results.some((r) => r.player_slot !== null && r.player_slot !== undefined);
   const hasTurns = game.game_results.some((r) => r.turn_order !== null && r.turn_order !== undefined);
 
+  const toggleLeaver = async (playerName: string, value: boolean) => {
+    setLeaverBusy(playerName);
+    try {
+      const client = supabase as unknown as {
+        rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
+      };
+      const { error } = await client.rpc("update_match_details", {
+        p_game_id: game.id,
+        p_end_round: game.end_round,
+        p_board_version: game.board_version,
+        p_has_rise_of_ix: game.has_rise_of_ix,
+        p_has_epic_mode: game.has_epic_mode,
+        p_has_immortality: game.has_immortality,
+        p_has_base_leaders: game.has_base_leaders,
+        p_conflict_title: game.conflict_title,
+        p_players: game.game_results.map((r) => ({
+          player_name: r.player_name,
+          spice: r.spice,
+          solaris: r.solaris,
+          water: r.water,
+          is_leaver: r.player_name === playerName ? value : (r.is_leaver ?? false),
+          player_color: r.player_color,
+          player_slot: r.player_slot,
+          turn_order: r.turn_order,
+          has_first_player: r.has_first_player,
+          has_high_council: r.has_high_council,
+          has_swordmaster: r.has_swordmaster,
+          combat_strength: r.combat_strength,
+          garrison_troops: r.garrison_troops,
+        })),
+      });
+      if (error) throw new Error(error.message);
+      toast.success(value ? "Marked as leaver" : "Leaver mark removed");
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update leaver status");
+    } finally {
+      setLeaverBusy(null);
+    }
+  };
+
+
 
   const tags: string[] = [];
   if (game.board_version) tags.push(game.board_version === "uprising" ? "Uprising" : "Base");
@@ -474,10 +517,30 @@ function MatchDetailsPage() {
                           >
                             {r.player_name}
                           </Link>
-                          {r.is_leaver && (
-                            <span className="shrink-0 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-coral/50 bg-coral/10 text-coral">
+                          {canEdit ? (
+                            <label
+                              className={`shrink-0 flex items-center gap-1.5 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border cursor-pointer ${
+                                r.is_leaver
+                                  ? "border-coral/50 bg-coral/10 text-coral"
+                                  : "border-border/50 text-muted-foreground hover:text-foreground"
+                              } ${leaverBusy === r.player_name ? "opacity-60 pointer-events-none" : ""}`}
+                              title="Mark as leaver"
+                            >
+                              <input
+                                type="checkbox"
+                                className="size-3 accent-current"
+                                checked={!!r.is_leaver}
+                                disabled={leaverBusy === r.player_name}
+                                onChange={(e) => void toggleLeaver(r.player_name, e.target.checked)}
+                              />
                               Leaver
-                            </span>
+                            </label>
+                          ) : (
+                            r.is_leaver && (
+                              <span className="shrink-0 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-coral/50 bg-coral/10 text-coral">
+                                Leaver
+                              </span>
+                            )
                           )}
                         </div>
                         {leaderRoute ? (
@@ -709,6 +772,17 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
   const [baseLeaders, setBaseLeaders] = useState(game.has_base_leaders);
   const [conflictTitle, setConflictTitle] = useState(game.conflict_title ?? "");
   const [players, setPlayers] = useState<PlayerForm[]>([]);
+  const [editOrder, setEditOrder] = useState<"placement" | "slot" | "turn">("placement");
+  const orderedIndexes = players
+    .map((_, i) => i)
+    .sort((a, b) => {
+      const pa = players[a]!;
+      const pb = players[b]!;
+      const num = (v: string) => (v.trim() === "" ? 99 : Number(v));
+      if (editOrder === "slot") return num(pa.player_slot) - num(pb.player_slot);
+      if (editOrder === "turn") return num(pa.turn_order) - num(pb.turn_order);
+      return pa.placement - pb.placement;
+    });
 
   const reset = useCallback(() => {
     setEndRound(numToStr(game.end_round));
@@ -847,17 +921,60 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
           </section>
 
           <section className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Players
-            </h3>
-            {players.map((p, i) => (
-              <div key={p.player_name + i} className="rounded-md border border-border/50 p-3 space-y-3 bg-background/40">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                Players
+              </h3>
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-muted-foreground mr-1">Order by</span>
+                {([
+                  { k: "placement" as const, label: "Placement" },
+                  { k: "slot" as const, label: "Player slot" },
+                  { k: "turn" as const, label: "Turn order" },
+                ]).map((o) => (
+                  <button
+                    key={o.k}
+                    type="button"
+                    onClick={() => setEditOrder(o.k)}
+                    className={`px-2 py-1 rounded border ${
+                      editOrder === o.k
+                        ? "border-sand/60 bg-sand/15 text-sand"
+                        : "border-border/50 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {orderedIndexes.map((i) => {
+              const p = players[i];
+              if (!p) return null;
+              const hex = colorHex(p.player_color);
+              return (
+              <div
+                key={p.player_name + i}
+                className="rounded-md border border-border/50 border-l-4 p-3 space-y-3 bg-background/40"
+                style={{ borderLeftColor: hex }}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">
-                      {p.placement}. {p.player_name}
+                  <div className="min-w-0 flex items-center gap-2">
+                    <span
+                      className="size-5 rounded-full border border-border/60 shrink-0"
+                      style={{ backgroundColor: hex }}
+                      title={p.player_color || "No colour set"}
+                    />
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">
+                        {p.placement}. {p.player_name}
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {p.player_color || "no colour"}
+                          {p.player_slot ? ` · slot ${p.player_slot}` : ""}
+                          {p.turn_order ? ` · turn ${p.turn_order}` : ""}
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">{p.leader_name ?? "—"}</div>
                     </div>
-                    <div className="text-xs text-muted-foreground truncate">{p.leader_name ?? "—"}</div>
                   </div>
                   <ToggleRow
                     label="Mark as leaver"
@@ -973,8 +1090,8 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
                   />
                 </div>
               </div>
-
-            ))}
+              );
+            })}
           </section>
 
           <div className="flex justify-end gap-2">
@@ -1064,7 +1181,7 @@ function LandsraadBar({ players }: { players: ResultRow[] }) {
                 <div key={i} className="flex items-center gap-1.5 text-xs">
                   <ShieldCheck className="size-4" style={{ color: colorHex(p.player_color) }} />
                   <span className="max-w-[9rem] truncate">{p.player_name}</span>
-                  <AgentSilhouettes count={3} hex={colorHex(p.player_color)} />
+                  
                 </div>
               ))}
             </div>
