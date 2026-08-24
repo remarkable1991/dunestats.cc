@@ -71,18 +71,28 @@ function RegisterPage() {
   const { t: requested } = Route.useSearch();
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<TournamentConfig[]>([]);
+  const [direct, setDirect] = useState<TournamentConfig | null>(null);
 
   useEffect(() => {
     void (async () => {
-      setOpen(await fetchOpenTournaments());
+      const [openList, directTournament] = await Promise.all([
+        fetchOpenTournaments(),
+        requested != null ? fetchTournamentByNum(requested) : Promise.resolve(null),
+      ]);
+      setOpen(openList);
+      setDirect(directTournament);
       setLoading(false);
     })();
-  }, []);
+  }, [requested]);
 
   const selected = useMemo(() => {
-    if (requested != null) return open.find((t) => t.tournament_num === requested) ?? null;
+    if (requested != null) {
+      // Prefer the open match; fall back to the directly-fetched tournament
+      // so direct links stay accessible even after registration would close.
+      return open.find((t) => t.tournament_num === requested) ?? direct ?? null;
+    }
     return open.length === 1 ? open[0] : null;
-  }, [open, requested]);
+  }, [open, direct, requested]);
 
   if (loading) {
     return (
