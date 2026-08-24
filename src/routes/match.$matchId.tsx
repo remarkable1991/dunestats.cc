@@ -310,6 +310,48 @@ function MatchDetailsPage() {
   const hasSlots = game.game_results.some((r) => r.player_slot !== null && r.player_slot !== undefined);
   const hasTurns = game.game_results.some((r) => r.turn_order !== null && r.turn_order !== undefined);
 
+  const toggleLeaver = async (playerName: string, value: boolean) => {
+    setLeaverBusy(playerName);
+    try {
+      const client = supabase as unknown as {
+        rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
+      };
+      const { error } = await client.rpc("update_match_details", {
+        p_game_id: game.id,
+        p_end_round: game.end_round,
+        p_board_version: game.board_version,
+        p_has_rise_of_ix: game.has_rise_of_ix,
+        p_has_epic_mode: game.has_epic_mode,
+        p_has_immortality: game.has_immortality,
+        p_has_base_leaders: game.has_base_leaders,
+        p_conflict_title: game.conflict_title,
+        p_players: game.game_results.map((r) => ({
+          player_name: r.player_name,
+          spice: r.spice,
+          solaris: r.solaris,
+          water: r.water,
+          is_leaver: r.player_name === playerName ? value : (r.is_leaver ?? false),
+          player_color: r.player_color,
+          player_slot: r.player_slot,
+          turn_order: r.turn_order,
+          has_first_player: r.has_first_player,
+          has_high_council: r.has_high_council,
+          has_swordmaster: r.has_swordmaster,
+          combat_strength: r.combat_strength,
+          garrison_troops: r.garrison_troops,
+        })),
+      });
+      if (error) throw new Error(error.message);
+      toast.success(value ? "Marked as leaver" : "Leaver mark removed");
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update leaver status");
+    } finally {
+      setLeaverBusy(null);
+    }
+  };
+
+
 
   const tags: string[] = [];
   if (game.board_version) tags.push(game.board_version === "uprising" ? "Uprising" : "Base");
