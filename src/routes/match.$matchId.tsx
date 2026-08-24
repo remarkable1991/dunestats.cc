@@ -847,17 +847,60 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
           </section>
 
           <section className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Players
-            </h3>
-            {players.map((p, i) => (
-              <div key={p.player_name + i} className="rounded-md border border-border/50 p-3 space-y-3 bg-background/40">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                Players
+              </h3>
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-muted-foreground mr-1">Order by</span>
+                {([
+                  { k: "placement" as const, label: "Placement" },
+                  { k: "slot" as const, label: "Player slot" },
+                  { k: "turn" as const, label: "Turn order" },
+                ]).map((o) => (
+                  <button
+                    key={o.k}
+                    type="button"
+                    onClick={() => setEditOrder(o.k)}
+                    className={`px-2 py-1 rounded border ${
+                      editOrder === o.k
+                        ? "border-sand/60 bg-sand/15 text-sand"
+                        : "border-border/50 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {orderedIndexes.map((i) => {
+              const p = players[i];
+              if (!p) return null;
+              const hex = colorHex(p.player_color);
+              return (
+              <div
+                key={p.player_name + i}
+                className="rounded-md border border-border/50 border-l-4 p-3 space-y-3 bg-background/40"
+                style={{ borderLeftColor: hex }}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">
-                      {p.placement}. {p.player_name}
+                  <div className="min-w-0 flex items-center gap-2">
+                    <span
+                      className="size-5 rounded-full border border-border/60 shrink-0"
+                      style={{ backgroundColor: hex }}
+                      title={p.player_color || "No colour set"}
+                    />
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">
+                        {p.placement}. {p.player_name}
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {p.player_color || "no colour"}
+                          {p.player_slot ? ` · slot ${p.player_slot}` : ""}
+                          {p.turn_order ? ` · turn ${p.turn_order}` : ""}
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">{p.leader_name ?? "—"}</div>
                     </div>
-                    <div className="text-xs text-muted-foreground truncate">{p.leader_name ?? "—"}</div>
                   </div>
                   <ToggleRow
                     label="Mark as leaver"
