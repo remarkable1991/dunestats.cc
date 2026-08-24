@@ -16,6 +16,7 @@ import {
   type TournamentConfig,
   checkinStart,
   fetchOpenTournaments,
+  fetchTournamentByNum,
   parseLocalDate,
   registrationClosesAt,
   tournamentDayCount,
