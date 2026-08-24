@@ -103,6 +103,7 @@ function MatchDetailsPage() {
   const [canEdit, setCanEdit] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [playerOrder, setPlayerOrder] = useState<"placement" | "slot" | "turn">("placement");
+  const [leaverBusy, setLeaverBusy] = useState<string | null>(null);
 
   const titles = usePlayerTitles();
 
