@@ -1064,7 +1064,7 @@ function LandsraadBar({ players }: { players: ResultRow[] }) {
                 <div key={i} className="flex items-center gap-1.5 text-xs">
                   <ShieldCheck className="size-4" style={{ color: colorHex(p.player_color) }} />
                   <span className="max-w-[9rem] truncate">{p.player_name}</span>
-                  <AgentSilhouettes count={3} hex={colorHex(p.player_color)} />
+                  
                 </div>
               ))}
             </div>
