@@ -1016,8 +1016,8 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
                   />
                 </div>
               </div>
-
-            ))}
+              );
+            })}
           </section>
 
           <div className="flex justify-end gap-2">
