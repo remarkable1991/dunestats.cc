@@ -709,6 +709,17 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
   const [baseLeaders, setBaseLeaders] = useState(game.has_base_leaders);
   const [conflictTitle, setConflictTitle] = useState(game.conflict_title ?? "");
   const [players, setPlayers] = useState<PlayerForm[]>([]);
+  const [editOrder, setEditOrder] = useState<"placement" | "slot" | "turn">("placement");
+  const orderedIndexes = players
+    .map((_, i) => i)
+    .sort((a, b) => {
+      const pa = players[a]!;
+      const pb = players[b]!;
+      const num = (v: string) => (v.trim() === "" ? 99 : Number(v));
+      if (editOrder === "slot") return num(pa.player_slot) - num(pb.player_slot);
+      if (editOrder === "turn") return num(pa.turn_order) - num(pb.turn_order);
+      return pa.placement - pb.placement;
+    });
 
   const reset = useCallback(() => {
     setEndRound(numToStr(game.end_round));
