@@ -16,6 +16,14 @@ import { TournamentTag } from "@/components/EloDelta";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useLeaderPortraits } from "@/lib/leader-portraits";
+import { applyFirstPlayer, type TelemetryPlayer } from "@/lib/match-telemetry";
+import {
+  AgentRow,
+  HighCouncilSeats,
+  ResourceBadges,
+  SwordmasterSpace,
+  WurmToken,
+} from "@/components/MatchBoardOverlay";
 
 
 export const Route = createFileRoute("/match/$matchId")({
@@ -47,8 +55,6 @@ type ResultRow = {
   has_first_player: boolean | null;
   has_high_council: boolean | null;
   has_swordmaster: boolean | null;
-  combat_strength: number | null;
-  garrison_troops: number | null;
 };
 
 type RatingTotals = {
@@ -112,7 +118,7 @@ function MatchDetailsPage() {
     (async () => {
       setLoading(true);
       const select =
-        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, end_round, image_url, tournament_num, conflict_title, ai_scan_status, ai_scan_summary, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, spice, solaris, water, is_leaver, player_slot, turn_order, player_color, has_first_player, has_high_council, has_swordmaster, combat_strength, garrison_troops)";
+        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, end_round, image_url, tournament_num, conflict_title, ai_scan_status, ai_scan_summary, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, spice, solaris, water, is_leaver, player_slot, turn_order, player_color, has_first_player, has_high_council, has_swordmaster)";
       let q = supabase.from("games").select(select).limit(1);
       q = UUID_RE.test(matchId)
         ? q.or(`public_match_id.eq.${matchId},id.eq.${matchId}`)
@@ -338,8 +344,6 @@ function MatchDetailsPage() {
           has_first_player: r.has_first_player,
           has_high_council: r.has_high_council,
           has_swordmaster: r.has_swordmaster,
-          combat_strength: r.combat_strength,
-          garrison_troops: r.garrison_troops,
         })),
       });
       if (error) throw new Error(error.message);
@@ -587,46 +591,21 @@ function MatchDetailsPage() {
             </div>
           </Card>
 
-          {game.image_url && (
-            <Card className="p-3 border-border/60 bg-card/70 w-full md:w-64">
-              <h2 className="font-display text-sm mb-2 text-muted-foreground">Screenshot</h2>
-              <Dialog onOpenChange={(o) => { if (o) void openImage(); }}>
-                <DialogTrigger asChild>
-                  <button className="relative group w-full aspect-video rounded overflow-hidden border border-border/50 bg-background/40 flex items-center justify-center">
-                    {signedImg ? (
-                      <SupabaseImage bucket="match-screenshots" src={signedImg} alt="Match screenshot preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        {imgLoading ? <Loader2 className="size-4 animate-spin" /> : "Loading…"}
-                      </span>
-                    )}
-                    <span className="absolute inset-0 flex items-center justify-center bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Maximize2 className="size-5 text-sand" />
-                    </span>
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl p-2 bg-background/95 backdrop-blur-md">
-                  {imgLoading || !signedImg ? (
-                    <div className="flex items-center justify-center h-64 text-muted-foreground">
-                      <Loader2 className="size-6 animate-spin" />
-                    </div>
-                  ) : (
-                    <SupabaseImage bucket="match-screenshots" src={signedImg} alt="Match screenshot" className="w-full h-auto rounded max-h-[80vh] object-contain" />
-                  )}
-                </DialogContent>
-              </Dialog>
-            </Card>
-          )}
+          <VerificationCard
+            game={game}
+            displayId={displayId}
+            fallbackImg={signedImg}
+            imgLoading={imgLoading}
+            onOpen={openImage}
+            canEdit={canEdit}
+            onSaved={() => setReloadKey((k) => k + 1)}
+          />
         </div>
 
         <div className="mt-6 flex justify-end">
-          <ConflictCard
-            players={slotSorted}
-            title={game.conflict_title}
-            endRound={game.end_round}
-            portraits={portraits}
-          />
+          <ConflictCard title={game.conflict_title} endRound={game.end_round} />
         </div>
+
 
       </div>
     </div>
@@ -752,8 +731,6 @@ type PlayerForm = {
   has_first_player: boolean;
   has_high_council: boolean;
   has_swordmaster: boolean;
-  combat_strength: string;
-  garrison_troops: string;
 };
 
 const numToStr = (n: number | null | undefined) =>
@@ -809,8 +786,6 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
           has_first_player: r.has_first_player ?? false,
           has_high_council: r.has_high_council ?? false,
           has_swordmaster: r.has_swordmaster ?? false,
-          combat_strength: numToStr(r.combat_strength),
-          garrison_troops: numToStr(r.garrison_troops),
         })),
     );
   }, [game]);
@@ -847,8 +822,6 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
           has_first_player: p.has_first_player,
           has_high_council: p.has_high_council,
           has_swordmaster: p.has_swordmaster,
-          combat_strength: p.combat_strength.trim() === "" ? null : Number(p.combat_strength),
-          garrison_troops: p.garrison_troops.trim() === "" ? null : Number(p.garrison_troops),
         })),
       });
       if (error) throw new Error(error.message);
@@ -1051,26 +1024,6 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
                       placeholder="—"
                     />
                   </div>
-                  <div>
-                    <Label className="text-xs">⚔ Combat</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={p.combat_strength}
-                      onChange={(e) => setPlayer(i, { combat_strength: e.target.value })}
-                      placeholder="—"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Garrison</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={p.garrison_troops}
-                      onChange={(e) => setPlayer(i, { garrison_troops: e.target.value })}
-                      placeholder="—"
-                    />
-                  </div>
                 </div>
                 <div className="grid sm:grid-cols-3 gap-2">
                   <ToggleRow
@@ -1193,72 +1146,270 @@ function LandsraadBar({ players }: { players: ResultRow[] }) {
 }
 
 
-/** Section C — conflict card with the four board quadrants. */
+/** Section C — conflict banner + end round. */
 function ConflictCard({
-  players,
   title,
   endRound,
-  portraits,
 }: {
-  players: ResultRow[];
   title: string | null;
   endRound: number | null;
-  portraits: Record<string, string | null>;
 }) {
-  const has = (v: number | null | undefined) => v !== null && v !== undefined;
-  const combatants = players.filter((p) => has(p.combat_strength) || has(p.garrison_troops));
-  if (!title && combatants.length === 0) return null;
+  if (!title && (endRound === null || endRound === undefined)) return null;
   return (
     <Card className="p-4 border-border/60 bg-card/70 w-full md:w-[26rem]">
-      <div className={combatants.length ? "mb-3" : ""}>
-        <h2 className="font-display text-lg leading-tight">{title ?? "Conflict"}</h2>
-        {endRound !== null && endRound !== undefined && (
-          <div className="text-xs text-muted-foreground">Round {endRound} of 10</div>
-        )}
-      </div>
-      {combatants.length > 0 && (
-      <div className="grid grid-cols-2 gap-2">
-        {combatants.map((p, i) => {
-          const route = p.leader_name ? leaderRouteFor(p.leader_name) : null;
-          const portrait = route ? portraits[route.slug] : null;
-          const hex = colorHex(p.player_color);
-          return (
-            <div
-              key={i}
-              className="rounded border border-border/50 bg-background/40 p-2 flex items-center gap-2"
-              style={{ borderLeft: `3px solid ${hex}` }}
-            >
-              <div className="size-9 rounded overflow-hidden bg-card/60 shrink-0">
-                {portrait && (
-                  <SupabaseImage bucket="leader-portraits" src={portrait} alt="" className="w-full h-full object-cover" />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-xs truncate">{p.player_name}</div>
-                <div className="mt-1 flex items-center gap-2">
-                  {has(p.combat_strength) && (
-                    <span className="inline-flex items-center gap-1 rounded border border-red-500/50 bg-red-500/15 text-red-300 px-1.5 py-0.5 text-[11px] tabular-nums">
-                      <Swords className="size-3" />
-                      {p.combat_strength}
-                    </span>
-                  )}
-                  {has(p.garrison_troops) && (
-                    <span
-                      className="inline-flex items-center gap-1 text-[11px] tabular-nums text-muted-foreground"
-                      title="Garrison troops"
-                    >
-                      <span className="size-2.5 rounded-[2px]" style={{ backgroundColor: hex }} />
-                      {p.garrison_troops}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <h2 className="font-display text-lg leading-tight">{title ?? "Conflict"}</h2>
+      {endRound !== null && endRound !== undefined && (
+        <div className="text-xs text-muted-foreground mt-1">Round {endRound} of 10</div>
       )}
+    </Card>
+  );
+}
 
+const R2_MATCH_BASE = "https://pub-6fb62f34a2e3491fa0c7c71cc9a969fd.r2.dev/matches";
+
+/** Public R2 URL for a match's content-area screenshot. */
+function r2MatchScreenshot(id: string): string {
+  return `${R2_MATCH_BASE}/${id}/${id}-content-area.png`;
+}
+
+/**
+ * Thumbnail card that opens the side-by-side verification modal:
+ * interactive board telemetry on the left, full screenshot on the right.
+ */
+function VerificationCard({
+  game,
+  displayId,
+  fallbackImg,
+  imgLoading,
+  onOpen,
+  canEdit,
+  onSaved,
+}: {
+  game: GameRow;
+  displayId: string;
+  fallbackImg: string | null;
+  imgLoading: boolean;
+  onOpen: () => Promise<void> | void;
+  canEdit: boolean;
+  onSaved: () => void;
+}) {
+  const r2Url = r2MatchScreenshot(displayId);
+  const [src, setSrc] = useState<string>(r2Url);
+  const [broken, setBroken] = useState(false);
+  const [players, setPlayers] = useState<TelemetryPlayer[]>(game.game_results);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setSrc(r2Url);
+    setBroken(false);
+  }, [r2Url]);
+
+  useEffect(() => {
+    setPlayers(game.game_results);
+  }, [game.game_results]);
+
+  const handleError = () => {
+    if (fallbackImg && src !== fallbackImg) setSrc(fallbackImg);
+    else setBroken(true);
+  };
+
+  const persist = async (next: TelemetryPlayer[], message: string) => {
+    setPlayers(next);
+    setSaving(true);
+    try {
+      const client = supabase as unknown as {
+        rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
+      };
+      const { error } = await client.rpc("update_match_details", {
+        p_game_id: game.id,
+        p_end_round: game.end_round,
+        p_board_version: game.board_version,
+        p_has_rise_of_ix: game.has_rise_of_ix,
+        p_has_epic_mode: game.has_epic_mode,
+        p_has_immortality: game.has_immortality,
+        p_has_base_leaders: game.has_base_leaders,
+        p_conflict_title: game.conflict_title,
+        p_players: next.map((p) => ({
+          player_name: p.player_name,
+          spice: p.spice,
+          solaris: p.solaris,
+          water: p.water,
+          is_leaver: p.is_leaver ?? false,
+          player_color: p.player_color,
+          player_slot: p.player_slot,
+          turn_order: p.turn_order,
+          has_first_player: p.has_first_player,
+          has_high_council: p.has_high_council,
+          has_swordmaster: p.has_swordmaster,
+        })),
+      });
+      if (error) throw new Error(error.message);
+      toast.success(message);
+      onSaved();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save telemetry");
+      setPlayers(game.game_results);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const slotOrdered = [...players].sort(
+    (a, b) => (a.player_slot ?? a.placement) - (b.player_slot ?? b.placement),
+  );
+  const wurmAssigned = players.some((p) => p.has_first_player);
+
+  const setFirstPlayer = (slot: number | null) => {
+    if (!canEdit || !slot) return;
+    void persist(applyFirstPlayer(players, slot, game.end_round), "First player updated");
+  };
+
+  const toggleSeat = (seat: number) => {
+    if (!canEdit) return;
+    const target = players.find((p) => (p.turn_order ?? 0) === seat);
+    if (!target) return;
+    const next = players.map((p) =>
+      p.player_name === target.player_name ? { ...p, has_high_council: !p.has_high_council } : p,
+    );
+    void persist(next, target.has_high_council ? "Seat vacated" : "High Council seat taken");
+  };
+
+  const toggleSwordmaster = (name: string) => {
+    if (!canEdit) return;
+    const target = players.find((p) => p.player_name === name);
+    if (!target) return;
+    const value = target.has_swordmaster !== true;
+    const next = players.map((p) => (p.player_name === name ? { ...p, has_swordmaster: value } : p));
+    void persist(next, value ? "Swordmaster recruited" : "Swordmaster removed");
+  };
+
+  return (
+    <Card className="p-3 border-border/60 bg-card/70 w-full md:w-64">
+      <h2 className="font-display text-sm mb-2 text-muted-foreground">Screenshot</h2>
+      <Dialog onOpenChange={(o) => { if (o) void onOpen(); }}>
+        <DialogTrigger asChild>
+          <button className="relative group w-full aspect-video rounded overflow-hidden border border-border/50 bg-background/40 flex items-center justify-center">
+            {broken ? (
+              <span className="text-xs text-muted-foreground">
+                {imgLoading ? <Loader2 className="size-4 animate-spin" /> : "No screenshot"}
+              </span>
+            ) : (
+              <img
+                src={src}
+                onError={handleError}
+                alt="Match screenshot preview"
+                className="w-full h-full object-cover"
+              />
+            )}
+            <span className="absolute inset-0 flex items-center justify-center bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Maximize2 className="size-5 text-sand" />
+            </span>
+          </button>
+        </DialogTrigger>
+        <DialogContent className="max-w-[95vw] xl:max-w-[1400px] p-4 bg-background/95 backdrop-blur-md max-h-[92vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2">
+              Verify match #{displayId}
+              {saving && <Loader2 className="size-4 animate-spin text-sand" />}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Left pane — interactive board telemetry */}
+            <div className="space-y-4">
+              {!wurmAssigned && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <WurmToken unknown muted={false} />
+                  First player not assigned{canEdit ? " — click a worm slot below" : ""}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {slotOrdered.map((p) => {
+                  const hex = colorHex(p.player_color);
+                  return (
+                    <div
+                      key={p.player_name}
+                      className="rounded-md border-2 bg-background/40 px-3 py-2 transition-all duration-300"
+                      style={{ borderColor: hex, boxShadow: `inset 3px 0 0 ${hex}` }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={!canEdit}
+                          onClick={() => setFirstPlayer(p.player_slot)}
+                          title={
+                            p.has_first_player
+                              ? "First player"
+                              : canEdit
+                                ? "Make first player"
+                                : "Not first player"
+                          }
+                          className={`shrink-0 rounded-full ${canEdit ? "cursor-pointer hover:scale-110" : "cursor-default"} transition-transform duration-200`}
+                        >
+                          <WurmToken muted={!p.has_first_player} />
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-medium">{p.player_name}</div>
+                          <div className="text-[11px] text-muted-foreground truncate">
+                            {p.leader_name ?? "—"}
+                            {p.player_slot ? ` · slot ${p.player_slot}` : ""}
+                            {p.turn_order ? ` · turn ${p.turn_order}` : ""}
+                          </div>
+                        </div>
+                        <AgentRow
+                          p={p}
+                          canEdit={canEdit}
+                          onToggleSwordmaster={() => toggleSwordmaster(p.player_name)}
+                        />
+                        <span className="size-9 shrink-0 rounded-full border-2 border-sand/70 bg-sand/10 flex items-center justify-center font-display text-sand tabular-nums">
+                          {p.points}
+                        </span>
+                      </div>
+                      <ResourceBadges p={p} />
+                    </div>
+                  );
+                })}
+              </div>
+
+              <Card className="p-3 border-border/60 bg-card/60 space-y-3">
+                <HighCouncilSeats players={players} canEdit={canEdit} onToggleSeat={toggleSeat} />
+                <SwordmasterSpace
+                  players={players}
+                  canEdit={canEdit}
+                  onToggleSwordmaster={toggleSwordmaster}
+                />
+              </Card>
+
+              {(game.conflict_title || game.end_round) && (
+                <Card className="p-3 border-border/60 bg-card/60">
+                  <div className="font-display text-base leading-tight">
+                    {game.conflict_title ?? "Conflict"}
+                  </div>
+                  {game.end_round !== null && game.end_round !== undefined && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Round {game.end_round} of 10
+                    </div>
+                  )}
+                </Card>
+              )}
+            </div>
+
+            {/* Right pane — full resolution screenshot */}
+            <div className="rounded border border-border/50 bg-background/40 flex items-center justify-center overflow-hidden">
+              {broken ? (
+                <span className="text-xs text-muted-foreground p-8">Screenshot unavailable</span>
+              ) : (
+                <img
+                  src={src}
+                  onError={handleError}
+                  alt="Match screenshot"
+                  className="w-full h-auto object-contain max-h-[80vh]"
+                />
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
