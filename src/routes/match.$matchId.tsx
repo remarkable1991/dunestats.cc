@@ -583,46 +583,21 @@ function MatchDetailsPage() {
             </div>
           </Card>
 
-          {game.image_url && (
-            <Card className="p-3 border-border/60 bg-card/70 w-full md:w-64">
-              <h2 className="font-display text-sm mb-2 text-muted-foreground">Screenshot</h2>
-              <Dialog onOpenChange={(o) => { if (o) void openImage(); }}>
-                <DialogTrigger asChild>
-                  <button className="relative group w-full aspect-video rounded overflow-hidden border border-border/50 bg-background/40 flex items-center justify-center">
-                    {signedImg ? (
-                      <SupabaseImage bucket="match-screenshots" src={signedImg} alt="Match screenshot preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        {imgLoading ? <Loader2 className="size-4 animate-spin" /> : "Loading…"}
-                      </span>
-                    )}
-                    <span className="absolute inset-0 flex items-center justify-center bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Maximize2 className="size-5 text-sand" />
-                    </span>
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl p-2 bg-background/95 backdrop-blur-md">
-                  {imgLoading || !signedImg ? (
-                    <div className="flex items-center justify-center h-64 text-muted-foreground">
-                      <Loader2 className="size-6 animate-spin" />
-                    </div>
-                  ) : (
-                    <SupabaseImage bucket="match-screenshots" src={signedImg} alt="Match screenshot" className="w-full h-auto rounded max-h-[80vh] object-contain" />
-                  )}
-                </DialogContent>
-              </Dialog>
-            </Card>
-          )}
+          <VerificationCard
+            game={game}
+            displayId={displayId}
+            fallbackImg={signedImg}
+            imgLoading={imgLoading}
+            onOpen={openImage}
+            canEdit={canEdit}
+            onSaved={() => setReloadKey((k) => k + 1)}
+          />
         </div>
 
         <div className="mt-6 flex justify-end">
-          <ConflictCard
-            players={slotSorted}
-            title={game.conflict_title}
-            endRound={game.end_round}
-            portraits={portraits}
-          />
+          <ConflictCard title={game.conflict_title} endRound={game.end_round} />
         </div>
+
 
       </div>
     </div>
