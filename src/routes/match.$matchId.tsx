@@ -47,8 +47,6 @@ type ResultRow = {
   has_first_player: boolean | null;
   has_high_council: boolean | null;
   has_swordmaster: boolean | null;
-  combat_strength: number | null;
-  garrison_troops: number | null;
 };
 
 type RatingTotals = {
@@ -112,7 +110,7 @@ function MatchDetailsPage() {
     (async () => {
       setLoading(true);
       const select =
-        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, end_round, image_url, tournament_num, conflict_title, ai_scan_status, ai_scan_summary, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, spice, solaris, water, is_leaver, player_slot, turn_order, player_color, has_first_player, has_high_council, has_swordmaster, combat_strength, garrison_troops)";
+        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, end_round, image_url, tournament_num, conflict_title, ai_scan_status, ai_scan_summary, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, spice, solaris, water, is_leaver, player_slot, turn_order, player_color, has_first_player, has_high_council, has_swordmaster)";
       let q = supabase.from("games").select(select).limit(1);
       q = UUID_RE.test(matchId)
         ? q.or(`public_match_id.eq.${matchId},id.eq.${matchId}`)
@@ -338,8 +336,6 @@ function MatchDetailsPage() {
           has_first_player: r.has_first_player,
           has_high_council: r.has_high_council,
           has_swordmaster: r.has_swordmaster,
-          combat_strength: r.combat_strength,
-          garrison_troops: r.garrison_troops,
         })),
       });
       if (error) throw new Error(error.message);
@@ -752,8 +748,6 @@ type PlayerForm = {
   has_first_player: boolean;
   has_high_council: boolean;
   has_swordmaster: boolean;
-  combat_strength: string;
-  garrison_troops: string;
 };
 
 const numToStr = (n: number | null | undefined) =>
@@ -809,8 +803,6 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
           has_first_player: r.has_first_player ?? false,
           has_high_council: r.has_high_council ?? false,
           has_swordmaster: r.has_swordmaster ?? false,
-          combat_strength: numToStr(r.combat_strength),
-          garrison_troops: numToStr(r.garrison_troops),
         })),
     );
   }, [game]);
@@ -847,8 +839,6 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
           has_first_player: p.has_first_player,
           has_high_council: p.has_high_council,
           has_swordmaster: p.has_swordmaster,
-          combat_strength: p.combat_strength.trim() === "" ? null : Number(p.combat_strength),
-          garrison_troops: p.garrison_troops.trim() === "" ? null : Number(p.garrison_troops),
         })),
       });
       if (error) throw new Error(error.message);
@@ -1051,26 +1041,6 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
                       placeholder="—"
                     />
                   </div>
-                  <div>
-                    <Label className="text-xs">⚔ Combat</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={p.combat_strength}
-                      onChange={(e) => setPlayer(i, { combat_strength: e.target.value })}
-                      placeholder="—"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Garrison</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={p.garrison_troops}
-                      onChange={(e) => setPlayer(i, { garrison_troops: e.target.value })}
-                      placeholder="—"
-                    />
-                  </div>
                 </div>
                 <div className="grid sm:grid-cols-3 gap-2">
                   <ToggleRow
@@ -1193,72 +1163,21 @@ function LandsraadBar({ players }: { players: ResultRow[] }) {
 }
 
 
-/** Section C — conflict card with the four board quadrants. */
+/** Section C — conflict banner + end round. */
 function ConflictCard({
-  players,
   title,
   endRound,
-  portraits,
 }: {
-  players: ResultRow[];
   title: string | null;
   endRound: number | null;
-  portraits: Record<string, string | null>;
 }) {
-  const has = (v: number | null | undefined) => v !== null && v !== undefined;
-  const combatants = players.filter((p) => has(p.combat_strength) || has(p.garrison_troops));
-  if (!title && combatants.length === 0) return null;
+  if (!title && (endRound === null || endRound === undefined)) return null;
   return (
     <Card className="p-4 border-border/60 bg-card/70 w-full md:w-[26rem]">
-      <div className={combatants.length ? "mb-3" : ""}>
-        <h2 className="font-display text-lg leading-tight">{title ?? "Conflict"}</h2>
-        {endRound !== null && endRound !== undefined && (
-          <div className="text-xs text-muted-foreground">Round {endRound} of 10</div>
-        )}
-      </div>
-      {combatants.length > 0 && (
-      <div className="grid grid-cols-2 gap-2">
-        {combatants.map((p, i) => {
-          const route = p.leader_name ? leaderRouteFor(p.leader_name) : null;
-          const portrait = route ? portraits[route.slug] : null;
-          const hex = colorHex(p.player_color);
-          return (
-            <div
-              key={i}
-              className="rounded border border-border/50 bg-background/40 p-2 flex items-center gap-2"
-              style={{ borderLeft: `3px solid ${hex}` }}
-            >
-              <div className="size-9 rounded overflow-hidden bg-card/60 shrink-0">
-                {portrait && (
-                  <SupabaseImage bucket="leader-portraits" src={portrait} alt="" className="w-full h-full object-cover" />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-xs truncate">{p.player_name}</div>
-                <div className="mt-1 flex items-center gap-2">
-                  {has(p.combat_strength) && (
-                    <span className="inline-flex items-center gap-1 rounded border border-red-500/50 bg-red-500/15 text-red-300 px-1.5 py-0.5 text-[11px] tabular-nums">
-                      <Swords className="size-3" />
-                      {p.combat_strength}
-                    </span>
-                  )}
-                  {has(p.garrison_troops) && (
-                    <span
-                      className="inline-flex items-center gap-1 text-[11px] tabular-nums text-muted-foreground"
-                      title="Garrison troops"
-                    >
-                      <span className="size-2.5 rounded-[2px]" style={{ backgroundColor: hex }} />
-                      {p.garrison_troops}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <h2 className="font-display text-lg leading-tight">{title ?? "Conflict"}</h2>
+      {endRound !== null && endRound !== undefined && (
+        <div className="text-xs text-muted-foreground mt-1">Round {endRound} of 10</div>
       )}
-
     </Card>
   );
 }
