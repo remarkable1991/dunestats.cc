@@ -16,6 +16,14 @@ import { TournamentTag } from "@/components/EloDelta";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useLeaderPortraits } from "@/lib/leader-portraits";
+import { applyFirstPlayer, type TelemetryPlayer } from "@/lib/match-telemetry";
+import {
+  AgentRow,
+  HighCouncilSeats,
+  ResourceBadges,
+  SwordmasterSpace,
+  WurmToken,
+} from "@/components/MatchBoardOverlay";
 
 
 export const Route = createFileRoute("/match/$matchId")({
