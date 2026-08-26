@@ -1539,5 +1539,4 @@ function VerificationCard({
     </Card>
   );
 
-  );
 }
