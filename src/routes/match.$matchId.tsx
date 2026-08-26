@@ -1290,6 +1290,7 @@ function VerificationCard({
   const [src, setSrc] = useState<string>(contentUrl);
   const [broken, setBroken] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [players, setPlayers] = useState<TelemetryPlayer[]>(game.game_results);
   const [saving, setSaving] = useState(false);
 
@@ -1311,22 +1312,36 @@ function VerificationCard({
   };
 
   const handleUpload = async (file: File | null | undefined) => {
-    if (!file || !canEdit) return;
+    if (!file || !canEdit || uploading || scanning) return;
     setUploading(true);
+    setScanning(false);
     try {
-      await mirrorFileToR2(
-        "match-screenshots",
-        endboardPathFor(displayId),
-        file.type || "image/png",
-        file,
-      );
+      // 1. Mirror the raw capture to R2 (never overwrites the scoring screenshot).
+      const rawKey = endboardPathFor(displayId);
+      await mirrorFileToR2("match-screenshots", rawKey, file.type || "image/png", file);
       toast.success("Endboard screenshot uploaded — running telemetry");
+
+      // 2. Trigger the telemetry Lambda (no-ops when not configured).
+      setUploading(false);
+      setScanning(true);
+      const { triggered } = await runMatchTelemetry({
+        data: { matchId: displayId, key: rawKey },
+      });
+
+      // 3. Wait for the processed content-area image, then reload the preview.
+      const processed = triggered ? await waitForContentArea(displayId) : false;
       setBroken(false);
       setBust(Date.now());
+      if (processed) {
+        toast.success("Telemetry scan complete");
+      } else if (triggered) {
+        toast.info("Telemetry still processing — showing the raw upload for now");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(false);
+      setScanning(false);
     }
   };
 
