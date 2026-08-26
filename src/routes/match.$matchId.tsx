@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { SupabaseImage } from "@/components/SupabaseImage";
-import { signedUrlOrR2 } from "@/lib/storage-r2";
+import { signedUrlOrR2, mirrorFileToR2 } from "@/lib/storage-r2";
 import { useCallback, useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
@@ -591,15 +591,21 @@ function MatchDetailsPage() {
             </div>
           </Card>
 
-          <VerificationCard
-            game={game}
-            displayId={displayId}
-            fallbackImg={signedImg}
-            imgLoading={imgLoading}
-            onOpen={openImage}
-            canEdit={canEdit}
-            onSaved={() => setReloadKey((k) => k + 1)}
-          />
+          <div className="w-full md:w-64 space-y-3">
+            <ScoringScreenshotCard
+              imageUrl={game.image_url}
+              signedImg={signedImg}
+              imgLoading={imgLoading}
+              onOpen={openImage}
+            />
+            <VerificationCard
+              game={game}
+              displayId={displayId}
+              canEdit={canEdit}
+              onSaved={() => setReloadKey((k) => k + 1)}
+            />
+          </div>
+
         </div>
 
         <div className="mt-6 flex justify-end">
@@ -1167,50 +1173,137 @@ function ConflictCard({
 
 const R2_MATCH_BASE = "https://pub-6fb62f34a2e3491fa0c7c71cc9a969fd.r2.dev/matches";
 
-/** Public R2 URL for a match's content-area screenshot. */
-function r2MatchScreenshot(id: string): string {
+/** Public R2 URL for a match's processed content-area screenshot. */
+function r2ContentAreaUrl(id: string): string {
   return `${R2_MATCH_BASE}/${id}/${id}-content-area.png`;
 }
 
+/** Public R2 URL for the raw endboard screenshot uploaded by a player. */
+function r2EndboardRawUrl(id: string): string {
+  return `${R2_MATCH_BASE}/${id}/${id}-endboard-raw.png`;
+}
+
+/** Storage path (bucket-relative) for the raw endboard screenshot. */
+function endboardPathFor(id: string): string {
+  return `matches/${id}/${id}-endboard-raw.png`;
+}
+
+/** The original post-game scoring screenshot uploaded on submission. */
+function ScoringScreenshotCard({
+  imageUrl,
+  signedImg,
+  imgLoading,
+  onOpen,
+}: {
+  imageUrl: string | null;
+  signedImg: string | null;
+  imgLoading: boolean;
+  onOpen: () => Promise<void> | void;
+}) {
+  if (!imageUrl) return null;
+  return (
+    <Card className="p-3 border-border/60 bg-card/70">
+      <h2 className="font-display text-sm mb-2 text-muted-foreground">Scoring screenshot</h2>
+      <Dialog onOpenChange={(o) => { if (o) void onOpen(); }}>
+        <DialogTrigger asChild>
+          <button className="relative group w-full aspect-video rounded overflow-hidden border border-border/50 bg-background/40 flex items-center justify-center">
+            {signedImg ? (
+              <SupabaseImage
+                bucket="match-screenshots"
+                src={signedImg}
+                alt="Scoring screenshot preview"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                {imgLoading ? <Loader2 className="size-4 animate-spin" /> : "No screenshot"}
+              </span>
+            )}
+            <span className="absolute inset-0 flex items-center justify-center bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Maximize2 className="size-5 text-sand" />
+            </span>
+          </button>
+        </DialogTrigger>
+        <DialogContent className="max-w-4xl p-2 bg-background/95 backdrop-blur-md">
+          {signedImg ? (
+            <SupabaseImage
+              bucket="match-screenshots"
+              src={signedImg}
+              alt="Scoring screenshot"
+              className="w-full h-auto rounded max-h-[85vh] object-contain"
+            />
+          ) : (
+            <div className="flex items-center justify-center h-64 text-muted-foreground">
+              <Loader2 className="size-6 animate-spin" />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
 /**
- * Thumbnail card that opens the side-by-side verification modal:
- * interactive board telemetry on the left, full screenshot on the right.
+ * Endboard telemetry screenshot: thumbnail card that opens the side-by-side
+ * verification modal (interactive board telemetry left, screenshot right) and
+ * lets authorised editors upload/replace the endboard capture.
  */
 function VerificationCard({
   game,
   displayId,
-  fallbackImg,
-  imgLoading,
-  onOpen,
   canEdit,
   onSaved,
 }: {
   game: GameRow;
   displayId: string;
-  fallbackImg: string | null;
-  imgLoading: boolean;
-  onOpen: () => Promise<void> | void;
   canEdit: boolean;
   onSaved: () => void;
 }) {
-  const r2Url = r2MatchScreenshot(displayId);
-  const [src, setSrc] = useState<string>(r2Url);
+  const contentUrl = r2ContentAreaUrl(displayId);
+  const rawUrl = r2EndboardRawUrl(displayId);
+  const [bust, setBust] = useState(0);
+  const suffix = bust ? `?v=${bust}` : "";
+  const [src, setSrc] = useState<string>(contentUrl);
   const [broken, setBroken] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [players, setPlayers] = useState<TelemetryPlayer[]>(game.game_results);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setSrc(r2Url);
+    setSrc(contentUrl);
     setBroken(false);
-  }, [r2Url]);
+  }, [contentUrl, bust]);
 
   useEffect(() => {
     setPlayers(game.game_results);
   }, [game.game_results]);
 
   const handleError = () => {
-    if (fallbackImg && src !== fallbackImg) setSrc(fallbackImg);
-    else setBroken(true);
+    if (src.startsWith(contentUrl)) {
+      setSrc(rawUrl);
+      return;
+    }
+    setBroken(true);
+  };
+
+  const handleUpload = async (file: File | null | undefined) => {
+    if (!file || !canEdit) return;
+    setUploading(true);
+    try {
+      await mirrorFileToR2(
+        "match-screenshots",
+        endboardPathFor(displayId),
+        file.type || "image/png",
+        file,
+      );
+      toast.success("Endboard screenshot uploaded — running telemetry");
+      setBroken(false);
+      setBust(Date.now());
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const persist = async (next: TelemetryPlayer[], message: string) => {
@@ -1220,6 +1313,7 @@ function VerificationCard({
       const client = supabase as unknown as {
         rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
       };
+
       const { error } = await client.rpc("update_match_details", {
         p_game_id: game.id,
         p_end_round: game.end_round,
@@ -1284,20 +1378,23 @@ function VerificationCard({
   };
 
   return (
-    <Card className="p-3 border-border/60 bg-card/70 w-full md:w-64">
-      <h2 className="font-display text-sm mb-2 text-muted-foreground">Screenshot</h2>
-      <Dialog onOpenChange={(o) => { if (o) void onOpen(); }}>
+    <Card className="p-3 border-border/60 bg-card/70 w-full">
+      <h2 className="font-display text-sm mb-2 text-muted-foreground">Endboard state</h2>
+      <Dialog>
         <DialogTrigger asChild>
-          <button className="relative group w-full aspect-video rounded overflow-hidden border border-border/50 bg-background/40 flex items-center justify-center">
+          <button
+            disabled={broken}
+            className="relative group w-full aspect-video rounded overflow-hidden border border-border/50 bg-background/40 flex items-center justify-center disabled:cursor-default"
+          >
             {broken ? (
               <span className="text-xs text-muted-foreground">
-                {imgLoading ? <Loader2 className="size-4 animate-spin" /> : "No screenshot"}
+                {uploading ? <Loader2 className="size-4 animate-spin" /> : "No endboard screenshot"}
               </span>
             ) : (
               <img
-                src={src}
+                src={`${src}${suffix}`}
                 onError={handleError}
-                alt="Match screenshot preview"
+                alt="Endboard screenshot preview"
                 className="w-full h-full object-cover"
               />
             )}
@@ -1307,6 +1404,7 @@ function VerificationCard({
           </button>
         </DialogTrigger>
         <DialogContent className="max-w-[95vw] xl:max-w-[1400px] p-4 bg-background/95 backdrop-blur-md max-h-[92vh] overflow-y-auto">
+
           <DialogHeader>
             <DialogTitle className="font-display flex items-center gap-2">
               Verify match #{displayId}
@@ -1400,9 +1498,9 @@ function VerificationCard({
                 <span className="text-xs text-muted-foreground p-8">Screenshot unavailable</span>
               ) : (
                 <img
-                  src={src}
+                  src={`${src}${suffix}`}
                   onError={handleError}
-                  alt="Match screenshot"
+                  alt="Endboard screenshot"
                   className="w-full h-auto object-contain max-h-[80vh]"
                 />
               )}
@@ -1410,6 +1508,35 @@ function VerificationCard({
           </div>
         </DialogContent>
       </Dialog>
+
+      {canEdit && (
+        <label
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            void handleUpload(e.dataTransfer.files?.[0]);
+          }}
+          className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded border border-dashed border-sand/50 bg-sand/5 px-2 py-2 text-[11px] text-sand hover:bg-sand/10 transition-colors"
+        >
+          {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Maximize2 className="size-3.5" />}
+          {uploading
+            ? "Uploading…"
+            : broken
+              ? "Upload endboard screenshot"
+              : "Replace endboard"}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => {
+              void handleUpload(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      )}
     </Card>
   );
+
 }
