@@ -104,3 +104,26 @@ export async function mirrorFileToR2(
     console.warn("[storage] R2 mirror failed", e);
   }
 }
+
+/**
+ * Upload a file straight to Cloudflare R2, bypassing Supabase Storage.
+ * Unlike {@link mirrorFileToR2} this THROWS when the R2 write fails.
+ */
+export async function uploadToR2(
+  bucket: string,
+  path: string,
+  contentType: string,
+  file: Blob,
+): Promise<void> {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < buf.length; i += chunk) {
+    binary += String.fromCharCode(...buf.subarray(i, i + chunk));
+  }
+  const { mirrorToR2 } = await import("@/lib/r2-mirror.functions");
+  const res = await mirrorToR2({ data: { bucket, path, contentType, base64: btoa(binary) } });
+  if (!res?.mirrored) {
+    throw new Error(`R2 upload failed${res?.reason ? `: ${res.reason}` : ""}`);
+  }
+}
