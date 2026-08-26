@@ -1316,34 +1316,43 @@ function VerificationCard({
     setUploading(true);
     setScanning(false);
     try {
-      // 1. Mirror the raw capture to R2 (never overwrites the scoring screenshot).
+      // 1. Direct upload to Cloudflare R2 (never touches Supabase Storage).
       const rawKey = endboardPathFor(displayId);
-      await mirrorFileToR2("match-screenshots", rawKey, file.type || "image/png", file);
+      const publicRawUrl = r2EndboardRawUrl(displayId);
+      await uploadToR2("match-screenshots", rawKey, file.type || "image/png", file);
       toast.success("Endboard screenshot uploaded — running telemetry");
 
-      // 2. Trigger the telemetry Lambda (no-ops when not configured).
       setUploading(false);
       setScanning(true);
-      const { triggered } = await runMatchTelemetry({
-        data: { matchId: displayId, key: rawKey },
-      });
 
-      // 3. Wait for the processed content-area image, then reload the preview.
-      const processed = triggered ? await waitForContentArea(displayId) : false;
-      setBroken(false);
-      setBust(Date.now());
-      if (processed) {
-        toast.success("Telemetry scan complete");
-      } else if (triggered) {
-        toast.info("Telemetry still processing — showing the raw upload for now");
+      // Short pause so the object is served by the CDN before the Lambda reads it.
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // 2. Trigger the telemetry Lambda with the public R2 URL.
+      const lambdaResponse = await fetch(TELEMETRY_LAMBDA_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ match_id: displayId, image_url: publicRawUrl }),
+      });
+      if (!lambdaResponse.ok) {
+        const errText = await lambdaResponse.text().catch(() => "");
+        throw new Error(`Lambda scan failed (${lambdaResponse.status}): ${errText}`);
       }
+      await lambdaResponse.json().catch(() => null);
+
+      // 3. Show the processed content-area image.
+      setBroken(false);
+      setSrc(`${r2ContentAreaUrl(displayId)}?t=${Date.now()}`);
+      setBust(Date.now());
+      toast.success("Endboard screenshot uploaded to R2 and telemetry scanned!");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Upload failed");
+      toast.error(e instanceof Error ? e.message : "Failed to process screenshot");
     } finally {
       setUploading(false);
       setScanning(false);
     }
   };
+
 
   const persist = async (next: TelemetryPlayer[], message: string) => {
     setPlayers(next);
