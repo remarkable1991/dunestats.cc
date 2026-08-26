@@ -1426,8 +1426,15 @@ function VerificationCard({
             className="relative group w-full aspect-video rounded overflow-hidden border border-border/50 bg-background/40 flex items-center justify-center disabled:cursor-default"
           >
             {broken ? (
-              <span className="text-xs text-muted-foreground">
-                {uploading ? <Loader2 className="size-4 animate-spin" /> : "No endboard screenshot"}
+              <span className="text-xs text-muted-foreground inline-flex items-center gap-2">
+                {uploading || scanning ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    {uploading ? "Uploading…" : "Scanning endboard…"}
+                  </>
+                ) : (
+                  "No endboard screenshot"
+                )}
               </span>
             ) : (
               <img
@@ -1557,17 +1564,23 @@ function VerificationCard({
           }}
           className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded border border-dashed border-sand/50 bg-sand/5 px-2 py-2 text-[11px] text-sand hover:bg-sand/10 transition-colors"
         >
-          {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Maximize2 className="size-3.5" />}
+          {uploading || scanning ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Maximize2 className="size-3.5" />
+          )}
           {uploading
             ? "Uploading…"
-            : broken
-              ? "Upload endboard screenshot"
-              : "Replace endboard"}
+            : scanning
+              ? "Scanning endboard…"
+              : broken
+                ? "Upload endboard screenshot"
+                : "Replace endboard"}
           <input
             type="file"
             accept="image/*"
             className="hidden"
-            disabled={uploading}
+            disabled={uploading || scanning}
             onChange={(e) => {
               void handleUpload(e.target.files?.[0]);
               e.target.value = "";
