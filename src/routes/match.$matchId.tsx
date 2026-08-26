@@ -1189,28 +1189,10 @@ function endboardPathFor(id: string): string {
   return `matches/${id}/${id}-endboard-raw.png`;
 }
 
-/**
- * Poll the public R2 domain until the telemetry Lambda has produced the
- * processed content-area image (or we give up). Never throws.
- */
-async function waitForContentArea(
-  id: string,
-  timeoutMs = 60_000,
-  intervalMs = 4_000,
-): Promise<boolean> {
-  const url = r2ContentAreaUrl(id);
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const res = await fetch(`${url}?cb=${Date.now()}`, { method: "HEAD", cache: "no-store" });
-      if (res.ok) return true;
-    } catch {
-      // network hiccup — keep polling until the timeout
-    }
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
-  return false;
-}
+/** AWS Lambda function URL that extracts board telemetry from an endboard image. */
+const TELEMETRY_LAMBDA_URL =
+  "https://kduk2xkwx4snu7iwjm5lvwrgxi0sevgl.lambda-url.eu-north-1.on.aws/";
+
 
 /** The original post-game scoring screenshot uploaded on submission. */
 function ScoringScreenshotCard({
