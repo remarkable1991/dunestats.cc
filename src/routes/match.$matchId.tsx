@@ -591,15 +591,21 @@ function MatchDetailsPage() {
             </div>
           </Card>
 
-          <VerificationCard
-            game={game}
-            displayId={displayId}
-            fallbackImg={signedImg}
-            imgLoading={imgLoading}
-            onOpen={openImage}
-            canEdit={canEdit}
-            onSaved={() => setReloadKey((k) => k + 1)}
-          />
+          <div className="w-full md:w-64 space-y-3">
+            <ScoringScreenshotCard
+              imageUrl={game.image_url}
+              signedImg={signedImg}
+              imgLoading={imgLoading}
+              onOpen={openImage}
+            />
+            <VerificationCard
+              game={game}
+              displayId={displayId}
+              canEdit={canEdit}
+              onSaved={() => setReloadKey((k) => k + 1)}
+            />
+          </div>
+
         </div>
 
         <div className="mt-6 flex justify-end">
