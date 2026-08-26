@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { SupabaseImage } from "@/components/SupabaseImage";
-import { signedUrlOrR2 } from "@/lib/storage-r2";
+import { signedUrlOrR2, mirrorFileToR2 } from "@/lib/storage-r2";
 import { useCallback, useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
