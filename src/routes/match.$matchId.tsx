@@ -1278,7 +1278,8 @@ function VerificationCard({
   useEffect(() => {
     setSrc(contentUrl);
     setBroken(false);
-  }, [contentUrl, bust]);
+  }, [contentUrl]);
+
 
   useEffect(() => {
     setPlayers(game.game_results);
