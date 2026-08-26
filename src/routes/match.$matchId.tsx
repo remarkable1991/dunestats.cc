@@ -1267,8 +1267,8 @@ function VerificationCard({
   const contentUrl = r2ContentAreaUrl(displayId);
   const rawUrl = r2EndboardRawUrl(displayId);
   const [bust, setBust] = useState(0);
-  const suffix = bust ? `${src.includes("?") ? "&" : "?"}v=${bust}` : "";
   const [src, setSrc] = useState<string>(contentUrl);
+  const suffix = bust ? `${src.includes("?") ? "&" : "?"}v=${bust}` : "";
   const [broken, setBroken] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [scanning, setScanning] = useState(false);
