@@ -1378,20 +1378,23 @@ function VerificationCard({
   };
 
   return (
-    <Card className="p-3 border-border/60 bg-card/70 w-full md:w-64">
-      <h2 className="font-display text-sm mb-2 text-muted-foreground">Screenshot</h2>
-      <Dialog onOpenChange={(o) => { if (o) void onOpen(); }}>
+    <Card className="p-3 border-border/60 bg-card/70 w-full">
+      <h2 className="font-display text-sm mb-2 text-muted-foreground">Endboard state</h2>
+      <Dialog>
         <DialogTrigger asChild>
-          <button className="relative group w-full aspect-video rounded overflow-hidden border border-border/50 bg-background/40 flex items-center justify-center">
+          <button
+            disabled={broken}
+            className="relative group w-full aspect-video rounded overflow-hidden border border-border/50 bg-background/40 flex items-center justify-center disabled:cursor-default"
+          >
             {broken ? (
               <span className="text-xs text-muted-foreground">
-                {imgLoading ? <Loader2 className="size-4 animate-spin" /> : "No screenshot"}
+                {uploading ? <Loader2 className="size-4 animate-spin" /> : "No endboard screenshot"}
               </span>
             ) : (
               <img
-                src={src}
+                src={`${src}${suffix}`}
                 onError={handleError}
-                alt="Match screenshot preview"
+                alt="Endboard screenshot preview"
                 className="w-full h-full object-cover"
               />
             )}
@@ -1401,6 +1404,7 @@ function VerificationCard({
           </button>
         </DialogTrigger>
         <DialogContent className="max-w-[95vw] xl:max-w-[1400px] p-4 bg-background/95 backdrop-blur-md max-h-[92vh] overflow-y-auto">
+
           <DialogHeader>
             <DialogTitle className="font-display flex items-center gap-2">
               Verify match #{displayId}
