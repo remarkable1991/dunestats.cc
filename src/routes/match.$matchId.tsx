@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { SupabaseImage } from "@/components/SupabaseImage";
-import { signedUrlOrR2, mirrorFileToR2 } from "@/lib/storage-r2";
+import { signedUrlOrR2, uploadToR2 } from "@/lib/storage-r2";
 import { useCallback, useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
@@ -17,7 +17,6 @@ import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useLeaderPortraits } from "@/lib/leader-portraits";
 import { applyFirstPlayer, type TelemetryPlayer } from "@/lib/match-telemetry";
-import { runMatchTelemetry } from "@/lib/match-telemetry.functions";
 import {
   AgentRow,
   HighCouncilSeats,
