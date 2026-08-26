@@ -1498,9 +1498,9 @@ function VerificationCard({
                 <span className="text-xs text-muted-foreground p-8">Screenshot unavailable</span>
               ) : (
                 <img
-                  src={src}
+                  src={`${src}${suffix}`}
                   onError={handleError}
-                  alt="Match screenshot"
+                  alt="Endboard screenshot"
                   className="w-full h-auto object-contain max-h-[80vh]"
                 />
               )}
@@ -1508,6 +1508,36 @@ function VerificationCard({
           </div>
         </DialogContent>
       </Dialog>
+
+      {canEdit && (
+        <label
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            void handleUpload(e.dataTransfer.files?.[0]);
+          }}
+          className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded border border-dashed border-sand/50 bg-sand/5 px-2 py-2 text-[11px] text-sand hover:bg-sand/10 transition-colors"
+        >
+          {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Maximize2 className="size-3.5" />}
+          {uploading
+            ? "Uploading…"
+            : broken
+              ? "Upload endboard screenshot"
+              : "Replace endboard"}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => {
+              void handleUpload(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      )}
     </Card>
+  );
+
   );
 }
