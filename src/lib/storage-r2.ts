@@ -4,7 +4,7 @@ const SUPABASE_HOST = "hyyrftnqalzarclbhedx.supabase.co";
 
 /** Public Cloudflare R2 domain per Supabase Storage bucket. */
 export const R2_DOMAINS: Record<string, string> = {
-  "match-screenshots": "https://pub-f1cf1291e80f47448517d28bc5cb51b3.r2.dev",
+  "match-screenshots": "https://pub-6fb62f34a2e3491fa0c7c71cc9a969fd.r2.dev",
   "leader-portraits": "https://pub-5ba61a8dddbc4336a6bacebf469db456.r2.dev",
   "leader-cards": "https://pub-3924274d769c4e4ca932d9c537bb5834.r2.dev",
 };

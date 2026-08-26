@@ -17,6 +17,7 @@ import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useLeaderPortraits } from "@/lib/leader-portraits";
 import { applyFirstPlayer, type TelemetryPlayer } from "@/lib/match-telemetry";
+import { runMatchTelemetry } from "@/lib/match-telemetry.functions";
 import {
   AgentRow,
   HighCouncilSeats,
@@ -1188,6 +1189,29 @@ function endboardPathFor(id: string): string {
   return `matches/${id}/${id}-endboard-raw.png`;
 }
 
+/**
+ * Poll the public R2 domain until the telemetry Lambda has produced the
+ * processed content-area image (or we give up). Never throws.
+ */
+async function waitForContentArea(
+  id: string,
+  timeoutMs = 60_000,
+  intervalMs = 4_000,
+): Promise<boolean> {
+  const url = r2ContentAreaUrl(id);
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(`${url}?cb=${Date.now()}`, { method: "HEAD", cache: "no-store" });
+      if (res.ok) return true;
+    } catch {
+      // network hiccup — keep polling until the timeout
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  return false;
+}
+
 /** The original post-game scoring screenshot uploaded on submission. */
 function ScoringScreenshotCard({
   imageUrl,
@@ -1266,6 +1290,7 @@ function VerificationCard({
   const [src, setSrc] = useState<string>(contentUrl);
   const [broken, setBroken] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [players, setPlayers] = useState<TelemetryPlayer[]>(game.game_results);
   const [saving, setSaving] = useState(false);
 
@@ -1287,22 +1312,36 @@ function VerificationCard({
   };
 
   const handleUpload = async (file: File | null | undefined) => {
-    if (!file || !canEdit) return;
+    if (!file || !canEdit || uploading || scanning) return;
     setUploading(true);
+    setScanning(false);
     try {
-      await mirrorFileToR2(
-        "match-screenshots",
-        endboardPathFor(displayId),
-        file.type || "image/png",
-        file,
-      );
+      // 1. Mirror the raw capture to R2 (never overwrites the scoring screenshot).
+      const rawKey = endboardPathFor(displayId);
+      await mirrorFileToR2("match-screenshots", rawKey, file.type || "image/png", file);
       toast.success("Endboard screenshot uploaded — running telemetry");
+
+      // 2. Trigger the telemetry Lambda (no-ops when not configured).
+      setUploading(false);
+      setScanning(true);
+      const { triggered } = await runMatchTelemetry({
+        data: { matchId: displayId, key: rawKey },
+      });
+
+      // 3. Wait for the processed content-area image, then reload the preview.
+      const processed = triggered ? await waitForContentArea(displayId) : false;
       setBroken(false);
       setBust(Date.now());
+      if (processed) {
+        toast.success("Telemetry scan complete");
+      } else if (triggered) {
+        toast.info("Telemetry still processing — showing the raw upload for now");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(false);
+      setScanning(false);
     }
   };
 
@@ -1387,8 +1426,15 @@ function VerificationCard({
             className="relative group w-full aspect-video rounded overflow-hidden border border-border/50 bg-background/40 flex items-center justify-center disabled:cursor-default"
           >
             {broken ? (
-              <span className="text-xs text-muted-foreground">
-                {uploading ? <Loader2 className="size-4 animate-spin" /> : "No endboard screenshot"}
+              <span className="text-xs text-muted-foreground inline-flex items-center gap-2">
+                {uploading || scanning ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    {uploading ? "Uploading…" : "Scanning endboard…"}
+                  </>
+                ) : (
+                  "No endboard screenshot"
+                )}
               </span>
             ) : (
               <img
@@ -1518,17 +1564,23 @@ function VerificationCard({
           }}
           className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded border border-dashed border-sand/50 bg-sand/5 px-2 py-2 text-[11px] text-sand hover:bg-sand/10 transition-colors"
         >
-          {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Maximize2 className="size-3.5" />}
+          {uploading || scanning ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Maximize2 className="size-3.5" />
+          )}
           {uploading
             ? "Uploading…"
-            : broken
-              ? "Upload endboard screenshot"
-              : "Replace endboard"}
+            : scanning
+              ? "Scanning endboard…"
+              : broken
+                ? "Upload endboard screenshot"
+                : "Replace endboard"}
           <input
             type="file"
             accept="image/*"
             className="hidden"
-            disabled={uploading}
+            disabled={uploading || scanning}
             onChange={(e) => {
               void handleUpload(e.target.files?.[0]);
               e.target.value = "";
