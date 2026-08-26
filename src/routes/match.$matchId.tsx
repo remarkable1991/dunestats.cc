@@ -17,6 +17,7 @@ import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useLeaderPortraits } from "@/lib/leader-portraits";
 import { applyFirstPlayer, type TelemetryPlayer } from "@/lib/match-telemetry";
+import { runMatchTelemetry } from "@/lib/match-telemetry.functions";
 import {
   AgentRow,
   HighCouncilSeats,
@@ -1186,6 +1187,29 @@ function r2EndboardRawUrl(id: string): string {
 /** Storage path (bucket-relative) for the raw endboard screenshot. */
 function endboardPathFor(id: string): string {
   return `matches/${id}/${id}-endboard-raw.png`;
+}
+
+/**
+ * Poll the public R2 domain until the telemetry Lambda has produced the
+ * processed content-area image (or we give up). Never throws.
+ */
+async function waitForContentArea(
+  id: string,
+  timeoutMs = 60_000,
+  intervalMs = 4_000,
+): Promise<boolean> {
+  const url = r2ContentAreaUrl(id);
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(`${url}?cb=${Date.now()}`, { method: "HEAD", cache: "no-store" });
+      if (res.ok) return true;
+    } catch {
+      // network hiccup — keep polling until the timeout
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  return false;
 }
 
 /** The original post-game scoring screenshot uploaded on submission. */
