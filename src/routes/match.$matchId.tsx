@@ -412,6 +412,11 @@ function MatchDetailsPage() {
               ✓ AI Verified
             </span>
           )}
+          {game.ai_scan_status === "Manually reviewed" && (
+            <span className="text-xs px-2 py-0.5 rounded border border-emerald-500/50 bg-emerald-500/10 text-emerald-400">
+              ✓ Manually Verified
+            </span>
+          )}
           {game.ai_scan_status === "Issue detected" && (
             <span
               title={game.ai_scan_summary ?? "Scan review needed"}
@@ -420,6 +425,7 @@ function MatchDetailsPage() {
               ⚠ Scan Review Needed
             </span>
           )}
+
           {tags.map((t) => (
             <span key={t} className="text-xs px-2 py-0.5 rounded bg-secondary/60 text-secondary-foreground">
               {t}
