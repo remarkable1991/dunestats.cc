@@ -1,7 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { SupabaseImage } from "@/components/SupabaseImage";
 import { signedUrlOrR2, uploadToR2 } from "@/lib/storage-r2";
-import { useCallback, useEffect, useState } from "react";
+import { useRef, useCallback, useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -116,7 +116,8 @@ function MatchDetailsPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      // Note: no setLoading(true) here — background refreshes must not unmount
+      // the page (that would close the verification dialog mid-review).
       const select =
         "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, end_round, image_url, tournament_num, conflict_title, ai_scan_status, ai_scan_summary, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, spice, solaris, water, is_leaver, player_slot, turn_order, player_color, has_first_player, has_high_council, has_swordmaster)";
       let q = supabase.from("games").select(select).limit(1);
@@ -332,6 +333,7 @@ function MatchDetailsPage() {
         p_has_immortality: game.has_immortality,
         p_has_base_leaders: game.has_base_leaders,
         p_conflict_title: game.conflict_title,
+        p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
         p_players: game.game_results.map((r) => ({
           player_name: r.player_name,
           spice: r.spice,
@@ -411,6 +413,11 @@ function MatchDetailsPage() {
               ✓ AI Verified
             </span>
           )}
+          {game.ai_scan_status === "Manually reviewed" && (
+            <span className="text-xs px-2 py-0.5 rounded border border-emerald-500/50 bg-emerald-500/10 text-emerald-400">
+              ✓ Manually Verified
+            </span>
+          )}
           {game.ai_scan_status === "Issue detected" && (
             <span
               title={game.ai_scan_summary ?? "Scan review needed"}
@@ -419,6 +426,7 @@ function MatchDetailsPage() {
               ⚠ Scan Review Needed
             </span>
           )}
+
           {tags.map((t) => (
             <span key={t} className="text-xs px-2 py-0.5 rounded bg-secondary/60 text-secondary-foreground">
               {t}
@@ -739,6 +747,13 @@ type PlayerForm = {
   has_swordmaster: boolean;
 };
 
+/**
+ * A reviewer touching a flagged match promotes it to "Manually reviewed".
+ * Already-verified matches are never downgraded.
+ */
+const manualReviewStatus = (status: string | null | undefined) =>
+  status === "Issue detected" ? "Manually reviewed" : null;
+
 const numToStr = (n: number | null | undefined) =>
   n === null || n === undefined ? "" : String(n);
 
@@ -816,6 +831,7 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
         p_has_immortality: immo,
         p_has_base_leaders: baseLeaders,
         p_conflict_title: conflictTitle.trim() === "" ? null : conflictTitle.trim(),
+        p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
         p_players: players.map((p) => ({
           player_name: p.player_name,
           spice: p.spice.trim() === "" ? null : Number(p.spice),
@@ -1274,6 +1290,8 @@ function VerificationCard({
   const [scanning, setScanning] = useState(false);
   const [players, setPlayers] = useState<TelemetryPlayer[]>(game.game_results);
   const [saving, setSaving] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const awaitingScanResult = useRef(false);
 
   useEffect(() => {
     setSrc(contentUrl);
@@ -1284,6 +1302,18 @@ function VerificationCard({
   useEffect(() => {
     setPlayers(game.game_results);
   }, [game.game_results]);
+
+  // Once refreshed data lands after a scan, jump straight into review when needed.
+  useEffect(() => {
+    if (!awaitingScanResult.current) return;
+    awaitingScanResult.current = false;
+    if (game.ai_scan_status === "Issue detected") {
+      toast.success("Analysis complete — a few things need a quick check");
+      setDialogOpen(true);
+    } else {
+      toast.success("Analysis complete — everything looks good!");
+    }
+  }, [game]);
 
   const handleError = () => {
     if (src.startsWith(contentUrl)) {
@@ -1298,40 +1328,38 @@ function VerificationCard({
     setUploading(true);
     setScanning(false);
     try {
-      // 1. Direct upload to Cloudflare R2 (never touches Supabase Storage).
       const rawKey = endboardPathFor(displayId);
       const publicRawUrl = r2EndboardRawUrl(displayId);
       await uploadToR2("match-screenshots", rawKey, file.type || "image/png", file);
-      toast.success("Endboard screenshot uploaded — running telemetry");
+      toast.success("Screenshot uploaded — analyzing…");
 
       setUploading(false);
       setScanning(true);
 
-      // Short pause so the object is served by the CDN before the Lambda reads it.
+      // Short pause so the image is served by the CDN before analysis reads it.
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      // 2. Trigger the telemetry Lambda with the public R2 URL.
-      const lambdaResponse = await fetch(TELEMETRY_LAMBDA_URL, {
+      const scanResponse = await fetch(TELEMETRY_LAMBDA_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ match_id: displayId, image_url: publicRawUrl }),
       });
-      if (!lambdaResponse.ok) {
-        const errText = await lambdaResponse.text().catch(() => "");
-        throw new Error(`Lambda scan failed (${lambdaResponse.status}): ${errText}`);
-      }
-      await lambdaResponse.json().catch(() => null);
+      if (!scanResponse.ok) throw new Error("scan-failed");
+      await scanResponse.json().catch(() => null);
 
-      // 3. Show the processed content-area image.
+      // Show the processed image and refresh the whole page data.
       setBroken(false);
       setSrc(`${r2ContentAreaUrl(displayId)}?t=${Date.now()}`);
       setBust(Date.now());
-      toast.success("Endboard screenshot uploaded to R2 and telemetry scanned!");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to process screenshot");
+      awaitingScanResult.current = true;
+      onSaved();
+    } catch {
+      awaitingScanResult.current = false;
+      toast.error("Couldn't process the screenshot — please try again");
     } finally {
       setUploading(false);
       setScanning(false);
+
     }
   };
 
@@ -1353,6 +1381,7 @@ function VerificationCard({
         p_has_immortality: game.has_immortality,
         p_has_base_leaders: game.has_base_leaders,
         p_conflict_title: game.conflict_title,
+        p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
         p_players: next.map((p) => ({
           player_name: p.player_name,
           spice: p.spice,
@@ -1410,7 +1439,7 @@ function VerificationCard({
   return (
     <Card className="p-3 border-border/60 bg-card/70 w-full">
       <h2 className="font-display text-sm mb-2 text-muted-foreground">Endboard state</h2>
-      <Dialog>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogTrigger asChild>
           <button
             disabled={broken}

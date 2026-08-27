@@ -1219,20 +1219,36 @@ export type Database = {
         Returns: undefined
       }
       touch_last_sign_in: { Args: never; Returns: undefined }
-      update_match_details: {
-        Args: {
-          p_board_version: string
-          p_conflict_title?: string
-          p_end_round: number
-          p_game_id: string
-          p_has_base_leaders: boolean
-          p_has_epic_mode: boolean
-          p_has_immortality: boolean
-          p_has_rise_of_ix: boolean
-          p_players: Json
-        }
-        Returns: Json
-      }
+      update_match_details:
+        | {
+            Args: {
+              p_board_version: string
+              p_conflict_title?: string
+              p_end_round: number
+              p_game_id: string
+              p_has_base_leaders: boolean
+              p_has_epic_mode: boolean
+              p_has_immortality: boolean
+              p_has_rise_of_ix: boolean
+              p_players: Json
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_ai_scan_status?: string
+              p_board_version: string
+              p_conflict_title?: string
+              p_end_round: number
+              p_game_id: string
+              p_has_base_leaders: boolean
+              p_has_epic_mode: boolean
+              p_has_immortality: boolean
+              p_has_rise_of_ix: boolean
+              p_players: Json
+            }
+            Returns: Json
+          }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
