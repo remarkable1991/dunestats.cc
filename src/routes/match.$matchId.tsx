@@ -333,6 +333,7 @@ function MatchDetailsPage() {
         p_has_immortality: game.has_immortality,
         p_has_base_leaders: game.has_base_leaders,
         p_conflict_title: game.conflict_title,
+        p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
         p_players: game.game_results.map((r) => ({
           player_name: r.player_name,
           spice: r.spice,
@@ -746,6 +747,13 @@ type PlayerForm = {
   has_swordmaster: boolean;
 };
 
+/**
+ * A reviewer touching a flagged match promotes it to "Manually reviewed".
+ * Already-verified matches are never downgraded.
+ */
+const manualReviewStatus = (status: string | null | undefined) =>
+  status === "Issue detected" ? "Manually reviewed" : null;
+
 const numToStr = (n: number | null | undefined) =>
   n === null || n === undefined ? "" : String(n);
 
@@ -823,6 +831,7 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
         p_has_immortality: immo,
         p_has_base_leaders: baseLeaders,
         p_conflict_title: conflictTitle.trim() === "" ? null : conflictTitle.trim(),
+        p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
         p_players: players.map((p) => ({
           player_name: p.player_name,
           spice: p.spice.trim() === "" ? null : Number(p.spice),
@@ -1360,6 +1369,7 @@ function VerificationCard({
         p_has_immortality: game.has_immortality,
         p_has_base_leaders: game.has_base_leaders,
         p_conflict_title: game.conflict_title,
+        p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
         p_players: next.map((p) => ({
           player_name: p.player_name,
           spice: p.spice,
