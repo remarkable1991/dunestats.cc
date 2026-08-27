@@ -1,7 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { SupabaseImage } from "@/components/SupabaseImage";
 import { signedUrlOrR2, uploadToR2 } from "@/lib/storage-r2";
-import { useCallback, useEffect, useState } from "react";
+import { useRef, useCallback, useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1439,7 +1439,7 @@ function VerificationCard({
   return (
     <Card className="p-3 border-border/60 bg-card/70 w-full">
       <h2 className="font-display text-sm mb-2 text-muted-foreground">Endboard state</h2>
-      <Dialog>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogTrigger asChild>
           <button
             disabled={broken}
