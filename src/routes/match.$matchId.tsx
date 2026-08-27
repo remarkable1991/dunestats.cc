@@ -1290,6 +1290,8 @@ function VerificationCard({
   const [scanning, setScanning] = useState(false);
   const [players, setPlayers] = useState<TelemetryPlayer[]>(game.game_results);
   const [saving, setSaving] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const awaitingScanResult = useRef(false);
 
   useEffect(() => {
     setSrc(contentUrl);
@@ -1300,6 +1302,18 @@ function VerificationCard({
   useEffect(() => {
     setPlayers(game.game_results);
   }, [game.game_results]);
+
+  // Once refreshed data lands after a scan, jump straight into review when needed.
+  useEffect(() => {
+    if (!awaitingScanResult.current) return;
+    awaitingScanResult.current = false;
+    if (game.ai_scan_status === "Issue detected") {
+      toast.success("Analysis complete — a few things need a quick check");
+      setDialogOpen(true);
+    } else {
+      toast.success("Analysis complete — everything looks good!");
+    }
+  }, [game]);
 
   const handleError = () => {
     if (src.startsWith(contentUrl)) {
@@ -1314,40 +1328,38 @@ function VerificationCard({
     setUploading(true);
     setScanning(false);
     try {
-      // 1. Direct upload to Cloudflare R2 (never touches Supabase Storage).
       const rawKey = endboardPathFor(displayId);
       const publicRawUrl = r2EndboardRawUrl(displayId);
       await uploadToR2("match-screenshots", rawKey, file.type || "image/png", file);
-      toast.success("Endboard screenshot uploaded — running telemetry");
+      toast.success("Screenshot uploaded — analyzing…");
 
       setUploading(false);
       setScanning(true);
 
-      // Short pause so the object is served by the CDN before the Lambda reads it.
+      // Short pause so the image is served by the CDN before analysis reads it.
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      // 2. Trigger the telemetry Lambda with the public R2 URL.
-      const lambdaResponse = await fetch(TELEMETRY_LAMBDA_URL, {
+      const scanResponse = await fetch(TELEMETRY_LAMBDA_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ match_id: displayId, image_url: publicRawUrl }),
       });
-      if (!lambdaResponse.ok) {
-        const errText = await lambdaResponse.text().catch(() => "");
-        throw new Error(`Lambda scan failed (${lambdaResponse.status}): ${errText}`);
-      }
-      await lambdaResponse.json().catch(() => null);
+      if (!scanResponse.ok) throw new Error("scan-failed");
+      await scanResponse.json().catch(() => null);
 
-      // 3. Show the processed content-area image.
+      // Show the processed image and refresh the whole page data.
       setBroken(false);
       setSrc(`${r2ContentAreaUrl(displayId)}?t=${Date.now()}`);
       setBust(Date.now());
-      toast.success("Endboard screenshot uploaded to R2 and telemetry scanned!");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to process screenshot");
+      awaitingScanResult.current = true;
+      onSaved();
+    } catch {
+      awaitingScanResult.current = false;
+      toast.error("Couldn't process the screenshot — please try again");
     } finally {
       setUploading(false);
       setScanning(false);
+
     }
   };
 
