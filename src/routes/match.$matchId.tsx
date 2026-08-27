@@ -116,7 +116,8 @@ function MatchDetailsPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      // Note: no setLoading(true) here — background refreshes must not unmount
+      // the page (that would close the verification dialog mid-review).
       const select =
         "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, end_round, image_url, tournament_num, conflict_title, ai_scan_status, ai_scan_summary, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, spice, solaris, water, is_leaver, player_slot, turn_order, player_color, has_first_player, has_high_council, has_swordmaster)";
       let q = supabase.from("games").select(select).limit(1);
