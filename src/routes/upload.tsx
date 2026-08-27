@@ -669,6 +669,35 @@ function UploadPage() {
               </div>
           </Card>
         </div>
+        <Dialog open={matchDialogOpen} onOpenChange={setMatchDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CheckCircle2 className="size-5 text-emerald-400" />
+                Match recorded!
+              </DialogTitle>
+              <DialogDescription>
+                Your match is saved and the leaderboard is updated. Want to add more details — like High Council seats, Swordmaster, or combat info? Visit the match page to edit manually or upload an endboard screenshot for automatic analysis.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col sm:flex-row gap-2 mt-2">
+              {lastMatchId && (
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    setMatchDialogOpen(false);
+                    navigate({ to: "/match/$matchId", params: { matchId: lastMatchId } });
+                  }}
+                >
+                  Add match details
+                </Button>
+              )}
+              <Button variant="outline" className="flex-1" onClick={() => setMatchDialogOpen(false)}>
+                Maybe later
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         {lastSave && (
           <Card className="p-4 mt-6 border-sand/40 bg-card/70">
             <div className="flex items-center gap-2 mb-3 flex-wrap">
