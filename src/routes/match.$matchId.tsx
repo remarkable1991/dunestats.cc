@@ -16,7 +16,8 @@ import { TournamentTag } from "@/components/EloDelta";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useLeaderPortraits } from "@/lib/leader-portraits";
-import { applyFirstPlayer, type TelemetryPlayer } from "@/lib/match-telemetry";
+import { applyFirstPlayer, telemetryPayload, type TelemetryPlayer } from "@/lib/match-telemetry";
+import { FactionInfluenceTrackBoard } from "@/components/FactionInfluenceTrackBoard";
 import {
   AgentRow,
   HighCouncilSeats,
@@ -55,6 +56,14 @@ type ResultRow = {
   has_first_player: boolean | null;
   has_high_council: boolean | null;
   has_swordmaster: boolean | null;
+  emperor_level: number | null;
+  emperor_alliance: boolean | null;
+  spacing_guild_level: number | null;
+  spacing_guild_alliance: boolean | null;
+  bene_gesserit_level: number | null;
+  bene_gesserit_alliance: boolean | null;
+  fremen_level: number | null;
+  fremen_alliance: boolean | null;
 };
 
 type RatingTotals = {
@@ -119,7 +128,7 @@ function MatchDetailsPage() {
       // Note: no setLoading(true) here — background refreshes must not unmount
       // the page (that would close the verification dialog mid-review).
       const select =
-        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, end_round, image_url, tournament_num, conflict_title, ai_scan_status, ai_scan_summary, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, spice, solaris, water, is_leaver, player_slot, turn_order, player_color, has_first_player, has_high_council, has_swordmaster)";
+        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, end_round, image_url, tournament_num, conflict_title, ai_scan_status, ai_scan_summary, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, spice, solaris, water, is_leaver, player_slot, turn_order, player_color, has_first_player, has_high_council, has_swordmaster, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance)";
       let q = supabase.from("games").select(select).limit(1);
       q = UUID_RE.test(matchId)
         ? q.or(`public_match_id.eq.${matchId},id.eq.${matchId}`)
@@ -360,6 +369,31 @@ function MatchDetailsPage() {
 
 
 
+  const saveInfluence = async (next: TelemetryPlayer[], message: string) => {
+    try {
+      const client = supabase as unknown as {
+        rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
+      };
+      const { error } = await client.rpc("update_match_details", {
+        p_game_id: game.id,
+        p_end_round: game.end_round,
+        p_board_version: game.board_version,
+        p_has_rise_of_ix: game.has_rise_of_ix,
+        p_has_epic_mode: game.has_epic_mode,
+        p_has_immortality: game.has_immortality,
+        p_has_base_leaders: game.has_base_leaders,
+        p_conflict_title: game.conflict_title,
+        p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
+        p_players: next.map(telemetryPayload),
+      });
+      if (error) throw new Error(error.message);
+      toast.success(message);
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save influence");
+    }
+  };
+
   const tags: string[] = [];
   if (game.board_version) tags.push(game.board_version === "uprising" ? "Uprising" : "Base");
   if (game.has_rise_of_ix) tags.push("Rise of Ix");
@@ -435,6 +469,22 @@ function MatchDetailsPage() {
         </div>
 
         <LandsraadBar players={slotSorted} />
+
+        {game.game_results.some(
+          (r) =>
+            r.emperor_level !== null ||
+            r.spacing_guild_level !== null ||
+            r.bene_gesserit_level !== null ||
+            r.fremen_level !== null,
+        ) || canEdit ? (
+          <div className="mb-6">
+            <FactionInfluenceTrackBoard
+              players={slotSorted}
+              canEdit={canEdit}
+              onUpdateInfluence={saveInfluence}
+            />
+          </div>
+        ) : null}
 
 
         <div className="grid gap-6 md:grid-cols-[1fr_auto]">
@@ -1382,19 +1432,7 @@ function VerificationCard({
         p_has_base_leaders: game.has_base_leaders,
         p_conflict_title: game.conflict_title,
         p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
-        p_players: next.map((p) => ({
-          player_name: p.player_name,
-          spice: p.spice,
-          solaris: p.solaris,
-          water: p.water,
-          is_leaver: p.is_leaver ?? false,
-          player_color: p.player_color,
-          player_slot: p.player_slot,
-          turn_order: p.turn_order,
-          has_first_player: p.has_first_player,
-          has_high_council: p.has_high_council,
-          has_swordmaster: p.has_swordmaster,
-        })),
+        p_players: next.map(telemetryPayload),
       });
       if (error) throw new Error(error.message);
       toast.success(message);
@@ -1534,6 +1572,13 @@ function VerificationCard({
                   );
                 })}
               </div>
+
+              <FactionInfluenceTrackBoard
+                players={players}
+                canEdit={canEdit}
+                onUpdateInfluence={(next, msg) => void persist(next, msg)}
+                compact
+              />
 
               <Card className="p-3 border-border/60 bg-card/60 space-y-3">
                 <HighCouncilSeats players={players} canEdit={canEdit} onToggleSeat={toggleSeat} />
