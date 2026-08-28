@@ -82,10 +82,16 @@ export type Database = {
       }
       game_results: {
         Row: {
+          bene_gesserit_alliance: boolean | null
+          bene_gesserit_level: number | null
           combat_strength: number | null
           created_at: string
           elo_delta: number
           elo_delta_overall: number
+          emperor_alliance: boolean | null
+          emperor_level: number | null
+          fremen_alliance: boolean | null
+          fremen_level: number | null
           game_id: string
           garrison_troops: number | null
           has_first_player: boolean | null
@@ -100,15 +106,23 @@ export type Database = {
           player_slot: number | null
           points: number
           solaris: number | null
+          spacing_guild_alliance: boolean | null
+          spacing_guild_level: number | null
           spice: number | null
           turn_order: number | null
           water: number | null
         }
         Insert: {
+          bene_gesserit_alliance?: boolean | null
+          bene_gesserit_level?: number | null
           combat_strength?: number | null
           created_at?: string
           elo_delta?: number
           elo_delta_overall?: number
+          emperor_alliance?: boolean | null
+          emperor_level?: number | null
+          fremen_alliance?: boolean | null
+          fremen_level?: number | null
           game_id: string
           garrison_troops?: number | null
           has_first_player?: boolean | null
@@ -123,15 +137,23 @@ export type Database = {
           player_slot?: number | null
           points?: number
           solaris?: number | null
+          spacing_guild_alliance?: boolean | null
+          spacing_guild_level?: number | null
           spice?: number | null
           turn_order?: number | null
           water?: number | null
         }
         Update: {
+          bene_gesserit_alliance?: boolean | null
+          bene_gesserit_level?: number | null
           combat_strength?: number | null
           created_at?: string
           elo_delta?: number
           elo_delta_overall?: number
+          emperor_alliance?: boolean | null
+          emperor_level?: number | null
+          fremen_alliance?: boolean | null
+          fremen_level?: number | null
           game_id?: string
           garrison_troops?: number | null
           has_first_player?: boolean | null
@@ -146,6 +168,8 @@ export type Database = {
           player_slot?: number | null
           points?: number
           solaris?: number | null
+          spacing_guild_alliance?: boolean | null
+          spacing_guild_level?: number | null
           spice?: number | null
           turn_order?: number | null
           water?: number | null
@@ -1198,6 +1222,8 @@ export type Database = {
         }
         Returns: Json
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       sp_award: {
         Args: {
           p_action_type: string
