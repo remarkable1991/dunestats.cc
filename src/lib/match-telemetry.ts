@@ -15,7 +15,57 @@ export type TelemetryPlayer = {
   has_first_player: boolean | null;
   has_high_council: boolean | null;
   has_swordmaster: boolean | null;
+  emperor_level?: number | null;
+  emperor_alliance?: boolean | null;
+  spacing_guild_level?: number | null;
+  spacing_guild_alliance?: boolean | null;
+  bene_gesserit_level?: number | null;
+  bene_gesserit_alliance?: boolean | null;
+  fremen_level?: number | null;
+  fremen_alliance?: boolean | null;
 };
+
+export type FactionKey = "emperor" | "spacing_guild" | "bene_gesserit" | "fremen";
+
+export const FACTION_LEVEL_KEYS = {
+  emperor: "emperor_level",
+  spacing_guild: "spacing_guild_level",
+  bene_gesserit: "bene_gesserit_level",
+  fremen: "fremen_level",
+} as const;
+
+export const FACTION_ALLIANCE_KEYS = {
+  emperor: "emperor_alliance",
+  spacing_guild: "spacing_guild_alliance",
+  bene_gesserit: "bene_gesserit_alliance",
+  fremen: "fremen_alliance",
+} as const;
+
+/** Player payload for the `update_match_details` RPC, including faction influence. */
+export function telemetryPayload(p: TelemetryPlayer) {
+  return {
+    player_name: p.player_name,
+    spice: p.spice,
+    solaris: p.solaris,
+    water: p.water,
+    is_leaver: p.is_leaver ?? false,
+    player_color: p.player_color,
+    player_slot: p.player_slot,
+    turn_order: p.turn_order,
+    has_first_player: p.has_first_player,
+    has_high_council: p.has_high_council,
+    has_swordmaster: p.has_swordmaster,
+    emperor_level: p.emperor_level ?? null,
+    emperor_alliance: p.emperor_alliance ?? null,
+    spacing_guild_level: p.spacing_guild_level ?? null,
+    spacing_guild_alliance: p.spacing_guild_alliance ?? null,
+    bene_gesserit_level: p.bene_gesserit_level ?? null,
+    bene_gesserit_alliance: p.bene_gesserit_alliance ?? null,
+    fremen_level: p.fremen_level ?? null,
+    fremen_alliance: p.fremen_alliance ?? null,
+  };
+}
+
 
 export const PLAYER_COLORS: Record<string, string> = {
   green: "#22c55e",
