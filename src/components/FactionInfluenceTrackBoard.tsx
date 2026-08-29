@@ -206,14 +206,12 @@ export function FactionInfluenceTrackBoard({
                     src={f.token}
                     alt=""
                     aria-hidden
-                    className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 rounded-full opacity-95 drop-shadow"
+                    className="pointer-events-none absolute left-1/2 rounded-full opacity-95 drop-shadow"
                     style={{
-                      top: upperBottom - 2,
+                      bottom: upperBottom + upperHeight / 2,
                       width: tokenSize,
                       height: tokenSize,
-                      marginTop: 0,
-                      transform: "translateX(-50%)",
-                      // Center within the upper field measured from the top of the track.
+                      transform: "translate(-50%, 50%)",
                     }}
                   />
                 )}
