@@ -25,7 +25,7 @@ type FactionMeta = {
   tint: string;
 };
 
-const FACTIONS: FactionMeta[] = [
+export const FACTIONS: FactionMeta[] = [
   { key: "emperor", label: "Emperor", token: emperorToken.url, accent: "#c9ccd4", tint: "rgba(120,126,138,0.16)" },
   { key: "spacing_guild", label: "Spacing Guild", token: guildToken.url, accent: "#e0794f", tint: "rgba(190,86,60,0.16)" },
   { key: "bene_gesserit", label: "Bene Gesserit", token: beneToken.url, accent: "#b08adf", tint: "rgba(126,79,177,0.18)" },
@@ -42,6 +42,11 @@ function levelOf(p: TelemetryPlayer, f: FactionKey): number | null {
 
 function allianceOf(p: TelemetryPlayer, f: FactionKey): boolean {
   return p[FACTION_ALLIANCE_KEYS[f]] === true;
+}
+
+/** Alliance tokens a player currently holds — used by the nameplates. */
+export function alliancesHeldBy(p: TelemetryPlayer): FactionMeta[] {
+  return FACTIONS.filter((f) => allianceOf(p, f.key));
 }
 
 /** 3D-styled player cube. */
@@ -86,7 +91,8 @@ export function FactionInfluenceTrackBoard({
     ? [...players].sort((a, b) => a.placement - b.placement).slice(0, 4)
     : columns;
 
-  const cellH = compact ? 14 : 18;
+  const cellH = compact ? 13 : 16;
+  const gap = 2;
 
   const applyAlliance = (next: TelemetryPlayer[], f: FactionMeta, holder?: string) => {
     const key = FACTION_ALLIANCE_KEYS[f.key];
@@ -127,57 +133,38 @@ export function FactionInfluenceTrackBoard({
   };
 
   return (
-    <Card className="p-3 border-border/60 bg-card/70">
-      <h2 className="font-display text-sm mb-3 text-muted-foreground uppercase tracking-wider">
-        Faction influence &amp; alliances
-      </h2>
-
-      <div className="space-y-3">
+    <Card className="p-2 border-border/60 bg-card/70 w-full sm:w-[180px] shrink-0">
+      <div className="space-y-2">
         {FACTIONS.map((f) => {
-          const holder = resolved.find((p) => p && allianceOf(p, f.key));
-          const claimed = Boolean(holder);
+          const claimed = resolved.some((p) => p && allianceOf(p, f.key));
+          const anyAtMilestone = resolved.some(
+            (p) => p && (levelOf(p, f.key) ?? 0) >= ALLIANCE_LEVEL,
+          );
+          const showTrackToken = !claimed && !anyAtMilestone;
+          // Distance from the bottom of the stack to the centre of the level-4 row.
+          const milestoneBottom = ALLIANCE_LEVEL * (cellH + gap) + cellH / 2;
           return (
             <div
               key={f.key}
-              className="rounded-md border px-2 py-2"
+              className="relative rounded-md border p-1"
               style={{ borderColor: `${f.accent}55`, background: f.tint }}
+              title={f.label}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <img src={f.token} alt="" className="size-6 rounded-full" aria-hidden />
-                <span className="font-display text-xs uppercase tracking-wider" style={{ color: f.accent }}>
-                  {f.label}
-                </span>
-                {holder && (
-                  <span
-                    className="ml-auto inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px]"
-                    style={{ borderColor: `${f.accent}77` }}
-                    title={`${holder.player_name} holds the ${f.label} alliance`}
-                  >
-                    <PlayerCube hex={colorHex(holder.player_color)} size={9} />
-                    <span className="max-w-[7rem] truncate">{holder.player_name}</span>
-                    <img src={f.token} alt="" className="size-4 rounded-full" aria-hidden />
-                  </span>
-                )}
-              </div>
-
-              <div className="relative flex items-stretch gap-0">
+              <div className="relative flex items-stretch">
                 {resolved.map((p, i) => (
                   <div
                     key={p?.player_name ?? `empty-${i}`}
-                    className="flex-1 px-1"
+                    className="flex-1 px-[2px]"
                     style={{
                       borderRight:
-                        i === 0 || i === 2
-                          ? `2px solid ${f.accent}66`
-                          : i === 1
-                            ? `1px solid rgba(255,255,255,0.08)`
+                        i === 1
+                          ? `2px solid ${f.accent}88`
+                          : i === 0 || i === 2
+                            ? "1px solid rgba(255,255,255,0.08)"
                             : "none",
                     }}
                   >
-                    <div className="text-[9px] text-center truncate text-muted-foreground mb-1">
-                      {p ? p.player_name : "—"}
-                    </div>
-                    <div className="flex flex-col-reverse gap-[2px]">
+                    <div className="flex flex-col-reverse" style={{ gap }}>
                       {Array.from({ length: MAX_LEVEL + 1 }, (_, lvl) => {
                         const active = p ? levelOf(p, f.key) === lvl : false;
                         const hex = p ? colorHex(p.player_color) : "#8b8b8b";
@@ -188,37 +175,35 @@ export function FactionInfluenceTrackBoard({
                             type="button"
                             disabled={!canEdit || !p}
                             onClick={() => p && setLevel(p, f, lvl)}
-                            title={p ? `${p.player_name} — ${f.label} level ${lvl}` : undefined}
-                            className={`relative flex items-center justify-center rounded-[3px] transition-all duration-200 ${
+                            title={p ? `${p.player_name} — ${f.label} ${lvl}` : undefined}
+                            className={`relative flex items-center justify-center rounded-[2px] transition-all duration-200 ${
                               canEdit && p ? "cursor-pointer hover:brightness-125" : "cursor-default"
                             }`}
                             style={{
                               height: cellH,
-                              background: active ? "transparent" : "rgba(255,255,255,0.045)",
+                              background: active ? "transparent" : "rgba(255,255,255,0.05)",
                               border: milestone
                                 ? `1px solid ${f.accent}88`
                                 : "1px solid rgba(255,255,255,0.06)",
-                              marginTop: lvl === 2 || lvl === 4 ? 3 : 0,
                             }}
                           >
                             {active && <PlayerCube hex={hex} size={cellH - 5} />}
-                            {!active && milestone && !claimed && (
-                              <img
-                                src={f.token}
-                                alt=""
-                                className="size-5 rounded-full opacity-90"
-                                aria-hidden
-                              />
-                            )}
-                            {!active && !milestone && (
-                              <span className="text-[8px] text-muted-foreground/50 tabular-nums">{lvl}</span>
-                            )}
                           </button>
                         );
                       })}
                     </div>
                   </div>
                 ))}
+
+                {showTrackToken && (
+                  <img
+                    src={f.token}
+                    alt=""
+                    aria-hidden
+                    className="pointer-events-none absolute left-1/2 -translate-x-1/2 translate-y-1/2 size-5 rounded-full opacity-95 drop-shadow"
+                    style={{ bottom: milestoneBottom }}
+                  />
+                )}
               </div>
             </div>
           );
