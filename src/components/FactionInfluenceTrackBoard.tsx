@@ -141,34 +141,29 @@ export function FactionInfluenceTrackBoard({
             (p) => p && (levelOf(p, f.key) ?? 0) >= ALLIANCE_LEVEL,
           );
           const showTrackToken = !claimed && !anyAtMilestone;
-          // Distance from the bottom of the stack to the centre of the level-4 row.
-          const milestoneBottom = ALLIANCE_LEVEL * (cellH + gap) + cellH / 2;
+          // Upper playing field: rows 4–6 (from the bottom of the stack).
+          const upperBottom = ALLIANCE_LEVEL * (cellH + gap);
+          const upperHeight = 3 * cellH + 2 * gap;
+          const tokenSize = upperHeight - 4;
           return (
             <div
               key={f.key}
-              className="relative rounded-md border p-1"
+              className="relative rounded-md border px-1 pb-1 pt-0.5"
               style={{ borderColor: `${f.accent}55`, background: f.tint }}
-              title={f.label}
             >
+              <div
+                className="pb-0.5 text-center font-display uppercase tracking-[0.16em]"
+                style={{ color: f.accent, fontSize: compact ? 8 : 9 }}
+              >
+                {f.label}
+              </div>
               <div className="relative flex items-stretch">
                 {resolved.map((p, i) => (
-                  <div
-                    key={p?.player_name ?? `empty-${i}`}
-                    className="flex-1 px-[2px]"
-                    style={{
-                      borderRight:
-                        i === 1
-                          ? `2px solid ${f.accent}88`
-                          : i === 0 || i === 2
-                            ? "1px solid rgba(255,255,255,0.08)"
-                            : "none",
-                    }}
-                  >
+                  <div key={p?.player_name ?? `empty-${i}`} className="flex-1 px-[2px]">
                     <div className="flex flex-col-reverse" style={{ gap }}>
                       {Array.from({ length: MAX_LEVEL + 1 }, (_, lvl) => {
                         const active = p ? levelOf(p, f.key) === lvl : false;
                         const hex = p ? colorHex(p.player_color) : "#8b8b8b";
-                        const milestone = lvl === ALLIANCE_LEVEL;
                         return (
                           <button
                             key={lvl}
@@ -182,9 +177,7 @@ export function FactionInfluenceTrackBoard({
                             style={{
                               height: cellH,
                               background: active ? "transparent" : "rgba(255,255,255,0.05)",
-                              border: milestone
-                                ? `1px solid ${f.accent}88`
-                                : "1px solid rgba(255,255,255,0.06)",
+                              border: "1px solid rgba(255,255,255,0.06)",
                             }}
                           >
                             {active && <PlayerCube hex={hex} size={cellH - 5} />}
@@ -195,13 +188,33 @@ export function FactionInfluenceTrackBoard({
                   </div>
                 ))}
 
+                {/* Subtle horizontal dividers between steps 1|2 and 3|4. */}
+                {[1, 3].map((lvl) => (
+                  <div
+                    key={lvl}
+                    aria-hidden
+                    className="pointer-events-none absolute left-0 right-0"
+                    style={{
+                      bottom: (lvl + 1) * (cellH + gap) - gap / 2,
+                      borderTop: "1px solid rgba(255,255,255,0.12)",
+                    }}
+                  />
+                ))}
+
                 {showTrackToken && (
                   <img
                     src={f.token}
                     alt=""
                     aria-hidden
-                    className="pointer-events-none absolute left-1/2 -translate-x-1/2 translate-y-1/2 size-5 rounded-full opacity-95 drop-shadow"
-                    style={{ bottom: milestoneBottom }}
+                    className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 rounded-full opacity-95 drop-shadow"
+                    style={{
+                      top: upperBottom - 2,
+                      width: tokenSize,
+                      height: tokenSize,
+                      marginTop: 0,
+                      transform: "translateX(-50%)",
+                      // Center within the upper field measured from the top of the track.
+                    }}
                   />
                 )}
               </div>
