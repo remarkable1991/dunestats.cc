@@ -554,7 +554,7 @@ function MatchDetailsPage() {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex items-center gap-1.5 min-w-0">
                           <Link
                             to="/players/$key"
                             params={{ key }}
@@ -570,12 +570,25 @@ function MatchDetailsPage() {
                               alt=""
                               aria-hidden
                               title={`${f.label} alliance`}
-                              className="size-4 shrink-0 rounded-full"
+                              className="size-3.5 shrink-0 rounded-full"
                             />
                           ))}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0">
+                          {leaderRoute ? (
+                            <Link
+                              to="/leaders/$origin/$slug"
+                              params={{ origin: leaderRoute.origin, slug: leaderRoute.slug }}
+                              className="truncate hover:text-sand"
+                            >
+                              {r.leader_name}
+                            </Link>
+                          ) : (
+                            <span className="truncate">{r.leader_name ?? "—"}</span>
+                          )}
                           {canEdit ? (
                             <label
-                              className={`shrink-0 flex items-center gap-1.5 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border cursor-pointer ${
+                              className={`shrink-0 flex items-center gap-1 text-[10px] uppercase tracking-wider px-1 py-0.5 rounded border cursor-pointer ${
                                 r.is_leaver
                                   ? "border-coral/50 bg-coral/10 text-coral"
                                   : "border-border/50 text-muted-foreground hover:text-foreground"
@@ -584,7 +597,7 @@ function MatchDetailsPage() {
                             >
                               <input
                                 type="checkbox"
-                                className="size-3 accent-current"
+                                className="size-2.5 accent-current"
                                 checked={!!r.is_leaver}
                                 disabled={leaverBusy === r.player_name}
                                 onChange={(e) => void toggleLeaver(r.player_name, e.target.checked)}
@@ -593,25 +606,12 @@ function MatchDetailsPage() {
                             </label>
                           ) : (
                             r.is_leaver && (
-                              <span className="shrink-0 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-coral/50 bg-coral/10 text-coral">
+                              <span className="shrink-0 text-[10px] uppercase tracking-wider px-1 py-0.5 rounded border border-coral/50 bg-coral/10 text-coral">
                                 Leaver
                               </span>
                             )
                           )}
                         </div>
-                        {leaderRoute ? (
-                          <Link
-                            to="/leaders/$origin/$slug"
-                            params={{ origin: leaderRoute.origin, slug: leaderRoute.slug }}
-                            className="block text-xs text-muted-foreground truncate hover:text-sand"
-                          >
-                            {r.leader_name}
-                          </Link>
-                        ) : (
-                          <div className="text-xs text-muted-foreground truncate">
-                            {r.leader_name ?? "—"}
-                          </div>
-                        )}
                         <ResourcePips spice={r.spice} solaris={r.solaris} water={r.water} />
                       </div>
 
@@ -1571,7 +1571,7 @@ function VerificationCard({
                                 alt=""
                                 aria-hidden
                                 title={`${f.label} alliance`}
-                                className="size-4 shrink-0 rounded-full"
+                                className="size-3.5 shrink-0 rounded-full"
                               />
                             ))}
                           </div>
