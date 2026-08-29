@@ -470,8 +470,6 @@ function MatchDetailsPage() {
 
         <LandsraadBar players={slotSorted} />
 
-        {(() => null)()}
-
         <div className="grid gap-6 md:grid-cols-[1fr_auto]">
           <div className="flex flex-col sm:flex-row items-start gap-3 min-w-0">
           <Card className="p-4 border-border/60 bg-card/70 flex-1 min-w-0 w-full">
