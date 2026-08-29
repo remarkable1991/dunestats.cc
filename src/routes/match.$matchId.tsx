@@ -17,7 +17,7 @@ import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useLeaderPortraits } from "@/lib/leader-portraits";
 import { applyFirstPlayer, telemetryPayload, type TelemetryPlayer } from "@/lib/match-telemetry";
-import { FactionInfluenceTrackBoard } from "@/components/FactionInfluenceTrackBoard";
+import { FactionInfluenceTrackBoard, alliancesHeldBy } from "@/components/FactionInfluenceTrackBoard";
 import {
   AgentRow,
   HighCouncilSeats,
@@ -565,6 +565,16 @@ function MatchDetailsPage() {
                           >
                             {r.player_name}
                           </Link>
+                          {alliancesHeldBy(r).map((f) => (
+                            <img
+                              key={f.key}
+                              src={f.token}
+                              alt=""
+                              aria-hidden
+                              title={`${f.label} alliance`}
+                              className="size-4 shrink-0 rounded-full"
+                            />
+                          ))}
                           {canEdit ? (
                             <label
                               className={`shrink-0 flex items-center gap-1.5 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border cursor-pointer ${
@@ -634,6 +644,22 @@ function MatchDetailsPage() {
               })}
             </div>
           </Card>
+
+          {game.game_results.some(
+            (r) =>
+              r.emperor_level !== null ||
+              r.spacing_guild_level !== null ||
+              r.bene_gesserit_level !== null ||
+              r.fremen_level !== null,
+          ) || canEdit ? (
+            <FactionInfluenceTrackBoard
+              players={slotSorted}
+              canEdit={canEdit}
+              onUpdateInfluence={saveInfluence}
+            />
+          ) : null}
+          </div>
+
 
           <div className="w-full md:w-64 space-y-3">
             <ScoringScreenshotCard
