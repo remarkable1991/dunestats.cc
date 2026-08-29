@@ -470,25 +470,11 @@ function MatchDetailsPage() {
 
         <LandsraadBar players={slotSorted} />
 
-        {game.game_results.some(
-          (r) =>
-            r.emperor_level !== null ||
-            r.spacing_guild_level !== null ||
-            r.bene_gesserit_level !== null ||
-            r.fremen_level !== null,
-        ) || canEdit ? (
-          <div className="mb-6">
-            <FactionInfluenceTrackBoard
-              players={slotSorted}
-              canEdit={canEdit}
-              onUpdateInfluence={saveInfluence}
-            />
-          </div>
-        ) : null}
-
+        {(() => null)()}
 
         <div className="grid gap-6 md:grid-cols-[1fr_auto]">
-          <Card className="p-4 border-border/60 bg-card/70">
+          <div className="flex flex-col sm:flex-row items-start gap-3 min-w-0">
+          <Card className="p-4 border-border/60 bg-card/70 flex-1 min-w-0 w-full">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <h2 className="font-display text-lg">Players</h2>
               {(hasSlots || hasTurns) && (
@@ -1525,7 +1511,8 @@ function VerificationCard({
                 </div>
               )}
 
-              <div className="space-y-2">
+              <div className="flex items-start gap-3">
+              <div className="flex-1 min-w-0 space-y-2">
                 {slotOrdered.map((p) => {
                   const hex = colorHex(p.player_color);
                   return (
@@ -1551,7 +1538,19 @@ function VerificationCard({
                           <WurmToken muted={!p.has_first_player} />
                         </button>
                         <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-medium">{p.player_name}</div>
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="truncate text-sm font-medium">{p.player_name}</span>
+                            {alliancesHeldBy(p).map((f) => (
+                              <img
+                                key={f.key}
+                                src={f.token}
+                                alt=""
+                                aria-hidden
+                                title={`${f.label} alliance`}
+                                className="size-4 shrink-0 rounded-full"
+                              />
+                            ))}
+                          </div>
                           <div className="text-[11px] text-muted-foreground truncate">
                             {p.leader_name ?? "—"}
                             {p.player_slot ? ` · slot ${p.player_slot}` : ""}
@@ -1579,6 +1578,7 @@ function VerificationCard({
                 onUpdateInfluence={(next, msg) => void persist(next, msg)}
                 compact
               />
+              </div>
 
               <Card className="p-3 border-border/60 bg-card/60 space-y-3">
                 <HighCouncilSeats players={players} canEdit={canEdit} onToggleSeat={toggleSeat} />
