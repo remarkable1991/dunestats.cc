@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Copy, Link as LinkIcon, Trophy, Medal, Award, Maximize2, Loader2, ArrowLeft, Pencil, Swords, ShieldCheck } from "lucide-react";
+import { Copy, Link as LinkIcon, Trophy, Medal, Award, Maximize2, Loader2, ArrowLeft, Pencil, Swords, ShieldCheck, MonitorOff } from "lucide-react";
 import { TournamentTag } from "@/components/EloDelta";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
@@ -516,30 +516,26 @@ function MatchDetailsPage() {
                       <div className="flex flex-col items-center gap-1">
                         <PlacementBadge placement={r.placement} />
                         {canEdit ? (
-                          <label
+                          <button
+                            type="button"
                             title="Leaver — This player left this match"
-                            className={`flex items-center gap-1 text-[9px] uppercase tracking-wider px-1 py-0.5 rounded border cursor-pointer ${
+                            onClick={() => void toggleLeaver(r.player_name, !r.is_leaver)}
+                            disabled={leaverBusy === r.player_name}
+                            className={`flex items-center justify-center rounded p-1 cursor-pointer transition-colors ${
                               r.is_leaver
-                                ? "border-coral/50 bg-coral/10 text-coral"
-                                : "border-border/50 text-muted-foreground hover:text-foreground"
+                                ? "text-coral bg-coral/10"
+                                : "text-muted-foreground/50 hover:text-foreground"
                             } ${leaverBusy === r.player_name ? "opacity-60 pointer-events-none" : ""}`}
                           >
-                            <input
-                              type="checkbox"
-                              className="size-2.5 accent-current"
-                              checked={!!r.is_leaver}
-                              disabled={leaverBusy === r.player_name}
-                              onChange={(e) => void toggleLeaver(r.player_name, e.target.checked)}
-                            />
-                            Leaver
-                          </label>
+                            <MonitorOff className="size-3.5" />
+                          </button>
                         ) : (
                           r.is_leaver && (
                             <span
                               title="Leaver — This player left this match"
-                              className="text-[9px] uppercase tracking-wider px-1 py-0.5 rounded border border-coral/50 bg-coral/10 text-coral"
+                              className="flex items-center justify-center rounded p-1 text-coral bg-coral/10"
                             >
-                              Leaver
+                              <MonitorOff className="size-3.5" />
                             </span>
                           )
                         )}
