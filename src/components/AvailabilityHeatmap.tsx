@@ -103,9 +103,9 @@ export function AvailabilityHeatmap({
 }
 
 export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = "async" }: HeatmapBodyProps) {
-  const { dayList, slotMatrix } = useMemo(() => {
-    // Aggregate counts per local half-hour slot
-    const counts = new Map<number, number>(); // key: epoch ms of local half-hour
+  const { dayList, slotMatrix, slotPlayers } = useMemo(() => {
+    // epoch ms -> Set of player names present at that local half-hour
+    const present = new Map<number, Set<string>>();
     for (const p of players) {
       const av = p.player_availability ?? [];
       const seen = new Set<number>();
@@ -114,12 +114,17 @@ export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = 
         const k = d.getTime();
         if (seen.has(k)) continue;
         seen.add(k);
-        counts.set(k, (counts.get(k) ?? 0) + 1);
+        if (!present.has(k)) present.set(k, new Set());
+        present.get(k)!.add(p.player_name);
       }
     }
-    const times = [...counts.keys()];
+    const times = [...present.keys()];
     if (times.length === 0) {
-      return { dayList: [] as Date[], slotMatrix: new Map<string, number>() };
+      return {
+        dayList: [] as Date[],
+        slotMatrix: new Map<string, number>(),
+        slotPlayers: new Map<string, string[]>(),
+      };
     }
     times.sort((a, b) => a - b);
     const first = new Date(times[0]);
@@ -139,15 +144,20 @@ export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = 
       dayList.push(d);
     }
     const slotMatrix = new Map<string, number>();
-    for (const [k, c] of counts) {
+    const slotPlayers = new Map<string, string[]>();
+    for (const [k, set] of present) {
       const d = new Date(k);
       const dayIdx = Math.floor((d.getTime() - dayList[0].getTime()) / (24 * 3600 * 1000));
       if (dayIdx < 0 || dayIdx >= span) continue;
       const halfHourIdx = d.getHours() * 2 + (d.getMinutes() >= 30 ? 1 : 0);
-      slotMatrix.set(`${dayIdx}:${halfHourIdx}`, c);
+      const key = `${dayIdx}:${halfHourIdx}`;
+      slotMatrix.set(key, set.size);
+      slotPlayers.set(key, [...set]);
     }
-    return { dayList, slotMatrix };
+    return { dayList, slotMatrix, slotPlayers };
   }, [players]);
+
+  const playerNames = useMemo(() => players.map((p) => p.player_name), [players]);
 
   const suggestions = useMemo(() => parseSuggestedSlots(suggestedSlots), [suggestedSlots]);
 
