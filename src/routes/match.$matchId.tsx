@@ -616,31 +616,6 @@ function MatchDetailsPage() {
                           ) : (
                             <span className="truncate">{r.leader_name ?? "—"}</span>
                           )}
-                          {canEdit ? (
-                            <label
-                              className={`shrink-0 flex items-center gap-1 text-[10px] uppercase tracking-wider px-1 py-0.5 rounded border cursor-pointer ${
-                                r.is_leaver
-                                  ? "border-coral/50 bg-coral/10 text-coral"
-                                  : "border-border/50 text-muted-foreground hover:text-foreground"
-                              } ${leaverBusy === r.player_name ? "opacity-60 pointer-events-none" : ""}`}
-                              title="Mark as leaver"
-                            >
-                              <input
-                                type="checkbox"
-                                className="size-2.5 accent-current"
-                                checked={!!r.is_leaver}
-                                disabled={leaverBusy === r.player_name}
-                                onChange={(e) => void toggleLeaver(r.player_name, e.target.checked)}
-                              />
-                              Leaver
-                            </label>
-                          ) : (
-                            r.is_leaver && (
-                              <span className="shrink-0 text-[10px] uppercase tracking-wider px-1 py-0.5 rounded border border-coral/50 bg-coral/10 text-coral">
-                                Leaver
-                              </span>
-                            )
-                          )}
                         </div>
                         <ResourcePips spice={r.spice} solaris={r.solaris} water={r.water} />
                       </div>
