@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
-import { Sparkles, Users as UsersIcon, Copy, Clock } from "lucide-react";
+import { Sparkles, Users as UsersIcon, Copy, Clock, Check } from "lucide-react";
 import { toast } from "sonner";
 import { discordEpoch, parseSuggestedSlots } from "@/lib/match-schedules";
 
