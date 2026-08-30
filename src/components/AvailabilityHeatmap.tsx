@@ -113,7 +113,7 @@ export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = 
   }, [playerNamesKey]);
   const togglePlayer = (name: string) =>
     setSelected((prev) => (prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]));
-  const { dayList, slotMatrix, slotPlayers } = useMemo(() => {
+  const { dayList, slotPlayers } = useMemo(() => {
     // epoch ms -> Set of player names present at that local half-hour
     const present = new Map<number, Set<string>>();
     for (const p of players) {
@@ -337,16 +337,42 @@ export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = 
         <h3 className="font-display text-sm text-sand mb-2 flex items-center gap-2">
           <Sparkles className="size-4" /> Players &amp; Compatibility
         </h3>
+        <p className="text-[11px] text-muted-foreground mb-2">
+          Click a player to filter the map to their availability — click multiple to stack them.
+        </p>
         <ul className="grid sm:grid-cols-2 gap-2 text-sm">
-          {players.map((p) => (
-            <li key={p.player_name} className="flex items-center justify-between border border-border/40 rounded-md px-3 py-2 bg-background/40">
-              <div className="min-w-0">
-                <div className="font-medium truncate">{p.player_name}</div>
-                {p.discord_username && <div className="text-[10px] text-muted-foreground truncate">@{p.discord_username}</div>}
-              </div>
-              <span className="font-mono text-sand">{fmtScore(p.player_compatibility_score)}</span>
-            </li>
-          ))}
+          {players.map((p) => {
+            const active = selected.includes(p.player_name);
+            return (
+              <li key={p.player_name}>
+                <button
+                  type="button"
+                  onClick={() => togglePlayer(p.player_name)}
+                  aria-pressed={active}
+                  className={`w-full flex items-center justify-between gap-2 border rounded-md px-3 py-2 transition text-left ${
+                    active
+                      ? "border-sand/60 bg-sand/10"
+                      : "border-border/40 bg-background/40 opacity-50 hover:opacity-80"
+                  }`}
+                >
+                  <div className="min-w-0 flex items-center gap-2">
+                    <span
+                      className={`shrink-0 inline-flex items-center justify-center size-4 rounded-full border ${
+                        active ? "bg-sand text-background border-sand" : "border-border/60 text-transparent"
+                      }`}
+                    >
+                      <Check className="size-3" />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{p.player_name}</div>
+                      {p.discord_username && <div className="text-[10px] text-muted-foreground truncate">@{p.discord_username}</div>}
+                    </div>
+                  </div>
+                  <span className="font-mono text-sand">{fmtScore(p.player_compatibility_score)}</span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </Card>
     </div>
