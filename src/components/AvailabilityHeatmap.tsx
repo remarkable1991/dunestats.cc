@@ -103,6 +103,16 @@ export function AvailabilityHeatmap({
 }
 
 export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = "async" }: HeatmapBodyProps) {
+  const playerNamesKey = useMemo(() => players.map((p) => p.player_name).join("\u0001"), [players]);
+  const allNames = useMemo(() => players.map((p) => p.player_name), [players]);
+  // Default: everyone selected. Clicking a player toggles them in/out of the filter.
+  const [selected, setSelected] = useState<string[]>(allNames);
+  useEffect(() => {
+    setSelected(players.map((p) => p.player_name));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerNamesKey]);
+  const togglePlayer = (name: string) =>
+    setSelected((prev) => (prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]));
   const { dayList, slotMatrix, slotPlayers } = useMemo(() => {
     // epoch ms -> Set of player names present at that local half-hour
     const present = new Map<number, Set<string>>();
