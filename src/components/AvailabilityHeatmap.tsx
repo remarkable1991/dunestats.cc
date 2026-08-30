@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
-import { Sparkles, Users as UsersIcon, Copy, Clock } from "lucide-react";
+import { Sparkles, Users as UsersIcon, Copy, Clock, Check } from "lucide-react";
 import { toast } from "sonner";
 import { discordEpoch, parseSuggestedSlots } from "@/lib/match-schedules";
 
@@ -103,7 +103,17 @@ export function AvailabilityHeatmap({
 }
 
 export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = "async" }: HeatmapBodyProps) {
-  const { dayList, slotMatrix, slotPlayers } = useMemo(() => {
+  const playerNamesKey = useMemo(() => players.map((p) => p.player_name).join("\u0001"), [players]);
+  const allNames = useMemo(() => players.map((p) => p.player_name), [players]);
+  // Default: everyone selected. Clicking a player toggles them in/out of the filter.
+  const [selected, setSelected] = useState<string[]>(allNames);
+  useEffect(() => {
+    setSelected(players.map((p) => p.player_name));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerNamesKey]);
+  const togglePlayer = (name: string) =>
+    setSelected((prev) => (prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]));
+  const { dayList, slotPlayers } = useMemo(() => {
     // epoch ms -> Set of player names present at that local half-hour
     const present = new Map<number, Set<string>>();
     for (const p of players) {
@@ -297,18 +307,22 @@ export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = 
                 </div>
                 {HOURS.map((h) => {
                   const key = `${di}:${h}`;
-                  const c = slotMatrix.get(key) ?? 0;
                   const slotStart = new Date(d);
                   slotStart.setHours(Math.floor(h / 2), (h % 2) * 30, 0, 0);
-                  const present = slotPlayers.get(key) ?? [];
-                  const missing = playerNames.filter((n) => !present.includes(n));
+                  const presentAll = slotPlayers.get(key) ?? [];
+                  const present = presentAll.filter((n) => selected.includes(n));
+                  const c = present.length;
+                  const total = selected.length;
+                  const missing = selected.filter((n) => !present.includes(n));
+                  // Scale density to the number of selected players (0..4 buckets)
+                  const intensity = total === 0 ? 0 : Math.round((c / total) * 4);
                   return (
                     <button
                       key={h}
                       type="button"
                       onClick={() => copyDiscord(Math.floor(slotStart.getTime() / 1000))}
-                      title={`${dayFmt.format(d)} · ${timeFmt.format(slotStart)} — ${c}/${playerNames.length} free${missing.length ? ` (missing ${missing.join(", ")})` : ""}`}
-                      className={`h-4 border-r border-b transition-colors ${densityClass(c)}`}
+                      title={`${dayFmt.format(d)} · ${timeFmt.format(slotStart)} — ${c}/${total} free${missing.length ? ` (missing ${missing.join(", ")})` : ""}`}
+                      className={`h-4 border-r border-b transition-colors ${densityClass(intensity)}`}
                     />
                   );
                 })}
@@ -323,16 +337,42 @@ export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = 
         <h3 className="font-display text-sm text-sand mb-2 flex items-center gap-2">
           <Sparkles className="size-4" /> Players &amp; Compatibility
         </h3>
+        <p className="text-[11px] text-muted-foreground mb-2">
+          Click a player to filter the map to their availability — click multiple to stack them.
+        </p>
         <ul className="grid sm:grid-cols-2 gap-2 text-sm">
-          {players.map((p) => (
-            <li key={p.player_name} className="flex items-center justify-between border border-border/40 rounded-md px-3 py-2 bg-background/40">
-              <div className="min-w-0">
-                <div className="font-medium truncate">{p.player_name}</div>
-                {p.discord_username && <div className="text-[10px] text-muted-foreground truncate">@{p.discord_username}</div>}
-              </div>
-              <span className="font-mono text-sand">{fmtScore(p.player_compatibility_score)}</span>
-            </li>
-          ))}
+          {players.map((p) => {
+            const active = selected.includes(p.player_name);
+            return (
+              <li key={p.player_name}>
+                <button
+                  type="button"
+                  onClick={() => togglePlayer(p.player_name)}
+                  aria-pressed={active}
+                  className={`w-full flex items-center justify-between gap-2 border rounded-md px-3 py-2 transition text-left ${
+                    active
+                      ? "border-sand/60 bg-sand/10"
+                      : "border-border/40 bg-background/40 opacity-50 hover:opacity-80"
+                  }`}
+                >
+                  <div className="min-w-0 flex items-center gap-2">
+                    <span
+                      className={`shrink-0 inline-flex items-center justify-center size-4 rounded-full border ${
+                        active ? "bg-sand text-background border-sand" : "border-border/60 text-transparent"
+                      }`}
+                    >
+                      <Check className="size-3" />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{p.player_name}</div>
+                      {p.discord_username && <div className="text-[10px] text-muted-foreground truncate">@{p.discord_username}</div>}
+                    </div>
+                  </div>
+                  <span className="font-mono text-sand">{fmtScore(p.player_compatibility_score)}</span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </Card>
     </div>
