@@ -112,7 +112,19 @@ export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerNamesKey]);
   const togglePlayer = (name: string) =>
-    setSelected((prev) => (prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]));
+    setSelected((prev) => {
+      const all = players.map((p) => p.player_name);
+      // When everyone is selected, clicking a player solo-selects them (1/4)
+      // instead of dropping them from the roster (which would show 3/4).
+      if (prev.length === all.length && prev.includes(name)) {
+        return [name];
+      }
+      // Clicking the only selected player reselects everyone.
+      if (prev.length === 1 && prev[0] === name) {
+        return all;
+      }
+      return prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name];
+    });
   const { dayList, slotPlayers } = useMemo(() => {
     // epoch ms -> Set of player names present at that local half-hour
     const present = new Map<number, Set<string>>();
