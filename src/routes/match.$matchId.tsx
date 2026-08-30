@@ -513,7 +513,37 @@ function MatchDetailsPage() {
                     style={{ borderLeftColor: hex }}
                   >
                     <div className="flex items-center gap-3">
-                      <PlacementBadge placement={r.placement} />
+                      <div className="flex flex-col items-center gap-1">
+                        <PlacementBadge placement={r.placement} />
+                        {canEdit ? (
+                          <label
+                            title="Leaver — This player left this match"
+                            className={`flex items-center gap-1 text-[9px] uppercase tracking-wider px-1 py-0.5 rounded border cursor-pointer ${
+                              r.is_leaver
+                                ? "border-coral/50 bg-coral/10 text-coral"
+                                : "border-border/50 text-muted-foreground hover:text-foreground"
+                            } ${leaverBusy === r.player_name ? "opacity-60 pointer-events-none" : ""}`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="size-2.5 accent-current"
+                              checked={!!r.is_leaver}
+                              disabled={leaverBusy === r.player_name}
+                              onChange={(e) => void toggleLeaver(r.player_name, e.target.checked)}
+                            />
+                            Leaver
+                          </label>
+                        ) : (
+                          r.is_leaver && (
+                            <span
+                              title="Leaver — This player left this match"
+                              className="text-[9px] uppercase tracking-wider px-1 py-0.5 rounded border border-coral/50 bg-coral/10 text-coral"
+                            >
+                              Leaver
+                            </span>
+                          )
+                        )}
+                      </div>
                       <div className="relative shrink-0">
                         {leaderRoute ? (
                           <Link
