@@ -307,18 +307,22 @@ export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = 
                 </div>
                 {HOURS.map((h) => {
                   const key = `${di}:${h}`;
-                  const c = slotMatrix.get(key) ?? 0;
                   const slotStart = new Date(d);
                   slotStart.setHours(Math.floor(h / 2), (h % 2) * 30, 0, 0);
-                  const present = slotPlayers.get(key) ?? [];
-                  const missing = playerNames.filter((n) => !present.includes(n));
+                  const presentAll = slotPlayers.get(key) ?? [];
+                  const present = presentAll.filter((n) => selected.includes(n));
+                  const c = present.length;
+                  const total = selected.length;
+                  const missing = selected.filter((n) => !present.includes(n));
+                  // Scale density to the number of selected players (0..4 buckets)
+                  const intensity = total === 0 ? 0 : Math.round((c / total) * 4);
                   return (
                     <button
                       key={h}
                       type="button"
                       onClick={() => copyDiscord(Math.floor(slotStart.getTime() / 1000))}
-                      title={`${dayFmt.format(d)} · ${timeFmt.format(slotStart)} — ${c}/${playerNames.length} free${missing.length ? ` (missing ${missing.join(", ")})` : ""}`}
-                      className={`h-4 border-r border-b transition-colors ${densityClass(c)}`}
+                      title={`${dayFmt.format(d)} · ${timeFmt.format(slotStart)} — ${c}/${total} free${missing.length ? ` (missing ${missing.join(", ")})` : ""}`}
+                      className={`h-4 border-r border-b transition-colors ${densityClass(intensity)}`}
                     />
                   );
                 })}
