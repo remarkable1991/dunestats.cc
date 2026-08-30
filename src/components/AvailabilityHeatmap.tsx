@@ -296,15 +296,18 @@ export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = 
                   {dayFmt.format(d)}
                 </div>
                 {HOURS.map((h) => {
-                  const c = slotMatrix.get(`${di}:${h}`) ?? 0;
+                  const key = `${di}:${h}`;
+                  const c = slotMatrix.get(key) ?? 0;
                   const slotStart = new Date(d);
                   slotStart.setHours(Math.floor(h / 2), (h % 2) * 30, 0, 0);
+                  const present = slotPlayers.get(key) ?? [];
+                  const missing = playerNames.filter((n) => !present.includes(n));
                   return (
                     <button
                       key={h}
                       type="button"
                       onClick={() => copyDiscord(Math.floor(slotStart.getTime() / 1000))}
-                      title={`${dayFmt.format(d)} · ${timeFmt.format(slotStart)} — ${densityLabel(c)}`}
+                      title={`${dayFmt.format(d)} · ${timeFmt.format(slotStart)} — ${c}/${playerNames.length} free${missing.length ? ` (missing ${missing.join(", ")})` : ""}`}
                       className={`h-4 border-r border-b transition-colors ${densityClass(c)}`}
                     />
                   );
