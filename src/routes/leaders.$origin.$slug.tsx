@@ -571,6 +571,9 @@ function LeaderDetail() {
               {loading ? "…" : `${stats.secondPct.toFixed(1)}%`}
             </div>
             <div className="text-xs text-muted-foreground mt-1">{stats.seconds} results</div>
+            {filtersActive && !loading && (
+              <div className="text-xs text-muted-foreground mt-0.5">unfiltered: {baseStats.secondPct.toFixed(1)}%</div>
+            )}
           </Card>
           <Card className="p-4 bg-card/70 border-border/60">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">3rd Place</div>
@@ -578,6 +581,9 @@ function LeaderDetail() {
               {loading ? "…" : `${stats.thirdPct.toFixed(1)}%`}
             </div>
             <div className="text-xs text-muted-foreground mt-1">{stats.thirds} results</div>
+            {filtersActive && !loading && (
+              <div className="text-xs text-muted-foreground mt-0.5">unfiltered: {baseStats.thirdPct.toFixed(1)}%</div>
+            )}
           </Card>
           <Card className="p-4 bg-card/70 border-border/60">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">4th Place</div>
@@ -585,6 +591,9 @@ function LeaderDetail() {
               {loading ? "…" : `${stats.fourthPct.toFixed(1)}%`}
             </div>
             <div className="text-xs text-muted-foreground mt-1">{stats.fourths} results</div>
+            {filtersActive && !loading && (
+              <div className="text-xs text-muted-foreground mt-0.5">unfiltered: {baseStats.fourthPct.toFixed(1)}%</div>
+            )}
           </Card>
           <Card className="p-4 bg-card/70 border-border/60 col-span-2 md:col-span-1">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Top 2</div>
@@ -592,6 +601,9 @@ function LeaderDetail() {
               {loading ? "…" : `${stats.top2Pct.toFixed(1)}%`}
             </div>
             <div className="text-xs text-muted-foreground mt-1">1st + 2nd combined</div>
+            {filtersActive && !loading && (
+              <div className="text-xs text-muted-foreground mt-0.5">unfiltered: {baseStats.top2Pct.toFixed(1)}%</div>
+            )}
           </Card>
         </div>
 
