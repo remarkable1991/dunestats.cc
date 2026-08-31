@@ -274,13 +274,13 @@ function LeaderDetail() {
     };
   };
 
-  const stats = useMemo(() => computeStats(version), [rows, version, seatsByVersion]);
+  const stats = useMemo(() => computeStats(version, filteredRows), [filteredRows, version, seatsByVersion]);
   const nativeVersion = ORIGIN_TO_VERSION[leader?.origin ?? "base"];
   const showCompare = leader && version !== "overall" && version !== nativeVersion;
   const compareStats = useMemo(
-    () => (showCompare ? computeStats(nativeVersion) : null),
+    () => (showCompare ? computeStats(nativeVersion, filteredRows) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows, version, seatsByVersion, showCompare, nativeVersion],
+    [filteredRows, version, seatsByVersion, showCompare, nativeVersion],
   );
 
   // ---- color logic per spec ----
@@ -416,6 +416,62 @@ function LeaderDetail() {
             })}
           </TabsList>
         </Tabs>
+
+        {/* Interactive filters */}
+        <Card className="p-3 bg-card/60 border-border/60 mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs uppercase tracking-wider text-muted-foreground mr-1">Filters</span>
+          {(
+            [
+              { label: "Immortality", on: filterImmo, set: setFilterImmo },
+              { label: "Epic Mode", on: filterEpic, set: setFilterEpic },
+              { label: "Rise of Ix", on: filterIx, set: setFilterIx },
+            ] as const
+          ).map((f) => (
+            <button
+              key={f.label}
+              type="button"
+              onClick={() => f.set(!f.on)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                f.on
+                  ? "bg-sand text-sand-foreground border-sand"
+                  : "border-border/60 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+          <div className="flex items-center gap-1.5">
+            <label className="text-xs text-muted-foreground" htmlFor="co-leader-filter">With leader:</label>
+            <select
+              id="co-leader-filter"
+              value={coLeader}
+              onChange={(e) => setCoLeader(e.target.value)}
+              className="text-xs bg-background border border-border/60 rounded px-2 py-1"
+            >
+              <option value="">Any</option>
+              {[...LEADERS.base, ...LEADERS.ix, ...LEADERS.uprising]
+                .filter((n) => !collectAliases(leader.name).includes(normalize(n)))
+                .map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+            </select>
+            {coLeaderLoading && <span className="text-xs text-muted-foreground">loading…</span>}
+          </div>
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={() => {
+                setFilterImmo(false);
+                setFilterEpic(false);
+                setFilterIx(false);
+                setCoLeader("");
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 ml-auto"
+            >
+              Clear filters
+            </button>
+          )}
+        </Card>
 
         {/* Summary metrics */}
         <div className="grid grid-cols-3 gap-3 mb-4">
