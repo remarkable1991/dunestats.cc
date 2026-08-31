@@ -91,6 +91,9 @@ function LeaderDetail() {
   const leader = findLeader(origin, slug);
 
   const [rows, setRows] = useState<Row[]>([]);
+  const [allSeats, setAllSeats] = useState<
+    { leader_name: string | null; gameId: string | null; version: GameVersion | null; immo: boolean; epic: boolean; ix: boolean }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState<GameVersion>("overall");
   const [isAdmin, setIsAdmin] = useState(false);
@@ -128,6 +131,7 @@ function LeaderDetail() {
     (async () => {
       const PAGE = 1000;
       const out: Row[] = [];
+      const seats: typeof allSeats = [];
       let from = 0;
       // eslint-disable-next-line no-constant-condition
       while (true) {
@@ -140,12 +144,21 @@ function LeaderDetail() {
         if (error || !data || data.length === 0) break;
         for (const r of data as unknown as Row[]) {
           if (!r.leader_name) continue;
+          seats.push({
+            leader_name: r.leader_name,
+            gameId: r.games?.id ?? null,
+            version: r.games?.game_version ?? null,
+            immo: !!r.games?.has_immortality,
+            epic: !!r.games?.has_epic_mode,
+            ix: !!r.games?.has_rise_of_ix,
+          });
           if (aliases.includes(normalize(r.leader_name))) out.push(r);
         }
         if (data.length < PAGE) break;
         from += PAGE;
       }
       setRows(out);
+      setAllSeats(seats);
       setLoading(false);
     })();
   }, [leader?.name]);
@@ -246,6 +259,47 @@ function LeaderDetail() {
 
   const filtersActive = filterImmo || filterEpic || filterIx || !!coLeader;
 
+  // Games relevant to the current filter context (version tab + expansion toggles,
+  // excluding the co-leader selection so the dropdown itself stays useful).
+  const contextGameIds = useMemo(() => {
+    let source = rows;
+    if (filterImmo) source = source.filter((r) => r.games?.has_immortality);
+    if (filterEpic) source = source.filter((r) => r.games?.has_epic_mode);
+    if (filterIx) source = source.filter((r) => r.games?.has_rise_of_ix);
+    if (version !== "overall") source = source.filter((r) => r.games?.game_version === version);
+    const ids = new Set<string>();
+    for (const r of source) if (r.games?.id) ids.add(r.games.id);
+    return ids;
+  }, [rows, filterImmo, filterEpic, filterIx, version]);
+
+  // Co-leader counts: for every other leader, how many of the context games they appeared in.
+  const coLeaderCounts = useMemo(() => {
+    if (!leader) return [] as { name: string; count: number }[];
+    const selfAliases = collectAliases(leader.name);
+    const candidates = [...LEADERS.base, ...LEADERS.ix, ...LEADERS.uprising].filter(
+      (n, i, arr) => arr.indexOf(n) === i && !selfAliases.includes(normalize(n)),
+    );
+    const counts = new Map<string, number>(candidates.map((n) => [n, 0]));
+    const aliasMap = candidates.map((n) => ({ name: n, aliases: collectAliases(n) }));
+    const countedInGame = new Set<string>();
+    for (const seat of allSeats) {
+      if (!seat.gameId || !contextGameIds.has(seat.gameId) || !seat.leader_name) continue;
+      const norm = normalize(seat.leader_name);
+      for (const c of aliasMap) {
+        const key = `${seat.gameId}|${c.name}`;
+        if (countedInGame.has(key)) continue;
+        if (c.aliases.includes(norm)) {
+          counts.set(c.name, (counts.get(c.name) ?? 0) + 1);
+          countedInGame.add(key);
+        }
+      }
+    }
+    return candidates
+      .map((name) => ({ name, count: counts.get(name) ?? 0 }))
+      .filter((c) => c.count > 0)
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  }, [leader, allSeats, contextGameIds]);
+
   const computeStats = (v: GameVersion, source: Row[]) => {
     const f = v === "overall" ? source : source.filter((r) => r.games?.game_version === v);
     const total = f.length;
@@ -275,6 +329,7 @@ function LeaderDetail() {
   };
 
   const stats = useMemo(() => computeStats(version, filteredRows), [filteredRows, version, seatsByVersion]);
+  const baseStats = useMemo(() => computeStats(version, rows), [rows, version, seatsByVersion]);
   const nativeVersion = ORIGIN_TO_VERSION[leader?.origin ?? "base"];
   const showCompare = leader && version !== "overall" && version !== nativeVersion;
   const compareStats = useMemo(
@@ -449,11 +504,11 @@ function LeaderDetail() {
               className="text-xs bg-background border border-border/60 rounded px-2 py-1"
             >
               <option value="">Any</option>
-              {[...LEADERS.base, ...LEADERS.ix, ...LEADERS.uprising]
-                .filter((n) => !collectAliases(leader.name).includes(normalize(n)))
-                .map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
+              {coLeaderCounts.map((c) => (
+                <option key={c.name} value={c.name}>
+                  {c.name} ({c.count})
+                </option>
+              ))}
             </select>
             {coLeaderLoading && <span className="text-xs text-muted-foreground">loading…</span>}
           </div>
@@ -478,14 +533,23 @@ function LeaderDetail() {
           <Card className="p-4 bg-card/70 border-border/60">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Matches Played</div>
             <div className="text-2xl font-display">{loading ? "…" : stats.total}</div>
+            {filtersActive && !loading && (
+              <div className="text-xs text-muted-foreground mt-1">unfiltered: {baseStats.total}</div>
+            )}
           </Card>
           <Card className="p-4 bg-card/70 border-border/60">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Avg Victory Pts</div>
             <div className="text-2xl font-display">{loading ? "…" : stats.avgPts.toFixed(1)}</div>
+            {filtersActive && !loading && (
+              <div className="text-xs text-muted-foreground mt-1">unfiltered: {baseStats.avgPts.toFixed(1)}</div>
+            )}
           </Card>
           <Card className="p-4 bg-card/70 border-border/60">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Pick Rate</div>
             <div className="text-2xl font-display">{loading || totalSeats === null ? "…" : `${stats.pickRatePct.toFixed(1)}%`}</div>
+            {filtersActive && !loading && totalSeats !== null && (
+              <div className="text-xs text-muted-foreground mt-1">unfiltered: {baseStats.pickRatePct.toFixed(1)}%</div>
+            )}
           </Card>
         </div>
 
@@ -497,6 +561,9 @@ function LeaderDetail() {
               {loading ? "…" : `${stats.firstPct.toFixed(1)}%`}
             </div>
             <div className="text-xs text-muted-foreground mt-1">{stats.firsts} wins</div>
+            {filtersActive && !loading && (
+              <div className="text-xs text-muted-foreground mt-0.5">unfiltered: {baseStats.firstPct.toFixed(1)}%</div>
+            )}
           </Card>
           <Card className="p-4 bg-card/70 border-border/60">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">2nd Place</div>
@@ -504,6 +571,9 @@ function LeaderDetail() {
               {loading ? "…" : `${stats.secondPct.toFixed(1)}%`}
             </div>
             <div className="text-xs text-muted-foreground mt-1">{stats.seconds} results</div>
+            {filtersActive && !loading && (
+              <div className="text-xs text-muted-foreground mt-0.5">unfiltered: {baseStats.secondPct.toFixed(1)}%</div>
+            )}
           </Card>
           <Card className="p-4 bg-card/70 border-border/60">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">3rd Place</div>
@@ -511,6 +581,9 @@ function LeaderDetail() {
               {loading ? "…" : `${stats.thirdPct.toFixed(1)}%`}
             </div>
             <div className="text-xs text-muted-foreground mt-1">{stats.thirds} results</div>
+            {filtersActive && !loading && (
+              <div className="text-xs text-muted-foreground mt-0.5">unfiltered: {baseStats.thirdPct.toFixed(1)}%</div>
+            )}
           </Card>
           <Card className="p-4 bg-card/70 border-border/60">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">4th Place</div>
@@ -518,6 +591,9 @@ function LeaderDetail() {
               {loading ? "…" : `${stats.fourthPct.toFixed(1)}%`}
             </div>
             <div className="text-xs text-muted-foreground mt-1">{stats.fourths} results</div>
+            {filtersActive && !loading && (
+              <div className="text-xs text-muted-foreground mt-0.5">unfiltered: {baseStats.fourthPct.toFixed(1)}%</div>
+            )}
           </Card>
           <Card className="p-4 bg-card/70 border-border/60 col-span-2 md:col-span-1">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Top 2</div>
@@ -525,6 +601,9 @@ function LeaderDetail() {
               {loading ? "…" : `${stats.top2Pct.toFixed(1)}%`}
             </div>
             <div className="text-xs text-muted-foreground mt-1">1st + 2nd combined</div>
+            {filtersActive && !loading && (
+              <div className="text-xs text-muted-foreground mt-0.5">unfiltered: {baseStats.top2Pct.toFixed(1)}%</div>
+            )}
           </Card>
         </div>
 
