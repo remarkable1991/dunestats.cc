@@ -404,18 +404,21 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
   // ---------- Live availability stats ----------
   const stats = useMemo(() => {
     const overall = TOTAL ? (selection.size / TOTAL) * 100 : 0;
-    const weeks: { pct: number; ok: boolean }[] = [];
+    const weeks: { pct: number; ok: boolean; days: number }[] = [];
     for (let w = 0; w < WEEKS; w++) {
       const startDay = w * 7;
       const endDay = Math.min(startDay + 7, DAYS);
-      const total = (endDay - startDay) * SLOTS;
+      const dayCount = endDay - startDay;
+      const total = dayCount * SLOTS;
       let filled = 0;
       for (const id of selection) {
         const d = dayOfBlock(id);
         if (d >= startDay && d < endDay) filled++;
       }
       const pct = total ? (filled / total) * 100 : 0;
-      weeks.push({ pct, ok: pct >= tournament.required_weekly_pct });
+      // Partial weeks with fewer than 3 days don't count towards the weekly requirement.
+      const counts = dayCount >= 3;
+      weeks.push({ pct, ok: !counts || pct >= tournament.required_weekly_pct, days: dayCount });
     }
     return { overall, overallOk: overall >= tournament.required_availability_pct, weeks };
   }, [selection, TOTAL, WEEKS, DAYS, tournament.required_availability_pct, tournament.required_weekly_pct]);
