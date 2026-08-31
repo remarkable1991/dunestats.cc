@@ -259,6 +259,47 @@ function LeaderDetail() {
 
   const filtersActive = filterImmo || filterEpic || filterIx || !!coLeader;
 
+  // Games relevant to the current filter context (version tab + expansion toggles,
+  // excluding the co-leader selection so the dropdown itself stays useful).
+  const contextGameIds = useMemo(() => {
+    let source = rows;
+    if (filterImmo) source = source.filter((r) => r.games?.has_immortality);
+    if (filterEpic) source = source.filter((r) => r.games?.has_epic_mode);
+    if (filterIx) source = source.filter((r) => r.games?.has_rise_of_ix);
+    if (version !== "overall") source = source.filter((r) => r.games?.game_version === version);
+    const ids = new Set<string>();
+    for (const r of source) if (r.games?.id) ids.add(r.games.id);
+    return ids;
+  }, [rows, filterImmo, filterEpic, filterIx, version]);
+
+  // Co-leader counts: for every other leader, how many of the context games they appeared in.
+  const coLeaderCounts = useMemo(() => {
+    if (!leader) return [] as { name: string; count: number }[];
+    const selfAliases = collectAliases(leader.name);
+    const candidates = [...LEADERS.base, ...LEADERS.ix, ...LEADERS.uprising].filter(
+      (n, i, arr) => arr.indexOf(n) === i && !selfAliases.includes(normalize(n)),
+    );
+    const counts = new Map<string, number>(candidates.map((n) => [n, 0]));
+    const aliasMap = candidates.map((n) => ({ name: n, aliases: collectAliases(n) }));
+    const countedInGame = new Set<string>();
+    for (const seat of allSeats) {
+      if (!seat.gameId || !contextGameIds.has(seat.gameId) || !seat.leader_name) continue;
+      const norm = normalize(seat.leader_name);
+      for (const c of aliasMap) {
+        const key = `${seat.gameId}|${c.name}`;
+        if (countedInGame.has(key)) continue;
+        if (c.aliases.includes(norm)) {
+          counts.set(c.name, (counts.get(c.name) ?? 0) + 1);
+          countedInGame.add(key);
+        }
+      }
+    }
+    return candidates
+      .map((name) => ({ name, count: counts.get(name) ?? 0 }))
+      .filter((c) => c.count > 0)
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  }, [leader, allSeats, contextGameIds]);
+
   const computeStats = (v: GameVersion, source: Row[]) => {
     const f = v === "overall" ? source : source.filter((r) => r.games?.game_version === v);
     const total = f.length;
@@ -288,6 +329,7 @@ function LeaderDetail() {
   };
 
   const stats = useMemo(() => computeStats(version, filteredRows), [filteredRows, version, seatsByVersion]);
+  const baseStats = useMemo(() => computeStats(version, rows), [rows, version, seatsByVersion]);
   const nativeVersion = ORIGIN_TO_VERSION[leader?.origin ?? "base"];
   const showCompare = leader && version !== "overall" && version !== nativeVersion;
   const compareStats = useMemo(
