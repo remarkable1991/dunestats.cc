@@ -41,7 +41,13 @@ type Row = {
   placement: number;
   points: number;
   leader_name: string | null;
-  games: { id: string; game_version: GameVersion } | null;
+  games: {
+    id: string;
+    game_version: GameVersion;
+    has_immortality: boolean;
+    has_epic_mode: boolean;
+    has_rise_of_ix: boolean;
+  } | null;
 };
 
 function normalize(s: string) {
@@ -127,7 +133,9 @@ function LeaderDetail() {
       while (true) {
         const { data, error } = await supabase
           .from("game_results")
-          .select("placement, points, leader_name, games!inner(id, game_version)")
+          .select(
+            "placement, points, leader_name, games!inner(id, game_version, has_immortality, has_epic_mode, has_rise_of_ix)",
+          )
           .range(from, from + PAGE - 1);
         if (error || !data || data.length === 0) break;
         for (const r of data as unknown as Row[]) {
@@ -180,8 +188,66 @@ function LeaderDetail() {
   }, []);
   const totalSeats = seatsByVersion[version] ?? null;
 
-  const computeStats = (v: GameVersion) => {
-    const f = v === "overall" ? rows : rows.filter((r) => r.games?.game_version === v);
+  // ---------- Interactive filters ----------
+  const [filterImmo, setFilterImmo] = useState(false);
+  const [filterEpic, setFilterEpic] = useState(false);
+  const [filterIx, setFilterIx] = useState(false);
+  const [coLeader, setCoLeader] = useState<string>("");
+  const [coLeaderGameIds, setCoLeaderGameIds] = useState<Set<string> | null>(null);
+  const [coLeaderLoading, setCoLeaderLoading] = useState(false);
+
+  // Fetch the set of game ids the selected co-leader played in (lazy, cached per selection).
+  useEffect(() => {
+    if (!coLeader) {
+      setCoLeaderGameIds(null);
+      return;
+    }
+    let cancelled = false;
+    setCoLeaderLoading(true);
+    const aliases = collectAliases(coLeader);
+    const ids = new Set<string>();
+    (async () => {
+      const PAGE = 1000;
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from("game_results")
+          .select("leader_name, games!inner(id)")
+          .range(from, from + PAGE - 1);
+        if (error || !data || data.length === 0) break;
+        for (const r of data as unknown as { leader_name: string | null; games: { id: string } | null }[]) {
+          if (r.leader_name && r.games && aliases.includes(normalize(r.leader_name))) ids.add(r.games.id);
+        }
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      if (!cancelled) {
+        setCoLeaderGameIds(ids);
+        setCoLeaderLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [coLeader]);
+
+  const filteredRows = useMemo(() => {
+    let out = rows;
+    if (filterImmo) out = out.filter((r) => r.games?.has_immortality);
+    if (filterEpic) out = out.filter((r) => r.games?.has_epic_mode);
+    if (filterIx) out = out.filter((r) => r.games?.has_rise_of_ix);
+    if (coLeader) {
+      if (!coLeaderGameIds) return [];
+      out = out.filter((r) => r.games && coLeaderGameIds.has(r.games.id));
+    }
+    return out;
+  }, [rows, filterImmo, filterEpic, filterIx, coLeader, coLeaderGameIds]);
+
+  const filtersActive = filterImmo || filterEpic || filterIx || !!coLeader;
+
+  const computeStats = (v: GameVersion, source: Row[]) => {
+    const f = v === "overall" ? source : source.filter((r) => r.games?.game_version === v);
     const total = f.length;
     const placements = [0, 0, 0, 0];
     let points = 0;
@@ -208,13 +274,13 @@ function LeaderDetail() {
     };
   };
 
-  const stats = useMemo(() => computeStats(version), [rows, version, seatsByVersion]);
+  const stats = useMemo(() => computeStats(version, filteredRows), [filteredRows, version, seatsByVersion]);
   const nativeVersion = ORIGIN_TO_VERSION[leader?.origin ?? "base"];
   const showCompare = leader && version !== "overall" && version !== nativeVersion;
   const compareStats = useMemo(
-    () => (showCompare ? computeStats(nativeVersion) : null),
+    () => (showCompare ? computeStats(nativeVersion, filteredRows) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows, version, seatsByVersion, showCompare, nativeVersion],
+    [filteredRows, version, seatsByVersion, showCompare, nativeVersion],
   );
 
   // ---- color logic per spec ----
@@ -351,6 +417,62 @@ function LeaderDetail() {
           </TabsList>
         </Tabs>
 
+        {/* Interactive filters */}
+        <Card className="p-3 bg-card/60 border-border/60 mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs uppercase tracking-wider text-muted-foreground mr-1">Filters</span>
+          {(
+            [
+              { label: "Immortality", on: filterImmo, set: setFilterImmo },
+              { label: "Epic Mode", on: filterEpic, set: setFilterEpic },
+              { label: "Rise of Ix", on: filterIx, set: setFilterIx },
+            ] as const
+          ).map((f) => (
+            <button
+              key={f.label}
+              type="button"
+              onClick={() => f.set(!f.on)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                f.on
+                  ? "bg-sand text-sand-foreground border-sand"
+                  : "border-border/60 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+          <div className="flex items-center gap-1.5">
+            <label className="text-xs text-muted-foreground" htmlFor="co-leader-filter">With leader:</label>
+            <select
+              id="co-leader-filter"
+              value={coLeader}
+              onChange={(e) => setCoLeader(e.target.value)}
+              className="text-xs bg-background border border-border/60 rounded px-2 py-1"
+            >
+              <option value="">Any</option>
+              {[...LEADERS.base, ...LEADERS.ix, ...LEADERS.uprising]
+                .filter((n) => !collectAliases(leader.name).includes(normalize(n)))
+                .map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+            </select>
+            {coLeaderLoading && <span className="text-xs text-muted-foreground">loading…</span>}
+          </div>
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={() => {
+                setFilterImmo(false);
+                setFilterEpic(false);
+                setFilterIx(false);
+                setCoLeader("");
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 ml-auto"
+            >
+              Clear filters
+            </button>
+          )}
+        </Card>
+
         {/* Summary metrics */}
         <div className="grid grid-cols-3 gap-3 mb-4">
           <Card className="p-4 bg-card/70 border-border/60">
@@ -408,7 +530,8 @@ function LeaderDetail() {
 
         <p className="text-xs text-muted-foreground mt-4">
           Based on {stats.total} recorded seats
-          {version !== "overall" ? ` in ${GAME_VERSIONS.find((g) => g.value === version)?.label}` : ""}.
+          {version !== "overall" ? ` in ${GAME_VERSIONS.find((g) => g.value === version)?.label}` : ""}
+          {filtersActive ? " (filtered)" : ""}.
         </p>
 
         {/* Comparison to native version */}
