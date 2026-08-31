@@ -533,14 +533,23 @@ function LeaderDetail() {
           <Card className="p-4 bg-card/70 border-border/60">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Matches Played</div>
             <div className="text-2xl font-display">{loading ? "…" : stats.total}</div>
+            {filtersActive && !loading && (
+              <div className="text-xs text-muted-foreground mt-1">unfiltered: {baseStats.total}</div>
+            )}
           </Card>
           <Card className="p-4 bg-card/70 border-border/60">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Avg Victory Pts</div>
             <div className="text-2xl font-display">{loading ? "…" : stats.avgPts.toFixed(1)}</div>
+            {filtersActive && !loading && (
+              <div className="text-xs text-muted-foreground mt-1">unfiltered: {baseStats.avgPts.toFixed(1)}</div>
+            )}
           </Card>
           <Card className="p-4 bg-card/70 border-border/60">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Pick Rate</div>
             <div className="text-2xl font-display">{loading || totalSeats === null ? "…" : `${stats.pickRatePct.toFixed(1)}%`}</div>
+            {filtersActive && !loading && totalSeats !== null && (
+              <div className="text-xs text-muted-foreground mt-1">unfiltered: {baseStats.pickRatePct.toFixed(1)}%</div>
+            )}
           </Card>
         </div>
 
@@ -552,6 +561,9 @@ function LeaderDetail() {
               {loading ? "…" : `${stats.firstPct.toFixed(1)}%`}
             </div>
             <div className="text-xs text-muted-foreground mt-1">{stats.firsts} wins</div>
+            {filtersActive && !loading && (
+              <div className="text-xs text-muted-foreground mt-0.5">unfiltered: {baseStats.firstPct.toFixed(1)}%</div>
+            )}
           </Card>
           <Card className="p-4 bg-card/70 border-border/60">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">2nd Place</div>
