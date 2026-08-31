@@ -91,6 +91,9 @@ function LeaderDetail() {
   const leader = findLeader(origin, slug);
 
   const [rows, setRows] = useState<Row[]>([]);
+  const [allSeats, setAllSeats] = useState<
+    { leader_name: string | null; gameId: string | null; version: GameVersion | null; immo: boolean; epic: boolean; ix: boolean }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState<GameVersion>("overall");
   const [isAdmin, setIsAdmin] = useState(false);
@@ -128,6 +131,7 @@ function LeaderDetail() {
     (async () => {
       const PAGE = 1000;
       const out: Row[] = [];
+      const seats: typeof allSeats = [];
       let from = 0;
       // eslint-disable-next-line no-constant-condition
       while (true) {
@@ -140,12 +144,21 @@ function LeaderDetail() {
         if (error || !data || data.length === 0) break;
         for (const r of data as unknown as Row[]) {
           if (!r.leader_name) continue;
+          seats.push({
+            leader_name: r.leader_name,
+            gameId: r.games?.id ?? null,
+            version: r.games?.game_version ?? null,
+            immo: !!r.games?.has_immortality,
+            epic: !!r.games?.has_epic_mode,
+            ix: !!r.games?.has_rise_of_ix,
+          });
           if (aliases.includes(normalize(r.leader_name))) out.push(r);
         }
         if (data.length < PAGE) break;
         from += PAGE;
       }
       setRows(out);
+      setAllSeats(seats);
       setLoading(false);
     })();
   }, [leader?.name]);
