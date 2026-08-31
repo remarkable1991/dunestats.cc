@@ -530,7 +530,8 @@ function LeaderDetail() {
 
         <p className="text-xs text-muted-foreground mt-4">
           Based on {stats.total} recorded seats
-          {version !== "overall" ? ` in ${GAME_VERSIONS.find((g) => g.value === version)?.label}` : ""}.
+          {version !== "overall" ? ` in ${GAME_VERSIONS.find((g) => g.value === version)?.label}` : ""}
+          {filtersActive ? " (filtered)" : ""}.
         </p>
 
         {/* Comparison to native version */}
