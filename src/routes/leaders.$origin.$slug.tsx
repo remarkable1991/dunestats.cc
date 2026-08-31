@@ -504,11 +504,11 @@ function LeaderDetail() {
               className="text-xs bg-background border border-border/60 rounded px-2 py-1"
             >
               <option value="">Any</option>
-              {[...LEADERS.base, ...LEADERS.ix, ...LEADERS.uprising]
-                .filter((n) => !collectAliases(leader.name).includes(normalize(n)))
-                .map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
+              {coLeaderCounts.map((c) => (
+                <option key={c.name} value={c.name}>
+                  {c.name} ({c.count})
+                </option>
+              ))}
             </select>
             {coLeaderLoading && <span className="text-xs text-muted-foreground">loading…</span>}
           </div>
