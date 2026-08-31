@@ -41,7 +41,13 @@ type Row = {
   placement: number;
   points: number;
   leader_name: string | null;
-  games: { id: string; game_version: GameVersion } | null;
+  games: {
+    id: string;
+    game_version: GameVersion;
+    has_immortality: boolean;
+    has_epic_mode: boolean;
+    has_rise_of_ix: boolean;
+  } | null;
 };
 
 function normalize(s: string) {
@@ -127,7 +133,9 @@ function LeaderDetail() {
       while (true) {
         const { data, error } = await supabase
           .from("game_results")
-          .select("placement, points, leader_name, games!inner(id, game_version)")
+          .select(
+            "placement, points, leader_name, games!inner(id, game_version, has_immortality, has_epic_mode, has_rise_of_ix)",
+          )
           .range(from, from + PAGE - 1);
         if (error || !data || data.length === 0) break;
         for (const r of data as unknown as Row[]) {
@@ -180,8 +188,66 @@ function LeaderDetail() {
   }, []);
   const totalSeats = seatsByVersion[version] ?? null;
 
-  const computeStats = (v: GameVersion) => {
-    const f = v === "overall" ? rows : rows.filter((r) => r.games?.game_version === v);
+  // ---------- Interactive filters ----------
+  const [filterImmo, setFilterImmo] = useState(false);
+  const [filterEpic, setFilterEpic] = useState(false);
+  const [filterIx, setFilterIx] = useState(false);
+  const [coLeader, setCoLeader] = useState<string>("");
+  const [coLeaderGameIds, setCoLeaderGameIds] = useState<Set<string> | null>(null);
+  const [coLeaderLoading, setCoLeaderLoading] = useState(false);
+
+  // Fetch the set of game ids the selected co-leader played in (lazy, cached per selection).
+  useEffect(() => {
+    if (!coLeader) {
+      setCoLeaderGameIds(null);
+      return;
+    }
+    let cancelled = false;
+    setCoLeaderLoading(true);
+    const aliases = collectAliases(coLeader);
+    const ids = new Set<string>();
+    (async () => {
+      const PAGE = 1000;
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from("game_results")
+          .select("leader_name, games!inner(id)")
+          .range(from, from + PAGE - 1);
+        if (error || !data || data.length === 0) break;
+        for (const r of data as unknown as { leader_name: string | null; games: { id: string } | null }[]) {
+          if (r.leader_name && r.games && aliases.includes(normalize(r.leader_name))) ids.add(r.games.id);
+        }
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      if (!cancelled) {
+        setCoLeaderGameIds(ids);
+        setCoLeaderLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [coLeader]);
+
+  const filteredRows = useMemo(() => {
+    let out = rows;
+    if (filterImmo) out = out.filter((r) => r.games?.has_immortality);
+    if (filterEpic) out = out.filter((r) => r.games?.has_epic_mode);
+    if (filterIx) out = out.filter((r) => r.games?.has_rise_of_ix);
+    if (coLeader) {
+      if (!coLeaderGameIds) return [];
+      out = out.filter((r) => r.games && coLeaderGameIds.has(r.games.id));
+    }
+    return out;
+  }, [rows, filterImmo, filterEpic, filterIx, coLeader, coLeaderGameIds]);
+
+  const filtersActive = filterImmo || filterEpic || filterIx || !!coLeader;
+
+  const computeStats = (v: GameVersion, source: Row[]) => {
+    const f = v === "overall" ? source : source.filter((r) => r.games?.game_version === v);
     const total = f.length;
     const placements = [0, 0, 0, 0];
     let points = 0;
