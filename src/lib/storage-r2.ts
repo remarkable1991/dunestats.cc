@@ -82,6 +82,16 @@ export async function signedUrlOrR2(
 }
 
 /**
+ * Unsigned Supabase Storage "sign" URL. Used as a fallback when a tokened
+ * signed URL fails to load (expired/rejected token) — harmless if the object
+ * requires a token, the <img> simply errors again.
+ */
+export function unsignedSignUrl(bucket: string, filePath: string): string {
+  const path = filePath.replace(/^\/+/, "");
+  return `https://${SUPABASE_HOST}/storage/v1/object/sign/${bucket}/${path}`;
+}
+
+/**
  * Fire-and-forget backup of an uploaded file into the matching R2 bucket.
  * Never throws — the Supabase upload is the source of truth.
  */

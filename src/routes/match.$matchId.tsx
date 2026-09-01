@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { SupabaseImage } from "@/components/SupabaseImage";
-import { signedUrlOrR2, uploadToR2 } from "@/lib/storage-r2";
+import { signedUrlOrR2, unsignedSignUrl, uploadToR2 } from "@/lib/storage-r2";
 import { useRef, useCallback, useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
@@ -235,7 +235,16 @@ function MatchDetailsPage() {
       return;
     }
     setImgLoading(true);
-    setSignedImg(await signedUrlOrR2("match-screenshots", game.image_url, 60 * 60));
+    // Prefer the tokened signed URL; the <SupabaseImage> fallback chain
+    // retries with the unsigned /sign URL if the tokened one fails to load.
+    try {
+      const { data } = await supabase.storage
+        .from("match-screenshots")
+        .createSignedUrl(game.image_url, 60 * 60);
+      setSignedImg(data?.signedUrl ?? unsignedSignUrl("match-screenshots", game.image_url));
+    } catch {
+      setSignedImg(unsignedSignUrl("match-screenshots", game.image_url));
+    }
     setImgLoading(false);
   };
 
@@ -1293,6 +1302,7 @@ function ScoringScreenshotCard({
               <SupabaseImage
                 bucket="match-screenshots"
                 src={signedImg}
+                fallbackSrc={/^https?:\/\//i.test(imageUrl) ? undefined : unsignedSignUrl("match-screenshots", imageUrl)}
                 alt="Scoring screenshot preview"
                 className="w-full h-full object-cover"
               />
@@ -1311,6 +1321,7 @@ function ScoringScreenshotCard({
             <SupabaseImage
               bucket="match-screenshots"
               src={signedImg}
+              fallbackSrc={/^https?:\/\//i.test(imageUrl) ? undefined : unsignedSignUrl("match-screenshots", imageUrl)}
               alt="Scoring screenshot"
               className="w-full h-auto rounded max-h-[85vh] object-contain"
             />
