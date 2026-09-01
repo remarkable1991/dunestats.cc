@@ -1302,7 +1302,7 @@ function ScoringScreenshotCard({
               <SupabaseImage
                 bucket="match-screenshots"
                 src={signedImg}
-                fallbackSrc={unsignedSignUrl("match-screenshots", imageUrl)}
+                fallbackSrc={/^https?:\/\//i.test(imageUrl) ? undefined : unsignedSignUrl("match-screenshots", imageUrl)}
                 alt="Scoring screenshot preview"
                 className="w-full h-full object-cover"
               />
@@ -1321,7 +1321,7 @@ function ScoringScreenshotCard({
             <SupabaseImage
               bucket="match-screenshots"
               src={signedImg}
-              fallbackSrc={unsignedSignUrl("match-screenshots", imageUrl)}
+              fallbackSrc={/^https?:\/\//i.test(imageUrl) ? undefined : unsignedSignUrl("match-screenshots", imageUrl)}
               alt="Scoring screenshot"
               className="w-full h-auto rounded max-h-[85vh] object-contain"
             />
