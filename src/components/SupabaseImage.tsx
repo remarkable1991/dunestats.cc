@@ -15,7 +15,7 @@ type SupabaseImageProps = ImgHTMLAttributes<HTMLImageElement> & {
  * <img> wrapper that transparently falls back to the matching Cloudflare R2
  * public domain when a Supabase Storage image fails to load.
  */
-export function SupabaseImage({ src, bucket, onError, ...rest }: SupabaseImageProps) {
+export function SupabaseImage({ src, bucket, fallbackSrc, onError, ...rest }: SupabaseImageProps) {
   const [current, setCurrent] = useState(src);
   const [failed, setFailed] = useState(false);
 
@@ -26,7 +26,7 @@ export function SupabaseImage({ src, bucket, onError, ...rest }: SupabaseImagePr
 
   const handleError = (e: SyntheticEvent<HTMLImageElement, Event>) => {
     if (!failed && src) {
-      const fallback = r2FallbackUrl(src, bucket);
+      const fallback = (fallbackSrc && fallbackSrc !== current ? fallbackSrc : null) ?? r2FallbackUrl(src, bucket);
       if (fallback && fallback !== current) {
         setFailed(true);
         setCurrent(fallback);
