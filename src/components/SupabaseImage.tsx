@@ -7,6 +7,8 @@ type SupabaseImageProps = ImgHTMLAttributes<HTMLImageElement> & {
   src?: string;
   /** Bucket hint used when `src` is a bucket-relative path or a signed URL. */
   bucket?: string;
+  /** Explicit fallback URL tried before the R2 fallback when `src` fails. */
+  fallbackSrc?: string | null;
 };
 
 /**
