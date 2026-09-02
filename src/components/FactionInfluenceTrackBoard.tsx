@@ -141,10 +141,8 @@ export function FactionInfluenceTrackBoard({
             (p) => p && (levelOf(p, f.key) ?? 0) >= ALLIANCE_LEVEL,
           );
           const showTrackToken = !claimed && !anyAtMilestone;
-          // Upper playing field: rows 4–6 (from the bottom of the stack).
-          const upperBottom = ALLIANCE_LEVEL * (cellH + gap);
-          const upperHeight = 3 * cellH + 2 * gap;
-          const tokenSize = upperHeight - 4;
+          // Small round marker token shown next to box 4.
+          const tokenSize = cellH + 6;
           return (
             <div
               key={f.key}
@@ -157,13 +155,20 @@ export function FactionInfluenceTrackBoard({
               >
                 {f.label}
               </div>
-              <div className="relative flex items-stretch">
+              <div className="relative flex items-stretch ml-2">
                 {resolved.map((p, i) => (
                   <div key={p?.player_name ?? `empty-${i}`} className="flex-1 px-[2px]">
                     <div className="flex flex-col-reverse" style={{ gap }}>
                       {Array.from({ length: MAX_LEVEL + 1 }, (_, lvl) => {
                         const active = p ? levelOf(p, f.key) === lvl : false;
                         const hex = p ? colorHex(p.player_color) : "#8b8b8b";
+                        // Tiered backgrounds: box 0 darkest, 1–3 mid, 4–6 faction-lit.
+                        const tierBg =
+                          lvl === 0
+                            ? "rgba(0,0,0,0.45)"
+                            : lvl <= 3
+                              ? "rgba(255,255,255,0.07)"
+                              : `color-mix(in srgb, ${f.accent} 22%, rgba(0,0,0,0.35))`;
                         return (
                           <button
                             key={lvl}
@@ -171,13 +176,21 @@ export function FactionInfluenceTrackBoard({
                             disabled={!canEdit || !p}
                             onClick={() => p && setLevel(p, f, lvl)}
                             title={p ? `${p.player_name} — ${f.label} ${lvl}` : undefined}
-                            className={`relative flex items-center justify-center rounded-[2px] transition-all duration-200 ${
+                            className={`relative flex items-center justify-center transition-all duration-200 ${
                               canEdit && p ? "cursor-pointer hover:brightness-125" : "cursor-default"
                             }`}
                             style={{
                               height: cellH,
-                              background: active ? "transparent" : "rgba(255,255,255,0.05)",
-                              border: "1px solid rgba(255,255,255,0.06)",
+                              background: active ? "transparent" : tierBg,
+                              border:
+                                lvl === 0
+                                  ? "2px solid rgba(0,0,0,0.7)"
+                                  : `1px solid ${f.accent}33`,
+                              boxShadow:
+                                lvl === 0
+                                  ? "inset 0 2px 0 rgba(255,255,255,0.10), 0 2px 0 rgba(0,0,0,0.55)"
+                                  : undefined,
+                              borderRadius: lvl === 0 ? 3 : 2,
                             }}
                           >
                             {active && <PlayerCube hex={hex} size={cellH - 5} />}
@@ -201,17 +214,58 @@ export function FactionInfluenceTrackBoard({
                   />
                 ))}
 
+                {/* Thick separator above box 0. */}
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute left-0 right-0"
+                  style={{
+                    bottom: (cellH + gap) - gap / 2 - 1,
+                    borderTop: "3px solid rgba(0,0,0,0.6)",
+                    boxShadow: "0 1px 0 rgba(255,255,255,0.10)",
+                  }}
+                />
+
+                {/* Golden VP globe next to box 2. */}
+                <div
+                  aria-hidden
+                  title="1 Victory Point at Level 2"
+                  className="pointer-events-none absolute flex items-center justify-center rounded-full"
+                  style={{
+                    left: -7,
+                    bottom: 2 * (cellH + gap) + cellH / 2,
+                    transform: "translateY(50%)",
+                    width: cellH,
+                    height: cellH,
+                    background:
+                      "radial-gradient(circle at 35% 30%, #f7d98a, #caa03c 60%, #7a5b14)",
+                    border: "1px solid #5c430d",
+                    boxShadow: "0 0 6px rgba(247,217,138,0.55), 0 1px 2px rgba(0,0,0,0.6)",
+                  }}
+                >
+                  <span
+                    className="font-display font-bold"
+                    style={{ color: "#3a2a05", fontSize: cellH * 0.55, lineHeight: 1 }}
+                  >
+                    1
+                  </span>
+                </div>
+
+                {/* Alliance token next to box 4. */}
                 {showTrackToken && (
                   <img
                     src={f.token}
                     alt=""
                     aria-hidden
-                    className="pointer-events-none absolute left-1/2 rounded-full opacity-95 drop-shadow"
+                    title={`${f.label} Alliance at Level 4`}
+                    className="pointer-events-none absolute rounded-full opacity-95 drop-shadow"
                     style={{
-                      bottom: upperBottom + upperHeight / 2,
+                      left: -8,
+                      bottom: ALLIANCE_LEVEL * (cellH + gap) + cellH / 2,
+                      transform: "translateY(50%)",
                       width: tokenSize,
                       height: tokenSize,
-                      transform: "translate(-50%, 50%)",
+                      border: `1.5px solid ${f.accent}88`,
+                      boxShadow: `0 0 8px ${f.accent}55, 0 1px 3px rgba(0,0,0,0.7)`,
                     }}
                   />
                 )}
