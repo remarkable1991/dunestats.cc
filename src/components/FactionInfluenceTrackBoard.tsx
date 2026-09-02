@@ -141,10 +141,8 @@ export function FactionInfluenceTrackBoard({
             (p) => p && (levelOf(p, f.key) ?? 0) >= ALLIANCE_LEVEL,
           );
           const showTrackToken = !claimed && !anyAtMilestone;
-          // Upper playing field: rows 4–6 (from the bottom of the stack).
-          const upperBottom = ALLIANCE_LEVEL * (cellH + gap);
-          const upperHeight = 3 * cellH + 2 * gap;
-          const tokenSize = upperHeight - 4;
+          // Small round marker token shown next to box 4.
+          const tokenSize = cellH + 6;
           return (
             <div
               key={f.key}
