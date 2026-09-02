@@ -598,16 +598,6 @@ function MatchDetailsPage() {
                           >
                             {r.player_name}
                           </Link>
-                          {alliancesHeldBy(r).map((f) => (
-                            <img
-                              key={f.key}
-                              src={f.token}
-                              alt=""
-                              aria-hidden
-                              title={`${f.label} alliance`}
-                              className="size-3.5 shrink-0 rounded-full"
-                            />
-                          ))}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0">
                           {leaderRoute ? (
@@ -626,9 +616,22 @@ function MatchDetailsPage() {
                       </div>
 
                       <div className="flex flex-col items-end gap-1">
-                        {r.has_swordmaster !== null && r.has_swordmaster !== undefined && (
-                          <AgentSilhouettes count={r.has_swordmaster ? 3 : 2} hex={hex} />
-                        )}
+                        <div className="flex items-center gap-1">
+                          {alliancesHeldBy(r).map((f) => (
+                            <img
+                              key={f.key}
+                              src={f.token}
+                              alt=""
+                              aria-hidden
+                              title={`${f.label} alliance`}
+                              className="size-4 shrink-0 rounded-full"
+                              style={{ boxShadow: `0 0 6px ${f.accent}66` }}
+                            />
+                          ))}
+                          {r.has_swordmaster !== null && r.has_swordmaster !== undefined && (
+                            <AgentSilhouettes count={r.has_swordmaster ? 3 : 2} hex={hex} />
+                          )}
+                        </div>
                         <div className="flex items-center gap-2">
                           {r.turn_order !== null && r.turn_order !== undefined && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-border/60 text-muted-foreground">
@@ -1576,16 +1579,6 @@ function VerificationCard({
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1 min-w-0">
                             <span className="truncate text-sm font-medium">{p.player_name}</span>
-                            {alliancesHeldBy(p).map((f) => (
-                              <img
-                                key={f.key}
-                                src={f.token}
-                                alt=""
-                                aria-hidden
-                                title={`${f.label} alliance`}
-                                className="size-3.5 shrink-0 rounded-full"
-                              />
-                            ))}
                           </div>
                           <div className="text-[11px] text-muted-foreground truncate">
                             {p.leader_name ?? "—"}
@@ -1593,11 +1586,24 @@ function VerificationCard({
                             {p.turn_order ? ` · turn ${p.turn_order}` : ""}
                           </div>
                         </div>
-                        <AgentRow
-                          p={p}
-                          canEdit={canEdit}
-                          onToggleSwordmaster={() => toggleSwordmaster(p.player_name)}
-                        />
+                        <div className="flex items-end gap-1.5">
+                          {alliancesHeldBy(p).map((f) => (
+                            <img
+                              key={f.key}
+                              src={f.token}
+                              alt=""
+                              aria-hidden
+                              title={`${f.label} alliance`}
+                              className="size-4 shrink-0 rounded-full mb-0.5"
+                              style={{ boxShadow: `0 0 6px ${f.accent}66` }}
+                            />
+                          ))}
+                          <AgentRow
+                            p={p}
+                            canEdit={canEdit}
+                            onToggleSwordmaster={() => toggleSwordmaster(p.player_name)}
+                          />
+                        </div>
                         <span className="size-9 shrink-0 rounded-full border-2 border-sand/70 bg-sand/10 flex items-center justify-center font-display text-sand tabular-nums">
                           {p.points}
                         </span>
