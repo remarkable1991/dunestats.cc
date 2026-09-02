@@ -137,10 +137,6 @@ export function FactionInfluenceTrackBoard({
       <div className="space-y-2">
         {FACTIONS.map((f) => {
           const claimed = resolved.some((p) => p && allianceOf(p, f.key));
-          const anyAtMilestone = resolved.some(
-            (p) => p && (levelOf(p, f.key) ?? 0) >= ALLIANCE_LEVEL,
-          );
-          const showTrackToken = !claimed && !anyAtMilestone;
           // Small round marker token shown next to box 4.
           const tokenSize = cellH + 6;
           return (
@@ -250,25 +246,31 @@ export function FactionInfluenceTrackBoard({
                   </span>
                 </div>
 
-                {/* Alliance token next to box 4. */}
-                {showTrackToken && (
-                  <img
-                    src={f.token}
-                    alt=""
-                    aria-hidden
-                    title={`${f.label} Alliance at Level 4`}
-                    className="pointer-events-none absolute rounded-full opacity-95 drop-shadow"
-                    style={{
-                      left: -8,
-                      bottom: ALLIANCE_LEVEL * (cellH + gap) + cellH / 2,
-                      transform: "translateY(50%)",
-                      width: tokenSize,
-                      height: tokenSize,
-                      border: `1.5px solid ${f.accent}88`,
-                      boxShadow: `0 0 8px ${f.accent}55, 0 1px 3px rgba(0,0,0,0.7)`,
-                    }}
-                  />
-                )}
+                {/* Alliance token next to box 4 — always on the left; dimmed once claimed. */}
+                <img
+                  src={f.token}
+                  alt=""
+                  aria-hidden
+                  title={
+                    claimed
+                      ? `${f.label} Alliance token claimed`
+                      : `${f.label} Alliance at Level 4`
+                  }
+                  className={`pointer-events-none absolute rounded-full drop-shadow transition-all duration-300 ${
+                    claimed ? "opacity-25 grayscale" : "opacity-95"
+                  }`}
+                  style={{
+                    left: -8,
+                    bottom: ALLIANCE_LEVEL * (cellH + gap) + cellH / 2,
+                    transform: "translateY(50%)",
+                    width: tokenSize,
+                    height: tokenSize,
+                    border: `1.5px solid ${f.accent}88`,
+                    boxShadow: claimed
+                      ? "0 1px 3px rgba(0,0,0,0.7)"
+                      : `0 0 8px ${f.accent}55, 0 1px 3px rgba(0,0,0,0.7)`,
+                  }}
+                />
               </div>
             </div>
           );
