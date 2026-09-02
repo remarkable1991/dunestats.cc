@@ -155,7 +155,7 @@ export function FactionInfluenceTrackBoard({
               >
                 {f.label}
               </div>
-              <div className="relative flex items-stretch">
+              <div className="relative flex items-stretch ml-2">
                 {resolved.map((p, i) => (
                   <div key={p?.player_name ?? `empty-${i}`} className="flex-1 px-[2px]">
                     <div className="flex flex-col-reverse" style={{ gap }}>
