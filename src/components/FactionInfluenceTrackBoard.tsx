@@ -246,19 +246,13 @@ export function FactionInfluenceTrackBoard({
                   </span>
                 </div>
 
-                {/* Alliance token next to box 4 — always on the left; dimmed once claimed. */}
+                {/* Alliance token next to box 4 — always on the left, always fully visible. */}
                 <img
                   src={f.token}
                   alt=""
                   aria-hidden
-                  title={
-                    claimed
-                      ? `${f.label} Alliance token claimed`
-                      : `${f.label} Alliance at Level 4`
-                  }
-                  className={`pointer-events-none absolute rounded-full drop-shadow transition-all duration-300 ${
-                    claimed ? "opacity-25 grayscale" : "opacity-95"
-                  }`}
+                  title={`${f.label} Alliance at Level 4`}
+                  className="pointer-events-none absolute rounded-full drop-shadow opacity-95"
                   style={{
                     left: -8,
                     bottom: ALLIANCE_LEVEL * (cellH + gap) + cellH / 2,
@@ -266,9 +260,33 @@ export function FactionInfluenceTrackBoard({
                     width: tokenSize,
                     height: tokenSize,
                     border: `1.5px solid ${f.accent}88`,
+                    boxShadow: `0 0 8px ${f.accent}55, 0 1px 3px rgba(0,0,0,0.7)`,
+                  }}
+                />
+
+                {/* Large center token spanning boxes 4–6 over the middle columns — dimmed once claimed. */}
+                <img
+                  src={f.token}
+                  alt=""
+                  aria-hidden
+                  title={
+                    claimed
+                      ? `${f.label} Alliance token claimed`
+                      : `${f.label} Alliance token available`
+                  }
+                  className={`pointer-events-none absolute rounded-full transition-all duration-300 ${
+                    claimed ? "opacity-20 grayscale" : "opacity-90"
+                  }`}
+                  style={{
+                    left: "50%",
+                    bottom: 5 * (cellH + gap) + cellH / 2,
+                    transform: "translate(-50%, 50%)",
+                    width: tokenSize * 1.8,
+                    height: tokenSize * 1.8,
+                    border: `2px solid ${f.accent}88`,
                     boxShadow: claimed
-                      ? "0 1px 3px rgba(0,0,0,0.7)"
-                      : `0 0 8px ${f.accent}55, 0 1px 3px rgba(0,0,0,0.7)`,
+                      ? "0 1px 4px rgba(0,0,0,0.7)"
+                      : `0 0 14px ${f.accent}66, 0 2px 6px rgba(0,0,0,0.7)`,
                   }}
                 />
               </div>
