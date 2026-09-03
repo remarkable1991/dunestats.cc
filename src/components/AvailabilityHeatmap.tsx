@@ -104,7 +104,14 @@ export function AvailabilityHeatmap({
   );
 }
 
-export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = "async" }: HeatmapBodyProps) {
+export function HeatmapBody({
+  players,
+  suggestedSlots,
+  myPlayerName,
+  playMode = "async",
+  registerTournamentNum = null,
+}: HeatmapBodyProps) {
+  const [futureOnly, setFutureOnly] = useState(true);
   const playerNamesKey = useMemo(() => players.map((p) => p.player_name).join("\u0001"), [players]);
   const allNames = useMemo(() => players.map((p) => p.player_name), [players]);
   // Default: everyone selected. Clicking a player toggles them in/out of the filter.
