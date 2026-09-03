@@ -21,9 +21,42 @@ import {
   type MediumMatch,
   type MediumReferral,
 } from "@/lib/notifications";
-import { titleName, titleColor } from "@/lib/player-title";
+import { titleName } from "@/lib/player-title";
 import { formatLongDate } from "@/lib/tournaments";
-import { DISCORD_INVITE_URL } from "@/lib/tournament-config";
+import { DISCORD_INVITE_URL, tournamentModes } from "@/lib/tournament-config";
+import ixIcon from "@/assets/ix.png.asset.json";
+import uprisingIcon from "@/assets/uprising.png.asset.json";
+import immoIcon from "@/assets/immo.png.asset.json";
+import epicIcon from "@/assets/epic.png.asset.json";
+
+/** Expansion/board logos for an announced tournament. */
+function ModeIcons({ num }: { num: number }) {
+  const m = tournamentModes(num);
+  if (!m) return null;
+  const items: Array<{ key: string; src: string; label: string }> = [];
+  items.push(
+    m.board_version === "uprising"
+      ? { key: "up", src: uprisingIcon.url, label: "Uprising" }
+      : { key: "base", src: ixIcon.url, label: "Base game" },
+  );
+  if (m.has_rise_of_ix) items.push({ key: "ix", src: ixIcon.url, label: "Rise of Ix" });
+  if (m.has_epic_mode) items.push({ key: "epic", src: epicIcon.url, label: "Epic Mode" });
+  if (m.has_immortality) items.push({ key: "immo", src: immoIcon.url, label: "Immortality" });
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {items.map((it) => (
+        <span
+          key={it.key}
+          className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/40 py-0.5 pl-1 pr-2 text-xs text-muted-foreground"
+        >
+          <img src={it.src} alt={it.label} width={24} height={24} className="size-6 rounded-full object-contain" />
+          {it.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 
 function fmtDelta(v: number | null | undefined) {
   const n = Number(v ?? 0);
