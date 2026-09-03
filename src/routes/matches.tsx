@@ -42,6 +42,7 @@ type GameRow = {
   has_base_leaders: boolean;
   image_url: string | null;
   tournament_num: number | null;
+  ai_scan_status: string | null;
   game_results: ResultRow[];
 };
 
@@ -52,7 +53,42 @@ const VERSIONS: Array<{ k: "all" | "base" | "ix" | "uprising"; label: string }> 
   { k: "uprising", label: "Uprising" },
 ];
 
-const PAGE_SIZE = 20;
+const PAGE_SIZES = [20, 50, 100] as const;
+
+const SCAN_STATUSES: Array<{ k: string; label: string }> = [
+  { k: "all", label: "All scans" },
+  { k: "Yes", label: "Verified" },
+  { k: "Manually reviewed", label: "Manually reviewed" },
+  { k: "Issue detected", label: "Issue detected" },
+  { k: "Roster mismatch", label: "Roster mismatch" },
+  { k: "No", label: "No scan" },
+];
+
+function scanBadgeClass(status: string | null): string {
+  switch (status) {
+    case "Yes":
+      return "border-emerald-500/40 text-emerald-400";
+    case "Manually reviewed":
+      return "border-sand/40 text-sand";
+    case "Issue detected":
+      return "border-amber-500/40 text-amber-400";
+    case "Roster mismatch":
+      return "border-coral/40 text-coral";
+    default:
+      return "border-border/60 text-muted-foreground";
+  }
+}
+
+function scanLabel(status: string | null): string {
+  switch (status) {
+    case "Yes":
+      return "Verified";
+    case "No":
+      return "No scan";
+    default:
+      return status ?? "No scan";
+  }
+}
 
 function MatchesPage() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -65,6 +101,8 @@ function MatchesPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [version, setVersion] = useState<(typeof VERSIONS)[number]["k"]>("all");
+  const [scanStatus, setScanStatus] = useState<string>("all");
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(20);
   const [q, setQ] = useState("");
   const [onlyMine, setOnlyMine] = useState(false);
   const [page, setPage] = useState(0);
@@ -87,20 +125,21 @@ function MatchesPage() {
 
   useEffect(() => {
     setPage(0);
-  }, [version, q, onlyMine]);
+  }, [version, q, onlyMine, scanStatus, pageSize]);
 
   const load = async () => {
     setLoading(true);
     let query = supabase
       .from("games")
       .select(
-        "id, public_match_id, created_at, created_by, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, image_url, tournament_num, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall)",
+        "id, public_match_id, created_at, created_by, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, image_url, tournament_num, ai_scan_status, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall)",
         { count: "exact" },
       )
       .order("created_at", { ascending: false });
     if (version !== "all") query = query.eq("game_version", version);
+    if (scanStatus !== "all") query = query.eq("ai_scan_status", scanStatus);
     if (onlyMine && userId) query = query.eq("created_by", userId);
-    query = query.range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+    query = query.range(page * pageSize, page * pageSize + pageSize - 1);
     const { data, count } = await query;
     let rows = (data as GameRow[]) ?? [];
     const needle = q.trim().toLowerCase();
@@ -192,10 +231,10 @@ function MatchesPage() {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version, q, onlyMine, page, userId]);
+  }, [version, q, onlyMine, page, userId, scanStatus, pageSize]);
 
   const filtered = games;
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   const leaderSlugs = Array.from(
     new Set(
