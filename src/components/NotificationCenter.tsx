@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router";
 import { Bell, Trophy, Gift, Swords, X, Sparkles, AlarmClock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -21,9 +20,38 @@ import {
   type MediumMatch,
   type MediumReferral,
 } from "@/lib/notifications";
-import { titleName, titleColor } from "@/lib/player-title";
+import { titleName } from "@/lib/player-title";
 import { formatLongDate } from "@/lib/tournaments";
-import { DISCORD_INVITE_URL } from "@/lib/tournament-config";
+import { DISCORD_INVITE_URL, tournamentModes } from "@/lib/tournament-config";
+import ixIcon from "@/assets/ix.png.asset.json";
+import uprisingIcon from "@/assets/uprising.png.asset.json";
+import immoIcon from "@/assets/immo.png.asset.json";
+import epicIcon from "@/assets/epic.png.asset.json";
+
+/** Expansion/board logos for an announced tournament. */
+function ModeIcons({ num }: { num: number }) {
+  const m = tournamentModes(num);
+  if (!m) return null;
+  const items: Array<{ key: string; src: string; label: string }> = [];
+  if (m.board_version === "uprising") items.push({ key: "up", src: uprisingIcon.url, label: "Uprising" });
+  if (m.has_rise_of_ix) items.push({ key: "ix", src: ixIcon.url, label: "Rise of Ix" });
+  if (m.has_epic_mode) items.push({ key: "epic", src: epicIcon.url, label: "Epic Mode" });
+  if (m.has_immortality) items.push({ key: "immo", src: immoIcon.url, label: "Immortality" });
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {items.map((it) => (
+        <span
+          key={it.key}
+          className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/40 py-0.5 pl-1 pr-2 text-xs text-muted-foreground"
+        >
+          <img src={it.src} alt={it.label} width={24} height={24} className="size-6 rounded-full object-contain" />
+          {it.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 
 function fmtDelta(v: number | null | undefined) {
   const n = Number(v ?? 0);
@@ -298,9 +326,8 @@ export function NotificationCenter() {
               {current.info_text ? (
                 <p className="whitespace-pre-line text-sm text-muted-foreground">{current.info_text}</p>
               ) : null}
-              <Badge variant="outline" style={{ color: titleColor(data.lifetime_sp) }} className="w-fit">
-                {titleName(data.lifetime_sp)}
-              </Badge>
+              <ModeIcons num={current.tournament_num} />
+
               <DialogFooter className="gap-2 sm:justify-between">
                 <Button variant="ghost" onClick={() => void dismiss("tournament_modal", current.tournament_num)}>
                   Got it
