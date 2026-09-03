@@ -298,9 +298,8 @@ export function NotificationCenter() {
               {current.info_text ? (
                 <p className="whitespace-pre-line text-sm text-muted-foreground">{current.info_text}</p>
               ) : null}
-              <Badge variant="outline" style={{ color: titleColor(data.lifetime_sp) }} className="w-fit">
-                {titleName(data.lifetime_sp)}
-              </Badge>
+              <ModeIcons num={current.tournament_num} />
+
               <DialogFooter className="gap-2 sm:justify-between">
                 <Button variant="ghost" onClick={() => void dismiss("tournament_modal", current.tournament_num)}>
                   Got it
