@@ -1245,6 +1245,10 @@ export type Database = {
         Returns: undefined
       }
       touch_last_sign_in: { Args: never; Returns: undefined }
+      tournament_player_availability: {
+        Args: { p_player_name: string; p_tournament_num: number }
+        Returns: Json
+      }
       update_match_details:
         | {
             Args: {
