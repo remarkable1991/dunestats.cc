@@ -291,6 +291,18 @@ function MatchesPage() {
               </button>
             ))}
           </div>
+          <select
+            value={scanStatus}
+            onChange={(e) => setScanStatus(e.target.value)}
+            className="h-10 rounded-md border border-border/60 bg-card/60 px-2 text-sm text-foreground"
+            title="Filter by scan status"
+          >
+            {SCAN_STATUSES.map((s) => (
+              <option key={s.k} value={s.k}>
+                {s.label}
+              </option>
+            ))}
+          </select>
           <div className="relative">
             <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
             <Input
@@ -307,6 +319,18 @@ function MatchesPage() {
             </label>
           )}
           <span className="text-xs text-muted-foreground ml-auto">{filtered.length} matches</span>
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value) as (typeof PAGE_SIZES)[number])}
+            className="h-8 rounded-md border border-border/60 bg-card/60 px-2 text-xs text-foreground"
+            title="Matches per page"
+          >
+            {PAGE_SIZES.map((n) => (
+              <option key={n} value={n}>
+                {n} / page
+              </option>
+            ))}
+          </select>
         </div>
 
         {loading ? (
@@ -332,6 +356,12 @@ function MatchesPage() {
                           {t}
                         </span>
                       ))}
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded border ${scanBadgeClass(g.ai_scan_status)}`}
+                        title={`AI scan status: ${g.ai_scan_status ?? "No"}`}
+                      >
+                        {scanLabel(g.ai_scan_status)}
+                      </span>
                       <span className="text-xs text-muted-foreground">
                         {new Date(g.created_at).toLocaleString()}
                       </span>
