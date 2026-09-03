@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router";
 import { Bell, Trophy, Gift, Swords, X, Sparkles, AlarmClock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
