@@ -34,11 +34,7 @@ function ModeIcons({ num }: { num: number }) {
   const m = tournamentModes(num);
   if (!m) return null;
   const items: Array<{ key: string; src: string; label: string }> = [];
-  items.push(
-    m.board_version === "uprising"
-      ? { key: "up", src: uprisingIcon.url, label: "Uprising" }
-      : { key: "base", src: ixIcon.url, label: "Base game" },
-  );
+  if (m.board_version === "uprising") items.push({ key: "up", src: uprisingIcon.url, label: "Uprising" });
   if (m.has_rise_of_ix) items.push({ key: "ix", src: ixIcon.url, label: "Rise of Ix" });
   if (m.has_epic_mode) items.push({ key: "epic", src: epicIcon.url, label: "Epic Mode" });
   if (m.has_immortality) items.push({ key: "immo", src: immoIcon.url, label: "Immortality" });
