@@ -70,6 +70,8 @@ export type HeatmapBodyProps = {
   myPlayerName?: string | null;
   /** "live" tournaments show suggested alternative 2h slots; "async" hides them. */
   playMode?: "live" | "async";
+  /** When set, shows a link to that tournament's registration form. */
+  registerTournamentNum?: number | null;
 };
 
 export function AvailabilityHeatmap({
