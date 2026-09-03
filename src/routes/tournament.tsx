@@ -75,6 +75,7 @@ import { RosterEditDialog } from "@/components/RosterEditDialog";
 import { type MatchSchedule, SCHEDULE_SELECT, parseScheduleTime } from "@/lib/match-schedules";
 import { tableSlug } from "@/lib/tournament-slug";
 import { TournamentPlayModeBadge, tournamentPlayMode, playModeDescription } from "@/components/TournamentPlayModeBadge";
+import { useRegistrationAvailability, withRegistrationAvailability } from "@/lib/registration-availability";
 
 
 import { Pencil } from "lucide-react";
