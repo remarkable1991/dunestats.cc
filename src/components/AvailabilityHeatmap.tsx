@@ -188,6 +188,14 @@ export function HeatmapBody({
     return { dayList, slotMatrix, slotPlayers };
   }, [players]);
 
+  const visibleDays = useMemo(() => {
+    const indexed = dayList.map((d, di) => ({ d, di }));
+    if (!futureOnly) return indexed;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return indexed.filter(({ d }) => d.getTime() >= today.getTime());
+  }, [dayList, futureOnly]);
+
   const playerNames = useMemo(() => players.map((p) => p.player_name), [players]);
 
   const suggestions = useMemo(() => parseSuggestedSlots(suggestedSlots), [suggestedSlots]);
