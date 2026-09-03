@@ -70,6 +70,8 @@ export type HeatmapBodyProps = {
   myPlayerName?: string | null;
   /** "live" tournaments show suggested alternative 2h slots; "async" hides them. */
   playMode?: "live" | "async";
+  /** When set, shows a link to that tournament's registration form. */
+  registerTournamentNum?: number | null;
 };
 
 export function AvailabilityHeatmap({
@@ -102,7 +104,14 @@ export function AvailabilityHeatmap({
   );
 }
 
-export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = "async" }: HeatmapBodyProps) {
+export function HeatmapBody({
+  players,
+  suggestedSlots,
+  myPlayerName,
+  playMode = "async",
+  registerTournamentNum = null,
+}: HeatmapBodyProps) {
+  const [futureOnly, setFutureOnly] = useState(true);
   const playerNamesKey = useMemo(() => players.map((p) => p.player_name).join("\u0001"), [players]);
   const allNames = useMemo(() => players.map((p) => p.player_name), [players]);
   // Default: everyone selected. Clicking a player toggles them in/out of the filter.
@@ -178,6 +187,14 @@ export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = 
     }
     return { dayList, slotMatrix, slotPlayers };
   }, [players]);
+
+  const visibleDays = useMemo(() => {
+    const indexed = dayList.map((d, di) => ({ d, di }));
+    if (!futureOnly) return indexed;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return indexed.filter(({ d }) => d.getTime() >= today.getTime());
+  }, [dayList, futureOnly]);
 
   const playerNames = useMemo(() => players.map((p) => p.player_name), [players]);
 
@@ -298,8 +315,33 @@ export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = 
         </Card>
       )}
 
-      {dayList.length === 0 ? (
-        <p className="text-sm text-muted-foreground italic">No availability recorded for this table.</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setFutureOnly((v) => !v)}
+          className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs transition ${
+            futureOnly ? "border-sand/50 bg-sand/15 text-sand" : "border-border/60 bg-background/40 text-muted-foreground hover:bg-background/70"
+          }`}
+        >
+          <Check className={`size-3 ${futureOnly ? "opacity-100" : "opacity-30"}`} />
+          Only today &amp; future
+        </button>
+        {registerTournamentNum != null && (
+          <a
+            href={`/tournament-register/${registerTournamentNum}`}
+            className="inline-flex items-center gap-2 rounded-md border border-border/60 bg-background/40 px-3 py-1.5 text-xs hover:bg-background/70 transition"
+          >
+            <Clock className="size-3 opacity-70" /> Update my availability
+          </a>
+        )}
+      </div>
+
+      {visibleDays.length === 0 ? (
+        <p className="text-sm text-muted-foreground italic">
+          {dayList.length === 0
+            ? "No availability recorded for this table."
+            : "No availability from today onwards — turn off the filter to see past dates."}
+        </p>
       ) : (
         <div className="overflow-x-auto">
           <div className="inline-block min-w-full">
@@ -312,7 +354,7 @@ export function HeatmapBody({ players, suggestedSlots, myPlayerName, playMode = 
                 </div>
               ))}
             </div>
-            {dayList.map((d, di) => (
+            {visibleDays.map(({ d, di }) => (
               <div key={di} className="grid" style={{ gridTemplateColumns: `120px repeat(48, minmax(14px, 1fr))` }}>
                 <div className="sticky left-0 bg-background z-10 pr-2 py-0.5 text-xs text-muted-foreground border-r border-border/30">
                   {dayFmt.format(d)}

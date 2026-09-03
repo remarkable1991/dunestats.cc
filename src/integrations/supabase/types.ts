@@ -1249,6 +1249,13 @@ export type Database = {
         Args: { p_player_name: string; p_tournament_num: number }
         Returns: Json
       }
+      tournament_roster_registration_availability: {
+        Args: { p_player_names: string[]; p_tournament_num: number }
+        Returns: {
+          availability: Json
+          player_name: string
+        }[]
+      }
       update_match_details:
         | {
             Args: {
