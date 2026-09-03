@@ -186,6 +186,7 @@ export type Database = {
       }
       games: {
         Row: {
+          ai_scan_discord_message_id: string | null
           ai_scan_status: string | null
           ai_scan_summary: string | null
           announced_to_discord: boolean | null
@@ -206,6 +207,7 @@ export type Database = {
           tournament_num: number | null
         }
         Insert: {
+          ai_scan_discord_message_id?: string | null
           ai_scan_status?: string | null
           ai_scan_summary?: string | null
           announced_to_discord?: boolean | null
@@ -226,6 +228,7 @@ export type Database = {
           tournament_num?: number | null
         }
         Update: {
+          ai_scan_discord_message_id?: string | null
           ai_scan_status?: string | null
           ai_scan_summary?: string | null
           announced_to_discord?: boolean | null
