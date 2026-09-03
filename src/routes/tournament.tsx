@@ -1562,12 +1562,15 @@ function CurrentTournament({
         (() => {
           const [rt, ti] = heatmapKey.split("__");
           const tableRows = rows.filter((r) => r.round_type === rt && r.table_identifier === ti);
-          const players: HeatmapPlayer[] = tableRows.map((r) => ({
-            player_name: r.player_name,
-            discord_username: r.discord_username,
-            player_compatibility_score: r.player_compatibility_score,
-            player_availability: r.player_availability,
-          }));
+          const players: HeatmapPlayer[] = withRegistrationAvailability(
+            tableRows.map((r) => ({
+              player_name: r.player_name,
+              discord_username: r.discord_username,
+              player_compatibility_score: r.player_compatibility_score,
+              player_availability: r.player_availability,
+            })),
+            heatmapRegAvailability,
+          );
           return (
             <AvailabilityHeatmap
               open={true}
@@ -1580,6 +1583,7 @@ function CurrentTournament({
               suggestedSlots={scheduleFor(rt, ti)?.suggested_slots}
               myPlayerName={tableRows.find((r) => isMine(r.player_name))?.player_name ?? null}
               playMode={tournamentPlayMode(tournamentNum)}
+              registerTournamentNum={tournamentNum}
             />
           );
         })()}

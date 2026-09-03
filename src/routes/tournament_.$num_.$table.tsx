@@ -20,6 +20,7 @@ import {
   voterStates,
 } from "@/lib/match-schedules";
 import { slugMatches, tableSlug } from "@/lib/tournament-slug";
+import { useRegistrationAvailability, withRegistrationAvailability } from "@/lib/registration-availability";
 import { ArrowLeft, CheckCircle2, Clock, Loader2, Sparkles, Trophy, XCircle } from "lucide-react";
 
 export const Route = createFileRoute("/tournament_/$num_/$table")({
@@ -142,12 +143,17 @@ function TableDetailPage() {
   const suggestions = useMemo(() => parseSuggestedSlots(schedule?.suggested_slots), [schedule]);
   const confirmed = parseScheduleTime(schedule);
 
-  const heatmapPlayers: HeatmapPlayer[] = seats.map((r) => ({
-    player_name: r.player_name,
-    discord_username: r.discord_username,
-    player_compatibility_score: r.player_compatibility_score,
-    player_availability: r.player_availability,
-  }));
+  const rosterNames = useMemo(() => seats.map((r) => r.player_name), [seats]);
+  const regAvailability = useRegistrationAvailability(tournamentNum, rosterNames);
+  const heatmapPlayers: HeatmapPlayer[] = withRegistrationAvailability(
+    seats.map((r) => ({
+      player_name: r.player_name,
+      discord_username: r.discord_username,
+      player_compatibility_score: r.player_compatibility_score,
+      player_availability: r.player_availability,
+    })),
+    regAvailability,
+  );
 
   const availabilityCard = (
     <Card className="p-4 sm:p-6 border-border/60 bg-card/70">
@@ -164,6 +170,7 @@ function TableDetailPage() {
         suggestedSlots={schedule?.suggested_slots}
         myPlayerName={seats.find((r) => isMine(r.player_name))?.player_name ?? null}
         playMode={tournamentPlayMode(tournamentNum)}
+        registerTournamentNum={tournamentNum}
       />
     </Card>
   );
