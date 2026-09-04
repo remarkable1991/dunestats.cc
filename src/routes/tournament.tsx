@@ -1832,6 +1832,16 @@ function FutureTournaments() {
             </Button>
           </div>
 
+          <ModeBadges
+            flags={{
+              hasIx: t.has_rise_of_ix,
+              hasEpic: t.has_epic_mode,
+              hasImmo: t.has_immortality,
+              hasUprising: t.board_version === "uprising",
+            }}
+            size={20}
+          />
+
           <PrizesInfo summary={t.prizes_summary} details={t.prizes_text} />
 
           <TruncatedInfoText text={t.info_text} />
