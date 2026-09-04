@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { registerPlayMode, type PlayMode } from "@/components/TournamentPlayModeBadge";
 
 export type TournamentCheckbox = { id: string; label: string };
 
@@ -22,6 +23,7 @@ export type TournamentConfig = {
   semifinal_tables: number | null;
   grand_final_spots: number | null;
   semifinal_seeding: SemifinalSeeding;
+  play_mode: PlayMode;
   board_version: "base" | "uprising";
   has_rise_of_ix: boolean;
   has_epic_mode: boolean;
@@ -142,6 +144,7 @@ type Row = {
   semifinal_tables?: number | null;
   grand_final_spots?: number | null;
   semifinal_seeding?: string | null;
+  play_mode?: string | null;
   board_version?: string | null;
   has_rise_of_ix?: boolean | null;
   has_epic_mode?: boolean | null;
@@ -151,6 +154,7 @@ type Row = {
 
 
 export function normalizeTournament(row: Row): TournamentConfig {
+  registerPlayMode(row.tournament_num, row.play_mode);
   const boxes = Array.isArray(row.checkboxes) ? row.checkboxes : [];
   return {
     tournament_num: row.tournament_num,
@@ -176,6 +180,7 @@ export function normalizeTournament(row: Row): TournamentConfig {
     semifinal_tables: row.semifinal_tables ?? null,
     grand_final_spots: row.grand_final_spots ?? null,
     semifinal_seeding: row.semifinal_seeding === "manual" ? "manual" : "snake",
+    play_mode: row.play_mode === "live" ? "live" : "async",
     board_version: row.board_version === "base" ? "base" : "uprising",
     has_rise_of_ix: !!row.has_rise_of_ix,
     has_epic_mode: !!row.has_epic_mode,
@@ -185,7 +190,7 @@ export function normalizeTournament(row: Row): TournamentConfig {
 }
 
 const SELECT =
-  "tournament_num, name, start_date, end_date, required_availability_pct, required_weekly_pct, checkboxes, info_title, info_text, prizes_summary, prizes_text, registration_open, checkin_start_at, total_players, direct_to_grand_final, to_semifinal, semifinal_tables, grand_final_spots, semifinal_seeding, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders";
+  "tournament_num, name, start_date, end_date, required_availability_pct, required_weekly_pct, checkboxes, info_title, info_text, prizes_summary, prizes_text, registration_open, checkin_start_at, total_players, direct_to_grand_final, to_semifinal, semifinal_tables, grand_final_spots, semifinal_seeding, play_mode, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders";
 
 export type BracketFields = Pick<
   TournamentConfig,

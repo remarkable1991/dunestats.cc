@@ -59,6 +59,7 @@ type Draft = {
   semifinal_tables: string;
   grand_final_spots: string;
   semifinal_seeding: "snake" | "manual";
+  play_mode: "live" | "async";
   board_version: "base" | "uprising";
   has_rise_of_ix: boolean;
   has_epic_mode: boolean;
@@ -341,6 +342,7 @@ function TournamentForm({
       semifinal_tables: semiTables,
       grand_final_spots: gfSpots,
       semifinal_seeding: draft.semifinal_seeding,
+      play_mode: draft.play_mode,
       board_version: draft.board_version,
       has_rise_of_ix: draft.has_rise_of_ix,
       has_epic_mode: draft.has_epic_mode,

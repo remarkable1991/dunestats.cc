@@ -66,9 +66,11 @@ export async function loadTournamentModes(): Promise<Record<number, TournamentMo
   const { data } = await supabase
     .from("tournaments")
     .select(
-      "tournament_num, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders",
+      "tournament_num, play_mode, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders",
     );
+  const { registerPlayMode } = await import("@/components/TournamentPlayModeBadge");
   for (const row of (data ?? []) as any[]) {
+    registerPlayMode(Number(row.tournament_num), row.play_mode);
     const base = {
       board_version: (row.board_version === "base" ? "base" : "uprising") as "base" | "uprising",
       has_rise_of_ix: !!row.has_rise_of_ix,
