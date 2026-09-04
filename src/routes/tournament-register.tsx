@@ -15,6 +15,7 @@ import {
   SLOTS_PER_DAY as SLOTS,
   type TournamentConfig,
   checkinStart,
+  checkinEnd,
   fetchOpenTournaments,
   fetchTournamentByNum,
   parseLocalDate,
