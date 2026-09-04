@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navbar } from "@/components/Navbar";
+import { TournamentPlayModeBadge } from "@/components/TournamentPlayModeBadge";
 import { PrizesInfo } from "@/components/PrizesInfo";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -576,7 +577,10 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
         </div>
 
         <div className="space-y-2">
-          <TournamentModeIcons t={tournament} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <TournamentPlayModeBadge num={tournament.tournament_num} mode={tournament.play_mode} />
+            <TournamentModeIcons t={tournament} />
+          </div>
           <p className="text-xs text-muted-foreground">
             Check-in opens {checkinStart(tournament).toLocaleString()} · Check-in closes{" "}
             {checkinEnd(tournament).toLocaleString()} · Tournament runs {formatLongDate(tournament.start_date)} →{" "}

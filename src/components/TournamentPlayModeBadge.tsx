@@ -33,16 +33,22 @@ export function TournamentPlayModeBadge({
   num,
   size = 18,
   className = "",
+  mode: modeProp,
 }: {
   num: number | null | undefined;
   size?: number;
   className?: string;
+  mode?: PlayMode;
 }) {
-  const mode = tournamentPlayMode(num);
+  const mode = modeProp ?? tournamentPlayMode(num);
   const live = mode === "live";
   return (
     <span
-      title={playModeDescription(num)}
+      title={
+        mode === "live"
+          ? "Real-time matches played at scheduled times."
+          : "Turn-based matches played over several days or weeks."
+      }
       className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
         live
           ? "border-teal/50 bg-teal/10 text-teal"
