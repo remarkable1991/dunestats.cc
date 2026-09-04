@@ -2152,6 +2152,11 @@ function PreviousTournaments() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<number | null>(null);
 
+  const [, setModesLoaded] = useState(0);
+  useEffect(() => {
+    void loadTournamentModes().then(() => setModesLoaded((n) => n + 1));
+  }, []);
+
   useEffect(() => {
     void (async () => {
       const all: PastRow[] = [];
@@ -2253,7 +2258,8 @@ function PreviousTournaments() {
                 </div>
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-4 flex items-center gap-2 flex-wrap">
+              <TournamentPlayModeBadge num={t.num} />
               <ModeBadges flags={t.modes} size={22} />
             </div>
             <div className="mt-3 text-[11px] uppercase tracking-wide text-sand/80 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -2380,7 +2386,8 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
             <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
               <UsersIcon className="size-3.5" /> {playerCount} players competed
             </div>
-            <div className="mt-3">
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <TournamentPlayModeBadge num={num} />
               <ModeBadges flags={modes} size={24} />
             </div>
           </div>

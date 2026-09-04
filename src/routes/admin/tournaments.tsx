@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2, Plus, Save, Trash2, Upload } from "lucide-react";
+import { TournamentPlayModeBadge } from "@/components/TournamentPlayModeBadge";
 import { parseTournamentMatchesCsv } from "@/lib/tournament-csv";
 import {
   MAX_CHECKBOXES,
@@ -59,6 +60,7 @@ type Draft = {
   semifinal_tables: string;
   grand_final_spots: string;
   semifinal_seeding: "snake" | "manual";
+  play_mode: "live" | "async";
   board_version: "base" | "uprising";
   has_rise_of_ix: boolean;
   has_epic_mode: boolean;
@@ -87,6 +89,7 @@ function toDraft(t: TournamentConfig): Draft {
     semifinal_tables: t.semifinal_tables == null ? "" : String(t.semifinal_tables),
     grand_final_spots: t.grand_final_spots == null ? "" : String(t.grand_final_spots),
     semifinal_seeding: t.semifinal_seeding,
+    play_mode: t.play_mode,
     board_version: t.board_version,
     has_rise_of_ix: t.has_rise_of_ix,
     has_epic_mode: t.has_epic_mode,
@@ -123,6 +126,7 @@ function emptyDraft(nextNum: number): Draft {
     semifinal_tables: "",
     grand_final_spots: "",
     semifinal_seeding: "snake",
+    play_mode: "async",
     board_version: "uprising",
     has_rise_of_ix: false,
     has_epic_mode: false,
@@ -341,6 +345,7 @@ function TournamentForm({
       semifinal_tables: semiTables,
       grand_final_spots: gfSpots,
       semifinal_seeding: draft.semifinal_seeding,
+      play_mode: draft.play_mode,
       board_version: draft.board_version,
       has_rise_of_ix: draft.has_rise_of_ix,
       has_epic_mode: draft.has_epic_mode,
@@ -484,6 +489,35 @@ function TournamentForm({
           </div>
           <p className="text-[11px] text-muted-foreground mt-1">
             Uploads detected as this tournament automatically apply these expansions.
+          </p>
+        </div>
+
+        <div className="pt-2">
+          <Label className="text-xs text-muted-foreground">Play format</Label>
+          <div className="flex gap-2 mt-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={draft.play_mode === "async" ? "default" : "outline"}
+              className={draft.play_mode === "async" ? "bg-coral text-background hover:bg-coral/90" : ""}
+              onClick={() => set("play_mode", "async")}
+            >
+              ASync
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={draft.play_mode === "live" ? "default" : "outline"}
+              className={draft.play_mode === "live" ? "bg-teal text-background hover:bg-teal/90" : ""}
+              onClick={() => set("play_mode", "live")}
+            >
+              Live
+            </Button>
+            <TournamentPlayModeBadge num={Number(draft.tournament_num)} mode={draft.play_mode} />
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            ASync games are played over several days; Live games are scheduled real-time matches. Shown on the
+            registration pages and the Hall of Fame.
           </p>
         </div>
 

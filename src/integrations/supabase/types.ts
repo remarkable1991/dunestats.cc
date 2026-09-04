@@ -972,6 +972,7 @@ export type Database = {
           info_text: string | null
           info_title: string | null
           name: string
+          play_mode: string
           prizes_summary: string | null
           prizes_text: string | null
           registration_open: boolean
@@ -1000,6 +1001,7 @@ export type Database = {
           info_text?: string | null
           info_title?: string | null
           name: string
+          play_mode?: string
           prizes_summary?: string | null
           prizes_text?: string | null
           registration_open?: boolean
@@ -1028,6 +1030,7 @@ export type Database = {
           info_text?: string | null
           info_title?: string | null
           name?: string
+          play_mode?: string
           prizes_summary?: string | null
           prizes_text?: string | null
           registration_open?: boolean
