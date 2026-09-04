@@ -2152,6 +2152,11 @@ function PreviousTournaments() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<number | null>(null);
 
+  const [, setModesLoaded] = useState(0);
+  useEffect(() => {
+    void loadTournamentModes().then(() => setModesLoaded((n) => n + 1));
+  }, []);
+
   useEffect(() => {
     void (async () => {
       const all: PastRow[] = [];
