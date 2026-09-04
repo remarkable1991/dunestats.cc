@@ -23,6 +23,34 @@ import {
   tournamentWeekCount,
 } from "@/lib/tournaments";
 import discordHint from "@/assets/discord-hint.png.asset.json";
+import ixIcon from "@/assets/ix.png.asset.json";
+import uprisingIcon from "@/assets/uprising.png.asset.json";
+import immoIcon from "@/assets/immo.png.asset.json";
+import epicIcon from "@/assets/epic.png.asset.json";
+import { formatLongDate } from "@/lib/tournaments";
+
+/** Expansion/board logos for a tournament. */
+function TournamentModeIcons({ t, size = 20 }: { t: TournamentConfig; size?: number }) {
+  const items: Array<{ key: string; src: string; label: string }> = [];
+  if (t.board_version === "uprising") items.push({ key: "up", src: uprisingIcon.url, label: "Uprising" });
+  if (t.has_rise_of_ix) items.push({ key: "ix", src: ixIcon.url, label: "Rise of Ix" });
+  if (t.has_epic_mode) items.push({ key: "epic", src: epicIcon.url, label: "Epic Mode" });
+  if (t.has_immortality) items.push({ key: "immo", src: immoIcon.url, label: "Immortality" });
+  if (items.length === 0) return <span className="text-xs text-muted-foreground italic">Base Game</span>;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {items.map((it) => (
+        <span
+          key={it.key}
+          className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/40 py-0.5 pl-1 pr-2 text-xs text-muted-foreground"
+        >
+          <img src={it.src} alt={it.label} width={size} height={size} style={{ width: size, height: size }} className="rounded-full object-contain" />
+          {it.label}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 /** e.g. "Europe/Berlin (GMT+02:00)" — IANA zone plus the exact current UTC offset. */
 function resolveTimezoneLabel(): string | null {
@@ -544,6 +572,15 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
               <Link to="/tournament"><ArrowLeft className="size-4 mr-1" />Back</Link>
             </Button>
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <TournamentModeIcons t={tournament} />
+          <p className="text-xs text-muted-foreground">
+            Check-in opens {checkinStart(tournament).toLocaleString()} · Tournament runs{" "}
+            {formatLongDate(tournament.start_date)} → {formatLongDate(tournament.end_date)} · Registration closes{" "}
+            {registrationClosesAt(tournament).toLocaleString()}
+          </p>
         </div>
 
         {(tournament.info_title || tournament.info_text || tournament.prizes_summary || tournament.prizes_text) && (
