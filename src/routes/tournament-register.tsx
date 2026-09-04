@@ -15,6 +15,7 @@ import {
   SLOTS_PER_DAY as SLOTS,
   type TournamentConfig,
   checkinStart,
+  checkinEnd,
   fetchOpenTournaments,
   fetchTournamentByNum,
   parseLocalDate,
@@ -577,9 +578,9 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
         <div className="space-y-2">
           <TournamentModeIcons t={tournament} />
           <p className="text-xs text-muted-foreground">
-            Check-in opens {checkinStart(tournament).toLocaleString()} · Tournament runs{" "}
-            {formatLongDate(tournament.start_date)} → {formatLongDate(tournament.end_date)} · Registration closes{" "}
-            {registrationClosesAt(tournament).toLocaleString()}
+            Check-in opens {checkinStart(tournament).toLocaleString()} · Check-in closes{" "}
+            {checkinEnd(tournament).toLocaleString()} · Tournament runs {formatLongDate(tournament.start_date)} →{" "}
+            {formatLongDate(tournament.end_date)}
           </p>
         </div>
 
