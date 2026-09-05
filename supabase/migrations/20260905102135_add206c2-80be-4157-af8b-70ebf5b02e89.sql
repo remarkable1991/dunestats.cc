@@ -1,0 +1,1 @@
+CREATE POLICY "admin registration select" ON public.tournament_registrations FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
