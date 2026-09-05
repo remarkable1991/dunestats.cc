@@ -248,6 +248,7 @@ function AdminTournaments() {
                     {t.registration_open ? "Registration open" : "Registration closed"}
                   </span>
                 </div>
+                <RegisteredPlayers tournamentNum={t.tournament_num} />
               </div>
               <div className="flex gap-2 items-center">
                 <CsvImportButton tournamentNum={t.tournament_num} />
