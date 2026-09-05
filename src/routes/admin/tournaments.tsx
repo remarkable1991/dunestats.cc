@@ -248,6 +248,7 @@ function AdminTournaments() {
                     {t.registration_open ? "Registration open" : "Registration closed"}
                   </span>
                 </div>
+                <RegisteredPlayers tournamentNum={t.tournament_num} />
               </div>
               <div className="flex gap-2 items-center">
                 <CsvImportButton tournamentNum={t.tournament_num} />
@@ -680,5 +681,115 @@ function CsvImportButton({ tournamentNum }: { tournamentNum: number }) {
         {busy ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} Import CSV
       </span>
     </label>
+  );
+}
+
+type RegistrationRow = {
+  direwolf_name: string;
+  discord_username: string | null;
+  availability: unknown;
+  created_at: string;
+};
+
+/** Group 30-minute slot timestamps into readable day → time-range lines. */
+function summarizeAvailability(isos: string[]): string[] {
+  const times = isos.map((s) => new Date(s)).filter((d) => !Number.isNaN(d.getTime())).sort((a, b) => a.getTime() - b.getTime());
+  const byDay = new Map<string, number[]>();
+  for (const d of times) {
+    const key = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+    const arr = byDay.get(key) ?? [];
+    arr.push(d.getTime());
+    byDay.set(key, arr);
+  }
+  const fmt = (t: number) =>
+    new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+  const lines: string[] = [];
+  for (const [day, arr] of byDay) {
+    const ranges: string[] = [];
+    let start = arr[0]!;
+    let prev = arr[0]!;
+    for (let i = 1; i <= arr.length; i++) {
+      const cur = arr[i];
+      if (cur == null || cur - prev > 30 * 60_000) {
+        ranges.push(`${fmt(start)}–${fmt(prev + 30 * 60_000)}`);
+        start = cur ?? start;
+      }
+      prev = cur ?? prev;
+    }
+    lines.push(`${day}: ${ranges.join(", ")}`);
+  }
+  return lines;
+}
+
+/** Admin view: registered players for a tournament, expandable per-player availability. */
+function RegisteredPlayers({ tournamentNum }: { tournamentNum: number }) {
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<RegistrationRow[] | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const toggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next && rows === null) {
+      const { data, error } = await supabase
+        .from("tournament_registrations")
+        .select("direwolf_name, discord_username, availability, created_at")
+        .eq("tournament_num", tournamentNum)
+        .order("created_at", { ascending: true });
+      if (error) { toast.error(error.message); setRows([]); return; }
+      setRows((data ?? []) as RegistrationRow[]);
+    }
+  };
+
+  return (
+    <div className="pt-1">
+      <button
+        type="button"
+        onClick={() => void toggle()}
+        className="text-xs text-sand underline underline-offset-2 hover:text-sand/80"
+      >
+        {rows ? `${rows.length} registered player${rows.length === 1 ? "" : "s"}` : "Show registered players"}
+      </button>
+      {open && rows !== null && (
+        <div className="mt-2 space-y-1">
+          {rows.length === 0 && (
+            <div className="text-xs text-muted-foreground">No registrations yet.</div>
+          )}
+          {rows.map((r) => {
+            const slots = Array.isArray(r.availability)
+              ? (r.availability as unknown[]).filter((x): x is string => typeof x === "string")
+              : [];
+            const isOpen = expanded === r.direwolf_name;
+            return (
+              <div key={r.direwolf_name}>
+                <button
+                  type="button"
+                  onClick={() => setExpanded(isOpen ? null : r.direwolf_name)}
+                  className="text-sm text-foreground hover:text-sand underline-offset-2 hover:underline"
+                >
+                  {r.direwolf_name}
+                </button>
+                {r.discord_username && (
+                  <span className="ml-2 text-xs text-muted-foreground">@{r.discord_username}</span>
+                )}
+                <span className="ml-2 text-xs text-muted-foreground">
+                  · {(slots.length * 0.5).toFixed(1)}h available
+                </span>
+                {isOpen && (
+                  <div className="ml-3 mt-1 mb-2 space-y-0.5 border-l-2 border-sand/30 pl-3">
+                    {slots.length === 0 && (
+                      <div className="text-xs text-muted-foreground">No availability selected.</div>
+                    )}
+                    {summarizeAvailability(slots).map((line) => (
+                      <div key={line} className="text-xs text-muted-foreground">{line}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
