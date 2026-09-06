@@ -2555,21 +2555,34 @@ function BracketTable({
   rows,
   accent,
   compact,
+  matchId,
 }: {
   title: string;
   rows: PastRow[];
   accent?: boolean;
   compact?: boolean;
+  matchId?: string | null;
 }) {
   return (
     <Card className={`p-3 ${accent ? "border-sand/60 bg-gradient-to-br from-sand/5 to-card" : "bg-background/40"}`}>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 gap-2">
         <span className={`font-display ${accent ? "text-base text-sand" : "text-sm"}`}>{title}</span>
-        {rows[0] && (
-          <Badge className="bg-sand/15 text-sand border-sand/40 text-[10px]" variant="outline">
-            {configBadge(rows[0])}
-          </Badge>
-        )}
+        <span className="flex items-center gap-2">
+          {matchId && (
+            <Link
+              to="/match/$matchId"
+              params={{ matchId }}
+              className="inline-flex items-center gap-1 text-[11px] text-sand hover:underline underline-offset-2"
+            >
+              <ExternalLink className="size-3" /> Match page
+            </Link>
+          )}
+          {rows[0] && (
+            <Badge className="bg-sand/15 text-sand border-sand/40 text-[10px]" variant="outline">
+              {configBadge(rows[0])}
+            </Badge>
+          )}
+        </span>
       </div>
       <Table>
         <TableHeader>
