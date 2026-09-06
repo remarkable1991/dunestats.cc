@@ -2464,14 +2464,19 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
       <section className="space-y-4">
         <h3 className="font-display text-xl text-sand">Bracket</h3>
         {grandFinalKey ? (
-          <BracketTable title="Grand Final" rows={finalsByTable.get(grandFinalKey)!} accent />
+          <BracketTable
+            title="Grand Final"
+            rows={finalsByTable.get(grandFinalKey)!}
+            accent
+            matchId={matchLinkFor(finalsByTable.get(grandFinalKey)!)}
+          />
         ) : (
           <Card className="p-4 text-sm text-muted-foreground italic">No Grand Final data recorded.</Card>
         )}
         {semiKeys.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {semiKeys.map((k) => (
-              <BracketTable key={k} title={k} rows={finalsByTable.get(k)!} />
+              <BracketTable key={k} title={k} rows={finalsByTable.get(k)!} matchId={matchLinkFor(finalsByTable.get(k)!)} />
             ))}
           </div>
         )}
@@ -2538,7 +2543,7 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
                   {[...tables.entries()]
                     .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
                     .map(([table, entries]) => (
-                      <BracketTable key={table} title={table} rows={entries} compact />
+                      <BracketTable key={table} title={table} rows={entries} compact matchId={matchLinkFor(entries)} />
                     ))}
                 </div>
               </AccordionContent>
