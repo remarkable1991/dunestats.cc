@@ -2479,7 +2479,20 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
 
       {/* Per-tournament leaderboard */}
       <section className="space-y-3">
-        <h3 className="font-display text-xl text-sand">Tournament Leaderboard</h3>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <h3 className="font-display text-xl text-sand">Tournament Leaderboard</h3>
+          <Tabs value={standingsView} onValueChange={(v) => setStandingsView(v as "total" | "league")}>
+            <TabsList>
+              <TabsTrigger value="total">Full Tournament</TabsTrigger>
+              <TabsTrigger value="league">League Phase Only</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        <p className="text-xs text-muted-foreground italic">
+          {standingsView === "total"
+            ? `Full standing includes all games. Players who finished top-${gfDirect} in the league phase get +25 TP for their direct-to-Grand-Final bye.`
+            : "League phase standing only counts the qualification games."}
+        </p>
         <Card className="p-0 overflow-hidden">
           <Table>
             <TableHeader>
