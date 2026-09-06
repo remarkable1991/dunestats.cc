@@ -32,7 +32,7 @@ import { detectExpansions } from "@/lib/leaders";
 import { translateLeader } from "@/lib/leader-translate";
 import { useChampions, isChampion } from "@/lib/champions";
 import { loadTournamentModes, tournamentModes } from "@/lib/tournament-config";
-import { bracketPlan, fetchTournamentByNum } from "@/lib/tournaments";
+import { fetchTournamentByNum } from "@/lib/tournaments";
 import { toast } from "sonner";
 import {
   Image as ImageIcon,
