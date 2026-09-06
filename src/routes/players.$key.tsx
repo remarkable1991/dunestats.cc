@@ -72,6 +72,7 @@ type MatchRow = {
     game_version: GameVersion;
     board_version: string | null;
     image_url: string | null;
+    public_match_id: string | null;
     tournament_num: number | null;
     has_rise_of_ix: boolean | null;
     has_immortality: boolean | null;
@@ -296,7 +297,7 @@ function ProfilePage() {
         .eq("player_key", playerKey),
       supabase
         .from("game_results")
-        .select("placement, player_name, leader_name, points, elo_delta, elo_delta_overall, games!inner(id, created_at, game_version, board_version, image_url, tournament_num, has_rise_of_ix, has_immortality, has_epic_mode, has_base_leaders)")
+        .select("placement, player_name, leader_name, points, elo_delta, elo_delta_overall, games!inner(id, created_at, game_version, board_version, image_url, public_match_id, tournament_num, has_rise_of_ix, has_immortality, has_epic_mode, has_base_leaders)")
         .ilike("player_name", playerKey)
         .order("created_at", { foreignTable: "games", ascending: false })
         .limit(1000),
@@ -731,6 +732,7 @@ function ProfilePage() {
                     <th className="px-4 py-2 text-left">Leader</th>
                     <SortTh label="Points" k="points" />
                     <th className="px-4 py-2 text-left">Version</th>
+                    <th className="px-4 py-2 text-left">Match</th>
                     <th className="px-4 py-2"></th>
                   </tr>
                 </thead>
@@ -756,13 +758,24 @@ function ProfilePage() {
                           <TournamentTag num={m.games?.tournament_num ?? null} />
                         </div>
                       </td>
+                      <td className="px-4 py-2 text-xs">
+                        {m.games && (
+                          <Link
+                            to="/match/$matchId"
+                            params={{ matchId: m.games.public_match_id ?? m.games.id }}
+                            className="text-sand hover:underline font-mono"
+                          >
+                            {m.games.public_match_id ?? "View"}
+                          </Link>
+                        )}
+                      </td>
                       <td className="px-2 py-1 text-right">
                         {m.games?.image_url && <ScreenshotButton url={m.games.image_url} />}
                       </td>
                     </tr>
                   ))}
                   {sortedMatches.length === 0 && (
-                    <tr><td colSpan={6} className="py-6 text-center text-muted-foreground">No matches recorded.</td></tr>
+                    <tr><td colSpan={7} className="py-6 text-center text-muted-foreground">No matches recorded.</td></tr>
                   )}
                 </tbody>
               </table>
