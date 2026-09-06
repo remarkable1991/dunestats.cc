@@ -2362,11 +2362,11 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
   }, [rows]);
 
   // Per-tournament standings (TP / Wins / Avg / VP) — same formula as live.
-  const standings = useMemo(() => {
+  const computeStandings = (src: PastRow[]) => {
     type Agg = { player: string; tp: number; wins: number; placements: number[]; vp: number };
     const map = new Map<string, Agg>();
     const tables = new Map<string, PastRow[]>();
-    for (const r of rows) {
+    for (const r of src) {
       const k = `${r.round_type}__${r.table_identifier}`;
       if (!tables.has(k)) tables.set(k, []);
       tables.get(k)!.push(r);
@@ -2398,7 +2398,32 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
         avg: a.placements.length ? a.placements.reduce((s, n) => s + n, 0) / a.placements.length : 0,
       }))
       .sort((a, b) => b.tp - a.tp || b.wins - a.wins || a.avg - b.avg || b.vp - a.vp);
-  }, [rows]);
+  };
+
+  // League phase only: exclude Finals rounds.
+  const leagueStandings = useMemo(
+    () => computeStandings(rows.filter((r) => r.round_type !== "Finals")),
+    [rows],
+  );
+
+  // Full tournament: all games, with +25 TP for the league finishers who went
+  // straight to the Grand Final (bye bonus), like the live standings view.
+  const totalStandings = useMemo(() => {
+    const grandBonus = new Set(leagueStandings.slice(0, gfDirect).map((p) => p.player));
+    const boosted = computeStandings(rows).map((s) =>
+      grandBonus.has(s.player) ? { ...s, tp: s.tp + 25 } : s,
+    );
+    boosted.sort((a, b) => b.tp - a.tp || b.wins - a.wins || a.avg - b.avg || b.vp - a.vp);
+    return boosted;
+  }, [rows, leagueStandings, gfDirect]);
+
+  const standings = standingsView === "total" ? totalStandings : leagueStandings;
+
+  /** Look up the /match link for a finished table by its player-name set. */
+  const matchLinkFor = (tableRows: PastRow[]): string | null => {
+    const key = tableRows.map((r) => r.player_name.toLowerCase().trim()).sort().join("|");
+    return matchLinks.get(key) ?? null;
+  };
 
   return (
     <div className="space-y-6">
