@@ -32,6 +32,7 @@ import { detectExpansions } from "@/lib/leaders";
 import { translateLeader } from "@/lib/leader-translate";
 import { useChampions, isChampion } from "@/lib/champions";
 import { loadTournamentModes, tournamentModes } from "@/lib/tournament-config";
+import { fetchTournamentByNum } from "@/lib/tournaments";
 import { toast } from "sonner";
 import {
   Image as ImageIcon,
@@ -2286,6 +2287,46 @@ type TournamentSummary = {
 
 function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSummary; onBack: () => void }) {
   const { num, rows, winner, playerCount, modes } = tournament;
+  const [standingsView, setStandingsView] = useState<"total" | "league">("total");
+  const [gfDirect, setGfDirect] = useState<number>(2);
+  const [matchLinks, setMatchLinks] = useState<Map<string, string>>(new Map());
+
+  // Bracket plan (direct-to-Grand-Final count) for the +25 TP bye bonus.
+  useEffect(() => {
+    void fetchTournamentByNum(num).then((t) => {
+      if (t) setGfDirect(bracketPlan(t).gf);
+    });
+  }, [num]);
+
+  // Link finished games to their /match pages: games uploaded for this
+  // tournament matched to deep-dive tables by their player-name set.
+  useEffect(() => {
+    void (async () => {
+      const { data: games } = await supabase
+        .from("games")
+        .select("id, public_match_id")
+        .eq("tournament_num", num)
+        .not("public_match_id", "is", null);
+      const list = (games ?? []) as { id: string; public_match_id: string | null }[];
+      if (list.length === 0) return;
+      const { data: results } = await supabase
+        .from("game_results")
+        .select("game_id, player_name")
+        .in("game_id", list.map((g) => g.id));
+      const byGame = new Map<string, string[]>();
+      for (const r of (results ?? []) as { game_id: string; player_name: string }[]) {
+        if (!byGame.has(r.game_id)) byGame.set(r.game_id, []);
+        byGame.get(r.game_id)!.push(r.player_name.toLowerCase().trim());
+      }
+      const m = new Map<string, string>();
+      for (const g of list) {
+        const names = byGame.get(g.id);
+        if (!names || !g.public_match_id) continue;
+        m.set([...names].sort().join("|"), g.public_match_id);
+      }
+      setMatchLinks(m);
+    })();
+  }, [num]);
 
   const finalsByTable = useMemo(() => {
     const m = new Map<string, PastRow[]>();
@@ -2321,11 +2362,11 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
   }, [rows]);
 
   // Per-tournament standings (TP / Wins / Avg / VP) — same formula as live.
-  const standings = useMemo(() => {
+  const computeStandings = (src: PastRow[]) => {
     type Agg = { player: string; tp: number; wins: number; placements: number[]; vp: number };
     const map = new Map<string, Agg>();
     const tables = new Map<string, PastRow[]>();
-    for (const r of rows) {
+    for (const r of src) {
       const k = `${r.round_type}__${r.table_identifier}`;
       if (!tables.has(k)) tables.set(k, []);
       tables.get(k)!.push(r);
@@ -2357,7 +2398,32 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
         avg: a.placements.length ? a.placements.reduce((s, n) => s + n, 0) / a.placements.length : 0,
       }))
       .sort((a, b) => b.tp - a.tp || b.wins - a.wins || a.avg - b.avg || b.vp - a.vp);
-  }, [rows]);
+  };
+
+  // League phase only: exclude Finals rounds.
+  const leagueStandings = useMemo(
+    () => computeStandings(rows.filter((r) => r.round_type !== "Finals")),
+    [rows],
+  );
+
+  // Full tournament: all games, with +25 TP for the league finishers who went
+  // straight to the Grand Final (bye bonus), like the live standings view.
+  const totalStandings = useMemo(() => {
+    const grandBonus = new Set(leagueStandings.slice(0, gfDirect).map((p) => p.player));
+    const boosted = computeStandings(rows).map((s) =>
+      grandBonus.has(s.player) ? { ...s, tp: s.tp + 25 } : s,
+    );
+    boosted.sort((a, b) => b.tp - a.tp || b.wins - a.wins || a.avg - b.avg || b.vp - a.vp);
+    return boosted;
+  }, [rows, leagueStandings, gfDirect]);
+
+  const standings = standingsView === "total" ? totalStandings : leagueStandings;
+
+  /** Look up the /match link for a finished table by its player-name set. */
+  const matchLinkFor = (tableRows: PastRow[]): string | null => {
+    const key = tableRows.map((r) => r.player_name.toLowerCase().trim()).sort().join("|");
+    return matchLinks.get(key) ?? null;
+  };
 
   return (
     <div className="space-y-6">
@@ -2398,14 +2464,19 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
       <section className="space-y-4">
         <h3 className="font-display text-xl text-sand">Bracket</h3>
         {grandFinalKey ? (
-          <BracketTable title="Grand Final" rows={finalsByTable.get(grandFinalKey)!} accent />
+          <BracketTable
+            title="Grand Final"
+            rows={finalsByTable.get(grandFinalKey)!}
+            accent
+            matchId={matchLinkFor(finalsByTable.get(grandFinalKey)!)}
+          />
         ) : (
           <Card className="p-4 text-sm text-muted-foreground italic">No Grand Final data recorded.</Card>
         )}
         {semiKeys.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {semiKeys.map((k) => (
-              <BracketTable key={k} title={k} rows={finalsByTable.get(k)!} />
+              <BracketTable key={k} title={k} rows={finalsByTable.get(k)!} matchId={matchLinkFor(finalsByTable.get(k)!)} />
             ))}
           </div>
         )}
@@ -2413,7 +2484,20 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
 
       {/* Per-tournament leaderboard */}
       <section className="space-y-3">
-        <h3 className="font-display text-xl text-sand">Tournament Leaderboard</h3>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <h3 className="font-display text-xl text-sand">Tournament Leaderboard</h3>
+          <Tabs value={standingsView} onValueChange={(v) => setStandingsView(v as "total" | "league")}>
+            <TabsList>
+              <TabsTrigger value="total">Full Tournament</TabsTrigger>
+              <TabsTrigger value="league">League Phase Only</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        <p className="text-xs text-muted-foreground italic">
+          {standingsView === "total"
+            ? `Full standing includes all games. Players who finished top-${gfDirect} in the league phase get +25 TP for their direct-to-Grand-Final bye.`
+            : "League phase standing only counts the qualification games."}
+        </p>
         <Card className="p-0 overflow-hidden">
           <Table>
             <TableHeader>
@@ -2459,7 +2543,7 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
                   {[...tables.entries()]
                     .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
                     .map(([table, entries]) => (
-                      <BracketTable key={table} title={table} rows={entries} compact />
+                      <BracketTable key={table} title={table} rows={entries} compact matchId={matchLinkFor(entries)} />
                     ))}
                 </div>
               </AccordionContent>
@@ -2476,21 +2560,34 @@ function BracketTable({
   rows,
   accent,
   compact,
+  matchId,
 }: {
   title: string;
   rows: PastRow[];
   accent?: boolean;
   compact?: boolean;
+  matchId?: string | null;
 }) {
   return (
     <Card className={`p-3 ${accent ? "border-sand/60 bg-gradient-to-br from-sand/5 to-card" : "bg-background/40"}`}>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 gap-2">
         <span className={`font-display ${accent ? "text-base text-sand" : "text-sm"}`}>{title}</span>
-        {rows[0] && (
-          <Badge className="bg-sand/15 text-sand border-sand/40 text-[10px]" variant="outline">
-            {configBadge(rows[0])}
-          </Badge>
-        )}
+        <span className="flex items-center gap-2">
+          {matchId && (
+            <Link
+              to="/match/$matchId"
+              params={{ matchId }}
+              className="inline-flex items-center gap-1 text-[11px] text-sand hover:underline underline-offset-2"
+            >
+              <ExternalLink className="size-3" /> Match page
+            </Link>
+          )}
+          {rows[0] && (
+            <Badge className="bg-sand/15 text-sand border-sand/40 text-[10px]" variant="outline">
+              {configBadge(rows[0])}
+            </Badge>
+          )}
+        </span>
       </div>
       <Table>
         <TableHeader>
