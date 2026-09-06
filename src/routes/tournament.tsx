@@ -2287,6 +2287,46 @@ type TournamentSummary = {
 
 function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSummary; onBack: () => void }) {
   const { num, rows, winner, playerCount, modes } = tournament;
+  const [standingsView, setStandingsView] = useState<"total" | "league">("total");
+  const [gfDirect, setGfDirect] = useState<number>(2);
+  const [matchLinks, setMatchLinks] = useState<Map<string, string>>(new Map());
+
+  // Bracket plan (direct-to-Grand-Final count) for the +25 TP bye bonus.
+  useEffect(() => {
+    void fetchTournamentByNum(num).then((t) => {
+      if (t) setGfDirect(bracketPlan(t).gf);
+    });
+  }, [num]);
+
+  // Link finished games to their /match pages: games uploaded for this
+  // tournament matched to deep-dive tables by their player-name set.
+  useEffect(() => {
+    void (async () => {
+      const { data: games } = await supabase
+        .from("games")
+        .select("id, public_match_id")
+        .eq("tournament_num", num)
+        .not("public_match_id", "is", null);
+      const list = (games ?? []) as { id: string; public_match_id: string | null }[];
+      if (list.length === 0) return;
+      const { data: results } = await supabase
+        .from("game_results")
+        .select("game_id, player_name")
+        .in("game_id", list.map((g) => g.id));
+      const byGame = new Map<string, string[]>();
+      for (const r of (results ?? []) as { game_id: string; player_name: string }[]) {
+        if (!byGame.has(r.game_id)) byGame.set(r.game_id, []);
+        byGame.get(r.game_id)!.push(r.player_name.toLowerCase().trim());
+      }
+      const m = new Map<string, string>();
+      for (const g of list) {
+        const names = byGame.get(g.id);
+        if (!names || !g.public_match_id) continue;
+        m.set([...names].sort().join("|"), g.public_match_id);
+      }
+      setMatchLinks(m);
+    })();
+  }, [num]);
 
   const finalsByTable = useMemo(() => {
     const m = new Map<string, PastRow[]>();
