@@ -1528,6 +1528,32 @@ function VerificationCard({
     void persist(next, "Slot order updated");
   };
 
+  const setResource = (name: string, key: "spice" | "solaris" | "water", raw: string) => {
+    if (!canEdit) return;
+    const value = raw.trim() === "" ? null : Number(raw);
+    if (value !== null && !Number.isFinite(value)) return;
+    const target = players.find((p) => p.player_name === name);
+    if (!target || target[key] === value) return;
+    void persist(
+      players.map((p) => (p.player_name === name ? { ...p, [key]: value } : p)),
+      "Resources updated",
+    );
+  };
+
+  /** Colours/slots need attention when one is missing or shared by two players. */
+  const seatingIssue = (() => {
+    const colors = players.map((p) => (p.player_color ?? "").toLowerCase().trim());
+    const slots = players.map((p) => p.player_slot);
+    const missing = colors.some((c) => !c) || slots.some((s) => !s);
+    const dupColor = new Set(colors.filter(Boolean)).size !== colors.filter(Boolean).length;
+    const dupSlot = new Set(slots.filter(Boolean)).size !== slots.filter(Boolean).length;
+    return missing || dupColor || dupSlot;
+  })();
+  const [showAssign, setShowAssign] = useState(false);
+  const assignOpen = canEdit && (showAssign || seatingIssue);
+
+
+
 
   return (
     <Card className="p-3 border-border/60 bg-card/70 w-full">
