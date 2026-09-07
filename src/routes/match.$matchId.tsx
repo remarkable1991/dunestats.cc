@@ -1606,6 +1606,29 @@ function VerificationCard({
                 </div>
               )}
 
+              {canEdit && (
+                <div className="flex items-center gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setShowAssign((v) => !v)}
+                    className={`rounded border px-2 py-1 transition-colors ${
+                      assignOpen
+                        ? "border-sand/70 bg-sand/10 text-sand"
+                        : "border-border/60 text-muted-foreground hover:bg-muted/30"
+                    }`}
+                  >
+                    {assignOpen ? "Hide colour, slot & resources" : "Adjust colour, slot & resources"}
+                  </button>
+                  {seatingIssue && (
+                    <span className="text-amber-500">
+                      Colour or slot missing or duplicated
+                    </span>
+                  )}
+                </div>
+              )}
+
+
+
               <div className="flex flex-col sm:flex-row items-start gap-3">
               <div className="flex-1 min-w-0 w-full space-y-2">
                 {slotOrdered.map((p) => {
