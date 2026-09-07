@@ -89,7 +89,9 @@ export function FactionInfluenceTrackBoard({
   // Fall back to placement order when slots were never recorded.
   const resolved = columns.every((c) => !c)
     ? [...players].sort((a, b) => a.placement - b.placement).slice(0, 4)
-    : columns;
+    : // 3-player games only use three slots — drop the unused column.
+      columns.filter((c) => c || players.length >= 4);
+
 
   const cellH = compact ? 13 : 16;
   const gap = 2;
