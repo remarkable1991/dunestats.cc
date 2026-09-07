@@ -80,7 +80,7 @@ export function colorHex(c: string | null | undefined): string {
 
 /**
  * The slot that started the final round, derived from the first-player slot
- * and the round the game ended on.
+ * and the round the game ended on (4-player assumption; kept for callers).
  */
 export function startSlotFor(winningSlot: number, round: number): number {
   return (((winningSlot - 1 - (round - 1)) % 4) + 4) % 4 + 1;
@@ -91,9 +91,21 @@ export function turnOrderFor(slot: number, startSlot: number): number {
   return (((slot - startSlot) % 4) + 4) % 4 + 1;
 }
 
+/** Occupied slots in table order (cyclic; 3-player games use e.g. 1, 2, 4). */
+export function occupiedSlots(players: TelemetryPlayer[]): number[] {
+  return [
+    ...new Set(
+      players
+        .map((p) => p.player_slot)
+        .filter((s): s is number => typeof s === "number" && s > 0),
+    ),
+  ].sort((a, b) => a - b);
+}
+
 /**
  * Assign `has_first_player` to exactly one slot and recompute every
- * player's turn order from that slot and the end round.
+ * player's turn order from that slot and the end round. Works for any
+ * player count: the rotation only walks the slots actually in play.
  */
 export function applyFirstPlayer<T extends TelemetryPlayer>(
   players: T[],
@@ -101,13 +113,18 @@ export function applyFirstPlayer<T extends TelemetryPlayer>(
   endRound: number | null,
 ): T[] {
   const round = endRound && endRound > 0 ? endRound : 1;
-  const startSlot = startSlotFor(winningSlot, round);
+  const slots = occupiedSlots(players);
+  const n = slots.length;
+  if (n === 0) return players.map((p) => ({ ...p, has_first_player: false }));
+  const winIdx = Math.max(0, slots.indexOf(winningSlot));
+  const startIdx = (((winIdx - (round - 1)) % n) + n) % n;
   return players.map((p) => {
-    const slot = p.player_slot;
+    const idx = p.player_slot ? slots.indexOf(p.player_slot) : -1;
     return {
       ...p,
-      has_first_player: slot === winningSlot,
-      turn_order: slot ? turnOrderFor(slot, startSlot) : p.turn_order,
+      has_first_player: p.player_slot === winningSlot,
+      turn_order: idx >= 0 ? ((((idx - startIdx) % n) + n) % n) + 1 : p.turn_order,
     };
   });
 }
+
