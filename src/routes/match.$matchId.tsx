@@ -1661,10 +1661,10 @@ function VerificationCard({
                           </div>
                           <div className="text-[11px] text-muted-foreground truncate">
                             {p.leader_name ?? "—"}
-                            {!canEdit && p.player_slot ? ` · slot ${p.player_slot}` : ""}
+                            {!assignOpen && p.player_slot ? ` · slot ${p.player_slot}` : ""}
                             {p.turn_order ? ` · turn ${p.turn_order}` : ""}
                           </div>
-                          {canEdit && (
+                          {assignOpen && (
                             <div className="mt-1 flex items-center gap-2">
                               <div className="flex items-center gap-1">
                                 {Object.entries(PLAYER_COLORS).map(([name, chex]) => (
