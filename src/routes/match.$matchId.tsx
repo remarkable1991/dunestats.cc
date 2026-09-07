@@ -1499,6 +1499,36 @@ function VerificationCard({
     void persist(next, value ? "Swordmaster recruited" : "Swordmaster removed");
   };
 
+  const setColor = (name: string, color: string) => {
+    if (!canEdit) return;
+    const next = players.map((p) =>
+      p.player_name === name
+        ? { ...p, player_color: color }
+        : p.player_color?.toLowerCase() === color.toLowerCase()
+          ? { ...p, player_color: null }
+          : p,
+    );
+    void persist(next, `Colour set to ${color}`);
+  };
+
+  /** Move a player to another slot, swapping with whoever sits there, then re-derive turn order. */
+  const setSlot = (name: string, slot: number) => {
+    if (!canEdit) return;
+    const target = players.find((p) => p.player_name === name);
+    if (!target || target.player_slot === slot) return;
+    const occupant = players.find((p) => p.player_slot === slot);
+    let next = players.map((p) => {
+      if (p.player_name === name) return { ...p, player_slot: slot };
+      if (occupant && p.player_name === occupant.player_name)
+        return { ...p, player_slot: target.player_slot };
+      return p;
+    });
+    const firstSlot = next.find((p) => p.has_first_player)?.player_slot ?? null;
+    if (firstSlot) next = applyFirstPlayer(next, firstSlot, game.end_round);
+    void persist(next, "Slot order updated");
+  };
+
+
   return (
     <Card className="p-3 border-border/60 bg-card/70 w-full">
       <h2 className="font-display text-sm mb-2 text-muted-foreground">Endboard state</h2>
