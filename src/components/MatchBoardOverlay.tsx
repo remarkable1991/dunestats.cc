@@ -152,13 +152,16 @@ export function HighCouncilSeats({
   canEdit: boolean;
   onToggleSeat: (seat: number) => void;
 }) {
+  // One seat per player at the table (3-player games have 3 seats).
+  const seatCount = Math.min(4, Math.max(1, players.length));
   return (
     <div>
       <h3 className="font-display text-xs uppercase tracking-wider text-muted-foreground mb-2">
         High Council
       </h3>
       <div className="flex items-center gap-3">
-        {[1, 2, 3, 4].map((seat) => {
+        {Array.from({ length: seatCount }, (_, i) => i + 1).map((seat) => {
+
           const occupant = players.find((p) => (p.turn_order ?? 0) === seat && p.has_high_council);
           const candidate = players.find((p) => (p.turn_order ?? 0) === seat);
           const hex = occupant ? colorHex(occupant.player_color) : null;
