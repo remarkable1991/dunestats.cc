@@ -1528,6 +1528,32 @@ function VerificationCard({
     void persist(next, "Slot order updated");
   };
 
+  const setResource = (name: string, key: "spice" | "solaris" | "water", raw: string) => {
+    if (!canEdit) return;
+    const value = raw.trim() === "" ? null : Number(raw);
+    if (value !== null && !Number.isFinite(value)) return;
+    const target = players.find((p) => p.player_name === name);
+    if (!target || target[key] === value) return;
+    void persist(
+      players.map((p) => (p.player_name === name ? { ...p, [key]: value } : p)),
+      "Resources updated",
+    );
+  };
+
+  /** Colours/slots need attention when one is missing or shared by two players. */
+  const seatingIssue = (() => {
+    const colors = players.map((p) => (p.player_color ?? "").toLowerCase().trim());
+    const slots = players.map((p) => p.player_slot);
+    const missing = colors.some((c) => !c) || slots.some((s) => !s);
+    const dupColor = new Set(colors.filter(Boolean)).size !== colors.filter(Boolean).length;
+    const dupSlot = new Set(slots.filter(Boolean)).size !== slots.filter(Boolean).length;
+    return missing || dupColor || dupSlot;
+  })();
+  const [showAssign, setShowAssign] = useState(false);
+  const assignOpen = canEdit && (showAssign || seatingIssue);
+
+
+
 
   return (
     <Card className="p-3 border-border/60 bg-card/70 w-full">
@@ -1580,6 +1606,29 @@ function VerificationCard({
                 </div>
               )}
 
+              {canEdit && (
+                <div className="flex items-center gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setShowAssign((v) => !v)}
+                    className={`rounded border px-2 py-1 transition-colors ${
+                      assignOpen
+                        ? "border-sand/70 bg-sand/10 text-sand"
+                        : "border-border/60 text-muted-foreground hover:bg-muted/30"
+                    }`}
+                  >
+                    {assignOpen ? "Hide colour, slot & resources" : "Adjust colour, slot & resources"}
+                  </button>
+                  {seatingIssue && (
+                    <span className="text-amber-500">
+                      Colour or slot missing or duplicated
+                    </span>
+                  )}
+                </div>
+              )}
+
+
+
               <div className="flex flex-col sm:flex-row items-start gap-3">
               <div className="flex-1 min-w-0 w-full space-y-2">
                 {slotOrdered.map((p) => {
@@ -1612,10 +1661,10 @@ function VerificationCard({
                           </div>
                           <div className="text-[11px] text-muted-foreground truncate">
                             {p.leader_name ?? "—"}
-                            {!canEdit && p.player_slot ? ` · slot ${p.player_slot}` : ""}
+                            {!assignOpen && p.player_slot ? ` · slot ${p.player_slot}` : ""}
                             {p.turn_order ? ` · turn ${p.turn_order}` : ""}
                           </div>
-                          {canEdit && (
+                          {assignOpen && (
                             <div className="mt-1 flex items-center gap-2">
                               <div className="flex items-center gap-1">
                                 {Object.entries(PLAYER_COLORS).map(([name, chex]) => (
@@ -1674,7 +1723,29 @@ function VerificationCard({
                           {p.points}
                         </span>
                       </div>
-                      <ResourceBadges p={p} />
+                      {assignOpen ? (
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                          {(
+                            [
+                              ["🟠", "Spice", "spice"],
+                              ["⚪", "Solaris", "solaris"],
+                              ["💧", "Water", "water"],
+                            ] as const
+                          ).map(([icon, label, key]) => (
+                            <label key={key} title={label} className="inline-flex items-center gap-1">
+                              <span aria-hidden>{icon}</span>
+                              <input
+                                type="number"
+                                defaultValue={p[key] ?? ""}
+                                onBlur={(e) => setResource(p.player_name, key, e.target.value)}
+                                className="w-14 rounded border border-border/60 bg-background/60 px-1 py-0.5 text-[11px] text-foreground tabular-nums"
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <ResourceBadges p={p} />
+                      )}
                     </div>
                   );
                 })}
