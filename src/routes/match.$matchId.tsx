@@ -1723,7 +1723,29 @@ function VerificationCard({
                           {p.points}
                         </span>
                       </div>
-                      <ResourceBadges p={p} />
+                      {assignOpen ? (
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                          {(
+                            [
+                              ["🟠", "Spice", "spice"],
+                              ["⚪", "Solaris", "solaris"],
+                              ["💧", "Water", "water"],
+                            ] as const
+                          ).map(([icon, label, key]) => (
+                            <label key={key} title={label} className="inline-flex items-center gap-1">
+                              <span aria-hidden>{icon}</span>
+                              <input
+                                type="number"
+                                defaultValue={p[key] ?? ""}
+                                onBlur={(e) => setResource(p.player_name, key, e.target.value)}
+                                className="w-14 rounded border border-border/60 bg-background/60 px-1 py-0.5 text-[11px] text-foreground tabular-nums"
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <ResourceBadges p={p} />
+                      )}
                     </div>
                   );
                 })}
