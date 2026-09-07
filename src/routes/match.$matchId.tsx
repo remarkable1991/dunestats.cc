@@ -1499,6 +1499,36 @@ function VerificationCard({
     void persist(next, value ? "Swordmaster recruited" : "Swordmaster removed");
   };
 
+  const setColor = (name: string, color: string) => {
+    if (!canEdit) return;
+    const next = players.map((p) =>
+      p.player_name === name
+        ? { ...p, player_color: color }
+        : p.player_color?.toLowerCase() === color.toLowerCase()
+          ? { ...p, player_color: null }
+          : p,
+    );
+    void persist(next, `Colour set to ${color}`);
+  };
+
+  /** Move a player to another slot, swapping with whoever sits there, then re-derive turn order. */
+  const setSlot = (name: string, slot: number) => {
+    if (!canEdit) return;
+    const target = players.find((p) => p.player_name === name);
+    if (!target || target.player_slot === slot) return;
+    const occupant = players.find((p) => p.player_slot === slot);
+    let next = players.map((p) => {
+      if (p.player_name === name) return { ...p, player_slot: slot };
+      if (occupant && p.player_name === occupant.player_name)
+        return { ...p, player_slot: target.player_slot };
+      return p;
+    });
+    const firstSlot = next.find((p) => p.has_first_player)?.player_slot ?? null;
+    if (firstSlot) next = applyFirstPlayer(next, firstSlot, game.end_round);
+    void persist(next, "Slot order updated");
+  };
+
+
   return (
     <Card className="p-3 border-border/60 bg-card/70 w-full">
       <h2 className="font-display text-sm mb-2 text-muted-foreground">Endboard state</h2>
@@ -1582,10 +1612,46 @@ function VerificationCard({
                           </div>
                           <div className="text-[11px] text-muted-foreground truncate">
                             {p.leader_name ?? "—"}
-                            {p.player_slot ? ` · slot ${p.player_slot}` : ""}
+                            {!canEdit && p.player_slot ? ` · slot ${p.player_slot}` : ""}
                             {p.turn_order ? ` · turn ${p.turn_order}` : ""}
                           </div>
+                          {canEdit && (
+                            <div className="mt-1 flex items-center gap-2">
+                              <div className="flex items-center gap-1">
+                                {Object.entries(PLAYER_COLORS).map(([name, chex]) => (
+                                  <button
+                                    key={name}
+                                    type="button"
+                                    title={`Set colour ${name}`}
+                                    onClick={() => setColor(p.player_name, name)}
+                                    className={`size-3.5 rounded-full border transition-transform hover:scale-110 ${
+                                      (p.player_color ?? "").toLowerCase() === name
+                                        ? "border-sand ring-1 ring-sand/70"
+                                        : "border-border/60"
+                                    }`}
+                                    style={{ background: chex }}
+                                  />
+                                ))}
+                              </div>
+                              <label className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                                Slot
+                                <select
+                                  value={p.player_slot ?? ""}
+                                  onChange={(e) => setSlot(p.player_name, Number(e.target.value))}
+                                  className="rounded border border-border/60 bg-background/60 px-1 py-0.5 text-[11px] text-foreground"
+                                >
+                                  <option value="">—</option>
+                                  {[1, 2, 3, 4].map((s) => (
+                                    <option key={s} value={s}>
+                                      {s}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            </div>
+                          )}
                         </div>
+
                         <div className="flex items-end gap-1.5">
                           {alliancesHeldBy(p).map((f) => (
                             <img
