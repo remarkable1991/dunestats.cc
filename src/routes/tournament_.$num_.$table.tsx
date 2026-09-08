@@ -72,6 +72,7 @@ function TableDetailPage() {
   const [schedule, setSchedule] = useState<MatchSchedule | null>(null);
   const [shot, setShot] = useState<string | null>(null);
   const [shotUrl, setShotUrl] = useState<string | null>(null);
+  const [matchId, setMatchId] = useState<string | null>(null);
   const [myKeys, setMyKeys] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -126,6 +127,38 @@ function TableDetailPage() {
       setIsAdmin((roles ?? []).some((r) => r.role === "admin"));
     })();
   }, []);
+
+  // Link this table's finished game to its /match page by player-name set.
+  useEffect(() => {
+    void (async () => {
+      setMatchId(null);
+      if (rows.length === 0) return;
+      const key = [...rows.map((r) => r.player_name.toLowerCase().trim())].sort().join("|");
+      const { data: games } = await supabase
+        .from("games")
+        .select("id, public_match_id")
+        .eq("tournament_num", tournamentNum)
+        .not("public_match_id", "is", null);
+      const list = (games ?? []) as { id: string; public_match_id: string | null }[];
+      if (list.length === 0) return;
+      const { data: results } = await supabase
+        .from("game_results")
+        .select("game_id, player_name")
+        .in("game_id", list.map((g) => g.id));
+      const byGame = new Map<string, string[]>();
+      for (const r of (results ?? []) as { game_id: string; player_name: string }[]) {
+        if (!byGame.has(r.game_id)) byGame.set(r.game_id, []);
+        byGame.get(r.game_id)!.push(r.player_name.toLowerCase().trim());
+      }
+      for (const g of list) {
+        const names = byGame.get(g.id);
+        if (names && g.public_match_id && [...names].sort().join("|") === key) {
+          setMatchId(g.public_match_id);
+          return;
+        }
+      }
+    })();
+  }, [rows, tournamentNum]);
 
   useEffect(() => {
     if (!shot) {
@@ -256,6 +289,7 @@ function TableDetailPage() {
             />
           </div>
 
+          {(schedule.mode ?? "").toLowerCase() !== "async" && (
           <div>
             <h3 className="font-display text-sm text-sand mb-2">Votes ({schedule.votes_count ?? 0}/{voters.length || 4})</h3>
             <ul className="grid sm:grid-cols-2 gap-2 text-sm">
@@ -282,8 +316,9 @@ function TableDetailPage() {
               {voters.length === 0 && <li className="text-muted-foreground italic">No voters recorded.</li>}
             </ul>
           </div>
+          )}
 
-          {suggestions.length > 0 && (
+          {(schedule.mode ?? "").toLowerCase() !== "async" && suggestions.length > 0 && (
             <div>
               <h3 className="font-display text-sm text-sand mb-2">Slot tally</h3>
               <ul className="space-y-1 text-sm">
@@ -321,6 +356,13 @@ function TableDetailPage() {
               <ArrowLeft className="size-4 mr-1" /> Tournament #{tournamentNum}
             </Link>
           </Button>
+          {matchId && (
+            <Button asChild size="sm" variant="outline" className="border-sand/40 text-sand hover:bg-sand/10">
+              <Link to="/match/$matchId" params={{ matchId }}>
+                <Trophy className="size-4 mr-1" /> View match page
+              </Link>
+            </Button>
+          )}
           {rows[0]?.table_score != null && (
             <span className="inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-xs text-sand">
               📅 Availability Map (Score: {fmtScore(rows[0].table_score)})
