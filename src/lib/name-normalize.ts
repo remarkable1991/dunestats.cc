@@ -61,11 +61,49 @@ async function loadMasterNames(): Promise<string[]> {
   return names;
 }
 
+/** Characters OCR commonly confuses with each other. */
+const CONFUSABLE_GROUPS = ["li1|!ij", "o0", "s5", "b8", "g69q", "z2", "cke", "uv", "mn"];
+function confusable(a: string, b: string): boolean {
+  if (a === b) return true;
+  return CONFUSABLE_GROUPS.some((g) => g.includes(a) && g.includes(b));
+}
+
+/**
+ * Decide whether `raw` differs from `master` by a single *safe* edit:
+ * a look-alike character substitution, or a duplicated/dropped repeat of an
+ * adjacent character. Any other single-letter swap (e.g. Raven -> Riven) is
+ * rejected so genuinely different players never get merged.
+ */
+function safeSingleEdit(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  if (a.length === b.length) {
+    let diff = -1;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] === b[i]) continue;
+      if (diff >= 0) return false;
+      diff = i;
+    }
+    return diff >= 0 && confusable(a[diff], b[diff]);
+  }
+  // One insertion/deletion: only allowed when it repeats a neighbouring char.
+  const long = a.length > b.length ? a : b;
+  const short = a.length > b.length ? b : a;
+  let i = 0;
+  while (i < short.length && long[i] === short[i]) i++;
+  // remaining tails must line up
+  for (let j = i; j < short.length; j++) if (long[j + 1] !== short[j]) return false;
+  const c = long[i];
+  return c === long[i - 1] || c === long[i + 1];
+}
+
 /**
  * Normalize detected player names against master records. Priority:
  *   1. Exact case-insensitive match → use master spelling.
  *   2. Same "shape" (confusable-glyph) match → master spelling.
- *   3. Levenshtein distance ≤ 1 (or ≤ 2 for names ≥ 8 chars) → master spelling.
+ *   3. A single look-alike / repeated-character edit away (names ≥ 5 chars,
+ *      unambiguous match only) → master spelling.
+ * Anything else is kept exactly as read from the screenshot.
  */
 export async function normalizeNames<T extends { player_name: string }>(rows: T[]): Promise<T[]> {
   if (!rows.length) return rows;
@@ -84,14 +122,14 @@ export async function normalizeNames<T extends { player_name: string }>(rows: T[
     if (exact) return exact === raw ? row : { ...row, player_name: exact };
     const shaped = byShape.get(shapeKey(raw));
     if (shaped) return { ...row, player_name: shaped };
-    const tol = raw.length >= 8 ? 2 : 1;
-    let best: { name: string; d: number } | null = null;
+    if (raw.length < 5) return row;
+    const rk = shapeKey(raw);
+    const hits: string[] = [];
     for (const m of master) {
-      if (Math.abs(m.length - raw.length) > tol) continue;
-      const d = levenshtein(raw.toLowerCase(), m.toLowerCase());
-      if (d <= tol && (!best || d < best.d)) best = { name: m, d };
-      if (best && best.d === 0) break;
+      if (Math.abs(m.length - raw.length) > 1) continue;
+      if (safeSingleEdit(rk, shapeKey(m))) hits.push(m);
     }
-    return best ? { ...row, player_name: best.name } : row;
+    const unique = Array.from(new Set(hits.map((h) => h.toLowerCase())));
+    return hits.length && unique.length === 1 ? { ...row, player_name: hits[0] } : row;
   });
 }
