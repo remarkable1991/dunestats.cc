@@ -356,6 +356,13 @@ function TableDetailPage() {
               <ArrowLeft className="size-4 mr-1" /> Tournament #{tournamentNum}
             </Link>
           </Button>
+          {matchId && (
+            <Button asChild size="sm" variant="outline" className="border-sand/40 text-sand hover:bg-sand/10">
+              <Link to="/match/$matchId" params={{ matchId }}>
+                <Trophy className="size-4 mr-1" /> View match page
+              </Link>
+            </Button>
+          )}
           {rows[0]?.table_score != null && (
             <span className="inline-flex items-center gap-1 rounded-full border border-sand/40 bg-sand/15 px-2 py-0.5 text-xs text-sand">
               📅 Availability Map (Score: {fmtScore(rows[0].table_score)})
