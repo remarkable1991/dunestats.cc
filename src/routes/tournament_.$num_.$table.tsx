@@ -289,6 +289,7 @@ function TableDetailPage() {
             />
           </div>
 
+          {(schedule.mode ?? "").toLowerCase() !== "async" && (
           <div>
             <h3 className="font-display text-sm text-sand mb-2">Votes ({schedule.votes_count ?? 0}/{voters.length || 4})</h3>
             <ul className="grid sm:grid-cols-2 gap-2 text-sm">
