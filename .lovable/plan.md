@@ -1,64 +1,41 @@
-## Goal
+# Stricter auto-correction of player names from screenshots
 
-One code path handles every match upload. Whether the user submits from `/upload` or from a table on `/tournament`, we always:
+## Problem
 
-1. Save the game globally (ELO + duplicate check + sandbox sync).
-2. If the match belongs to a tournament table, also update that specific `tournament_matches` slot and upsert the `tournament_table_screenshots` row.
+In match SOMA-MAULER-8008 the screenshot name "Raven" was silently changed to "Riven",
+an existing player. The name matcher currently accepts any single-character difference
+(two characters for names of 8+ letters), so genuinely different short names get merged.
 
-The Tournament / Round / Table selector no longer shows by default. It appears only when:
-- the screenshot's detected players match a known tournament table, **or**
-- the user opened the panel from a table's "Submit Table Results" button (or via a deep link).
+## What changes
 
-In both cases the user gets an "This is not a tournament game" opt‑out that hides the tournament fields and skips the tournament writes.
+Keep the helpful cases, drop the risky ones:
 
-## What we build
+- Keep: exact match ignoring capitals (l/L, case fixes).
+- Keep: look-alike character fixes — l/I/1/|, O/0, rn/m, vv/w, S/5, B/8, G/6, Z/2 —
+  and repeated-letter differences (iiii vs i).
+- Stop: swapping one ordinary letter for another unrelated letter (a -> i, as in Raven -> Riven).
+- Stop: correcting very short names (under 5 characters) at all.
+- Stop: correcting when two known players are equally close — ambiguous, so leave as read.
 
-### 1. New `src/lib/match-submit.ts`
+Anything not confidently matched is kept exactly as the screenshot shows it, which is
+already handled downstream: the uploader sees the name in the review step and the
+tournament flow flags unknown names for approval.
 
-Single async `submitMatch(params)` that both routes call. It receives:
+## Technical detail
 
-- `userId`, `file` (nullable), `board`, `hasIx`, `hasEpic`, `hasImmortality`, `hasBaseLeaders`
-- `rows` (placement/player/leader/points)
-- `tournament: { num, round, table } | null` — when non‑null the tournament writes run
+`src/lib/name-normalize.ts`:
 
-Steps (in order):
-1. Upload screenshot to `match-screenshots` bucket, get storage path.
-2. Duplicate check against the last 25 uploaded games using the existing fingerprint (`sorted "player|points"` list). If duplicate and no `confirmDuplicate` flag, return `{ duplicate: true }` so the caller can prompt.
-3. Call `saveGame` with `tournament_num` (or `null`) and the screenshot path.
-4. Fire-and-forget `sync_new_game_to_sandbox_by_id` (same as `/upload` today).
-5. If `tournament` is provided: upsert `tournament_table_screenshots` and update each matching `tournament_matches` row (placement/points/leader) exactly as `/tournament` does today.
-6. Return `{ saveResult, publicMatchId, tournamentApplied }`.
-
-### 2. `/upload` (`src/routes/upload.tsx`)
-
-- After `parseScreenshot`, run `detectTournamentFromPlayers` (already there) **and** look up the matching `(round_type, table_identifier)` in `tournament_matches` for that tournament (same fuzzy match already used in `/tournament`'s `onFile`).
-- If a table is found, show a small "Detected: Tournament #X · Round · Table" strip with an editable Round/Table select and a **"Not a tournament game"** checkbox. Otherwise the tournament UI stays hidden.
-- `save()` becomes a thin wrapper around `submitMatch(...)` passing `tournament` when the detected block is visible and not opted out.
-
-### 3. `/tournament` (`src/routes/tournament.tsx`, `CurrentTournament`)
-
-- Delete the local `submitResults` function and call `submitMatch(...)` with the currently selected `round` / `tableId` as the tournament context.
-- The inline "Submit Table Results" panel keeps the Round/Table dropdowns visible (the user is already inside a tournament view). Behavior is unchanged for the user.
-
-### 4. Detection UX (both routes)
-
-Rule for showing the Tournament / Round / Table row:
-
-```text
-show tournament block IF (
-  screenshot detected a tournament + table
-  OR the user opened the panel via "Submit Table Results" for a specific table
-  OR a deep link opened /tournament?t=…&round=…&table=…
-)
-AND user has NOT ticked "Not a tournament game"
-```
-
-When hidden, the submit button reads "Submit match" (global only). When visible, it reads "Submit to Round · Table" and does both writes in one call.
-
-## Files touched
-
-- **New**: `src/lib/match-submit.ts` — the unified pipeline.
-- **Edit**: `src/routes/upload.tsx` — replace `save()`; add tournament‑table auto‑detect + opt‑out UI.
-- **Edit**: `src/routes/tournament.tsx` — replace `submitResults` with `submitMatch` call; keep existing panel visuals.
-
-Nothing changes in the DB schema, RPCs, or public routes.
+- Priority 1 (exact, case-insensitive) and priority 2 (shape key with confusable glyph
+  collapsing) stay as they are — these cover the L/I/1 and rn/m cases.
+- Replace priority 3 (plain Levenshtein <= 1 or <= 2) with a guarded variant:
+  - Only run for names of length >= 5.
+  - Compute a distance of at most 1 on the *shape keys* rather than the raw strings, so
+    only differences that survive glyph collapsing count. Because "raven"/"riven" differ
+    by a real vowel, their shape keys still differ, and the edit is a
+    letter-to-letter substitution outside the confusable set, so it is rejected.
+  - Accept only edits classified as: an insertion/deletion of a character identical to
+    its neighbour (repeat runs), or a substitution between two characters in the
+    confusable set.
+  - Reject when more than one master name qualifies.
+- No change to `src/routes/upload.tsx` or `src/routes/tournament.tsx`; they keep calling
+  `normalizeNames` the same way.
