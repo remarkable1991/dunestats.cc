@@ -72,6 +72,7 @@ function TableDetailPage() {
   const [schedule, setSchedule] = useState<MatchSchedule | null>(null);
   const [shot, setShot] = useState<string | null>(null);
   const [shotUrl, setShotUrl] = useState<string | null>(null);
+  const [matchId, setMatchId] = useState<string | null>(null);
   const [myKeys, setMyKeys] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
