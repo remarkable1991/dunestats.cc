@@ -18,23 +18,6 @@ function shapeKey(s: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
-function levenshtein(a: string, b: string): number {
-  if (a === b) return 0;
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
-  const dp = new Array(b.length + 1);
-  for (let j = 0; j <= b.length; j++) dp[j] = j;
-  for (let i = 1; i <= a.length; i++) {
-    let prev = dp[0]; dp[0] = i;
-    for (let j = 1; j <= b.length; j++) {
-      const tmp = dp[j];
-      dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j], dp[j - 1]);
-      prev = tmp;
-    }
-  }
-  return dp[b.length];
-}
-
 let cache: { at: number; names: string[] } | null = null;
 
 async function loadMasterNames(): Promise<string[]> {
