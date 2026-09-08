@@ -316,8 +316,9 @@ function TableDetailPage() {
               {voters.length === 0 && <li className="text-muted-foreground italic">No voters recorded.</li>}
             </ul>
           </div>
+          )}
 
-          {suggestions.length > 0 && (
+          {(schedule.mode ?? "").toLowerCase() !== "async" && suggestions.length > 0 && (
             <div>
               <h3 className="font-display text-sm text-sand mb-2">Slot tally</h3>
               <ul className="space-y-1 text-sm">
