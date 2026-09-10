@@ -84,7 +84,7 @@ function scanBadgeClass(status: string | null): string {
 function scanLabel(status: string | null): string {
   switch (status) {
     case "Yes":
-      return "Verified";
+      return "AI verified";
     case "No":
       return "No scan";
     default:
