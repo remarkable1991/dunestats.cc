@@ -403,6 +403,43 @@ function MatchDetailsPage() {
     }
   };
 
+  const markVerified = async () => {
+    try {
+      const client = supabase as unknown as {
+        rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
+      };
+      const { error } = await client.rpc("update_match_details", {
+        p_game_id: game.id,
+        p_end_round: game.end_round,
+        p_board_version: game.board_version,
+        p_has_rise_of_ix: game.has_rise_of_ix,
+        p_has_epic_mode: game.has_epic_mode,
+        p_has_immortality: game.has_immortality,
+        p_has_base_leaders: game.has_base_leaders,
+        p_conflict_title: game.conflict_title,
+        p_ai_scan_status: "Manually verified",
+        p_players: game.game_results.map((r) => ({
+          player_name: r.player_name,
+          spice: r.spice,
+          solaris: r.solaris,
+          water: r.water,
+          is_leaver: r.is_leaver ?? false,
+          player_color: r.player_color,
+          player_slot: r.player_slot,
+          turn_order: r.turn_order,
+          has_first_player: r.has_first_player,
+          has_high_council: r.has_high_council,
+          has_swordmaster: r.has_swordmaster,
+        })),
+      });
+      if (error) throw new Error(error.message);
+      toast.success("Marked as manually verified");
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update status");
+    }
+  };
+
   const tags: string[] = [];
   if (game.board_version) tags.push(game.board_version === "uprising" ? "Uprising" : "Base");
   if (game.has_rise_of_ix) tags.push("Rise of Ix");
