@@ -489,14 +489,24 @@ function MatchDetailsPage() {
         <div className="flex flex-wrap items-center gap-2 mb-6">
           <TournamentTag num={game.tournament_num} round={tourneyTable?.round} table={tourneyTable?.table} />
           {game.ai_scan_status === "Yes" && (
-            <span className="text-xs px-2 py-0.5 rounded border border-emerald-500/50 bg-emerald-500/10 text-emerald-400">
-              ✓ AI Verified
+            <span className="text-xs px-2 py-0.5 rounded border border-amber-500/50 bg-amber-500/10 text-amber-400">
+              AI Verified
             </span>
           )}
           {game.ai_scan_status === "Manually reviewed" && (
             <span className="text-xs px-2 py-0.5 rounded border border-emerald-500/50 bg-emerald-500/10 text-emerald-400">
+              Manually Reviewed
+            </span>
+          )}
+          {game.ai_scan_status === "Manually verified" && (
+            <span className="text-xs px-2 py-0.5 rounded border border-emerald-500/50 bg-emerald-500/10 text-emerald-400">
               ✓ Manually Verified
             </span>
+          )}
+          {canEdit && game.ai_scan_status !== "Manually verified" && (
+            <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => void markVerified()}>
+              Manually verified completed
+            </Button>
           )}
           {game.ai_scan_status === "Issue detected" && (
             <span
