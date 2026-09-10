@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Copy, Link as LinkIcon, Trophy, Medal, Award, Maximize2, Loader2, ArrowLeft, Pencil, Swords, ShieldCheck, MonitorOff } from "lucide-react";
+import { Copy, Link as LinkIcon, Trophy, Medal, Award, Maximize2, Loader2, ArrowLeft, Pencil, Swords, ShieldCheck, MonitorOff, History } from "lucide-react";
 import { TournamentTag } from "@/components/EloDelta";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
