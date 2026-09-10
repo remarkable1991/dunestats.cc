@@ -56,7 +56,6 @@ const VERSIONS: Array<{ k: "all" | "base" | "ix" | "uprising"; label: string }> 
 const PAGE_SIZES = [20, 50, 100] as const;
 
 const SCAN_STATUSES: Array<{ k: string; label: string }> = [
-  { k: "all", label: "All scans" },
   { k: "Yes", label: "AI verified" },
   { k: "Manually reviewed", label: "Manually reviewed" },
   { k: "Manually verified", label: "Manually verified" },
@@ -103,7 +102,7 @@ function MatchesPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [version, setVersion] = useState<(typeof VERSIONS)[number]["k"]>("all");
-  const [scanStatus, setScanStatus] = useState<string>("all");
+  const [scanStatuses, setScanStatuses] = useState<Set<string>>(new Set(SCAN_STATUSES.map((s) => s.k)));
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(20);
   const [q, setQ] = useState("");
   const [onlyMine, setOnlyMine] = useState(false);
@@ -127,7 +126,7 @@ function MatchesPage() {
 
   useEffect(() => {
     setPage(0);
-  }, [version, q, onlyMine, scanStatus, pageSize]);
+  }, [version, q, onlyMine, scanStatuses, pageSize]);
 
   const load = async () => {
     setLoading(true);
@@ -139,7 +138,13 @@ function MatchesPage() {
       )
       .order("created_at", { ascending: false });
     if (version !== "all") query = query.eq("game_version", version);
-    if (scanStatus !== "all") query = query.eq("ai_scan_status", scanStatus);
+    if (scanStatuses.size === 0) {
+      // No statuses selected: show nothing
+      query = query.eq("ai_scan_status", "__none__");
+    } else if (scanStatuses.size < SCAN_STATUSES.length) {
+      const arr = [...scanStatuses];
+      query = arr.length === 1 ? query.eq("ai_scan_status", arr[0]) : query.in("ai_scan_status", arr);
+    }
     if (onlyMine && userId) query = query.eq("created_by", userId);
     query = query.range(page * pageSize, page * pageSize + pageSize - 1);
     const { data, count } = await query;
@@ -233,7 +238,7 @@ function MatchesPage() {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version, q, onlyMine, page, userId, scanStatus, pageSize]);
+  }, [version, q, onlyMine, page, userId, scanStatuses, pageSize]);
 
   const filtered = games;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
@@ -293,18 +298,31 @@ function MatchesPage() {
               </button>
             ))}
           </div>
-          <select
-            value={scanStatus}
-            onChange={(e) => setScanStatus(e.target.value)}
-            className="h-10 rounded-md border border-border/60 bg-card/60 px-2 text-sm text-foreground"
-            title="Filter by scan status"
-          >
-            {SCAN_STATUSES.map((s) => (
-              <option key={s.k} value={s.k}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+          <div className="flex flex-wrap gap-1 items-center" title="Filter by scan status (multiple allowed)">
+            {SCAN_STATUSES.map((s) => {
+              const active = scanStatuses.has(s.k);
+              return (
+                <button
+                  key={s.k}
+                  onClick={() =>
+                    setScanStatuses((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(s.k)) next.delete(s.k);
+                      else next.add(s.k);
+                      return next;
+                    })
+                  }
+                  className={`px-2.5 py-1 text-xs rounded border ${
+                    active
+                      ? "bg-sand text-sand-foreground border-sand"
+                      : "text-muted-foreground border-border/60 bg-card/60 hover:text-foreground"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
           <div className="relative">
             <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
             <Input
