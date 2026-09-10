@@ -57,8 +57,9 @@ const PAGE_SIZES = [20, 50, 100] as const;
 
 const SCAN_STATUSES: Array<{ k: string; label: string }> = [
   { k: "all", label: "All scans" },
-  { k: "Yes", label: "Verified" },
+  { k: "Yes", label: "AI verified" },
   { k: "Manually reviewed", label: "Manually reviewed" },
+  { k: "Manually verified", label: "Manually verified" },
   { k: "Issue detected", label: "Issue detected" },
   { k: "Roster mismatch", label: "Roster mismatch" },
   { k: "No", label: "No scan" },
@@ -67,9 +68,10 @@ const SCAN_STATUSES: Array<{ k: string; label: string }> = [
 function scanBadgeClass(status: string | null): string {
   switch (status) {
     case "Yes":
-      return "border-emerald-500/40 text-emerald-400";
+      return "border-amber-500/40 text-amber-400";
     case "Manually reviewed":
-      return "border-sand/40 text-sand";
+    case "Manually verified":
+      return "border-emerald-500/40 text-emerald-400";
     case "Issue detected":
       return "border-amber-500/40 text-amber-400";
     case "Roster mismatch":
@@ -82,7 +84,7 @@ function scanBadgeClass(status: string | null): string {
 function scanLabel(status: string | null): string {
   switch (status) {
     case "Yes":
-      return "Verified";
+      return "AI verified";
     case "No":
       return "No scan";
     default:

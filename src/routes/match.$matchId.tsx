@@ -403,6 +403,43 @@ function MatchDetailsPage() {
     }
   };
 
+  const markVerified = async () => {
+    try {
+      const client = supabase as unknown as {
+        rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
+      };
+      const { error } = await client.rpc("update_match_details", {
+        p_game_id: game.id,
+        p_end_round: game.end_round,
+        p_board_version: game.board_version,
+        p_has_rise_of_ix: game.has_rise_of_ix,
+        p_has_epic_mode: game.has_epic_mode,
+        p_has_immortality: game.has_immortality,
+        p_has_base_leaders: game.has_base_leaders,
+        p_conflict_title: game.conflict_title,
+        p_ai_scan_status: "Manually verified",
+        p_players: game.game_results.map((r) => ({
+          player_name: r.player_name,
+          spice: r.spice,
+          solaris: r.solaris,
+          water: r.water,
+          is_leaver: r.is_leaver ?? false,
+          player_color: r.player_color,
+          player_slot: r.player_slot,
+          turn_order: r.turn_order,
+          has_first_player: r.has_first_player,
+          has_high_council: r.has_high_council,
+          has_swordmaster: r.has_swordmaster,
+        })),
+      });
+      if (error) throw new Error(error.message);
+      toast.success("Marked as manually verified");
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update status");
+    }
+  };
+
   const tags: string[] = [];
   if (game.board_version) tags.push(game.board_version === "uprising" ? "Uprising" : "Base");
   if (game.has_rise_of_ix) tags.push("Rise of Ix");
@@ -452,14 +489,24 @@ function MatchDetailsPage() {
         <div className="flex flex-wrap items-center gap-2 mb-6">
           <TournamentTag num={game.tournament_num} round={tourneyTable?.round} table={tourneyTable?.table} />
           {game.ai_scan_status === "Yes" && (
-            <span className="text-xs px-2 py-0.5 rounded border border-emerald-500/50 bg-emerald-500/10 text-emerald-400">
-              ✓ AI Verified
+            <span className="text-xs px-2 py-0.5 rounded border border-amber-500/50 bg-amber-500/10 text-amber-400">
+              AI Verified
             </span>
           )}
           {game.ai_scan_status === "Manually reviewed" && (
             <span className="text-xs px-2 py-0.5 rounded border border-emerald-500/50 bg-emerald-500/10 text-emerald-400">
+              Manually Reviewed
+            </span>
+          )}
+          {game.ai_scan_status === "Manually verified" && (
+            <span className="text-xs px-2 py-0.5 rounded border border-emerald-500/50 bg-emerald-500/10 text-emerald-400">
               ✓ Manually Verified
             </span>
+          )}
+          {canEdit && game.ai_scan_status !== "Manually verified" && (
+            <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => void markVerified()}>
+              Manually verified completed
+            </Button>
           )}
           {game.ai_scan_status === "Issue detected" && (
             <span
@@ -821,11 +868,11 @@ type PlayerForm = {
 };
 
 /**
- * A reviewer touching a flagged match promotes it to "Manually reviewed".
- * Already-verified matches are never downgraded.
+ * Any manual change to a match marks it as "Manually reviewed".
+ * A match already confirmed complete ("Manually verified") stays that way.
  */
 const manualReviewStatus = (status: string | null | undefined) =>
-  status === "Issue detected" ? "Manually reviewed" : null;
+  status === "Manually verified" ? null : "Manually reviewed";
 
 const numToStr = (n: number | null | undefined) =>
   n === null || n === undefined ? "" : String(n);
