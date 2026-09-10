@@ -250,6 +250,53 @@ export type Database = {
         }
         Relationships: []
       }
+      match_audit_log: {
+        Row: {
+          action: string
+          actor_name: string | null
+          actor_user_id: string | null
+          changes: Json
+          created_at: string
+          entity: string
+          entity_label: string | null
+          game_id: string
+          id: string
+          source: string
+        }
+        Insert: {
+          action: string
+          actor_name?: string | null
+          actor_user_id?: string | null
+          changes?: Json
+          created_at?: string
+          entity: string
+          entity_label?: string | null
+          game_id: string
+          id?: string
+          source: string
+        }
+        Update: {
+          action?: string
+          actor_name?: string | null
+          actor_user_id?: string | null
+          changes?: Json
+          created_at?: string
+          entity?: string
+          entity_label?: string | null
+          game_id?: string
+          id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_audit_log_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       past_tournament_results: {
         Row: {
           board_version: string
@@ -1198,6 +1245,7 @@ export type Database = {
         }
         Returns: Json
       }
+      match_actor_name: { Args: { _uid: string }; Returns: string }
       promote_to_grandfinal: {
         Args: { p_players: string[]; p_tournament_num: number }
         Returns: Json
