@@ -821,11 +821,11 @@ type PlayerForm = {
 };
 
 /**
- * A reviewer touching a flagged match promotes it to "Manually reviewed".
- * Already-verified matches are never downgraded.
+ * Any manual change to a match marks it as "Manually reviewed".
+ * A match already confirmed complete ("Manually verified") stays that way.
  */
 const manualReviewStatus = (status: string | null | undefined) =>
-  status === "Issue detected" ? "Manually reviewed" : null;
+  status === "Manually verified" ? null : "Manually reviewed";
 
 const numToStr = (n: number | null | undefined) =>
   n === null || n === undefined ? "" : String(n);
