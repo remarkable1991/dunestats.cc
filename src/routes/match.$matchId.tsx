@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Copy, Link as LinkIcon, Trophy, Medal, Award, Maximize2, Loader2, ArrowLeft, Pencil, Swords, ShieldCheck, MonitorOff } from "lucide-react";
+import { Copy, Link as LinkIcon, Trophy, Medal, Award, Maximize2, Loader2, ArrowLeft, Pencil, Swords, ShieldCheck, MonitorOff, History } from "lucide-react";
 import { TournamentTag } from "@/components/EloDelta";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
@@ -740,9 +740,177 @@ function MatchDetailsPage() {
           <ConflictCard title={game.conflict_title} endRound={game.end_round} />
         </div>
 
+        <MatchHistoryLog gameId={game.id} reloadKey={reloadKey} />
 
       </div>
     </div>
+  );
+}
+
+type AuditRow = {
+  id: string;
+  actor_name: string | null;
+  actor_user_id: string | null;
+  source: string;
+  action: string;
+  entity: string;
+  entity_label: string | null;
+  changes: Record<string, unknown> | null;
+  created_at: string;
+};
+
+const FIELD_LABELS: Record<string, string> = {
+  placement: "placement",
+  player_name: "player name",
+  leader_name: "leader",
+  points: "points",
+  spice: "spice",
+  solaris: "solaris",
+  water: "water",
+  is_leaver: "leaver",
+  player_color: "colour",
+  player_slot: "slot",
+  turn_order: "turn order",
+  has_first_player: "first player",
+  has_high_council: "High Council",
+  has_swordmaster: "Swordmaster",
+  emperor_level: "Emperor influence",
+  emperor_alliance: "Emperor alliance",
+  spacing_guild_level: "Spacing Guild influence",
+  spacing_guild_alliance: "Spacing Guild alliance",
+  bene_gesserit_level: "Bene Gesserit influence",
+  bene_gesserit_alliance: "Bene Gesserit alliance",
+  fremen_level: "Fremen influence",
+  fremen_alliance: "Fremen alliance",
+  ai_scan_status: "review status",
+  ai_scan_summary: "scan summary",
+  conflict_title: "conflict",
+  end_round: "end round",
+  board_version: "board",
+  has_rise_of_ix: "Rise of Ix",
+  has_epic_mode: "Epic mode",
+  has_immortality: "Immortality",
+  has_base_leaders: "Base leaders",
+  image_url: "scoring screenshot",
+  tournament_num: "tournament",
+  elo_delta: "Elo change",
+  elo_delta_overall: "overall Elo change",
+};
+
+function fmtValue(v: unknown): string {
+  if (v === null || v === undefined || v === "") return "—";
+  if (typeof v === "boolean") return v ? "yes" : "no";
+  const s = String(v);
+  return s.length > 40 ? `${s.slice(0, 40)}…` : s;
+}
+
+function sourceLabel(source: string): { text: string; cls: string } {
+  switch (source) {
+    case "upload":
+      return { text: "Upload", cls: "border-sand/40 text-sand" };
+    case "manual":
+      return { text: "Manual edit", cls: "border-teal/40 text-teal" };
+    default:
+      return { text: "Database / automation", cls: "border-border/60 text-muted-foreground" };
+  }
+}
+
+function MatchHistoryLog({ gameId, reloadKey }: { gameId: string; reloadKey: number }) {
+  const [rows, setRows] = useState<AuditRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from("match_audit_log")
+        .select("id, actor_name, actor_user_id, source, action, entity, entity_label, changes, created_at")
+        .eq("game_id", gameId)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (cancelled) return;
+      setRows((data as AuditRow[]) ?? []);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [gameId, reloadKey]);
+
+  if (loading) return null;
+
+  const visible = showAll ? rows : rows.slice(0, 10);
+
+  return (
+    <Card className="mt-6 p-4 border-border/60 bg-card/70">
+      <div className="flex items-center gap-2 mb-3">
+        <History className="size-4 text-sand" />
+        <h2 className="font-display text-lg">Change log</h2>
+        <span className="text-xs text-muted-foreground">{rows.length} entries</span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No recorded changes yet. Future edits to this match will be logged here.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {visible.map((r) => {
+            const src = sourceLabel(r.source);
+            const entries = Object.entries(r.changes ?? {});
+            return (
+              <div
+                key={r.id}
+                className="rounded border border-border/40 bg-background/40 px-3 py-2 text-xs"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`px-1.5 py-0.5 rounded border ${src.cls}`}>{src.text}</span>
+                  <span className="font-medium">
+                    {r.action === "created"
+                      ? "Match recorded"
+                      : r.action === "player_added"
+                        ? `Player added: ${r.entity_label}`
+                        : r.action === "player_removed"
+                          ? `Player removed: ${r.entity_label}`
+                          : r.entity === "player"
+                            ? `Updated ${r.entity_label}`
+                            : "Updated match"}
+                  </span>
+                  <span className="text-muted-foreground">
+                    by {r.actor_name ?? (r.actor_user_id ? "a signed-in user" : "system")}
+                  </span>
+                  <span className="text-muted-foreground ml-auto" title={new Date(r.created_at).toLocaleString()}>
+                    {new Date(r.created_at).toLocaleString()}
+                  </span>
+                </div>
+                {entries.length > 0 && r.action === "updated" && (
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
+                    {entries.map(([field, val]) => {
+                      const v = val as { from?: unknown; to?: unknown };
+                      return (
+                        <span key={field}>
+                          <span className="text-foreground/80">{FIELD_LABELS[field] ?? field}</span>:{" "}
+                          {fmtValue(v?.from)} → <span className="text-sand">{fmtValue(v?.to)}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {rows.length > visible.length && (
+            <button
+              onClick={() => setShowAll(true)}
+              className="text-xs text-sand hover:underline underline-offset-2"
+            >
+              Show all {rows.length} entries
+            </button>
+          )}
+        </div>
+      )}
+    </Card>
   );
 }
 
