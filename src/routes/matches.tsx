@@ -56,7 +56,6 @@ const VERSIONS: Array<{ k: "all" | "base" | "ix" | "uprising"; label: string }> 
 const PAGE_SIZES = [20, 50, 100] as const;
 
 const SCAN_STATUSES: Array<{ k: string; label: string }> = [
-  { k: "all", label: "All scans" },
   { k: "Yes", label: "AI verified" },
   { k: "Manually reviewed", label: "Manually reviewed" },
   { k: "Manually verified", label: "Manually verified" },
@@ -103,7 +102,7 @@ function MatchesPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [version, setVersion] = useState<(typeof VERSIONS)[number]["k"]>("all");
-  const [scanStatus, setScanStatus] = useState<string>("all");
+  const [scanStatuses, setScanStatuses] = useState<Set<string>>(new Set(SCAN_STATUSES.map((s) => s.k)));
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(20);
   const [q, setQ] = useState("");
   const [onlyMine, setOnlyMine] = useState(false);
