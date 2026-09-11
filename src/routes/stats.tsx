@@ -434,13 +434,30 @@ function StatsPage() {
         </p>
 
         <Tabs value={mode} onValueChange={(v) => setMode(v as "basic" | "advanced")}>
-          <TabsList className="bg-card/60 border border-border/60 mb-4">
-            <TabsTrigger value="basic" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground">
-              Basic stats
+          <TabsList className="grid grid-cols-2 gap-3 bg-transparent border-0 h-auto p-0 mb-6">
+            <TabsTrigger
+              value="basic"
+              className="data-[state=active]:border-sand data-[state=active]:bg-sand/10 data-[state=active]:text-foreground border border-border/60 bg-card/60 rounded-lg p-4 h-auto flex-col items-start gap-1 text-left"
+            >
+              <span className="flex items-center gap-2 font-display text-base">
+                <BarChart3 className="size-4 text-sand" />
+                Basic stats
+              </span>
+              <span className="text-xs font-sans font-normal text-muted-foreground normal-case tracking-normal">
+                Pick rate, win rate, and points per leader across all recorded games.
+              </span>
             </TabsTrigger>
-            <TabsTrigger value="advanced" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground">
-              <FlaskConical className="size-3.5 mr-1.5" />
-              Advanced stats
+            <TabsTrigger
+              value="advanced"
+              className="data-[state=active]:border-sand data-[state=active]:bg-sand/10 data-[state=active]:text-foreground border border-border/60 bg-card/60 rounded-lg p-4 h-auto flex-col items-start gap-1 text-left"
+            >
+              <span className="flex items-center gap-2 font-display text-base">
+                <FlaskConical className="size-4 text-sand" />
+                Advanced stats
+              </span>
+              <span className="text-xs font-sans font-normal text-muted-foreground normal-case tracking-normal">
+                Influence efficiency (VP/Bump & Bump Productive %) for games with endboard scan data only.
+              </span>
             </TabsTrigger>
           </TabsList>
         </Tabs>
