@@ -287,6 +287,86 @@ function StatsPage() {
     return { aggregates, personalAgg: pmap, totalGames: totalSlots, personalTotalSlots: personalSlots, totalGamesCount };
   }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx, showPersonal, playerKeySet]);
 
+  type AdvAgg = {
+    leader: string;
+    group: Agg["group"];
+    games: number;
+    vpPerBumpSum: number;
+    vpPerBumpN: number;
+    productiveSum: number;
+    productiveN: number;
+  };
+  const { advancedAgg, scannedGamesCount } = useMemo(() => {
+    const matchBool = (state: TriState, val: boolean | null | undefined) => {
+      if (state === "any") return true;
+      return Boolean(val) === (state === "true");
+    };
+    const scanned = rows.filter((r) => {
+      const st = r.games?.ai_scan_status;
+      if (!st || !st.trim()) return false;
+      if (version !== "overall" && r.games?.game_version !== version) return false;
+      return (
+        matchBool(fImmortality, r.games?.has_immortality) &&
+        (version === "ix" ? matchBool(fEpic, r.games?.has_epic_mode) : true) &&
+        (version === "uprising" ? matchBool(fRiseOfIx, r.games?.has_rise_of_ix) : true) &&
+        (version === "uprising" ? matchBool(fBaseLeaders, r.games?.has_base_leaders) : true)
+      );
+    });
+    const gameIds = new Set<string>();
+    const byGame = new Map<string, Row[]>();
+    for (const r of scanned) {
+      const gid = r.games?.id;
+      if (!gid) continue;
+      gameIds.add(gid);
+      const arr = byGame.get(gid) ?? [];
+      arr.push(r);
+      byGame.set(gid, arr);
+    }
+    const map = new Map<string, AdvAgg>();
+    for (const gameRows of byGame.values()) {
+      const players = gameRows.map((r) => ({
+        placement: r.placement,
+        player_name: r.player_name ?? "",
+        leader_name: r.leader_name,
+        points: r.points,
+        spice: null,
+        solaris: null,
+        water: null,
+        is_leaver: null,
+        player_slot: null,
+        turn_order: null,
+        player_color: null,
+        has_first_player: null,
+        has_high_council: null,
+        has_swordmaster: null,
+        emperor_level: r.emperor_level,
+        emperor_alliance: r.emperor_alliance,
+        spacing_guild_level: r.spacing_guild_level,
+        spacing_guild_alliance: r.spacing_guild_alliance,
+        bene_gesserit_level: r.bene_gesserit_level,
+        bene_gesserit_alliance: r.bene_gesserit_alliance,
+        fremen_level: r.fremen_level,
+        fremen_alliance: r.fremen_alliance,
+      }));
+      for (let i = 0; i < gameRows.length; i++) {
+        const r = gameRows[i];
+        const c = canonicalize(r.leader_name);
+        if (!c) continue;
+        const eff = influenceEfficiency(players[i], players);
+        const a = map.get(c.name) ?? {
+          leader: c.name, group: c.group, games: 0,
+          vpPerBumpSum: 0, vpPerBumpN: 0, productiveSum: 0, productiveN: 0,
+        };
+        a.games += 1;
+        if (eff.vpPerBump !== null) { a.vpPerBumpSum += eff.vpPerBump; a.vpPerBumpN += 1; }
+        if (eff.productivePct !== null) { a.productiveSum += eff.productivePct; a.productiveN += 1; }
+        map.set(c.name, a);
+      }
+    }
+    const advancedAgg = Array.from(map.values()).sort((a, b) => b.games - a.games);
+    return { advancedAgg, scannedGamesCount: gameIds.size };
+  }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx]);
+
   const sorted = useMemo(() => {
     if (!sortKey || !sortDir) return aggregates;
     const dir = sortDir === "desc" ? -1 : 1;
