@@ -431,6 +431,18 @@ function StatsPage() {
           Pick rate (share of seats this leader filled) and win rate per leader, by leaderboard version.
         </p>
 
+        <Tabs value={mode} onValueChange={(v) => setMode(v as "basic" | "advanced")}>
+          <TabsList className="bg-card/60 border border-border/60 mb-4">
+            <TabsTrigger value="basic" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground">
+              Basic stats
+            </TabsTrigger>
+            <TabsTrigger value="advanced" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground">
+              <FlaskConical className="size-3.5 mr-1.5" />
+              Advanced stats
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <Tabs value={version} onValueChange={(v) => setVersion(v as GameVersion)}>
           <TabsList className="bg-card/60 border border-border/60 mb-4">
             {GAME_VERSIONS.map((v) => (
