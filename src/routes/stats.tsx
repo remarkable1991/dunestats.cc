@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { LEADERS, classifyLeader } from "@/lib/leaders";
-import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown, UserCheck } from "lucide-react";
+import { influenceEfficiency } from "@/lib/match-telemetry";
+import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, FlaskConical } from "lucide-react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 type TriState = "any" | "true" | "false";
@@ -74,6 +75,14 @@ type Row = {
   leader_name: string | null;
   player_name: string | null;
   points: number;
+  emperor_level: number | null;
+  emperor_alliance: boolean | null;
+  spacing_guild_level: number | null;
+  spacing_guild_alliance: boolean | null;
+  bene_gesserit_level: number | null;
+  bene_gesserit_alliance: boolean | null;
+  fremen_level: number | null;
+  fremen_alliance: boolean | null;
   games: {
     id: string;
     game_version: GameVersion;
@@ -81,6 +90,7 @@ type Row = {
     has_epic_mode: boolean | null;
     has_immortality: boolean | null;
     has_base_leaders: boolean | null;
+    ai_scan_status: string | null;
   } | null;
 };
 
