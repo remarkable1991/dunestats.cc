@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
@@ -9,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { LEADERS, classifyLeader } from "@/lib/leaders";
-import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown, UserCheck } from "lucide-react";
+import { influenceEfficiency } from "@/lib/match-telemetry";
+import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, FlaskConical } from "lucide-react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 type TriState = "any" | "true" | "false";
@@ -74,6 +76,14 @@ type Row = {
   leader_name: string | null;
   player_name: string | null;
   points: number;
+  emperor_level: number | null;
+  emperor_alliance: boolean | null;
+  spacing_guild_level: number | null;
+  spacing_guild_alliance: boolean | null;
+  bene_gesserit_level: number | null;
+  bene_gesserit_alliance: boolean | null;
+  fremen_level: number | null;
+  fremen_alliance: boolean | null;
   games: {
     id: string;
     game_version: GameVersion;
@@ -81,6 +91,7 @@ type Row = {
     has_epic_mode: boolean | null;
     has_immortality: boolean | null;
     has_base_leaders: boolean | null;
+    ai_scan_status: string | null;
   } | null;
 };
 
@@ -141,6 +152,7 @@ function StatsPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState<GameVersion>("overall");
+  const [mode, setMode] = useState<"basic" | "advanced">("basic");
   const [userLeaders, setUserLeaders] = useState<Set<string>>(new Set());
   const [playerKeys, setPlayerKeys] = useState<string[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -213,7 +225,7 @@ function StatsPage() {
       while (true) {
         const { data, error } = await supabase
           .from("game_results")
-          .select("placement, leader_name, player_name, points, games!inner(id, game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders)")
+          .select("placement, leader_name, player_name, points, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance, games!inner(id, game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, ai_scan_status)")
           .order("id", { ascending: true })
           .range(from, from + PAGE - 1);
         if (error || !data || data.length === 0) break;
@@ -275,6 +287,86 @@ function StatsPage() {
     const aggregates = Array.from(map.values()).sort((a, b) => b.picks - a.picks);
     return { aggregates, personalAgg: pmap, totalGames: totalSlots, personalTotalSlots: personalSlots, totalGamesCount };
   }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx, showPersonal, playerKeySet]);
+
+  type AdvAgg = {
+    leader: string;
+    group: Agg["group"];
+    games: number;
+    vpPerBumpSum: number;
+    vpPerBumpN: number;
+    productiveSum: number;
+    productiveN: number;
+  };
+  const { advancedAgg, scannedGamesCount } = useMemo(() => {
+    const matchBool = (state: TriState, val: boolean | null | undefined) => {
+      if (state === "any") return true;
+      return Boolean(val) === (state === "true");
+    };
+    const scanned = rows.filter((r) => {
+      const st = r.games?.ai_scan_status;
+      if (!st || !st.trim()) return false;
+      if (version !== "overall" && r.games?.game_version !== version) return false;
+      return (
+        matchBool(fImmortality, r.games?.has_immortality) &&
+        (version === "ix" ? matchBool(fEpic, r.games?.has_epic_mode) : true) &&
+        (version === "uprising" ? matchBool(fRiseOfIx, r.games?.has_rise_of_ix) : true) &&
+        (version === "uprising" ? matchBool(fBaseLeaders, r.games?.has_base_leaders) : true)
+      );
+    });
+    const gameIds = new Set<string>();
+    const byGame = new Map<string, Row[]>();
+    for (const r of scanned) {
+      const gid = r.games?.id;
+      if (!gid) continue;
+      gameIds.add(gid);
+      const arr = byGame.get(gid) ?? [];
+      arr.push(r);
+      byGame.set(gid, arr);
+    }
+    const map = new Map<string, AdvAgg>();
+    for (const gameRows of byGame.values()) {
+      const players = gameRows.map((r) => ({
+        placement: r.placement,
+        player_name: r.player_name ?? "",
+        leader_name: r.leader_name,
+        points: r.points,
+        spice: null,
+        solaris: null,
+        water: null,
+        is_leaver: null,
+        player_slot: null,
+        turn_order: null,
+        player_color: null,
+        has_first_player: null,
+        has_high_council: null,
+        has_swordmaster: null,
+        emperor_level: r.emperor_level,
+        emperor_alliance: r.emperor_alliance,
+        spacing_guild_level: r.spacing_guild_level,
+        spacing_guild_alliance: r.spacing_guild_alliance,
+        bene_gesserit_level: r.bene_gesserit_level,
+        bene_gesserit_alliance: r.bene_gesserit_alliance,
+        fremen_level: r.fremen_level,
+        fremen_alliance: r.fremen_alliance,
+      }));
+      for (let i = 0; i < gameRows.length; i++) {
+        const r = gameRows[i];
+        const c = canonicalize(r.leader_name);
+        if (!c) continue;
+        const eff = influenceEfficiency(players[i], players);
+        const a = map.get(c.name) ?? {
+          leader: c.name, group: c.group, games: 0,
+          vpPerBumpSum: 0, vpPerBumpN: 0, productiveSum: 0, productiveN: 0,
+        };
+        a.games += 1;
+        if (eff.vpPerBump !== null) { a.vpPerBumpSum += eff.vpPerBump; a.vpPerBumpN += 1; }
+        if (eff.productivePct !== null) { a.productiveSum += eff.productivePct; a.productiveN += 1; }
+        map.set(c.name, a);
+      }
+    }
+    const advancedAgg = Array.from(map.values()).sort((a, b) => b.games - a.games);
+    return { advancedAgg, scannedGamesCount: gameIds.size };
+  }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx]);
 
   const sorted = useMemo(() => {
     if (!sortKey || !sortDir) return aggregates;
@@ -340,6 +432,18 @@ function StatsPage() {
           Pick rate (share of seats this leader filled) and win rate per leader, by leaderboard version.
         </p>
 
+        <Tabs value={mode} onValueChange={(v) => setMode(v as "basic" | "advanced")}>
+          <TabsList className="bg-card/60 border border-border/60 mb-4">
+            <TabsTrigger value="basic" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground">
+              Basic stats
+            </TabsTrigger>
+            <TabsTrigger value="advanced" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground">
+              <FlaskConical className="size-3.5 mr-1.5" />
+              Advanced stats
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <Tabs value={version} onValueChange={(v) => setVersion(v as GameVersion)}>
           <TabsList className="bg-card/60 border border-border/60 mb-4">
             {GAME_VERSIONS.map((v) => (
@@ -368,6 +472,64 @@ function StatsPage() {
                   You haven't claimed a player name yet. Visit your <a href="/profile" className="text-sand underline">profile</a> to link one.
                 </div>
               )}
+              {mode === "advanced" ? (
+                <>
+                  <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
+                            <th className="px-4 py-3 text-left">Leader</th>
+                            <th className="px-4 py-3 text-right">Games</th>
+                            <th className="px-4 py-3 text-right">Avg VP/Bump</th>
+                            <th className="px-4 py-3 text-right">Avg Bump Productive %</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {loading && (
+                            <tr>
+                              <td colSpan={4} className="py-10 text-center text-muted-foreground">Loading stats…</td>
+                            </tr>
+                          )}
+                          {!loading &&
+                            advancedAgg.map((a) => (
+                              <tr key={a.leader} className="border-t border-border/40 hover:bg-secondary/30">
+                                <td className={`px-4 py-3 font-medium ${GROUP_COLOR[a.group]}`}>
+                                  {(() => {
+                                    const r = leaderRouteFor(a.leader);
+                                    return r ? (
+                                      <Link to="/leaders/$origin/$slug" params={{ origin: r.origin, slug: r.slug }} className="hover:underline">
+                                        {a.leader}
+                                      </Link>
+                                    ) : a.leader;
+                                  })()}
+                                </td>
+                                <td className="px-4 py-3 text-right tabular-nums">{a.games}</td>
+                                <td className="px-4 py-3 text-right tabular-nums">
+                                  {a.vpPerBumpN ? (a.vpPerBumpSum / a.vpPerBumpN).toFixed(3) : "—"}
+                                </td>
+                                <td className="px-4 py-3 text-right tabular-nums">
+                                  {a.productiveN ? `${(a.productiveSum / a.productiveN).toFixed(1)}%` : "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          {!loading && advancedAgg.length === 0 && (
+                            <tr>
+                              <td colSpan={4} className="py-10 text-center text-muted-foreground">
+                                No scanned endboard games for {v.label} yet.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                  <p className="text-xs text-muted-foreground mt-3">
+                    Based on {scannedGamesCount} games with endboard scan data in {v.label}.
+                  </p>
+                </>
+              ) : (
+                <>
               <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -454,6 +616,8 @@ function StatsPage() {
                 Based on {totalGamesCount} games played in {v.label}.
                 {showPersonal && personalTotalSlots > 0 && ` Your personal sample: ${personalTotalSlots} seats.`}
               </p>
+                </>
+              )}
             </TabsContent>
           ))}
         </Tabs>
