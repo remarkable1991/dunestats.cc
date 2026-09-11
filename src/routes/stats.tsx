@@ -471,6 +471,64 @@ function StatsPage() {
                   You haven't claimed a player name yet. Visit your <a href="/profile" className="text-sand underline">profile</a> to link one.
                 </div>
               )}
+              {mode === "advanced" ? (
+                <>
+                  <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
+                            <th className="px-4 py-3 text-left">Leader</th>
+                            <th className="px-4 py-3 text-right">Games</th>
+                            <th className="px-4 py-3 text-right">Avg VP/Bump</th>
+                            <th className="px-4 py-3 text-right">Avg Bump Productive %</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {loading && (
+                            <tr>
+                              <td colSpan={4} className="py-10 text-center text-muted-foreground">Loading stats…</td>
+                            </tr>
+                          )}
+                          {!loading &&
+                            advancedAgg.map((a) => (
+                              <tr key={a.leader} className="border-t border-border/40 hover:bg-secondary/30">
+                                <td className={`px-4 py-3 font-medium ${GROUP_COLOR[a.group]}`}>
+                                  {(() => {
+                                    const r = leaderRouteFor(a.leader);
+                                    return r ? (
+                                      <Link to="/leaders/$origin/$slug" params={{ origin: r.origin, slug: r.slug }} className="hover:underline">
+                                        {a.leader}
+                                      </Link>
+                                    ) : a.leader;
+                                  })()}
+                                </td>
+                                <td className="px-4 py-3 text-right tabular-nums">{a.games}</td>
+                                <td className="px-4 py-3 text-right tabular-nums">
+                                  {a.vpPerBumpN ? (a.vpPerBumpSum / a.vpPerBumpN).toFixed(3) : "—"}
+                                </td>
+                                <td className="px-4 py-3 text-right tabular-nums">
+                                  {a.productiveN ? `${(a.productiveSum / a.productiveN).toFixed(1)}%` : "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          {!loading && advancedAgg.length === 0 && (
+                            <tr>
+                              <td colSpan={4} className="py-10 text-center text-muted-foreground">
+                                No scanned endboard games for {v.label} yet.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                  <p className="text-xs text-muted-foreground mt-3">
+                    Based on {scannedGamesCount} games with endboard scan data in {v.label}.
+                  </p>
+                </>
+              ) : (
+                <>
               <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
