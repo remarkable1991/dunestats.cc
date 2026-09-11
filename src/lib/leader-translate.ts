@@ -166,6 +166,10 @@ export function translateLeader(raw: string | null | undefined): string | null {
       for (const c of CANONICAL_LEADERS) if (keyOf(c) === ck) return c;
     }
   }
+  // Last resort: a distinctive name token (works for unseen translations).
+  const matches = new Set<string>();
+  for (const [token, canonical] of TOKEN_FALLBACK) if (k.includes(token)) matches.add(canonical);
+  if (matches.size === 1) return Array.from(matches)[0];
   return null;
 }
 
