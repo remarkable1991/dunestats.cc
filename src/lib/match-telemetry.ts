@@ -41,6 +41,70 @@ export const FACTION_ALLIANCE_KEYS = {
   fremen: "fremen_alliance",
 } as const;
 
+export const FACTION_KEYS: FactionKey[] = [
+  "emperor",
+  "spacing_guild",
+  "bene_gesserit",
+  "fremen",
+];
+
+export type InfluenceEfficiency = {
+  totalBumps: number;
+  factionVp: number;
+  vpPerBump: number | null;
+  productivePct: number | null;
+};
+
+/**
+ * Influence efficiency for one player: VP yield per track bump and the share of
+ * bumps that either scored VP or defended an Alliance token by one step.
+ */
+export function influenceEfficiency(
+  player: TelemetryPlayer,
+  allPlayers: TelemetryPlayer[],
+): InfluenceEfficiency {
+  let totalBumps = 0;
+  let friendship = 0;
+  let alliances = 0;
+  let defensive = 0;
+
+  for (const f of FACTION_KEYS) {
+    const raw = player[FACTION_LEVEL_KEYS[f]];
+    const level = raw === null || raw === undefined ? 0 : Number(raw);
+    totalBumps += level;
+    if (level >= 2) friendship += 1;
+    const hasAlliance = player[FACTION_ALLIANCE_KEYS[f]] === true;
+    if (hasAlliance) alliances += 1;
+
+    if (hasAlliance && (level === 5 || level === 6)) {
+      const opponentTop = Math.max(
+        0,
+        ...allPlayers
+          .filter((p) => p.player_name !== player.player_name)
+          .map((p) => {
+            const v = p[FACTION_LEVEL_KEYS[f]];
+            return v === null || v === undefined ? 0 : Number(v);
+          }),
+      );
+      if (level === 5 && opponentTop >= 4) defensive += 1;
+      else if (level === 6 && opponentTop === 5) defensive += 2;
+      else if (level === 6 && opponentTop === 4) defensive += 1;
+    }
+  }
+
+  const factionVp = friendship + alliances;
+  const vpBumps = friendship * 2 + alliances * 2;
+  if (totalBumps <= 0) {
+    return { totalBumps: 0, factionVp, vpPerBump: null, productivePct: null };
+  }
+  return {
+    totalBumps,
+    factionVp,
+    vpPerBump: factionVp / totalBumps,
+    productivePct: Math.min(100, ((vpBumps + defensive) / totalBumps) * 100),
+  };
+}
+
 /** Player payload for the `update_match_details` RPC, including faction influence. */
 export function telemetryPayload(p: TelemetryPlayer) {
   return {
