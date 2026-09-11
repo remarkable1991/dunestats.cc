@@ -492,6 +492,16 @@ function StatsPage() {
               )}
               {mode === "advanced" ? (
                 <>
+                  <div className="mb-4 p-4 rounded-lg border border-sand/30 bg-sand/5">
+                    <div className="flex items-center gap-2 text-sand font-display text-lg">
+                      <FlaskConical className="size-5" />
+                      Advanced influence efficiency
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Showing data from <span className="text-foreground font-semibold">{scannedGamesCount}</span> {scannedGamesCount === 1 ? "game" : "games"} with endboard scan data in {v.label}.
+                      {" "}Games without an endboard screenshot are excluded.
+                    </p>
+                  </div>
                   <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
@@ -542,9 +552,6 @@ function StatsPage() {
                       </table>
                     </div>
                   </Card>
-                  <p className="text-xs text-muted-foreground mt-3">
-                    Based on {scannedGamesCount} games with endboard scan data in {v.label}.
-                  </p>
                 </>
               ) : (
                 <>
