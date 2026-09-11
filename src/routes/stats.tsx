@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
@@ -615,6 +616,8 @@ function StatsPage() {
                 Based on {totalGamesCount} games played in {v.label}.
                 {showPersonal && personalTotalSlots > 0 && ` Your personal sample: ${personalTotalSlots} seats.`}
               </p>
+                </>
+              )}
             </TabsContent>
           ))}
         </Tabs>
