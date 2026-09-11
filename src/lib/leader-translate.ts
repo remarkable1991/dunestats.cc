@@ -84,14 +84,55 @@ const ALIASES: Array<[string, string]> = [
   ["Ehrwürdige Mutter Jessica", "Lady Jessica"],
   ["Révérende Mère Jessica", "Lady Jessica"],
   ["Lady Margot Fenring", "Lady Margot Fenring"],
+  ["Dama Margot Fenring", "Lady Margot Fenring"],
+  ["Dame Margot Fenring", "Lady Margot Fenring"],
+  ["Signora Margot Fenring", "Lady Margot Fenring"],
+  ["Senhora Margot Fenring", "Lady Margot Fenring"],
   ["Muad'Dib", "Muad'Dib"],
   ["Prinzessin Irulan", "Princess Irulan"],
   ["Princesse Irulan", "Princess Irulan"],
+  ["Princesa Irulan", "Princess Irulan"],
+  ["Principessa Irulan", "Princess Irulan"],
+  ["Ksiezniczka Irulana", "Princess Irulan"],
+  ["Księżniczka Irulana", "Princess Irulan"],
   ["Princess Irulan", "Princess Irulan"],
   ["Shaddam Corrino IV.", "Shaddam Corrino IV"],
   ["Shaddam Corrino IV", "Shaddam Corrino IV"],
   ["Staban Tuek", "Staban Tuek"],
 ];
+
+// Distinctive, unambiguous tokens → canonical leader. Used as a last resort so
+// unseen translations (any language) still resolve instead of creating a new name.
+const TOKEN_FALLBACK: Array<[string, string]> = [
+  ["fenring", "Lady Margot Fenring"],
+  ["margot", "Lady Margot Fenring"],
+  ["irulan", "Princess Irulan"],
+  ["metulli", "Lady Amber Metulli"],
+  ["halleck", "Gurney Halleck"],
+  ["gurney", "Gurney Halleck"],
+  ["muaddib", "Muad'Dib"],
+  ["corrino", "Shaddam Corrino IV"],
+  ["shaddam", "Shaddam Corrino IV"],
+  ["tuek", "Staban Tuek"],
+  ["staban", "Staban Tuek"],
+  ["feyd", "Feyd-Rautha Harkonnen"],
+  ["jessica", "Lady Jessica"],
+  ["yuna", '"Princess" Yuna Moritani'],
+  ["hundro", "Viscount Hundro Moritani"],
+  ["rhombur", "Prince Rhombur Vernius"],
+  ["tessia", "Tessia Vernius"],
+  ["armand", "Archduke Armand Ecaz"],
+  ["ilesa", "Ilesa Ecaz"],
+  ["helena", "Helena Richese"],
+  ["ilban", "Count Ilban Richese"],
+  ["ariana", "Countess Ariana Thorvald"],
+  ["memnon", "Earl Memnon Thorvald"],
+  ["rabban", 'Glossu "Beast" Rabban'],
+  ["glossu", 'Glossu "Beast" Rabban'],
+  ["vladimir", "Baron Vladimir Harkonnen"],
+  ["leto", "Duke Leto Atreides"],
+];
+
 
 function keyOf(s: string): string {
   return s
@@ -125,6 +166,10 @@ export function translateLeader(raw: string | null | undefined): string | null {
       for (const c of CANONICAL_LEADERS) if (keyOf(c) === ck) return c;
     }
   }
+  // Last resort: a distinctive name token (works for unseen translations).
+  const matches = new Set<string>();
+  for (const [token, canonical] of TOKEN_FALLBACK) if (k.includes(token)) matches.add(canonical);
+  if (matches.size === 1) return Array.from(matches)[0];
   return null;
 }
 
