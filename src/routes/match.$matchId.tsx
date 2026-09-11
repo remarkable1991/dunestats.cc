@@ -1001,6 +1001,63 @@ function relativeTime(d: Date): string {
 // keep notFound import usage happy for tree-shaking check
 void notFound;
 
+/** Popover explaining the two influence efficiency metrics. */
+function InfluenceMetricInfo() {
+  return (
+    <Popover>
+      <PopoverTrigger
+        aria-label="Influence metric guide"
+        className="text-muted-foreground hover:text-sand transition-colors"
+      >
+        <Info className="size-4" />
+      </PopoverTrigger>
+      <PopoverContent className="w-80 text-xs leading-relaxed space-y-2">
+        <div className="font-display text-sm text-sand">Influence Metric Guide</div>
+        <p>
+          <span className="font-medium text-foreground">VP/Bump (Yield Efficiency):</span>{" "}
+          Measures direct point return per track bump spent. Benchmark target is{" "}
+          <span className="tabular-nums">0.500</span> (1 VP per 2 bumps). Dataset average is{" "}
+          <span className="tabular-nums">0.367</span>.
+        </p>
+        <p>
+          <span className="font-medium text-foreground">Bump Productive % (Allocation Quality):</span>{" "}
+          Percentage of bumps spent that generated VPs or provided necessary 1-step defensive
+          protection for Alliance tokens. Lower percentages indicate bumps stranded at Levels 1, 3,
+          or lost/over-defended Alliance tracks.
+        </p>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Per-player VP/Bump and Bump Productive % badges. */
+function InfluenceEfficiencyBadges({
+  player,
+  all,
+}: {
+  player: TelemetryPlayer;
+  all: TelemetryPlayer[];
+}) {
+  const eff = influenceEfficiency(player, all);
+  if (eff.vpPerBump === null || eff.productivePct === null) return null;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] tabular-nums">
+      <span
+        className="px-2 py-0.5 rounded-full border border-border/60 bg-background/40"
+        title={`${eff.factionVp} faction VP over ${eff.totalBumps} bumps`}
+      >
+        <span className="text-muted-foreground mr-1">VP/Bump</span>
+        {eff.vpPerBump.toFixed(3)}
+      </span>
+      <span className="px-2 py-0.5 rounded-full border border-border/60 bg-background/40">
+        <span className="text-muted-foreground mr-1">Bump Productive</span>
+        {eff.productivePct.toFixed(1)}%
+      </span>
+    </div>
+  );
+}
+
+
 function ResourcePips({
   spice,
   solaris,
