@@ -532,7 +532,10 @@ function MatchDetailsPage() {
           <div className="flex flex-col sm:flex-row items-start gap-3 min-w-0">
           <Card className="p-4 border-border/60 bg-card/70 flex-1 min-w-0 w-full">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-              <h2 className="font-display text-lg">Players</h2>
+              <div className="flex items-center gap-1.5">
+                <h2 className="font-display text-lg">Players</h2>
+                <InfluenceMetricInfo />
+              </div>
               {(hasSlots || hasTurns) && (
                 <div className="flex items-center gap-1 text-xs">
                   <span className="text-muted-foreground mr-1">Order by</span>
