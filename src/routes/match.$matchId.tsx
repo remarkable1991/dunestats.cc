@@ -702,6 +702,11 @@ function MatchDetailsPage() {
                       <EloTrack label={versionShort(game.game_version)} delta={r.elo_delta} total={t?.version ?? null} />
                       <EloTrack label="All VP" delta={vpDelta ?? null} total={t?.vp ?? null} />
                     </div>
+                    <InfluenceEfficiencyBadges
+                      player={r as unknown as TelemetryPlayer}
+                      all={game.game_results as unknown as TelemetryPlayer[]}
+                    />
+
                   </div>
                 );
               })}
