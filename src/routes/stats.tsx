@@ -301,12 +301,18 @@ function StatsPage() {
     leader: string;
     group: Agg["group"];
     games: number;
+    hcN: number; hcYes: number;
+    smN: number; smYes: number;
+    allianceSum: number; allianceN: number;
     vpPerBumpSum: number;
     vpPerBumpN: number;
     productiveSum: number;
     productiveN: number;
   };
-  const { advancedAgg, scannedGamesCount } = useMemo(() => {
+  type SeatStat = { seat: number; n: number; wins: number; top2: number; points: number };
+  type UpgradeStat = { label: string; n: number; wins: number; placementSum: number };
+  type PaceStat = { label: string; games: number; winScoreSum: number; winScoreN: number };
+  const { advancedAgg, scannedGamesCount, meta } = useMemo(() => {
     const matchBool = (state: TriState, val: boolean | null | undefined) => {
       if (state === "any") return true;
       return Boolean(val) === (state === "true");
@@ -334,22 +340,40 @@ function StatsPage() {
       byGame.set(gid, arr);
     }
     const map = new Map<string, AdvAgg>();
+    const seats: SeatStat[] = [1, 2, 3, 4].map((seat) => ({ seat, n: 0, wins: 0, top2: 0, points: 0 }));
+    const upgrades: UpgradeStat[] = [
+      { label: "Both HC + SM", n: 0, wins: 0, placementSum: 0 },
+      { label: "Swordmaster only", n: 0, wins: 0, placementSum: 0 },
+      { label: "High Council only", n: 0, wins: 0, placementSum: 0 },
+      { label: "Neither", n: 0, wins: 0, placementSum: 0 },
+    ];
+    const pace: PaceStat[] = [
+      { label: "Round 7", games: 0, winScoreSum: 0, winScoreN: 0 },
+      { label: "Round 8", games: 0, winScoreSum: 0, winScoreN: 0 },
+      { label: "Round 9+", games: 0, winScoreSum: 0, winScoreN: 0 },
+    ];
+    let paceKnown = 0;
+    const allianceGames: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+    let allianceGameN = 0;
+    let totalBumpsAll = 0;
+    let productiveBumpsAll = 0;
+
     for (const gameRows of byGame.values()) {
       const players = gameRows.map((r) => ({
         placement: r.placement,
         player_name: r.player_name ?? "",
         leader_name: r.leader_name,
         points: r.points,
-        spice: null,
-        solaris: null,
-        water: null,
+        spice: r.spice,
+        solaris: r.solaris,
+        water: r.water,
         is_leaver: null,
-        player_slot: null,
-        turn_order: null,
+        player_slot: r.player_slot,
+        turn_order: r.turn_order,
         player_color: null,
         has_first_player: null,
-        has_high_council: null,
-        has_swordmaster: null,
+        has_high_council: r.has_high_council,
+        has_swordmaster: r.has_swordmaster,
         emperor_level: r.emperor_level,
         emperor_alliance: r.emperor_alliance,
         spacing_guild_level: r.spacing_guild_level,
@@ -359,24 +383,87 @@ function StatsPage() {
         fremen_level: r.fremen_level,
         fremen_alliance: r.fremen_alliance,
       }));
+
+      // Card 3: pacing
+      const endRound = gameRows[0]?.games?.end_round ?? null;
+      if (endRound && endRound >= 7) {
+        const bucket = endRound === 7 ? pace[0] : endRound === 8 ? pace[1] : pace[2];
+        bucket.games += 1;
+        paceKnown += 1;
+        const winner = gameRows.find((r) => r.placement === 1);
+        if (winner) { bucket.winScoreSum += winner.points; bucket.winScoreN += 1; }
+      }
+
+      // Card 4: alliance claim rates
+      allianceGameN += 1;
+      for (const f of FACTION_KEYS) {
+        if (players.some((p) => p[FACTION_ALLIANCE_KEYS[f]] === true)) allianceGames[f] += 1;
+      }
+
       for (let i = 0; i < gameRows.length; i++) {
         const r = gameRows[i];
+        const eff = influenceEfficiency(players[i], players);
+        totalBumpsAll += eff.totalBumps;
+        if (eff.productivePct !== null) {
+          productiveBumpsAll += (eff.productivePct / 100) * eff.totalBumps;
+        }
+
+        // Card 1: seat / turn order
+        const seat = r.turn_order;
+        if (seat && seat >= 1 && seat <= 4) {
+          const s = seats[seat - 1];
+          s.n += 1;
+          if (r.placement === 1) s.wins += 1;
+          if (r.placement <= 2) s.top2 += 1;
+          s.points += r.points;
+        }
+
+        // Card 2: upgrade combinations
+        if (r.has_high_council !== null || r.has_swordmaster !== null) {
+          const hc = r.has_high_council === true;
+          const sm = r.has_swordmaster === true;
+          const u = hc && sm ? upgrades[0] : sm ? upgrades[1] : hc ? upgrades[2] : upgrades[3];
+          u.n += 1;
+          if (r.placement === 1) u.wins += 1;
+          u.placementSum += r.placement;
+        }
+
         const c = canonicalize(r.leader_name);
         if (!c) continue;
-        const eff = influenceEfficiency(players[i], players);
         const a = map.get(c.name) ?? {
           leader: c.name, group: c.group, games: 0,
+          hcN: 0, hcYes: 0, smN: 0, smYes: 0, allianceSum: 0, allianceN: 0,
           vpPerBumpSum: 0, vpPerBumpN: 0, productiveSum: 0, productiveN: 0,
         };
         a.games += 1;
+        if (r.has_high_council !== null) { a.hcN += 1; if (r.has_high_council) a.hcYes += 1; }
+        if (r.has_swordmaster !== null) { a.smN += 1; if (r.has_swordmaster) a.smYes += 1; }
+        a.allianceN += 1;
+        a.allianceSum += FACTION_KEYS.filter((f) => players[i][FACTION_ALLIANCE_KEYS[f]] === true).length;
         if (eff.vpPerBump !== null) { a.vpPerBumpSum += eff.vpPerBump; a.vpPerBumpN += 1; }
         if (eff.productivePct !== null) { a.productiveSum += eff.productivePct; a.productiveN += 1; }
         map.set(c.name, a);
       }
     }
     const advancedAgg = Array.from(map.values()).sort((a, b) => b.games - a.games);
-    return { advancedAgg, scannedGamesCount: gameIds.size };
+    const upgradeTotal = upgrades.reduce((s, u) => s + u.n, 0);
+    return {
+      advancedAgg,
+      scannedGamesCount: gameIds.size,
+      meta: {
+        seats,
+        upgrades,
+        upgradeTotal,
+        pace,
+        paceKnown,
+        allianceGames,
+        allianceGameN,
+        totalBumpsAll,
+        strandedPct: totalBumpsAll > 0 ? ((totalBumpsAll - productiveBumpsAll) / totalBumpsAll) * 100 : null,
+      },
+    };
   }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx]);
+
 
   const sorted = useMemo(() => {
     if (!sortKey || !sortDir) return aggregates;
