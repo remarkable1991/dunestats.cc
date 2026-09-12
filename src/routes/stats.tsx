@@ -17,6 +17,14 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 
 type TriState = "any" | "true" | "false";
 
+const FACTION_LABEL: Record<FactionKey, string> = {
+  emperor: "Emperor",
+  spacing_guild: "Spacing Guild",
+  bene_gesserit: "Bene Gesserit",
+  fremen: "Fremen",
+};
+
+
 function TriSelect({ label, value, onChange }: { label: string; value: TriState; onChange: (v: TriState) => void }) {
   return (
     <div className="flex items-center gap-2">
