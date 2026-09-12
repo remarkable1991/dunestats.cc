@@ -10,11 +10,20 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { LEADERS, classifyLeader } from "@/lib/leaders";
-import { influenceEfficiency } from "@/lib/match-telemetry";
-import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, FlaskConical } from "lucide-react";
+import { influenceEfficiency, FACTION_KEYS, FACTION_ALLIANCE_KEYS, type FactionKey } from "@/lib/match-telemetry";
+import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, FlaskConical, HelpCircle, Users, Crown, Timer, Landmark } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 type TriState = "any" | "true" | "false";
+
+const FACTION_LABEL: Record<FactionKey, string> = {
+  emperor: "Emperor",
+  spacing_guild: "Spacing Guild",
+  bene_gesserit: "Bene Gesserit",
+  fremen: "Fremen",
+};
+
 
 function TriSelect({ label, value, onChange }: { label: string; value: TriState; onChange: (v: TriState) => void }) {
   return (
@@ -76,6 +85,13 @@ type Row = {
   leader_name: string | null;
   player_name: string | null;
   points: number;
+  spice: number | null;
+  solaris: number | null;
+  water: number | null;
+  has_high_council: boolean | null;
+  has_swordmaster: boolean | null;
+  turn_order: number | null;
+  player_slot: number | null;
   emperor_level: number | null;
   emperor_alliance: boolean | null;
   spacing_guild_level: number | null;
@@ -92,8 +108,10 @@ type Row = {
     has_immortality: boolean | null;
     has_base_leaders: boolean | null;
     ai_scan_status: string | null;
+    end_round: number | null;
   } | null;
 };
+
 
 type Agg = {
   leader: string;
@@ -153,6 +171,9 @@ function StatsPage() {
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState<GameVersion>("overall");
   const [mode, setMode] = useState<"basic" | "advanced">("basic");
+  const [advView, setAdvView] = useState<"leaders" | "meta">("leaders");
+  const [advSortKey, setAdvSortKey] = useState<"games" | "hc" | "sm" | "alliances" | "vpb" | "prod">("games");
+  const [advSortDir, setAdvSortDir] = useState<"desc" | "asc">("desc");
   const [userLeaders, setUserLeaders] = useState<Set<string>>(new Set());
   const [playerKeys, setPlayerKeys] = useState<string[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -225,7 +246,7 @@ function StatsPage() {
       while (true) {
         const { data, error } = await supabase
           .from("game_results")
-          .select("placement, leader_name, player_name, points, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance, games!inner(id, game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, ai_scan_status)")
+          .select("placement, leader_name, player_name, points, spice, solaris, water, has_high_council, has_swordmaster, turn_order, player_slot, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance, games!inner(id, game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, ai_scan_status, end_round)")
           .order("id", { ascending: true })
           .range(from, from + PAGE - 1);
         if (error || !data || data.length === 0) break;
@@ -292,12 +313,18 @@ function StatsPage() {
     leader: string;
     group: Agg["group"];
     games: number;
+    hcN: number; hcYes: number;
+    smN: number; smYes: number;
+    allianceSum: number; allianceN: number;
     vpPerBumpSum: number;
     vpPerBumpN: number;
     productiveSum: number;
     productiveN: number;
   };
-  const { advancedAgg, scannedGamesCount } = useMemo(() => {
+  type SeatStat = { seat: number; n: number; wins: number; top2: number; points: number };
+  type UpgradeStat = { label: string; n: number; wins: number; placementSum: number };
+  type PaceStat = { label: string; games: number; winScoreSum: number; winScoreN: number };
+  const { advancedAgg, scannedGamesCount, meta } = useMemo(() => {
     const matchBool = (state: TriState, val: boolean | null | undefined) => {
       if (state === "any") return true;
       return Boolean(val) === (state === "true");
@@ -325,22 +352,40 @@ function StatsPage() {
       byGame.set(gid, arr);
     }
     const map = new Map<string, AdvAgg>();
+    const seats: SeatStat[] = [1, 2, 3, 4].map((seat) => ({ seat, n: 0, wins: 0, top2: 0, points: 0 }));
+    const upgrades: UpgradeStat[] = [
+      { label: "Both HC + SM", n: 0, wins: 0, placementSum: 0 },
+      { label: "Swordmaster only", n: 0, wins: 0, placementSum: 0 },
+      { label: "High Council only", n: 0, wins: 0, placementSum: 0 },
+      { label: "Neither", n: 0, wins: 0, placementSum: 0 },
+    ];
+    const pace: PaceStat[] = [
+      { label: "Round 7", games: 0, winScoreSum: 0, winScoreN: 0 },
+      { label: "Round 8", games: 0, winScoreSum: 0, winScoreN: 0 },
+      { label: "Round 9+", games: 0, winScoreSum: 0, winScoreN: 0 },
+    ];
+    let paceKnown = 0;
+    const allianceGames: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+    let allianceGameN = 0;
+    let totalBumpsAll = 0;
+    let productiveBumpsAll = 0;
+
     for (const gameRows of byGame.values()) {
       const players = gameRows.map((r) => ({
         placement: r.placement,
         player_name: r.player_name ?? "",
         leader_name: r.leader_name,
         points: r.points,
-        spice: null,
-        solaris: null,
-        water: null,
+        spice: r.spice,
+        solaris: r.solaris,
+        water: r.water,
         is_leaver: null,
-        player_slot: null,
-        turn_order: null,
+        player_slot: r.player_slot,
+        turn_order: r.turn_order,
         player_color: null,
         has_first_player: null,
-        has_high_council: null,
-        has_swordmaster: null,
+        has_high_council: r.has_high_council,
+        has_swordmaster: r.has_swordmaster,
         emperor_level: r.emperor_level,
         emperor_alliance: r.emperor_alliance,
         spacing_guild_level: r.spacing_guild_level,
@@ -350,24 +395,137 @@ function StatsPage() {
         fremen_level: r.fremen_level,
         fremen_alliance: r.fremen_alliance,
       }));
+
+      // Card 3: pacing
+      const endRound = gameRows[0]?.games?.end_round ?? null;
+      if (endRound && endRound >= 7) {
+        const bucket = endRound === 7 ? pace[0] : endRound === 8 ? pace[1] : pace[2];
+        bucket.games += 1;
+        paceKnown += 1;
+        const winner = gameRows.find((r) => r.placement === 1);
+        if (winner) { bucket.winScoreSum += winner.points; bucket.winScoreN += 1; }
+      }
+
+      // Card 4: alliance claim rates
+      allianceGameN += 1;
+      for (const f of FACTION_KEYS) {
+        if (players.some((p) => p[FACTION_ALLIANCE_KEYS[f]] === true)) allianceGames[f] += 1;
+      }
+
       for (let i = 0; i < gameRows.length; i++) {
         const r = gameRows[i];
+        const eff = influenceEfficiency(players[i], players);
+        totalBumpsAll += eff.totalBumps;
+        if (eff.productivePct !== null) {
+          productiveBumpsAll += (eff.productivePct / 100) * eff.totalBumps;
+        }
+
+        // Card 1: seat / turn order
+        const seat = r.turn_order;
+        if (seat && seat >= 1 && seat <= 4) {
+          const s = seats[seat - 1];
+          s.n += 1;
+          if (r.placement === 1) s.wins += 1;
+          if (r.placement <= 2) s.top2 += 1;
+          s.points += r.points;
+        }
+
+        // Card 2: upgrade combinations
+        if (r.has_high_council !== null || r.has_swordmaster !== null) {
+          const hc = r.has_high_council === true;
+          const sm = r.has_swordmaster === true;
+          const u = hc && sm ? upgrades[0] : sm ? upgrades[1] : hc ? upgrades[2] : upgrades[3];
+          u.n += 1;
+          if (r.placement === 1) u.wins += 1;
+          u.placementSum += r.placement;
+        }
+
         const c = canonicalize(r.leader_name);
         if (!c) continue;
-        const eff = influenceEfficiency(players[i], players);
         const a = map.get(c.name) ?? {
           leader: c.name, group: c.group, games: 0,
+          hcN: 0, hcYes: 0, smN: 0, smYes: 0, allianceSum: 0, allianceN: 0,
           vpPerBumpSum: 0, vpPerBumpN: 0, productiveSum: 0, productiveN: 0,
         };
         a.games += 1;
+        if (r.has_high_council !== null) { a.hcN += 1; if (r.has_high_council) a.hcYes += 1; }
+        if (r.has_swordmaster !== null) { a.smN += 1; if (r.has_swordmaster) a.smYes += 1; }
+        a.allianceN += 1;
+        a.allianceSum += FACTION_KEYS.filter((f) => players[i][FACTION_ALLIANCE_KEYS[f]] === true).length;
         if (eff.vpPerBump !== null) { a.vpPerBumpSum += eff.vpPerBump; a.vpPerBumpN += 1; }
         if (eff.productivePct !== null) { a.productiveSum += eff.productivePct; a.productiveN += 1; }
         map.set(c.name, a);
       }
     }
     const advancedAgg = Array.from(map.values()).sort((a, b) => b.games - a.games);
-    return { advancedAgg, scannedGamesCount: gameIds.size };
+    const upgradeTotal = upgrades.reduce((s, u) => s + u.n, 0);
+    return {
+      advancedAgg,
+      scannedGamesCount: gameIds.size,
+      meta: {
+        seats,
+        upgrades,
+        upgradeTotal,
+        pace,
+        paceKnown,
+        allianceGames,
+        allianceGameN,
+        totalBumpsAll,
+        strandedPct: totalBumpsAll > 0 ? ((totalBumpsAll - productiveBumpsAll) / totalBumpsAll) * 100 : null,
+      },
+    };
   }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx]);
+
+
+  const advancedSorted = useMemo(() => {
+    const dir = advSortDir === "desc" ? -1 : 1;
+    const score = (a: typeof advancedAgg[number]) => {
+      switch (advSortKey) {
+        case "games": return a.games;
+        case "hc": return a.hcN ? a.hcYes / a.hcN : -1;
+        case "sm": return a.smN ? a.smYes / a.smN : -1;
+        case "alliances": return a.allianceN ? a.allianceSum / a.allianceN : -1;
+        case "vpb": return a.vpPerBumpN ? a.vpPerBumpSum / a.vpPerBumpN : -1;
+        case "prod": return a.productiveN ? a.productiveSum / a.productiveN : -1;
+      }
+    };
+    return [...advancedAgg].sort((a, b) => {
+      const av = score(a), bv = score(b);
+      if (av === bv) return a.leader.localeCompare(b.leader);
+      return av < bv ? dir : -dir;
+    });
+  }, [advancedAgg, advSortKey, advSortDir]);
+
+  function AdvTh({ label, k, info }: { label: string; k: typeof advSortKey; info?: string }) {
+    const active = advSortKey === k;
+    const Icon = active ? (advSortDir === "desc" ? ArrowDown : ArrowUp) : ArrowUpDown;
+    return (
+      <th className="px-4 py-3 text-right">
+        <span className="inline-flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              if (advSortKey !== k) { setAdvSortKey(k); setAdvSortDir("desc"); }
+              else setAdvSortDir(advSortDir === "desc" ? "asc" : "desc");
+            }}
+            className={`inline-flex items-center gap-1 hover:text-sand transition-colors ${active ? "text-sand" : ""}`}
+          >
+            {label}<Icon className={`size-3 ${active ? "opacity-100" : "opacity-40"}`} />
+          </button>
+          {info && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help text-muted-foreground hover:text-sand"><HelpCircle className="size-3.5" /></span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs normal-case tracking-normal">{info}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </span>
+      </th>
+    );
+  }
 
   const sorted = useMemo(() => {
     if (!sortKey || !sortDir) return aggregates;
@@ -502,57 +660,231 @@ function StatsPage() {
                       {" "}Games without an endboard screenshot are excluded.
                     </p>
                   </div>
-                  <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
-                            <th className="px-4 py-3 text-left">Leader</th>
-                            <th className="px-4 py-3 text-right">Games</th>
-                            <th className="px-4 py-3 text-right">Avg VP/Bump</th>
-                            <th className="px-4 py-3 text-right">Avg Bump Productive %</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {loading && (
-                            <tr>
-                              <td colSpan={4} className="py-10 text-center text-muted-foreground">Loading stats…</td>
+
+                  <div className="grid grid-cols-2 gap-3 mb-5">
+                    {([
+                      { key: "leaders", icon: Crown, title: "Advanced Leader Stats", desc: "Upgrades, alliances and influence efficiency per leader." },
+                      { key: "meta", icon: Landmark, title: "General Meta Stats", desc: "Seat balance, upgrade paths, pacing and faction dynamics." },
+                    ] as const).map((t) => {
+                      const Icon = t.icon;
+                      const active = advView === t.key;
+                      return (
+                        <button
+                          key={t.key}
+                          type="button"
+                          onClick={() => setAdvView(t.key)}
+                          className={`border rounded-lg p-4 text-left transition-colors ${active ? "border-sand bg-sand/10" : "border-border/60 bg-card/60 hover:bg-card"}`}
+                        >
+                          <span className="flex items-center gap-2 font-display text-base">
+                            <Icon className="size-4 text-sand" />
+                            {t.title}
+                          </span>
+                          <span className="block text-xs text-muted-foreground mt-1">{t.desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {!loading && scannedGamesCount === 0 ? (
+                    <Card className="p-10 text-center text-muted-foreground border-border/60 bg-card/70">
+                      No scanned endboard games match these filters for {v.label} yet.
+                    </Card>
+                  ) : advView === "leaders" ? (
+                    <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
+                              <th className="px-4 py-3 text-left">Leader</th>
+                              <AdvTh label="Games" k="games" />
+                              <AdvTh label="HC %" k="hc" />
+                              <AdvTh label="SM %" k="sm" />
+                              <AdvTh label="Avg Alliances" k="alliances" />
+                              <AdvTh label="Avg VP/Bump" k="vpb" info="Direct victory points gained per influence bump. Benchmark is 0.500." />
+                              <AdvTh label="Avg Bump Productive %" k="prod" info="Share of bumps that yielded VPs or defended an alliance against the closest rival. Bumps left stranded on levels 1, 3, or on lost alliance tracks are penalised." />
                             </tr>
-                          )}
-                          {!loading &&
-                            advancedAgg.map((a) => (
-                              <tr key={a.leader} className="border-t border-border/40 hover:bg-secondary/30">
-                                <td className={`px-4 py-3 font-medium ${GROUP_COLOR[a.group]}`}>
-                                  {(() => {
-                                    const r = leaderRouteFor(a.leader);
-                                    return r ? (
-                                      <Link to="/leaders/$origin/$slug" params={{ origin: r.origin, slug: r.slug }} className="hover:underline">
-                                        {a.leader}
-                                      </Link>
-                                    ) : a.leader;
-                                  })()}
+                          </thead>
+                          <tbody>
+                            {loading && (
+                              <tr>
+                                <td colSpan={7} className="py-10 text-center text-muted-foreground">Loading stats…</td>
+                              </tr>
+                            )}
+                            {!loading &&
+                              advancedSorted.map((a) => (
+                                <tr key={a.leader} className="border-t border-border/40 hover:bg-secondary/30">
+                                  <td className={`px-4 py-3 font-medium ${GROUP_COLOR[a.group]}`}>
+                                    {(() => {
+                                      const r = leaderRouteFor(a.leader);
+                                      return r ? (
+                                        <Link to="/leaders/$origin/$slug" params={{ origin: r.origin, slug: r.slug }} className="hover:underline">
+                                          {a.leader}
+                                        </Link>
+                                      ) : a.leader;
+                                    })()}
+                                  </td>
+                                  <td className="px-4 py-3 text-right tabular-nums">{a.games}</td>
+                                  <td className="px-4 py-3 text-right tabular-nums">
+                                    {a.hcN ? `${((a.hcYes / a.hcN) * 100).toFixed(1)}%` : "—"}
+                                  </td>
+                                  <td className="px-4 py-3 text-right tabular-nums">
+                                    {a.smN ? `${((a.smYes / a.smN) * 100).toFixed(1)}%` : "—"}
+                                  </td>
+                                  <td className="px-4 py-3 text-right tabular-nums">
+                                    {a.allianceN ? (a.allianceSum / a.allianceN).toFixed(2) : "—"}
+                                  </td>
+                                  <td className="px-4 py-3 text-right tabular-nums">
+                                    {a.vpPerBumpN ? (a.vpPerBumpSum / a.vpPerBumpN).toFixed(3) : "—"}
+                                  </td>
+                                  <td className="px-4 py-3 text-right tabular-nums">
+                                    {a.productiveN ? `${(a.productiveSum / a.productiveN).toFixed(1)}%` : "—"}
+                                  </td>
+                                </tr>
+                              ))}
+                            {!loading && advancedSorted.length === 0 && (
+                              <tr>
+                                <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                                  No scanned endboard games for {v.label} yet.
                                 </td>
-                                <td className="px-4 py-3 text-right tabular-nums">{a.games}</td>
-                                <td className="px-4 py-3 text-right tabular-nums">
-                                  {a.vpPerBumpN ? (a.vpPerBumpSum / a.vpPerBumpN).toFixed(3) : "—"}
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Card>
+                  ) : loading ? (
+                    <Card className="p-10 text-center text-muted-foreground border-border/60 bg-card/70">Loading stats…</Card>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Card className="p-5 border-border/60 bg-card/70 shadow-arena">
+                        <div className="flex items-center gap-2 font-display text-lg text-sand mb-3">
+                          <Users className="size-4" /> Starting position balance
+                        </div>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-xs uppercase tracking-wider text-muted-foreground">
+                              <th className="py-2 text-left">Seat</th>
+                              <th className="py-2 text-right">Players</th>
+                              <th className="py-2 text-right">Win %</th>
+                              <th className="py-2 text-right">Top 2 %</th>
+                              <th className="py-2 text-right">Avg pts</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {meta.seats.map((s) => (
+                              <tr key={s.seat} className="border-t border-border/40">
+                                <td className="py-2">Seat {s.seat}</td>
+                                <td className="py-2 text-right tabular-nums">{s.n}</td>
+                                <td className="py-2 text-right tabular-nums">{s.n ? `${((s.wins / s.n) * 100).toFixed(1)}%` : "—"}</td>
+                                <td className="py-2 text-right tabular-nums">{s.n ? `${((s.top2 / s.n) * 100).toFixed(1)}%` : "—"}</td>
+                                <td className="py-2 text-right tabular-nums">{s.n ? (s.points / s.n).toFixed(1) : "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </Card>
+
+                      <Card className="p-5 border-border/60 bg-card/70 shadow-arena">
+                        <div className="flex items-center gap-2 font-display text-lg text-sand mb-3">
+                          <Crown className="size-4" /> Upgrades vs placement
+                        </div>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-xs uppercase tracking-wider text-muted-foreground">
+                              <th className="py-2 text-left">Upgrades</th>
+                              <th className="py-2 text-right">Share</th>
+                              <th className="py-2 text-right">Win %</th>
+                              <th className="py-2 text-right">Avg place</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {meta.upgrades.map((u) => (
+                              <tr key={u.label} className="border-t border-border/40">
+                                <td className="py-2">{u.label}</td>
+                                <td className="py-2 text-right tabular-nums">
+                                  {meta.upgradeTotal ? `${((u.n / meta.upgradeTotal) * 100).toFixed(1)}%` : "—"}
                                 </td>
-                                <td className="px-4 py-3 text-right tabular-nums">
-                                  {a.productiveN ? `${(a.productiveSum / a.productiveN).toFixed(1)}%` : "—"}
+                                <td className="py-2 text-right tabular-nums">{u.n ? `${((u.wins / u.n) * 100).toFixed(1)}%` : "—"}</td>
+                                <td className="py-2 text-right tabular-nums">{u.n ? (u.placementSum / u.n).toFixed(2) : "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </Card>
+
+                      <Card className="p-5 border-border/60 bg-card/70 shadow-arena">
+                        <div className="flex items-center gap-2 font-display text-lg text-sand mb-3">
+                          <Timer className="size-4" /> Game pacing
+                        </div>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-xs uppercase tracking-wider text-muted-foreground">
+                              <th className="py-2 text-left">Ends</th>
+                              <th className="py-2 text-right">Games</th>
+                              <th className="py-2 text-right">Share</th>
+                              <th className="py-2 text-right">Avg win score</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {meta.pace.map((p) => (
+                              <tr key={p.label} className="border-t border-border/40">
+                                <td className="py-2">{p.label}</td>
+                                <td className="py-2 text-right tabular-nums">{p.games}</td>
+                                <td className="py-2 text-right tabular-nums">
+                                  {meta.paceKnown ? `${((p.games / meta.paceKnown) * 100).toFixed(1)}%` : "—"}
+                                </td>
+                                <td className="py-2 text-right tabular-nums">
+                                  {p.winScoreN ? (p.winScoreSum / p.winScoreN).toFixed(1) : "—"}
                                 </td>
                               </tr>
                             ))}
-                          {!loading && advancedAgg.length === 0 && (
-                            <tr>
-                              <td colSpan={4} className="py-10 text-center text-muted-foreground">
-                                No scanned endboard games for {v.label} yet.
-                              </td>
+                          </tbody>
+                        </table>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Based on {meta.paceKnown} games with a recorded end round.
+                        </p>
+                      </Card>
+
+                      <Card className="p-5 border-border/60 bg-card/70 shadow-arena">
+                        <div className="flex items-center gap-2 font-display text-lg text-sand mb-3">
+                          <Landmark className="size-4" /> Faction track dynamics
+                        </div>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-xs uppercase tracking-wider text-muted-foreground">
+                              <th className="py-2 text-left">Faction</th>
+                              <th className="py-2 text-right">Alliance claimed</th>
+                              <th className="py-2 text-right">Unclaimed</th>
                             </tr>
-                          )}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {FACTION_KEYS.map((f) => {
+                              const claimed = meta.allianceGames[f];
+                              const pct = meta.allianceGameN ? (claimed / meta.allianceGameN) * 100 : null;
+                              return (
+                                <tr key={f} className="border-t border-border/40">
+                                  <td className="py-2">{FACTION_LABEL[f]}</td>
+                                  <td className="py-2 text-right tabular-nums">{pct === null ? "—" : `${pct.toFixed(1)}%`}</td>
+                                  <td className="py-2 text-right tabular-nums">{pct === null ? "—" : `${(100 - pct).toFixed(1)}%`}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        <div className="mt-4 pt-3 border-t border-border/40 flex items-baseline justify-between">
+                          <span className="text-sm text-muted-foreground">Stranded bumps</span>
+                          <span className="font-display text-xl text-sand tabular-nums">
+                            {meta.strandedPct === null ? "—" : `${meta.strandedPct.toFixed(1)}%`}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Share of all track investments left on dead levels (level 1, level 3 without alliance, or levels 4/5 without alliance).
+                        </p>
+                      </Card>
                     </div>
-                  </Card>
+                  )}
                 </>
+
               ) : (
                 <>
               <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
