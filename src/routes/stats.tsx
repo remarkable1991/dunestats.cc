@@ -163,6 +163,9 @@ function StatsPage() {
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState<GameVersion>("overall");
   const [mode, setMode] = useState<"basic" | "advanced">("basic");
+  const [advView, setAdvView] = useState<"leaders" | "meta">("leaders");
+  const [advSortKey, setAdvSortKey] = useState<"games" | "hc" | "sm" | "alliances" | "vpb" | "prod">("games");
+  const [advSortDir, setAdvSortDir] = useState<"desc" | "asc">("desc");
   const [userLeaders, setUserLeaders] = useState<Set<string>>(new Set());
   const [playerKeys, setPlayerKeys] = useState<string[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
