@@ -652,57 +652,231 @@ function StatsPage() {
                       {" "}Games without an endboard screenshot are excluded.
                     </p>
                   </div>
-                  <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
-                            <th className="px-4 py-3 text-left">Leader</th>
-                            <th className="px-4 py-3 text-right">Games</th>
-                            <th className="px-4 py-3 text-right">Avg VP/Bump</th>
-                            <th className="px-4 py-3 text-right">Avg Bump Productive %</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {loading && (
-                            <tr>
-                              <td colSpan={4} className="py-10 text-center text-muted-foreground">Loading stats…</td>
+
+                  <div className="grid grid-cols-2 gap-3 mb-5">
+                    {([
+                      { key: "leaders", icon: Crown, title: "Advanced Leader Stats", desc: "Upgrades, alliances and influence efficiency per leader." },
+                      { key: "meta", icon: Landmark, title: "General Meta Stats", desc: "Seat balance, upgrade paths, pacing and faction dynamics." },
+                    ] as const).map((t) => {
+                      const Icon = t.icon;
+                      const active = advView === t.key;
+                      return (
+                        <button
+                          key={t.key}
+                          type="button"
+                          onClick={() => setAdvView(t.key)}
+                          className={`border rounded-lg p-4 text-left transition-colors ${active ? "border-sand bg-sand/10" : "border-border/60 bg-card/60 hover:bg-card"}`}
+                        >
+                          <span className="flex items-center gap-2 font-display text-base">
+                            <Icon className="size-4 text-sand" />
+                            {t.title}
+                          </span>
+                          <span className="block text-xs text-muted-foreground mt-1">{t.desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {!loading && scannedGamesCount === 0 ? (
+                    <Card className="p-10 text-center text-muted-foreground border-border/60 bg-card/70">
+                      No scanned endboard games match these filters for {v.label} yet.
+                    </Card>
+                  ) : advView === "leaders" ? (
+                    <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
+                              <th className="px-4 py-3 text-left">Leader</th>
+                              <AdvTh label="Games" k="games" />
+                              <AdvTh label="HC %" k="hc" />
+                              <AdvTh label="SM %" k="sm" />
+                              <AdvTh label="Avg Alliances" k="alliances" />
+                              <AdvTh label="Avg VP/Bump" k="vpb" info="Direct victory points gained per influence bump. Benchmark is 0.500." />
+                              <AdvTh label="Avg Bump Productive %" k="prod" info="Share of bumps that yielded VPs or defended an alliance against the closest rival. Bumps left stranded on levels 1, 3, or on lost alliance tracks are penalised." />
                             </tr>
-                          )}
-                          {!loading &&
-                            advancedAgg.map((a) => (
-                              <tr key={a.leader} className="border-t border-border/40 hover:bg-secondary/30">
-                                <td className={`px-4 py-3 font-medium ${GROUP_COLOR[a.group]}`}>
-                                  {(() => {
-                                    const r = leaderRouteFor(a.leader);
-                                    return r ? (
-                                      <Link to="/leaders/$origin/$slug" params={{ origin: r.origin, slug: r.slug }} className="hover:underline">
-                                        {a.leader}
-                                      </Link>
-                                    ) : a.leader;
-                                  })()}
+                          </thead>
+                          <tbody>
+                            {loading && (
+                              <tr>
+                                <td colSpan={7} className="py-10 text-center text-muted-foreground">Loading stats…</td>
+                              </tr>
+                            )}
+                            {!loading &&
+                              advancedSorted.map((a) => (
+                                <tr key={a.leader} className="border-t border-border/40 hover:bg-secondary/30">
+                                  <td className={`px-4 py-3 font-medium ${GROUP_COLOR[a.group]}`}>
+                                    {(() => {
+                                      const r = leaderRouteFor(a.leader);
+                                      return r ? (
+                                        <Link to="/leaders/$origin/$slug" params={{ origin: r.origin, slug: r.slug }} className="hover:underline">
+                                          {a.leader}
+                                        </Link>
+                                      ) : a.leader;
+                                    })()}
+                                  </td>
+                                  <td className="px-4 py-3 text-right tabular-nums">{a.games}</td>
+                                  <td className="px-4 py-3 text-right tabular-nums">
+                                    {a.hcN ? `${((a.hcYes / a.hcN) * 100).toFixed(1)}%` : "—"}
+                                  </td>
+                                  <td className="px-4 py-3 text-right tabular-nums">
+                                    {a.smN ? `${((a.smYes / a.smN) * 100).toFixed(1)}%` : "—"}
+                                  </td>
+                                  <td className="px-4 py-3 text-right tabular-nums">
+                                    {a.allianceN ? (a.allianceSum / a.allianceN).toFixed(2) : "—"}
+                                  </td>
+                                  <td className="px-4 py-3 text-right tabular-nums">
+                                    {a.vpPerBumpN ? (a.vpPerBumpSum / a.vpPerBumpN).toFixed(3) : "—"}
+                                  </td>
+                                  <td className="px-4 py-3 text-right tabular-nums">
+                                    {a.productiveN ? `${(a.productiveSum / a.productiveN).toFixed(1)}%` : "—"}
+                                  </td>
+                                </tr>
+                              ))}
+                            {!loading && advancedSorted.length === 0 && (
+                              <tr>
+                                <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                                  No scanned endboard games for {v.label} yet.
                                 </td>
-                                <td className="px-4 py-3 text-right tabular-nums">{a.games}</td>
-                                <td className="px-4 py-3 text-right tabular-nums">
-                                  {a.vpPerBumpN ? (a.vpPerBumpSum / a.vpPerBumpN).toFixed(3) : "—"}
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Card>
+                  ) : loading ? (
+                    <Card className="p-10 text-center text-muted-foreground border-border/60 bg-card/70">Loading stats…</Card>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Card className="p-5 border-border/60 bg-card/70 shadow-arena">
+                        <div className="flex items-center gap-2 font-display text-lg text-sand mb-3">
+                          <Users className="size-4" /> Starting position balance
+                        </div>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-xs uppercase tracking-wider text-muted-foreground">
+                              <th className="py-2 text-left">Seat</th>
+                              <th className="py-2 text-right">Players</th>
+                              <th className="py-2 text-right">Win %</th>
+                              <th className="py-2 text-right">Top 2 %</th>
+                              <th className="py-2 text-right">Avg pts</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {meta.seats.map((s) => (
+                              <tr key={s.seat} className="border-t border-border/40">
+                                <td className="py-2">Seat {s.seat}</td>
+                                <td className="py-2 text-right tabular-nums">{s.n}</td>
+                                <td className="py-2 text-right tabular-nums">{s.n ? `${((s.wins / s.n) * 100).toFixed(1)}%` : "—"}</td>
+                                <td className="py-2 text-right tabular-nums">{s.n ? `${((s.top2 / s.n) * 100).toFixed(1)}%` : "—"}</td>
+                                <td className="py-2 text-right tabular-nums">{s.n ? (s.points / s.n).toFixed(1) : "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </Card>
+
+                      <Card className="p-5 border-border/60 bg-card/70 shadow-arena">
+                        <div className="flex items-center gap-2 font-display text-lg text-sand mb-3">
+                          <Crown className="size-4" /> Upgrades vs placement
+                        </div>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-xs uppercase tracking-wider text-muted-foreground">
+                              <th className="py-2 text-left">Upgrades</th>
+                              <th className="py-2 text-right">Share</th>
+                              <th className="py-2 text-right">Win %</th>
+                              <th className="py-2 text-right">Avg place</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {meta.upgrades.map((u) => (
+                              <tr key={u.label} className="border-t border-border/40">
+                                <td className="py-2">{u.label}</td>
+                                <td className="py-2 text-right tabular-nums">
+                                  {meta.upgradeTotal ? `${((u.n / meta.upgradeTotal) * 100).toFixed(1)}%` : "—"}
                                 </td>
-                                <td className="px-4 py-3 text-right tabular-nums">
-                                  {a.productiveN ? `${(a.productiveSum / a.productiveN).toFixed(1)}%` : "—"}
+                                <td className="py-2 text-right tabular-nums">{u.n ? `${((u.wins / u.n) * 100).toFixed(1)}%` : "—"}</td>
+                                <td className="py-2 text-right tabular-nums">{u.n ? (u.placementSum / u.n).toFixed(2) : "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </Card>
+
+                      <Card className="p-5 border-border/60 bg-card/70 shadow-arena">
+                        <div className="flex items-center gap-2 font-display text-lg text-sand mb-3">
+                          <Timer className="size-4" /> Game pacing
+                        </div>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-xs uppercase tracking-wider text-muted-foreground">
+                              <th className="py-2 text-left">Ends</th>
+                              <th className="py-2 text-right">Games</th>
+                              <th className="py-2 text-right">Share</th>
+                              <th className="py-2 text-right">Avg win score</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {meta.pace.map((p) => (
+                              <tr key={p.label} className="border-t border-border/40">
+                                <td className="py-2">{p.label}</td>
+                                <td className="py-2 text-right tabular-nums">{p.games}</td>
+                                <td className="py-2 text-right tabular-nums">
+                                  {meta.paceKnown ? `${((p.games / meta.paceKnown) * 100).toFixed(1)}%` : "—"}
+                                </td>
+                                <td className="py-2 text-right tabular-nums">
+                                  {p.winScoreN ? (p.winScoreSum / p.winScoreN).toFixed(1) : "—"}
                                 </td>
                               </tr>
                             ))}
-                          {!loading && advancedAgg.length === 0 && (
-                            <tr>
-                              <td colSpan={4} className="py-10 text-center text-muted-foreground">
-                                No scanned endboard games for {v.label} yet.
-                              </td>
+                          </tbody>
+                        </table>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Based on {meta.paceKnown} games with a recorded end round.
+                        </p>
+                      </Card>
+
+                      <Card className="p-5 border-border/60 bg-card/70 shadow-arena">
+                        <div className="flex items-center gap-2 font-display text-lg text-sand mb-3">
+                          <Landmark className="size-4" /> Faction track dynamics
+                        </div>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-xs uppercase tracking-wider text-muted-foreground">
+                              <th className="py-2 text-left">Faction</th>
+                              <th className="py-2 text-right">Alliance claimed</th>
+                              <th className="py-2 text-right">Unclaimed</th>
                             </tr>
-                          )}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {FACTION_KEYS.map((f) => {
+                              const claimed = meta.allianceGames[f];
+                              const pct = meta.allianceGameN ? (claimed / meta.allianceGameN) * 100 : null;
+                              return (
+                                <tr key={f} className="border-t border-border/40">
+                                  <td className="py-2">{FACTION_LABEL[f]}</td>
+                                  <td className="py-2 text-right tabular-nums">{pct === null ? "—" : `${pct.toFixed(1)}%`}</td>
+                                  <td className="py-2 text-right tabular-nums">{pct === null ? "—" : `${(100 - pct).toFixed(1)}%`}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        <div className="mt-4 pt-3 border-t border-border/40 flex items-baseline justify-between">
+                          <span className="text-sm text-muted-foreground">Stranded bumps</span>
+                          <span className="font-display text-xl text-sand tabular-nums">
+                            {meta.strandedPct === null ? "—" : `${meta.strandedPct.toFixed(1)}%`}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Share of all track investments left on dead levels (level 1, level 3 without alliance, or levels 4/5 without alliance).
+                        </p>
+                      </Card>
                     </div>
-                  </Card>
+                  )}
                 </>
+
               ) : (
                 <>
               <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
