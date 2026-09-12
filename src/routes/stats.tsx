@@ -76,6 +76,13 @@ type Row = {
   leader_name: string | null;
   player_name: string | null;
   points: number;
+  spice: number | null;
+  solaris: number | null;
+  water: number | null;
+  has_high_council: boolean | null;
+  has_swordmaster: boolean | null;
+  turn_order: number | null;
+  player_slot: number | null;
   emperor_level: number | null;
   emperor_alliance: boolean | null;
   spacing_guild_level: number | null;
@@ -92,8 +99,10 @@ type Row = {
     has_immortality: boolean | null;
     has_base_leaders: boolean | null;
     ai_scan_status: string | null;
+    end_round: number | null;
   } | null;
 };
+
 
 type Agg = {
   leader: string;
