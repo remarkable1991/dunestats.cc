@@ -234,7 +234,7 @@ function StatsPage() {
       while (true) {
         const { data, error } = await supabase
           .from("game_results")
-          .select("placement, leader_name, player_name, points, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance, games!inner(id, game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, ai_scan_status)")
+          .select("placement, leader_name, player_name, points, spice, solaris, water, has_high_council, has_swordmaster, turn_order, player_slot, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance, games!inner(id, game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, ai_scan_status, end_round)")
           .order("id", { ascending: true })
           .range(from, from + PAGE - 1);
         if (error || !data || data.length === 0) break;
