@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { LEADERS, classifyLeader } from "@/lib/leaders";
-import { influenceEfficiency } from "@/lib/match-telemetry";
-import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, FlaskConical } from "lucide-react";
+import { influenceEfficiency, FACTION_KEYS, FACTION_ALLIANCE_KEYS, type FactionKey } from "@/lib/match-telemetry";
+import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, FlaskConical, HelpCircle, Users, Crown, Timer, Landmark } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 type TriState = "any" | "true" | "false";
