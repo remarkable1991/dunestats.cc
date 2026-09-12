@@ -469,6 +469,56 @@ function StatsPage() {
   }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx]);
 
 
+  const advancedSorted = useMemo(() => {
+    const dir = advSortDir === "desc" ? -1 : 1;
+    const score = (a: typeof advancedAgg[number]) => {
+      switch (advSortKey) {
+        case "games": return a.games;
+        case "hc": return a.hcN ? a.hcYes / a.hcN : -1;
+        case "sm": return a.smN ? a.smYes / a.smN : -1;
+        case "alliances": return a.allianceN ? a.allianceSum / a.allianceN : -1;
+        case "vpb": return a.vpPerBumpN ? a.vpPerBumpSum / a.vpPerBumpN : -1;
+        case "prod": return a.productiveN ? a.productiveSum / a.productiveN : -1;
+      }
+    };
+    return [...advancedAgg].sort((a, b) => {
+      const av = score(a), bv = score(b);
+      if (av === bv) return a.leader.localeCompare(b.leader);
+      return av < bv ? dir : -dir;
+    });
+  }, [advancedAgg, advSortKey, advSortDir]);
+
+  function AdvTh({ label, k, info }: { label: string; k: typeof advSortKey; info?: string }) {
+    const active = advSortKey === k;
+    const Icon = active ? (advSortDir === "desc" ? ArrowDown : ArrowUp) : ArrowUpDown;
+    return (
+      <th className="px-4 py-3 text-right">
+        <span className="inline-flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              if (advSortKey !== k) { setAdvSortKey(k); setAdvSortDir("desc"); }
+              else setAdvSortDir(advSortDir === "desc" ? "asc" : "desc");
+            }}
+            className={`inline-flex items-center gap-1 hover:text-sand transition-colors ${active ? "text-sand" : ""}`}
+          >
+            {label}<Icon className={`size-3 ${active ? "opacity-100" : "opacity-40"}`} />
+          </button>
+          {info && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help text-muted-foreground hover:text-sand"><HelpCircle className="size-3.5" /></span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs normal-case tracking-normal">{info}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </span>
+      </th>
+    );
+  }
+
   const sorted = useMemo(() => {
     if (!sortKey || !sortDir) return aggregates;
     const dir = sortDir === "desc" ? -1 : 1;
