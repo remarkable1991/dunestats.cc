@@ -372,6 +372,8 @@ function StatsPage() {
     let productiveBumpsAll = 0;
 
     for (const gameRows of byGame.values()) {
+      if (fPlayers !== "any" && gameRows.length !== Number(fPlayers)) continue;
+      countedGames += 1;
       const players = gameRows.map((r) => ({
         placement: r.placement,
         player_name: r.player_name ?? "",
