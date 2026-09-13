@@ -296,7 +296,7 @@ function StatsPage() {
       a.totalPoints += r.points;
       map.set(key, a);
 
-      if (showPersonal && r.player_name && playerKeySet.has(r.player_name.toLowerCase())) {
+      if (showPersonal && r.player_name && playerKeySet.has(r.player_name.toLowerCase().trim())) {
         personalSlots += 1;
         const p = pmap.get(key) ?? { leader: c.name, group: c.group, picks: 0, wins: 0, top2: 0, totalPoints: 0 };
         p.picks += 1;
