@@ -775,26 +775,33 @@ function StatsPage() {
                                     })()}
                                   </td>
                                   <td className="px-4 py-3 text-right tabular-nums">{a.games}</td>
+                                  {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{pa ? pa.games : <span className="text-muted-foreground/60">—</span>}</td>}
                                   <td className="px-4 py-3 text-right tabular-nums">
-                                    {a.hcN ? `${((a.hcYes / a.hcN) * 100).toFixed(1)}%` : "—"}
+                                    {gHc !== null ? `${gHc.toFixed(1)}%` : "—"}
                                   </td>
+                                  {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{personalCell(pHc, gHc ?? 0, "%")}</td>}
                                   <td className="px-4 py-3 text-right tabular-nums">
-                                    {a.smN ? `${((a.smYes / a.smN) * 100).toFixed(1)}%` : "—"}
+                                    {gSm !== null ? `${gSm.toFixed(1)}%` : "—"}
                                   </td>
+                                  {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{personalCell(pSm, gSm ?? 0, "%")}</td>}
                                   <td className="px-4 py-3 text-right tabular-nums">
-                                    {a.allianceN ? (a.allianceSum / a.allianceN).toFixed(2) : "—"}
+                                    {gAl !== null ? gAl.toFixed(2) : "—"}
                                   </td>
+                                  {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{personalCell(pAl, gAl ?? 0, "", 2)}</td>}
                                   <td className="px-4 py-3 text-right tabular-nums">
-                                    {a.vpPerBumpN ? (a.vpPerBumpSum / a.vpPerBumpN).toFixed(3) : "—"}
+                                    {gVpb !== null ? gVpb.toFixed(3) : "—"}
                                   </td>
+                                  {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{personalCell(pVpb, gVpb ?? 0, "", 3)}</td>}
                                   <td className="px-4 py-3 text-right tabular-nums">
-                                    {a.productiveN ? `${(a.productiveSum / a.productiveN).toFixed(1)}%` : "—"}
+                                    {gProd !== null ? `${gProd.toFixed(1)}%` : "—"}
                                   </td>
+                                  {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{personalCell(pProd, gProd ?? 0, "%")}</td>}
                                 </tr>
-                              ))}
+                                );
+                              })}
                             {!loading && advancedSorted.length === 0 && (
                               <tr>
-                                <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                                <td colSpan={showPersonal ? 13 : 7} className="py-10 text-center text-muted-foreground">
                                   No scanned endboard games for {v.label} yet.
                                 </td>
                               </tr>
