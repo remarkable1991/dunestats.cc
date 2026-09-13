@@ -325,7 +325,7 @@ function StatsPage() {
   type SeatStat = { seat: number; n: number; wins: number; top2: number; points: number };
   type UpgradeStat = { label: string; n: number; wins: number; placementSum: number };
   type PaceStat = { label: string; games: number; winScoreSum: number; winScoreN: number };
-  const { advancedAgg, scannedGamesCount, meta } = useMemo(() => {
+  const { advancedAgg, personalAdvAgg, scannedGamesCount, meta } = useMemo(() => {
     const matchBool = (state: TriState, val: boolean | null | undefined) => {
       if (state === "any") return true;
       return Boolean(val) === (state === "true");
@@ -480,7 +480,8 @@ function StatsPage() {
     const upgradeTotal = upgrades.reduce((s, u) => s + u.n, 0);
     return {
       advancedAgg,
-      scannedGamesCount: gameIds.size,
+      personalAdvAgg: pmap,
+      scannedGamesCount: countedGames,
       meta: {
         seats,
         upgrades,
