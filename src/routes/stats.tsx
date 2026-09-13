@@ -679,6 +679,19 @@ function StatsPage() {
                       Showing data from <span className="text-foreground font-semibold">{scannedGamesCount}</span> {scannedGamesCount === 1 ? "game" : "games"} with endboard scan data in {v.label}.
                       {" "}Games without an endboard screenshot are excluded.
                     </p>
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                      <span className="text-xs uppercase tracking-wider text-muted-foreground">Players per game</span>
+                      <Select value={fPlayers} onValueChange={(v) => setFPlayers(v as "any" | "3" | "4")}>
+                        <SelectTrigger className="h-8 w-[130px] bg-card/60 border-border/60 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">All</SelectItem>
+                          <SelectItem value="3">3 players</SelectItem>
+                          <SelectItem value="4">4 players</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 mb-5">
