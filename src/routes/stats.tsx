@@ -730,11 +730,17 @@ function StatsPage() {
                             <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
                               <th className="px-4 py-3 text-left">Leader</th>
                               <AdvTh label="Games" k="games" />
+                              {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                               <AdvTh label="HC %" k="hc" />
+                              {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                               <AdvTh label="SM %" k="sm" />
+                              {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                               <AdvTh label="Avg Alliances" k="alliances" />
+                              {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                               <AdvTh label="Avg VP/Bump" k="vpb" info="Direct victory points gained per influence bump. Benchmark is 0.500." />
+                              {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                               <AdvTh label="Avg Bump Productive %" k="prod" info="Share of bumps that yielded VPs or defended an alliance against the closest rival. Bumps left stranded on levels 1, 3, or on lost alliance tracks are penalised." />
+                              {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                             </tr>
                           </thead>
                           <tbody>
