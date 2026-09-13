@@ -182,6 +182,7 @@ function StatsPage() {
   const [fImmortality, setFImmortality] = useState<TriState>("any");
   const [fBaseLeaders, setFBaseLeaders] = useState<TriState>("any");
   const [fRiseOfIx, setFRiseOfIx] = useState<TriState>("any");
+  const [fPlayers, setFPlayers] = useState<"any" | "3" | "4">("any");
 
   useEffect(() => {
     if (version !== "ix") setFEpic("any");
@@ -260,7 +261,7 @@ function StatsPage() {
   }, []);
 
   const showPersonal = compare && !!userId && playerKeys.length > 0;
-  const playerKeySet = useMemo(() => new Set(playerKeys.map((k) => k.toLowerCase())), [playerKeys]);
+  const playerKeySet = useMemo(() => new Set(playerKeys.map((k) => k.toLowerCase().trim())), [playerKeys]);
 
   const { aggregates, personalAgg, totalGames, personalTotalSlots, totalGamesCount } = useMemo(() => {
     let filtered =
@@ -295,7 +296,7 @@ function StatsPage() {
       a.totalPoints += r.points;
       map.set(key, a);
 
-      if (showPersonal && r.player_name && playerKeySet.has(r.player_name.toLowerCase())) {
+      if (showPersonal && r.player_name && playerKeySet.has(r.player_name.toLowerCase().trim())) {
         personalSlots += 1;
         const p = pmap.get(key) ?? { leader: c.name, group: c.group, picks: 0, wins: 0, top2: 0, totalPoints: 0 };
         p.picks += 1;
@@ -324,7 +325,7 @@ function StatsPage() {
   type SeatStat = { seat: number; n: number; wins: number; top2: number; points: number };
   type UpgradeStat = { label: string; n: number; wins: number; placementSum: number };
   type PaceStat = { label: string; games: number; winScoreSum: number; winScoreN: number };
-  const { advancedAgg, scannedGamesCount, meta } = useMemo(() => {
+  const { advancedAgg, personalAdvAgg, scannedGamesCount, meta } = useMemo(() => {
     const matchBool = (state: TriState, val: boolean | null | undefined) => {
       if (state === "any") return true;
       return Boolean(val) === (state === "true");
@@ -341,17 +342,17 @@ function StatsPage() {
         (version === "uprising" ? matchBool(fBaseLeaders, r.games?.has_base_leaders) : true)
       );
     });
-    const gameIds = new Set<string>();
     const byGame = new Map<string, Row[]>();
     for (const r of scanned) {
       const gid = r.games?.id;
       if (!gid) continue;
-      gameIds.add(gid);
       const arr = byGame.get(gid) ?? [];
       arr.push(r);
       byGame.set(gid, arr);
     }
+    let countedGames = 0;
     const map = new Map<string, AdvAgg>();
+    const pmap = new Map<string, AdvAgg>();
     const seats: SeatStat[] = [1, 2, 3, 4].map((seat) => ({ seat, n: 0, wins: 0, top2: 0, points: 0 }));
     const upgrades: UpgradeStat[] = [
       { label: "Both HC + SM", n: 0, wins: 0, placementSum: 0 },
@@ -371,6 +372,8 @@ function StatsPage() {
     let productiveBumpsAll = 0;
 
     for (const gameRows of byGame.values()) {
+      if (fPlayers !== "any" && gameRows.length !== Number(fPlayers)) continue;
+      countedGames += 1;
       const players = gameRows.map((r) => ({
         placement: r.placement,
         player_name: r.player_name ?? "",
@@ -455,13 +458,30 @@ function StatsPage() {
         if (eff.vpPerBump !== null) { a.vpPerBumpSum += eff.vpPerBump; a.vpPerBumpN += 1; }
         if (eff.productivePct !== null) { a.productiveSum += eff.productivePct; a.productiveN += 1; }
         map.set(c.name, a);
+
+        if (showPersonal && r.player_name && playerKeySet.has(r.player_name.toLowerCase().trim())) {
+          const p = pmap.get(c.name) ?? {
+            leader: c.name, group: c.group, games: 0,
+            hcN: 0, hcYes: 0, smN: 0, smYes: 0, allianceSum: 0, allianceN: 0,
+            vpPerBumpSum: 0, vpPerBumpN: 0, productiveSum: 0, productiveN: 0,
+          };
+          p.games += 1;
+          if (r.has_high_council !== null) { p.hcN += 1; if (r.has_high_council) p.hcYes += 1; }
+          if (r.has_swordmaster !== null) { p.smN += 1; if (r.has_swordmaster) p.smYes += 1; }
+          p.allianceN += 1;
+          p.allianceSum += FACTION_KEYS.filter((f) => players[i][FACTION_ALLIANCE_KEYS[f]] === true).length;
+          if (eff.vpPerBump !== null) { p.vpPerBumpSum += eff.vpPerBump; p.vpPerBumpN += 1; }
+          if (eff.productivePct !== null) { p.productiveSum += eff.productivePct; p.productiveN += 1; }
+          pmap.set(c.name, p);
+        }
       }
     }
     const advancedAgg = Array.from(map.values()).sort((a, b) => b.games - a.games);
     const upgradeTotal = upgrades.reduce((s, u) => s + u.n, 0);
     return {
       advancedAgg,
-      scannedGamesCount: gameIds.size,
+      personalAdvAgg: pmap,
+      scannedGamesCount: countedGames,
       meta: {
         seats,
         upgrades,
@@ -474,7 +494,7 @@ function StatsPage() {
         strandedPct: totalBumpsAll > 0 ? ((totalBumpsAll - productiveBumpsAll) / totalBumpsAll) * 100 : null,
       },
     };
-  }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx]);
+  }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx, fPlayers, showPersonal, playerKeySet]);
 
 
   const advancedSorted = useMemo(() => {
@@ -659,6 +679,19 @@ function StatsPage() {
                       Showing data from <span className="text-foreground font-semibold">{scannedGamesCount}</span> {scannedGamesCount === 1 ? "game" : "games"} with endboard scan data in {v.label}.
                       {" "}Games without an endboard screenshot are excluded.
                     </p>
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                      <span className="text-xs uppercase tracking-wider text-muted-foreground">Players per game</span>
+                      <Select value={fPlayers} onValueChange={(v) => setFPlayers(v as "any" | "3" | "4")}>
+                        <SelectTrigger className="h-8 w-[130px] bg-card/60 border-border/60 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">All</SelectItem>
+                          <SelectItem value="3">3 players</SelectItem>
+                          <SelectItem value="4">4 players</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 mb-5">
@@ -697,21 +730,39 @@ function StatsPage() {
                             <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
                               <th className="px-4 py-3 text-left">Leader</th>
                               <AdvTh label="Games" k="games" />
+                              {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                               <AdvTh label="HC %" k="hc" />
+                              {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                               <AdvTh label="SM %" k="sm" />
+                              {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                               <AdvTh label="Avg Alliances" k="alliances" />
+                              {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                               <AdvTh label="Avg VP/Bump" k="vpb" info="Direct victory points gained per influence bump. Benchmark is 0.500." />
+                              {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                               <AdvTh label="Avg Bump Productive %" k="prod" info="Share of bumps that yielded VPs or defended an alliance against the closest rival. Bumps left stranded on levels 1, 3, or on lost alliance tracks are penalised." />
+                              {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                             </tr>
                           </thead>
                           <tbody>
                             {loading && (
                               <tr>
-                                <td colSpan={7} className="py-10 text-center text-muted-foreground">Loading stats…</td>
+                                <td colSpan={showPersonal ? 13 : 7} className="py-10 text-center text-muted-foreground">Loading stats…</td>
                               </tr>
                             )}
                             {!loading &&
-                              advancedSorted.map((a) => (
+                              advancedSorted.map((a) => {
+                                const pa = personalAdvAgg.get(a.leader);
+                                const gHc = a.hcN ? (a.hcYes / a.hcN) * 100 : null;
+                                const pHc = pa && pa.hcN ? (pa.hcYes / pa.hcN) * 100 : null;
+                                const gSm = a.smN ? (a.smYes / a.smN) * 100 : null;
+                                const pSm = pa && pa.smN ? (pa.smYes / pa.smN) * 100 : null;
+                                const gAl = a.allianceN ? a.allianceSum / a.allianceN : null;
+                                const pAl = pa && pa.allianceN ? pa.allianceSum / pa.allianceN : null;
+                                const gVpb = a.vpPerBumpN ? a.vpPerBumpSum / a.vpPerBumpN : null;
+                                const pVpb = pa && pa.vpPerBumpN ? pa.vpPerBumpSum / pa.vpPerBumpN : null;
+                                const gProd = a.productiveN ? a.productiveSum / a.productiveN : null;
+                                const pProd = pa && pa.productiveN ? pa.productiveSum / pa.productiveN : null;
+                                return (
                                 <tr key={a.leader} className="border-t border-border/40 hover:bg-secondary/30">
                                   <td className={`px-4 py-3 font-medium ${GROUP_COLOR[a.group]}`}>
                                     {(() => {
@@ -724,26 +775,33 @@ function StatsPage() {
                                     })()}
                                   </td>
                                   <td className="px-4 py-3 text-right tabular-nums">{a.games}</td>
+                                  {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{pa ? pa.games : <span className="text-muted-foreground/60">—</span>}</td>}
                                   <td className="px-4 py-3 text-right tabular-nums">
-                                    {a.hcN ? `${((a.hcYes / a.hcN) * 100).toFixed(1)}%` : "—"}
+                                    {gHc !== null ? `${gHc.toFixed(1)}%` : "—"}
                                   </td>
+                                  {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{personalCell(pHc, gHc ?? 0, "%")}</td>}
                                   <td className="px-4 py-3 text-right tabular-nums">
-                                    {a.smN ? `${((a.smYes / a.smN) * 100).toFixed(1)}%` : "—"}
+                                    {gSm !== null ? `${gSm.toFixed(1)}%` : "—"}
                                   </td>
+                                  {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{personalCell(pSm, gSm ?? 0, "%")}</td>}
                                   <td className="px-4 py-3 text-right tabular-nums">
-                                    {a.allianceN ? (a.allianceSum / a.allianceN).toFixed(2) : "—"}
+                                    {gAl !== null ? gAl.toFixed(2) : "—"}
                                   </td>
+                                  {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{personalCell(pAl, gAl ?? 0, "", 2)}</td>}
                                   <td className="px-4 py-3 text-right tabular-nums">
-                                    {a.vpPerBumpN ? (a.vpPerBumpSum / a.vpPerBumpN).toFixed(3) : "—"}
+                                    {gVpb !== null ? gVpb.toFixed(3) : "—"}
                                   </td>
+                                  {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{personalCell(pVpb, gVpb ?? 0, "", 3)}</td>}
                                   <td className="px-4 py-3 text-right tabular-nums">
-                                    {a.productiveN ? `${(a.productiveSum / a.productiveN).toFixed(1)}%` : "—"}
+                                    {gProd !== null ? `${gProd.toFixed(1)}%` : "—"}
                                   </td>
+                                  {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{personalCell(pProd, gProd ?? 0, "%")}</td>}
                                 </tr>
-                              ))}
+                                );
+                              })}
                             {!loading && advancedSorted.length === 0 && (
                               <tr>
-                                <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                                <td colSpan={showPersonal ? 13 : 7} className="py-10 text-center text-muted-foreground">
                                   No scanned endboard games for {v.label} yet.
                                 </td>
                               </tr>
