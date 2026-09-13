@@ -746,11 +746,23 @@ function StatsPage() {
                           <tbody>
                             {loading && (
                               <tr>
-                                <td colSpan={7} className="py-10 text-center text-muted-foreground">Loading stats…</td>
+                                <td colSpan={showPersonal ? 13 : 7} className="py-10 text-center text-muted-foreground">Loading stats…</td>
                               </tr>
                             )}
                             {!loading &&
-                              advancedSorted.map((a) => (
+                              advancedSorted.map((a) => {
+                                const pa = personalAdvAgg.get(a.leader);
+                                const gHc = a.hcN ? (a.hcYes / a.hcN) * 100 : null;
+                                const pHc = pa && pa.hcN ? (pa.hcYes / pa.hcN) * 100 : null;
+                                const gSm = a.smN ? (a.smYes / a.smN) * 100 : null;
+                                const pSm = pa && pa.smN ? (pa.smYes / pa.smN) * 100 : null;
+                                const gAl = a.allianceN ? a.allianceSum / a.allianceN : null;
+                                const pAl = pa && pa.allianceN ? pa.allianceSum / pa.allianceN : null;
+                                const gVpb = a.vpPerBumpN ? a.vpPerBumpSum / a.vpPerBumpN : null;
+                                const pVpb = pa && pa.vpPerBumpN ? pa.vpPerBumpSum / pa.vpPerBumpN : null;
+                                const gProd = a.productiveN ? a.productiveSum / a.productiveN : null;
+                                const pProd = pa && pa.productiveN ? pa.productiveSum / pa.productiveN : null;
+                                return (
                                 <tr key={a.leader} className="border-t border-border/40 hover:bg-secondary/30">
                                   <td className={`px-4 py-3 font-medium ${GROUP_COLOR[a.group]}`}>
                                     {(() => {
