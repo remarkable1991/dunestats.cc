@@ -458,6 +458,22 @@ function StatsPage() {
         if (eff.vpPerBump !== null) { a.vpPerBumpSum += eff.vpPerBump; a.vpPerBumpN += 1; }
         if (eff.productivePct !== null) { a.productiveSum += eff.productivePct; a.productiveN += 1; }
         map.set(c.name, a);
+
+        if (showPersonal && r.player_name && playerKeySet.has(r.player_name.toLowerCase().trim())) {
+          const p = pmap.get(c.name) ?? {
+            leader: c.name, group: c.group, games: 0,
+            hcN: 0, hcYes: 0, smN: 0, smYes: 0, allianceSum: 0, allianceN: 0,
+            vpPerBumpSum: 0, vpPerBumpN: 0, productiveSum: 0, productiveN: 0,
+          };
+          p.games += 1;
+          if (r.has_high_council !== null) { p.hcN += 1; if (r.has_high_council) p.hcYes += 1; }
+          if (r.has_swordmaster !== null) { p.smN += 1; if (r.has_swordmaster) p.smYes += 1; }
+          p.allianceN += 1;
+          p.allianceSum += FACTION_KEYS.filter((f) => players[i][FACTION_ALLIANCE_KEYS[f]] === true).length;
+          if (eff.vpPerBump !== null) { p.vpPerBumpSum += eff.vpPerBump; p.vpPerBumpN += 1; }
+          if (eff.productivePct !== null) { p.productiveSum += eff.productivePct; p.productiveN += 1; }
+          pmap.set(c.name, p);
+        }
       }
     }
     const advancedAgg = Array.from(map.values()).sort((a, b) => b.games - a.games);
