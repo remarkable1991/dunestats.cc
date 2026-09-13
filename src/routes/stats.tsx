@@ -342,17 +342,17 @@ function StatsPage() {
         (version === "uprising" ? matchBool(fBaseLeaders, r.games?.has_base_leaders) : true)
       );
     });
-    const gameIds = new Set<string>();
     const byGame = new Map<string, Row[]>();
     for (const r of scanned) {
       const gid = r.games?.id;
       if (!gid) continue;
-      gameIds.add(gid);
       const arr = byGame.get(gid) ?? [];
       arr.push(r);
       byGame.set(gid, arr);
     }
+    let countedGames = 0;
     const map = new Map<string, AdvAgg>();
+    const pmap = new Map<string, AdvAgg>();
     const seats: SeatStat[] = [1, 2, 3, 4].map((seat) => ({ seat, n: 0, wins: 0, top2: 0, points: 0 }));
     const upgrades: UpgradeStat[] = [
       { label: "Both HC + SM", n: 0, wins: 0, placementSum: 0 },
