@@ -182,6 +182,7 @@ function StatsPage() {
   const [fImmortality, setFImmortality] = useState<TriState>("any");
   const [fBaseLeaders, setFBaseLeaders] = useState<TriState>("any");
   const [fRiseOfIx, setFRiseOfIx] = useState<TriState>("any");
+  const [fPlayers, setFPlayers] = useState<"any" | "3" | "4">("any");
 
   useEffect(() => {
     if (version !== "ix") setFEpic("any");
@@ -260,7 +261,7 @@ function StatsPage() {
   }, []);
 
   const showPersonal = compare && !!userId && playerKeys.length > 0;
-  const playerKeySet = useMemo(() => new Set(playerKeys.map((k) => k.toLowerCase())), [playerKeys]);
+  const playerKeySet = useMemo(() => new Set(playerKeys.map((k) => k.toLowerCase().trim())), [playerKeys]);
 
   const { aggregates, personalAgg, totalGames, personalTotalSlots, totalGamesCount } = useMemo(() => {
     let filtered =
