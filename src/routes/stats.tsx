@@ -325,7 +325,7 @@ function StatsPage() {
   type SeatStat = { seat: number; n: number; wins: number; top2: number; points: number };
   type UpgradeStat = { label: string; n: number; wins: number; placementSum: number };
   type PaceStat = { label: string; games: number; winScoreSum: number; winScoreN: number };
-  const { advancedAgg, personalAdvAgg, scannedGamesCount, meta } = useMemo(() => {
+  const { advancedAgg, personalAdvAgg, scannedGamesCount, meta, personalMeta } = useMemo(() => {
     const matchBool = (state: TriState, val: boolean | null | undefined) => {
       if (state === "any") return true;
       return Boolean(val) === (state === "true");
@@ -370,6 +370,25 @@ function StatsPage() {
     let allianceGameN = 0;
     let totalBumpsAll = 0;
     let productiveBumpsAll = 0;
+    // Personal (compare-with-me) mirrors of the meta cards
+    const pSeats: SeatStat[] = [1, 2, 3, 4].map((seat) => ({ seat, n: 0, wins: 0, top2: 0, points: 0 }));
+    const pUpgrades: UpgradeStat[] = [
+      { label: "Both HC + SM", n: 0, wins: 0, placementSum: 0 },
+      { label: "Swordmaster only", n: 0, wins: 0, placementSum: 0 },
+      { label: "High Council only", n: 0, wins: 0, placementSum: 0 },
+      { label: "Neither", n: 0, wins: 0, placementSum: 0 },
+    ];
+    let pUpgradeTotal = 0;
+    const pPace: PaceStat[] = [
+      { label: "Round 7", games: 0, winScoreSum: 0, winScoreN: 0 },
+      { label: "Round 8", games: 0, winScoreSum: 0, winScoreN: 0 },
+      { label: "Round 9+", games: 0, winScoreSum: 0, winScoreN: 0 },
+    ];
+    let pPaceKnown = 0;
+    const pAllianceGames: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+    let pAllianceGameN = 0;
+    let pTotalBumps = 0;
+    let pProductiveBumps = 0;
 
     for (const gameRows of byGame.values()) {
       if (fPlayers !== "any" && gameRows.length !== Number(fPlayers)) continue;
@@ -415,6 +434,24 @@ function StatsPage() {
         if (players.some((p) => p[FACTION_ALLIANCE_KEYS[f]] === true)) allianceGames[f] += 1;
       }
 
+      // Personal pacing + alliances: only games the user actually played in
+      const meIdx = showPersonal
+        ? gameRows.findIndex((r) => r.player_name && playerKeySet.has(r.player_name.toLowerCase().trim()))
+        : -1;
+      if (meIdx >= 0) {
+        const me = gameRows[meIdx];
+        if (endRound && endRound >= 7) {
+          const bucket = endRound === 7 ? pPace[0] : endRound === 8 ? pPace[1] : pPace[2];
+          bucket.games += 1;
+          pPaceKnown += 1;
+          if (me.placement === 1) { bucket.winScoreSum += me.points; bucket.winScoreN += 1; }
+        }
+        pAllianceGameN += 1;
+        for (const f of FACTION_KEYS) {
+          if (players[meIdx][FACTION_ALLIANCE_KEYS[f]] === true) pAllianceGames[f] += 1;
+        }
+      }
+
       for (let i = 0; i < gameRows.length; i++) {
         const r = gameRows[i];
         const eff = influenceEfficiency(players[i], players);
@@ -441,6 +478,30 @@ function StatsPage() {
           u.n += 1;
           if (r.placement === 1) u.wins += 1;
           u.placementSum += r.placement;
+        }
+
+        // Personal mirrors of cards 1, 2 and the stranded-bump metric
+        if (i === meIdx) {
+          pTotalBumps += eff.totalBumps;
+          if (eff.productivePct !== null) {
+            pProductiveBumps += (eff.productivePct / 100) * eff.totalBumps;
+          }
+          if (seat && seat >= 1 && seat <= 4) {
+            const s = pSeats[seat - 1];
+            s.n += 1;
+            if (r.placement === 1) s.wins += 1;
+            if (r.placement <= 2) s.top2 += 1;
+            s.points += r.points;
+          }
+          if (r.has_high_council !== null || r.has_swordmaster !== null) {
+            const hc = r.has_high_council === true;
+            const sm = r.has_swordmaster === true;
+            const u = hc && sm ? pUpgrades[0] : sm ? pUpgrades[1] : hc ? pUpgrades[2] : pUpgrades[3];
+            u.n += 1;
+            if (r.placement === 1) u.wins += 1;
+            u.placementSum += r.placement;
+            pUpgradeTotal += 1;
+          }
         }
 
         const c = canonicalize(r.leader_name);
@@ -492,6 +553,16 @@ function StatsPage() {
         allianceGameN,
         totalBumpsAll,
         strandedPct: totalBumpsAll > 0 ? ((totalBumpsAll - productiveBumpsAll) / totalBumpsAll) * 100 : null,
+      },
+      personalMeta: {
+        seats: pSeats,
+        upgrades: pUpgrades,
+        upgradeTotal: pUpgradeTotal,
+        pace: pPace,
+        paceKnown: pPaceKnown,
+        allianceGames: pAllianceGames,
+        allianceGameN: pAllianceGameN,
+        strandedPct: pTotalBumps > 0 ? ((pTotalBumps - pProductiveBumps) / pTotalBumps) * 100 : null,
       },
     };
   }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx, fPlayers, showPersonal, playerKeySet]);
@@ -592,11 +663,12 @@ function StatsPage() {
     );
   }
 
-  const personalCell = (personal: number | null, global: number, suffix = "", digits = 1) => {
+  const personalCell = (personal: number | null, global: number, suffix = "", digits = 1, invert = false) => {
     if (personal === null) {
       return <span className="text-muted-foreground/60">—</span>;
     }
-    return <span className={toneClass(personal, global)}>{personal.toFixed(digits)}{suffix}</span>;
+    const shown = invert ? 2 * global - personal : personal;
+    return <span className={toneClass(shown, global)}>{personal.toFixed(digits)}{suffix}</span>;
   };
 
   return (
@@ -823,21 +895,35 @@ function StatsPage() {
                             <tr className="text-xs uppercase tracking-wider text-muted-foreground">
                               <th className="py-2 text-left">Seat</th>
                               <th className="py-2 text-right">Players</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Win %</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Top 2 %</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Avg pts</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                             </tr>
                           </thead>
                           <tbody>
-                            {meta.seats.map((s) => (
+                            {meta.seats.map((s, si) => {
+                              const ps = personalMeta.seats[si];
+                              const gWin = s.n ? (s.wins / s.n) * 100 : 0;
+                              const gTop2 = s.n ? (s.top2 / s.n) * 100 : 0;
+                              const gPts = s.n ? s.points / s.n : 0;
+                              return (
                               <tr key={s.seat} className="border-t border-border/40">
                                 <td className="py-2">Seat {s.seat}</td>
                                 <td className="py-2 text-right tabular-nums">{s.n}</td>
-                                <td className="py-2 text-right tabular-nums">{s.n ? `${((s.wins / s.n) * 100).toFixed(1)}%` : "—"}</td>
-                                <td className="py-2 text-right tabular-nums">{s.n ? `${((s.top2 / s.n) * 100).toFixed(1)}%` : "—"}</td>
-                                <td className="py-2 text-right tabular-nums">{s.n ? (s.points / s.n).toFixed(1) : "—"}</td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{ps.n ? ps.n : <span className="text-muted-foreground/60">—</span>}</td>}
+                                <td className="py-2 text-right tabular-nums">{s.n ? `${gWin.toFixed(1)}%` : "—"}</td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(ps.n ? (ps.wins / ps.n) * 100 : null, gWin, "%")}</td>}
+                                <td className="py-2 text-right tabular-nums">{s.n ? `${gTop2.toFixed(1)}%` : "—"}</td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(ps.n ? (ps.top2 / ps.n) * 100 : null, gTop2, "%")}</td>}
+                                <td className="py-2 text-right tabular-nums">{s.n ? gPts.toFixed(1) : "—"}</td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(ps.n ? ps.points / ps.n : null, gPts, "")}</td>}
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </Card>
@@ -851,21 +937,33 @@ function StatsPage() {
                             <tr className="text-xs uppercase tracking-wider text-muted-foreground">
                               <th className="py-2 text-left">Upgrades</th>
                               <th className="py-2 text-right">Share</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Win %</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Avg place</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                             </tr>
                           </thead>
                           <tbody>
-                            {meta.upgrades.map((u) => (
+                            {meta.upgrades.map((u, ui) => {
+                              const pu = personalMeta.upgrades[ui];
+                              const gShare = meta.upgradeTotal ? (u.n / meta.upgradeTotal) * 100 : 0;
+                              const gWin = u.n ? (u.wins / u.n) * 100 : 0;
+                              const gPlace = u.n ? u.placementSum / u.n : 0;
+                              return (
                               <tr key={u.label} className="border-t border-border/40">
                                 <td className="py-2">{u.label}</td>
                                 <td className="py-2 text-right tabular-nums">
-                                  {meta.upgradeTotal ? `${((u.n / meta.upgradeTotal) * 100).toFixed(1)}%` : "—"}
+                                  {meta.upgradeTotal ? `${gShare.toFixed(1)}%` : "—"}
                                 </td>
-                                <td className="py-2 text-right tabular-nums">{u.n ? `${((u.wins / u.n) * 100).toFixed(1)}%` : "—"}</td>
-                                <td className="py-2 text-right tabular-nums">{u.n ? (u.placementSum / u.n).toFixed(2) : "—"}</td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pu.n && personalMeta.upgradeTotal ? (pu.n / personalMeta.upgradeTotal) * 100 : null, gShare, "%")}</td>}
+                                <td className="py-2 text-right tabular-nums">{u.n ? `${gWin.toFixed(1)}%` : "—"}</td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pu.n ? (pu.wins / pu.n) * 100 : null, gWin, "%")}</td>}
+                                <td className="py-2 text-right tabular-nums">{u.n ? gPlace.toFixed(2) : "—"}</td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pu.n ? pu.placementSum / pu.n : null, gPlace, "", 2, true)}</td>}
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </Card>
@@ -879,27 +977,39 @@ function StatsPage() {
                             <tr className="text-xs uppercase tracking-wider text-muted-foreground">
                               <th className="py-2 text-left">Ends</th>
                               <th className="py-2 text-right">Games</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Share</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Avg win score</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                             </tr>
                           </thead>
                           <tbody>
-                            {meta.pace.map((p) => (
+                            {meta.pace.map((p, pi) => {
+                              const pp = personalMeta.pace[pi];
+                              const gShare = meta.paceKnown ? (p.games / meta.paceKnown) * 100 : 0;
+                              const gScore = p.winScoreN ? p.winScoreSum / p.winScoreN : 0;
+                              return (
                               <tr key={p.label} className="border-t border-border/40">
                                 <td className="py-2">{p.label}</td>
                                 <td className="py-2 text-right tabular-nums">{p.games}</td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{pp.games ? pp.games : <span className="text-muted-foreground/60">—</span>}</td>}
                                 <td className="py-2 text-right tabular-nums">
-                                  {meta.paceKnown ? `${((p.games / meta.paceKnown) * 100).toFixed(1)}%` : "—"}
+                                  {meta.paceKnown ? `${gShare.toFixed(1)}%` : "—"}
                                 </td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pp.games && personalMeta.paceKnown ? (pp.games / personalMeta.paceKnown) * 100 : null, gShare, "%")}</td>}
                                 <td className="py-2 text-right tabular-nums">
-                                  {p.winScoreN ? (p.winScoreSum / p.winScoreN).toFixed(1) : "—"}
+                                  {p.winScoreN ? gScore.toFixed(1) : "—"}
                                 </td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pp.winScoreN ? pp.winScoreSum / pp.winScoreN : null, gScore, "")}</td>}
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                         <p className="text-xs text-muted-foreground mt-2">
                           Based on {meta.paceKnown} games with a recorded end round.
+                          {showPersonal && personalMeta.paceKnown > 0 && ` Your sample: ${personalMeta.paceKnown} games.`}
                         </p>
                       </Card>
 
@@ -912,6 +1022,7 @@ function StatsPage() {
                             <tr className="text-xs uppercase tracking-wider text-muted-foreground">
                               <th className="py-2 text-left">Faction</th>
                               <th className="py-2 text-right">Alliance claimed</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Unclaimed</th>
                             </tr>
                           </thead>
@@ -919,10 +1030,12 @@ function StatsPage() {
                             {FACTION_KEYS.map((f) => {
                               const claimed = meta.allianceGames[f];
                               const pct = meta.allianceGameN ? (claimed / meta.allianceGameN) * 100 : null;
+                              const pPct = personalMeta.allianceGameN ? (personalMeta.allianceGames[f] / personalMeta.allianceGameN) * 100 : null;
                               return (
                                 <tr key={f} className="border-t border-border/40">
                                   <td className="py-2">{FACTION_LABEL[f]}</td>
                                   <td className="py-2 text-right tabular-nums">{pct === null ? "—" : `${pct.toFixed(1)}%`}</td>
+                                  {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pPct, pct ?? 0, "%")}</td>}
                                   <td className="py-2 text-right tabular-nums">{pct === null ? "—" : `${(100 - pct).toFixed(1)}%`}</td>
                                 </tr>
                               );
@@ -933,6 +1046,11 @@ function StatsPage() {
                           <span className="text-sm text-muted-foreground">Stranded bumps</span>
                           <span className="font-display text-xl text-sand tabular-nums">
                             {meta.strandedPct === null ? "—" : `${meta.strandedPct.toFixed(1)}%`}
+                            {showPersonal && personalMeta.strandedPct !== null && (
+                              <span className={`ml-2 text-sm ${toneClass(personalMeta.strandedPct, meta.strandedPct ?? 0) === "text-emerald-400" ? "text-red-400" : toneClass(personalMeta.strandedPct, meta.strandedPct ?? 0) === "text-red-400" ? "text-emerald-400" : "text-muted-foreground"}`}>
+                                (you: {personalMeta.strandedPct.toFixed(1)}%)
+                              </span>
+                            )}
                           </span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
