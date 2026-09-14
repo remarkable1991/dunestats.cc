@@ -663,11 +663,12 @@ function StatsPage() {
     );
   }
 
-  const personalCell = (personal: number | null, global: number, suffix = "", digits = 1) => {
+  const personalCell = (personal: number | null, global: number, suffix = "", digits = 1, invert = false) => {
     if (personal === null) {
       return <span className="text-muted-foreground/60">—</span>;
     }
-    return <span className={toneClass(personal, global)}>{personal.toFixed(digits)}{suffix}</span>;
+    const shown = invert ? 2 * global - personal : personal;
+    return <span className={toneClass(shown, global)}>{personal.toFixed(digits)}{suffix}</span>;
   };
 
   return (
@@ -894,21 +895,35 @@ function StatsPage() {
                             <tr className="text-xs uppercase tracking-wider text-muted-foreground">
                               <th className="py-2 text-left">Seat</th>
                               <th className="py-2 text-right">Players</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Win %</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Top 2 %</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Avg pts</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                             </tr>
                           </thead>
                           <tbody>
-                            {meta.seats.map((s) => (
+                            {meta.seats.map((s, si) => {
+                              const ps = personalMeta.seats[si];
+                              const gWin = s.n ? (s.wins / s.n) * 100 : 0;
+                              const gTop2 = s.n ? (s.top2 / s.n) * 100 : 0;
+                              const gPts = s.n ? s.points / s.n : 0;
+                              return (
                               <tr key={s.seat} className="border-t border-border/40">
                                 <td className="py-2">Seat {s.seat}</td>
                                 <td className="py-2 text-right tabular-nums">{s.n}</td>
-                                <td className="py-2 text-right tabular-nums">{s.n ? `${((s.wins / s.n) * 100).toFixed(1)}%` : "—"}</td>
-                                <td className="py-2 text-right tabular-nums">{s.n ? `${((s.top2 / s.n) * 100).toFixed(1)}%` : "—"}</td>
-                                <td className="py-2 text-right tabular-nums">{s.n ? (s.points / s.n).toFixed(1) : "—"}</td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{ps.n ? ps.n : <span className="text-muted-foreground/60">—</span>}</td>}
+                                <td className="py-2 text-right tabular-nums">{s.n ? `${gWin.toFixed(1)}%` : "—"}</td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(ps.n ? (ps.wins / ps.n) * 100 : null, gWin, "%")}</td>}
+                                <td className="py-2 text-right tabular-nums">{s.n ? `${gTop2.toFixed(1)}%` : "—"}</td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(ps.n ? (ps.top2 / ps.n) * 100 : null, gTop2, "%")}</td>}
+                                <td className="py-2 text-right tabular-nums">{s.n ? gPts.toFixed(1) : "—"}</td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(ps.n ? ps.points / ps.n : null, gPts, "")}</td>}
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </Card>
