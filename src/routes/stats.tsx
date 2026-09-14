@@ -434,6 +434,24 @@ function StatsPage() {
         if (players.some((p) => p[FACTION_ALLIANCE_KEYS[f]] === true)) allianceGames[f] += 1;
       }
 
+      // Personal pacing + alliances: only games the user actually played in
+      const meIdx = showPersonal
+        ? gameRows.findIndex((r) => r.player_name && playerKeySet.has(r.player_name.toLowerCase().trim()))
+        : -1;
+      if (meIdx >= 0) {
+        const me = gameRows[meIdx];
+        if (endRound && endRound >= 7) {
+          const bucket = endRound === 7 ? pPace[0] : endRound === 8 ? pPace[1] : pPace[2];
+          bucket.games += 1;
+          pPaceKnown += 1;
+          if (me.placement === 1) { bucket.winScoreSum += me.points; bucket.winScoreN += 1; }
+        }
+        pAllianceGameN += 1;
+        for (const f of FACTION_KEYS) {
+          if (players[meIdx][FACTION_ALLIANCE_KEYS[f]] === true) pAllianceGames[f] += 1;
+        }
+      }
+
       for (let i = 0; i < gameRows.length; i++) {
         const r = gameRows[i];
         const eff = influenceEfficiency(players[i], players);
