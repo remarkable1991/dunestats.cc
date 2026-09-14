@@ -554,6 +554,16 @@ function StatsPage() {
         totalBumpsAll,
         strandedPct: totalBumpsAll > 0 ? ((totalBumpsAll - productiveBumpsAll) / totalBumpsAll) * 100 : null,
       },
+      personalMeta: {
+        seats: pSeats,
+        upgrades: pUpgrades,
+        upgradeTotal: pUpgradeTotal,
+        pace: pPace,
+        paceKnown: pPaceKnown,
+        allianceGames: pAllianceGames,
+        allianceGameN: pAllianceGameN,
+        strandedPct: pTotalBumps > 0 ? ((pTotalBumps - pProductiveBumps) / pTotalBumps) * 100 : null,
+      },
     };
   }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx, fPlayers, showPersonal, playerKeySet]);
 
