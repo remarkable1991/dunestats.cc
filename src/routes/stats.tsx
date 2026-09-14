@@ -480,6 +480,30 @@ function StatsPage() {
           u.placementSum += r.placement;
         }
 
+        // Personal mirrors of cards 1, 2 and the stranded-bump metric
+        if (i === meIdx) {
+          pTotalBumps += eff.totalBumps;
+          if (eff.productivePct !== null) {
+            pProductiveBumps += (eff.productivePct / 100) * eff.totalBumps;
+          }
+          if (seat && seat >= 1 && seat <= 4) {
+            const s = pSeats[seat - 1];
+            s.n += 1;
+            if (r.placement === 1) s.wins += 1;
+            if (r.placement <= 2) s.top2 += 1;
+            s.points += r.points;
+          }
+          if (r.has_high_council !== null || r.has_swordmaster !== null) {
+            const hc = r.has_high_council === true;
+            const sm = r.has_swordmaster === true;
+            const u = hc && sm ? pUpgrades[0] : sm ? pUpgrades[1] : hc ? pUpgrades[2] : pUpgrades[3];
+            u.n += 1;
+            if (r.placement === 1) u.wins += 1;
+            u.placementSum += r.placement;
+            pUpgradeTotal += 1;
+          }
+        }
+
         const c = canonicalize(r.leader_name);
         if (!c) continue;
         const a = map.get(c.name) ?? {
