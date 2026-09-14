@@ -325,7 +325,7 @@ function StatsPage() {
   type SeatStat = { seat: number; n: number; wins: number; top2: number; points: number };
   type UpgradeStat = { label: string; n: number; wins: number; placementSum: number };
   type PaceStat = { label: string; games: number; winScoreSum: number; winScoreN: number };
-  const { advancedAgg, personalAdvAgg, scannedGamesCount, meta } = useMemo(() => {
+  const { advancedAgg, personalAdvAgg, scannedGamesCount, meta, personalMeta } = useMemo(() => {
     const matchBool = (state: TriState, val: boolean | null | undefined) => {
       if (state === "any") return true;
       return Boolean(val) === (state === "true");
