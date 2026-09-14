@@ -370,6 +370,25 @@ function StatsPage() {
     let allianceGameN = 0;
     let totalBumpsAll = 0;
     let productiveBumpsAll = 0;
+    // Personal (compare-with-me) mirrors of the meta cards
+    const pSeats: SeatStat[] = [1, 2, 3, 4].map((seat) => ({ seat, n: 0, wins: 0, top2: 0, points: 0 }));
+    const pUpgrades: UpgradeStat[] = [
+      { label: "Both HC + SM", n: 0, wins: 0, placementSum: 0 },
+      { label: "Swordmaster only", n: 0, wins: 0, placementSum: 0 },
+      { label: "High Council only", n: 0, wins: 0, placementSum: 0 },
+      { label: "Neither", n: 0, wins: 0, placementSum: 0 },
+    ];
+    let pUpgradeTotal = 0;
+    const pPace: PaceStat[] = [
+      { label: "Round 7", games: 0, winScoreSum: 0, winScoreN: 0 },
+      { label: "Round 8", games: 0, winScoreSum: 0, winScoreN: 0 },
+      { label: "Round 9+", games: 0, winScoreSum: 0, winScoreN: 0 },
+    ];
+    let pPaceKnown = 0;
+    const pAllianceGames: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+    let pAllianceGameN = 0;
+    let pTotalBumps = 0;
+    let pProductiveBumps = 0;
 
     for (const gameRows of byGame.values()) {
       if (fPlayers !== "any" && gameRows.length !== Number(fPlayers)) continue;
