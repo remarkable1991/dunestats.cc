@@ -1022,6 +1022,7 @@ function StatsPage() {
                             <tr className="text-xs uppercase tracking-wider text-muted-foreground">
                               <th className="py-2 text-left">Faction</th>
                               <th className="py-2 text-right">Alliance claimed</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Unclaimed</th>
                             </tr>
                           </thead>
@@ -1029,10 +1030,12 @@ function StatsPage() {
                             {FACTION_KEYS.map((f) => {
                               const claimed = meta.allianceGames[f];
                               const pct = meta.allianceGameN ? (claimed / meta.allianceGameN) * 100 : null;
+                              const pPct = personalMeta.allianceGameN ? (personalMeta.allianceGames[f] / personalMeta.allianceGameN) * 100 : null;
                               return (
                                 <tr key={f} className="border-t border-border/40">
                                   <td className="py-2">{FACTION_LABEL[f]}</td>
                                   <td className="py-2 text-right tabular-nums">{pct === null ? "—" : `${pct.toFixed(1)}%`}</td>
+                                  {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pPct, pct ?? 0, "%")}</td>}
                                   <td className="py-2 text-right tabular-nums">{pct === null ? "—" : `${(100 - pct).toFixed(1)}%`}</td>
                                 </tr>
                               );
@@ -1043,6 +1046,11 @@ function StatsPage() {
                           <span className="text-sm text-muted-foreground">Stranded bumps</span>
                           <span className="font-display text-xl text-sand tabular-nums">
                             {meta.strandedPct === null ? "—" : `${meta.strandedPct.toFixed(1)}%`}
+                            {showPersonal && personalMeta.strandedPct !== null && (
+                              <span className={`ml-2 text-sm ${toneClass(personalMeta.strandedPct, meta.strandedPct ?? 0) === "text-emerald-400" ? "text-red-400" : toneClass(personalMeta.strandedPct, meta.strandedPct ?? 0) === "text-red-400" ? "text-emerald-400" : "text-muted-foreground"}`}>
+                                (you: {personalMeta.strandedPct.toFixed(1)}%)
+                              </span>
+                            )}
                           </span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
