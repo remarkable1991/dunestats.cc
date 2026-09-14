@@ -937,21 +937,33 @@ function StatsPage() {
                             <tr className="text-xs uppercase tracking-wider text-muted-foreground">
                               <th className="py-2 text-left">Upgrades</th>
                               <th className="py-2 text-right">Share</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Win %</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Avg place</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                             </tr>
                           </thead>
                           <tbody>
-                            {meta.upgrades.map((u) => (
+                            {meta.upgrades.map((u, ui) => {
+                              const pu = personalMeta.upgrades[ui];
+                              const gShare = meta.upgradeTotal ? (u.n / meta.upgradeTotal) * 100 : 0;
+                              const gWin = u.n ? (u.wins / u.n) * 100 : 0;
+                              const gPlace = u.n ? u.placementSum / u.n : 0;
+                              return (
                               <tr key={u.label} className="border-t border-border/40">
                                 <td className="py-2">{u.label}</td>
                                 <td className="py-2 text-right tabular-nums">
-                                  {meta.upgradeTotal ? `${((u.n / meta.upgradeTotal) * 100).toFixed(1)}%` : "—"}
+                                  {meta.upgradeTotal ? `${gShare.toFixed(1)}%` : "—"}
                                 </td>
-                                <td className="py-2 text-right tabular-nums">{u.n ? `${((u.wins / u.n) * 100).toFixed(1)}%` : "—"}</td>
-                                <td className="py-2 text-right tabular-nums">{u.n ? (u.placementSum / u.n).toFixed(2) : "—"}</td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pu.n && personalMeta.upgradeTotal ? (pu.n / personalMeta.upgradeTotal) * 100 : null, gShare, "%")}</td>}
+                                <td className="py-2 text-right tabular-nums">{u.n ? `${gWin.toFixed(1)}%` : "—"}</td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pu.n ? (pu.wins / pu.n) * 100 : null, gWin, "%")}</td>}
+                                <td className="py-2 text-right tabular-nums">{u.n ? gPlace.toFixed(2) : "—"}</td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pu.n ? pu.placementSum / pu.n : null, gPlace, "", 2, true)}</td>}
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </Card>
