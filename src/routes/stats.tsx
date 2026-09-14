@@ -977,27 +977,39 @@ function StatsPage() {
                             <tr className="text-xs uppercase tracking-wider text-muted-foreground">
                               <th className="py-2 text-left">Ends</th>
                               <th className="py-2 text-right">Games</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Share</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Avg win score</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                             </tr>
                           </thead>
                           <tbody>
-                            {meta.pace.map((p) => (
+                            {meta.pace.map((p, pi) => {
+                              const pp = personalMeta.pace[pi];
+                              const gShare = meta.paceKnown ? (p.games / meta.paceKnown) * 100 : 0;
+                              const gScore = p.winScoreN ? p.winScoreSum / p.winScoreN : 0;
+                              return (
                               <tr key={p.label} className="border-t border-border/40">
                                 <td className="py-2">{p.label}</td>
                                 <td className="py-2 text-right tabular-nums">{p.games}</td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{pp.games ? pp.games : <span className="text-muted-foreground/60">—</span>}</td>}
                                 <td className="py-2 text-right tabular-nums">
-                                  {meta.paceKnown ? `${((p.games / meta.paceKnown) * 100).toFixed(1)}%` : "—"}
+                                  {meta.paceKnown ? `${gShare.toFixed(1)}%` : "—"}
                                 </td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pp.games && personalMeta.paceKnown ? (pp.games / personalMeta.paceKnown) * 100 : null, gShare, "%")}</td>}
                                 <td className="py-2 text-right tabular-nums">
-                                  {p.winScoreN ? (p.winScoreSum / p.winScoreN).toFixed(1) : "—"}
+                                  {p.winScoreN ? gScore.toFixed(1) : "—"}
                                 </td>
+                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pp.winScoreN ? pp.winScoreSum / pp.winScoreN : null, gScore, "")}</td>}
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                         <p className="text-xs text-muted-foreground mt-2">
                           Based on {meta.paceKnown} games with a recorded end round.
+                          {showPersonal && personalMeta.paceKnown > 0 && ` Your sample: ${personalMeta.paceKnown} games.`}
                         </p>
                       </Card>
 
