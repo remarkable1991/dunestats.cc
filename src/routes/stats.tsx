@@ -378,6 +378,8 @@ function StatsPage() {
     ];
     let paceKnown = 0;
     const allianceGames: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+    const factionLevelSum: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+    const factionLevelN: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
     let allianceGameN = 0;
     let totalBumpsAll = 0;
     let productiveBumpsAll = 0;
@@ -397,6 +399,8 @@ function StatsPage() {
     ];
     let pPaceKnown = 0;
     const pAllianceGames: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+    const pFactionLevelSum: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+    const pFactionLevelN: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
     let pAllianceGameN = 0;
     let pTotalBumps = 0;
     let pProductiveBumps = 0;
@@ -490,6 +494,16 @@ function StatsPage() {
           u.n += 1;
           if (r.placement === 1) u.wins += 1;
           u.placementSum += r.placement;
+          if (r.placement >= 1 && r.placement <= 4) u.places[r.placement - 1] += 1;
+        }
+
+        // Card 4: average level reached per faction track
+        for (const f of FACTION_KEYS) {
+          const lv = r[FACTION_LEVEL_KEYS[f]];
+          if (lv !== null && lv !== undefined) {
+            factionLevelSum[f] += Number(lv);
+            factionLevelN[f] += 1;
+          }
         }
 
         // Personal mirrors of cards 1, 2 and the stranded-bump metric
@@ -513,7 +527,15 @@ function StatsPage() {
             u.n += 1;
             if (r.placement === 1) u.wins += 1;
             u.placementSum += r.placement;
+            if (r.placement >= 1 && r.placement <= 4) u.places[r.placement - 1] += 1;
             pUpgradeTotal += 1;
+          }
+          for (const f of FACTION_KEYS) {
+            const lv = r[FACTION_LEVEL_KEYS[f]];
+            if (lv !== null && lv !== undefined) {
+              pFactionLevelSum[f] += Number(lv);
+              pFactionLevelN[f] += 1;
+            }
           }
         }
 
@@ -564,6 +586,8 @@ function StatsPage() {
         paceKnown,
         allianceGames,
         allianceGameN,
+        factionLevelSum,
+        factionLevelN,
         totalBumpsAll,
         strandedPct: totalBumpsAll > 0 ? ((totalBumpsAll - productiveBumpsAll) / totalBumpsAll) * 100 : null,
       },
@@ -575,6 +599,8 @@ function StatsPage() {
         paceKnown: pPaceKnown,
         allianceGames: pAllianceGames,
         allianceGameN: pAllianceGameN,
+        factionLevelSum: pFactionLevelSum,
+        factionLevelN: pFactionLevelN,
         strandedPct: pTotalBumps > 0 ? ((pTotalBumps - pProductiveBumps) / pTotalBumps) * 100 : null,
       },
     };
