@@ -382,7 +382,7 @@ function StatsPage() {
     let totalBumpsAll = 0;
     let productiveBumpsAll = 0;
     // Personal (compare-with-me) mirrors of the meta cards
-    const pSeats: SeatStat[] = [1, 2, 3, 4].map((seat) => ({ seat, n: 0, wins: 0, top2: 0, points: 0 }));
+    const pSeats: SeatStat[] = [1, 2, 3, 4].map((seat) => ({ seat, n: 0, wins: 0, top2: 0, points: 0, places: [0, 0, 0, 0] }));
     const pUpgrades: UpgradeStat[] = [
       { label: "Both HC + SM", n: 0, wins: 0, placementSum: 0 },
       { label: "Swordmaster only", n: 0, wins: 0, placementSum: 0 },
