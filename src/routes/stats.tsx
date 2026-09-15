@@ -504,6 +504,7 @@ function StatsPage() {
             if (r.placement === 1) s.wins += 1;
             if (r.placement <= 2) s.top2 += 1;
             s.points += r.points;
+            if (r.placement >= 1 && r.placement <= 4) s.places[r.placement - 1] += 1;
           }
           if (r.has_high_council !== null || r.has_swordmaster !== null) {
             const hc = r.has_high_council === true;
