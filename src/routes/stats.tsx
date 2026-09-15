@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { LEADERS, classifyLeader } from "@/lib/leaders";
-import { influenceEfficiency, FACTION_KEYS, FACTION_ALLIANCE_KEYS, type FactionKey } from "@/lib/match-telemetry";
+import { influenceEfficiency, FACTION_KEYS, FACTION_ALLIANCE_KEYS, FACTION_LEVEL_KEYS, type FactionKey } from "@/lib/match-telemetry";
 import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, FlaskConical, HelpCircle, Users, Crown, Timer, Landmark } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -323,7 +323,7 @@ function StatsPage() {
     productiveN: number;
   };
   type SeatStat = { seat: number; n: number; wins: number; top2: number; points: number; places: number[] };
-  type UpgradeStat = { label: string; n: number; wins: number; placementSum: number };
+  type UpgradeStat = { label: string; n: number; wins: number; placementSum: number; places: number[] };
   type PaceStat = { label: string; games: number; winScoreSum: number; winScoreN: number };
   /** Colour a placement share against the fair baseline; 3rd/4th are inverted. */
   const placeTone = (pct: number | null, baseline: number, place: number) => {
@@ -366,10 +366,10 @@ function StatsPage() {
     const pmap = new Map<string, AdvAgg>();
     const seats: SeatStat[] = [1, 2, 3, 4].map((seat) => ({ seat, n: 0, wins: 0, top2: 0, points: 0, places: [0, 0, 0, 0] }));
     const upgrades: UpgradeStat[] = [
-      { label: "Both HC + SM", n: 0, wins: 0, placementSum: 0 },
-      { label: "Swordmaster only", n: 0, wins: 0, placementSum: 0 },
-      { label: "High Council only", n: 0, wins: 0, placementSum: 0 },
-      { label: "Neither", n: 0, wins: 0, placementSum: 0 },
+      { label: "Both HC + SM", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
+      { label: "Swordmaster only", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
+      { label: "High Council only", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
+      { label: "Neither", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
     ];
     const pace: PaceStat[] = [
       { label: "Round 7", games: 0, winScoreSum: 0, winScoreN: 0 },
@@ -378,16 +378,18 @@ function StatsPage() {
     ];
     let paceKnown = 0;
     const allianceGames: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+    const factionLevelSum: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+    const factionLevelN: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
     let allianceGameN = 0;
     let totalBumpsAll = 0;
     let productiveBumpsAll = 0;
     // Personal (compare-with-me) mirrors of the meta cards
     const pSeats: SeatStat[] = [1, 2, 3, 4].map((seat) => ({ seat, n: 0, wins: 0, top2: 0, points: 0, places: [0, 0, 0, 0] }));
     const pUpgrades: UpgradeStat[] = [
-      { label: "Both HC + SM", n: 0, wins: 0, placementSum: 0 },
-      { label: "Swordmaster only", n: 0, wins: 0, placementSum: 0 },
-      { label: "High Council only", n: 0, wins: 0, placementSum: 0 },
-      { label: "Neither", n: 0, wins: 0, placementSum: 0 },
+      { label: "Both HC + SM", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
+      { label: "Swordmaster only", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
+      { label: "High Council only", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
+      { label: "Neither", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
     ];
     let pUpgradeTotal = 0;
     const pPace: PaceStat[] = [
@@ -397,6 +399,8 @@ function StatsPage() {
     ];
     let pPaceKnown = 0;
     const pAllianceGames: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+    const pFactionLevelSum: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+    const pFactionLevelN: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
     let pAllianceGameN = 0;
     let pTotalBumps = 0;
     let pProductiveBumps = 0;
@@ -490,6 +494,16 @@ function StatsPage() {
           u.n += 1;
           if (r.placement === 1) u.wins += 1;
           u.placementSum += r.placement;
+          if (r.placement >= 1 && r.placement <= 4) u.places[r.placement - 1] += 1;
+        }
+
+        // Card 4: average level reached per faction track
+        for (const f of FACTION_KEYS) {
+          const lv = r[FACTION_LEVEL_KEYS[f]];
+          if (lv !== null && lv !== undefined) {
+            factionLevelSum[f] += Number(lv);
+            factionLevelN[f] += 1;
+          }
         }
 
         // Personal mirrors of cards 1, 2 and the stranded-bump metric
@@ -513,7 +527,15 @@ function StatsPage() {
             u.n += 1;
             if (r.placement === 1) u.wins += 1;
             u.placementSum += r.placement;
+            if (r.placement >= 1 && r.placement <= 4) u.places[r.placement - 1] += 1;
             pUpgradeTotal += 1;
+          }
+          for (const f of FACTION_KEYS) {
+            const lv = r[FACTION_LEVEL_KEYS[f]];
+            if (lv !== null && lv !== undefined) {
+              pFactionLevelSum[f] += Number(lv);
+              pFactionLevelN[f] += 1;
+            }
           }
         }
 
@@ -564,6 +586,8 @@ function StatsPage() {
         paceKnown,
         allianceGames,
         allianceGameN,
+        factionLevelSum,
+        factionLevelN,
         totalBumpsAll,
         strandedPct: totalBumpsAll > 0 ? ((totalBumpsAll - productiveBumpsAll) / totalBumpsAll) * 100 : null,
       },
@@ -575,6 +599,8 @@ function StatsPage() {
         paceKnown: pPaceKnown,
         allianceGames: pAllianceGames,
         allianceGameN: pAllianceGameN,
+        factionLevelSum: pFactionLevelSum,
+        factionLevelN: pFactionLevelN,
         strandedPct: pTotalBumps > 0 ? ((pTotalBumps - pProductiveBumps) / pTotalBumps) * 100 : null,
       },
     };
@@ -976,40 +1002,80 @@ function StatsPage() {
                         <div className="flex items-center gap-2 font-display text-lg text-sand mb-3">
                           <Crown className="size-4" /> Upgrades vs placement
                         </div>
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="text-xs uppercase tracking-wider text-muted-foreground">
-                              <th className="py-2 text-left">Upgrades</th>
-                              <th className="py-2 text-right">Share</th>
-                              {showPersonal && <th className="py-2 text-right">You</th>}
-                              <th className="py-2 text-right">Win %</th>
-                              {showPersonal && <th className="py-2 text-right">You</th>}
-                              <th className="py-2 text-right">Avg place</th>
-                              {showPersonal && <th className="py-2 text-right">You</th>}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {meta.upgrades.map((u, ui) => {
-                              const pu = personalMeta.upgrades[ui];
-                              const gShare = meta.upgradeTotal ? (u.n / meta.upgradeTotal) * 100 : 0;
-                              const gWin = u.n ? (u.wins / u.n) * 100 : 0;
-                              const gPlace = u.n ? u.placementSum / u.n : 0;
-                              return (
-                              <tr key={u.label} className="border-t border-border/40">
-                                <td className="py-2">{u.label}</td>
-                                <td className="py-2 text-right tabular-nums">
-                                  {meta.upgradeTotal ? `${gShare.toFixed(1)}%` : "—"}
-                                </td>
-                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pu.n && personalMeta.upgradeTotal ? (pu.n / personalMeta.upgradeTotal) * 100 : null, gShare, "%")}</td>}
-                                <td className="py-2 text-right tabular-nums">{u.n ? `${gWin.toFixed(1)}%` : "—"}</td>
-                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pu.n ? (pu.wins / pu.n) * 100 : null, gWin, "%")}</td>}
-                                <td className="py-2 text-right tabular-nums">{u.n ? gPlace.toFixed(2) : "—"}</td>
-                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pu.n ? pu.placementSum / pu.n : null, gPlace, "", 2, true)}</td>}
-                              </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                        {(() => {
+                          const totalUp = meta.upgradeTotal;
+                          const baselines = [0, 1, 2, 3].map((p) =>
+                            totalUp ? (meta.upgrades.reduce((a, u) => a + u.places[p], 0) / totalUp) * 100 : 0,
+                          );
+                          const labels = ["1st", "2nd", "3rd", "4th"];
+                          return (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {meta.upgrades.map((u, ui) => {
+                                const pu = personalMeta.upgrades[ui];
+                                const pct = (v: number) => (u.n ? (v / u.n) * 100 : 0);
+                                const gShare = totalUp ? (u.n / totalUp) * 100 : 0;
+                                const gWin = u.n ? (u.wins / u.n) * 100 : 0;
+                                const gPlace = u.n ? u.placementSum / u.n : 0;
+                                return (
+                                  <div key={u.label} className="rounded-lg border border-border/60 bg-background/30 p-3">
+                                    <div className="flex items-baseline justify-between mb-2">
+                                      <div className="font-display text-sm">{u.label}</div>
+                                      <div className="text-xs text-muted-foreground tabular-nums">
+                                        {u.n} seats{showPersonal && pu.n ? ` · you ${pu.n}` : ""}
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-1 text-center">
+                                      {labels.map((lb, p) => {
+                                        const val = u.n ? pct(u.places[p]) : null;
+                                        const pv = pu.n ? (pu.places[p] / pu.n) * 100 : null;
+                                        return (
+                                          <div key={lb} className="rounded-md bg-card/60 py-1.5">
+                                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{lb}</div>
+                                            <div className={`text-base font-display tabular-nums ${placeTone(val, baselines[p], p + 1)}`}>
+                                              {val === null ? "—" : `${val.toFixed(1)}%`}
+                                            </div>
+                                            {showPersonal && (
+                                              <div className={`text-[10px] tabular-nums ${placeTone(pv, baselines[p], p + 1)}`}>
+                                                {pv === null ? "—" : `you ${pv.toFixed(0)}%`}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                    {u.n > 0 && (
+                                      <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-muted/40">
+                                        {[0, 1, 2, 3].map((p) => (
+                                          <div
+                                            key={p}
+                                            className={PLACE_BAR[p]}
+                                            style={{ width: `${pct(u.places[p])}%` }}
+                                          />
+                                        ))}
+                                      </div>
+                                    )}
+                                    <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground tabular-nums">
+                                      <span>
+                                        Share <span className="text-foreground">{totalUp ? `${gShare.toFixed(1)}%` : "—"}</span>
+                                        {showPersonal && pu.n && personalMeta.upgradeTotal ? (
+                                          <span className="ml-1">(you {((pu.n / personalMeta.upgradeTotal) * 100).toFixed(0)}%)</span>
+                                        ) : null}
+                                      </span>
+                                      <span>
+                                        Win <span className={placeTone(u.n ? gWin : null, baselines[0], 1)}>{u.n ? `${gWin.toFixed(1)}%` : "—"}</span>
+                                        {showPersonal && pu.n ? <span className="ml-1">(you {((pu.wins / pu.n) * 100).toFixed(0)}%)</span> : null}
+                                      </span>
+                                      <span>
+                                        Avg <span className="text-foreground">{u.n ? gPlace.toFixed(2) : "—"}</span>
+                                        {showPersonal && pu.n ? <span className="ml-1">(you {(pu.placementSum / pu.n).toFixed(2)})</span> : null}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
                       </Card>
 
                       <Card className="p-5 border-border/60 bg-card/70 shadow-arena">
@@ -1068,6 +1134,8 @@ function StatsPage() {
                               <th className="py-2 text-right">Alliance claimed</th>
                               {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Unclaimed</th>
+                              <th className="py-2 text-right">Avg level</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                             </tr>
                           </thead>
                           <tbody>
@@ -1075,12 +1143,16 @@ function StatsPage() {
                               const claimed = meta.allianceGames[f];
                               const pct = meta.allianceGameN ? (claimed / meta.allianceGameN) * 100 : null;
                               const pPct = personalMeta.allianceGameN ? (personalMeta.allianceGames[f] / personalMeta.allianceGameN) * 100 : null;
+                              const gLvl = meta.factionLevelN[f] ? meta.factionLevelSum[f] / meta.factionLevelN[f] : null;
+                              const pLvl = personalMeta.factionLevelN[f] ? personalMeta.factionLevelSum[f] / personalMeta.factionLevelN[f] : null;
                               return (
                                 <tr key={f} className="border-t border-border/40">
                                   <td className="py-2">{FACTION_LABEL[f]}</td>
                                   <td className="py-2 text-right tabular-nums">{pct === null ? "—" : `${pct.toFixed(1)}%`}</td>
                                   {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pPct, pct ?? 0, "%")}</td>}
                                   <td className="py-2 text-right tabular-nums">{pct === null ? "—" : `${(100 - pct).toFixed(1)}%`}</td>
+                                  <td className="py-2 text-right tabular-nums">{gLvl === null ? "—" : gLvl.toFixed(2)}</td>
+                                  {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pLvl, gLvl ?? 0, "", 2)}</td>}
                                 </tr>
                               );
                             })}
