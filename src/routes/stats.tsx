@@ -323,7 +323,7 @@ function StatsPage() {
     productiveN: number;
   };
   type SeatStat = { seat: number; n: number; wins: number; top2: number; points: number; places: number[] };
-  type UpgradeStat = { label: string; n: number; wins: number; placementSum: number };
+  type UpgradeStat = { label: string; n: number; wins: number; placementSum: number; places: number[] };
   type PaceStat = { label: string; games: number; winScoreSum: number; winScoreN: number };
   /** Colour a placement share against the fair baseline; 3rd/4th are inverted. */
   const placeTone = (pct: number | null, baseline: number, place: number) => {
@@ -366,10 +366,10 @@ function StatsPage() {
     const pmap = new Map<string, AdvAgg>();
     const seats: SeatStat[] = [1, 2, 3, 4].map((seat) => ({ seat, n: 0, wins: 0, top2: 0, points: 0, places: [0, 0, 0, 0] }));
     const upgrades: UpgradeStat[] = [
-      { label: "Both HC + SM", n: 0, wins: 0, placementSum: 0 },
-      { label: "Swordmaster only", n: 0, wins: 0, placementSum: 0 },
-      { label: "High Council only", n: 0, wins: 0, placementSum: 0 },
-      { label: "Neither", n: 0, wins: 0, placementSum: 0 },
+      { label: "Both HC + SM", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
+      { label: "Swordmaster only", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
+      { label: "High Council only", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
+      { label: "Neither", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
     ];
     const pace: PaceStat[] = [
       { label: "Round 7", games: 0, winScoreSum: 0, winScoreN: 0 },
@@ -384,10 +384,10 @@ function StatsPage() {
     // Personal (compare-with-me) mirrors of the meta cards
     const pSeats: SeatStat[] = [1, 2, 3, 4].map((seat) => ({ seat, n: 0, wins: 0, top2: 0, points: 0, places: [0, 0, 0, 0] }));
     const pUpgrades: UpgradeStat[] = [
-      { label: "Both HC + SM", n: 0, wins: 0, placementSum: 0 },
-      { label: "Swordmaster only", n: 0, wins: 0, placementSum: 0 },
-      { label: "High Council only", n: 0, wins: 0, placementSum: 0 },
-      { label: "Neither", n: 0, wins: 0, placementSum: 0 },
+      { label: "Both HC + SM", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
+      { label: "Swordmaster only", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
+      { label: "High Council only", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
+      { label: "Neither", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
     ];
     let pUpgradeTotal = 0;
     const pPace: PaceStat[] = [
