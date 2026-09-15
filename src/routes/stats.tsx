@@ -1002,40 +1002,80 @@ function StatsPage() {
                         <div className="flex items-center gap-2 font-display text-lg text-sand mb-3">
                           <Crown className="size-4" /> Upgrades vs placement
                         </div>
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="text-xs uppercase tracking-wider text-muted-foreground">
-                              <th className="py-2 text-left">Upgrades</th>
-                              <th className="py-2 text-right">Share</th>
-                              {showPersonal && <th className="py-2 text-right">You</th>}
-                              <th className="py-2 text-right">Win %</th>
-                              {showPersonal && <th className="py-2 text-right">You</th>}
-                              <th className="py-2 text-right">Avg place</th>
-                              {showPersonal && <th className="py-2 text-right">You</th>}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {meta.upgrades.map((u, ui) => {
-                              const pu = personalMeta.upgrades[ui];
-                              const gShare = meta.upgradeTotal ? (u.n / meta.upgradeTotal) * 100 : 0;
-                              const gWin = u.n ? (u.wins / u.n) * 100 : 0;
-                              const gPlace = u.n ? u.placementSum / u.n : 0;
-                              return (
-                              <tr key={u.label} className="border-t border-border/40">
-                                <td className="py-2">{u.label}</td>
-                                <td className="py-2 text-right tabular-nums">
-                                  {meta.upgradeTotal ? `${gShare.toFixed(1)}%` : "—"}
-                                </td>
-                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pu.n && personalMeta.upgradeTotal ? (pu.n / personalMeta.upgradeTotal) * 100 : null, gShare, "%")}</td>}
-                                <td className="py-2 text-right tabular-nums">{u.n ? `${gWin.toFixed(1)}%` : "—"}</td>
-                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pu.n ? (pu.wins / pu.n) * 100 : null, gWin, "%")}</td>}
-                                <td className="py-2 text-right tabular-nums">{u.n ? gPlace.toFixed(2) : "—"}</td>
-                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pu.n ? pu.placementSum / pu.n : null, gPlace, "", 2, true)}</td>}
-                              </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                        {(() => {
+                          const totalUp = meta.upgradeTotal;
+                          const baselines = [0, 1, 2, 3].map((p) =>
+                            totalUp ? (meta.upgrades.reduce((a, u) => a + u.places[p], 0) / totalUp) * 100 : 0,
+                          );
+                          const labels = ["1st", "2nd", "3rd", "4th"];
+                          return (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {meta.upgrades.map((u, ui) => {
+                                const pu = personalMeta.upgrades[ui];
+                                const pct = (v: number) => (u.n ? (v / u.n) * 100 : 0);
+                                const gShare = totalUp ? (u.n / totalUp) * 100 : 0;
+                                const gWin = u.n ? (u.wins / u.n) * 100 : 0;
+                                const gPlace = u.n ? u.placementSum / u.n : 0;
+                                return (
+                                  <div key={u.label} className="rounded-lg border border-border/60 bg-background/30 p-3">
+                                    <div className="flex items-baseline justify-between mb-2">
+                                      <div className="font-display text-sm">{u.label}</div>
+                                      <div className="text-xs text-muted-foreground tabular-nums">
+                                        {u.n} seats{showPersonal && pu.n ? ` · you ${pu.n}` : ""}
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-1 text-center">
+                                      {labels.map((lb, p) => {
+                                        const val = u.n ? pct(u.places[p]) : null;
+                                        const pv = pu.n ? (pu.places[p] / pu.n) * 100 : null;
+                                        return (
+                                          <div key={lb} className="rounded-md bg-card/60 py-1.5">
+                                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{lb}</div>
+                                            <div className={`text-base font-display tabular-nums ${placeTone(val, baselines[p], p + 1)}`}>
+                                              {val === null ? "—" : `${val.toFixed(1)}%`}
+                                            </div>
+                                            {showPersonal && (
+                                              <div className={`text-[10px] tabular-nums ${placeTone(pv, baselines[p], p + 1)}`}>
+                                                {pv === null ? "—" : `you ${pv.toFixed(0)}%`}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                    {u.n > 0 && (
+                                      <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-muted/40">
+                                        {[0, 1, 2, 3].map((p) => (
+                                          <div
+                                            key={p}
+                                            className={PLACE_BAR[p]}
+                                            style={{ width: `${pct(u.places[p])}%` }}
+                                          />
+                                        ))}
+                                      </div>
+                                    )}
+                                    <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground tabular-nums">
+                                      <span>
+                                        Share <span className="text-foreground">{totalUp ? `${gShare.toFixed(1)}%` : "—"}</span>
+                                        {showPersonal && pu.n && personalMeta.upgradeTotal ? (
+                                          <span className="ml-1">(you {((pu.n / personalMeta.upgradeTotal) * 100).toFixed(0)}%)</span>
+                                        ) : null}
+                                      </span>
+                                      <span>
+                                        Win <span className={placeTone(u.n ? gWin : null, baselines[0], 1)}>{u.n ? `${gWin.toFixed(1)}%` : "—"}</span>
+                                        {showPersonal && pu.n ? <span className="ml-1">(you {((pu.wins / pu.n) * 100).toFixed(0)}%)</span> : null}
+                                      </span>
+                                      <span>
+                                        Avg <span className="text-foreground">{u.n ? gPlace.toFixed(2) : "—"}</span>
+                                        {showPersonal && pu.n ? <span className="ml-1">(you {(pu.placementSum / pu.n).toFixed(2)})</span> : null}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
                       </Card>
 
                       <Card className="p-5 border-border/60 bg-card/70 shadow-arena">
@@ -1094,6 +1134,8 @@ function StatsPage() {
                               <th className="py-2 text-right">Alliance claimed</th>
                               {showPersonal && <th className="py-2 text-right">You</th>}
                               <th className="py-2 text-right">Unclaimed</th>
+                              <th className="py-2 text-right">Avg level</th>
+                              {showPersonal && <th className="py-2 text-right">You</th>}
                             </tr>
                           </thead>
                           <tbody>
