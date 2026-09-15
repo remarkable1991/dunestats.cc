@@ -903,42 +903,73 @@ function StatsPage() {
                         <div className="flex items-center gap-2 font-display text-lg text-sand mb-3">
                           <Users className="size-4" /> Starting position balance
                         </div>
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="text-xs uppercase tracking-wider text-muted-foreground">
-                              <th className="py-2 text-left">Seat</th>
-                              <th className="py-2 text-right">Players</th>
-                              {showPersonal && <th className="py-2 text-right">You</th>}
-                              <th className="py-2 text-right">Win %</th>
-                              {showPersonal && <th className="py-2 text-right">You</th>}
-                              <th className="py-2 text-right">Top 2 %</th>
-                              {showPersonal && <th className="py-2 text-right">You</th>}
-                              <th className="py-2 text-right">Avg pts</th>
-                              {showPersonal && <th className="py-2 text-right">You</th>}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {meta.seats.map((s, si) => {
-                              const ps = personalMeta.seats[si];
-                              const gWin = s.n ? (s.wins / s.n) * 100 : 0;
-                              const gTop2 = s.n ? (s.top2 / s.n) * 100 : 0;
-                              const gPts = s.n ? s.points / s.n : 0;
-                              return (
-                              <tr key={s.seat} className="border-t border-border/40">
-                                <td className="py-2">Seat {s.seat}</td>
-                                <td className="py-2 text-right tabular-nums">{s.n}</td>
-                                {showPersonal && <td className="py-2 text-right tabular-nums">{ps.n ? ps.n : <span className="text-muted-foreground/60">—</span>}</td>}
-                                <td className="py-2 text-right tabular-nums">{s.n ? `${gWin.toFixed(1)}%` : "—"}</td>
-                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(ps.n ? (ps.wins / ps.n) * 100 : null, gWin, "%")}</td>}
-                                <td className="py-2 text-right tabular-nums">{s.n ? `${gTop2.toFixed(1)}%` : "—"}</td>
-                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(ps.n ? (ps.top2 / ps.n) * 100 : null, gTop2, "%")}</td>}
-                                <td className="py-2 text-right tabular-nums">{s.n ? gPts.toFixed(1) : "—"}</td>
-                                {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(ps.n ? ps.points / ps.n : null, gPts, "")}</td>}
-                              </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                        {(() => {
+                          const totalSeatN = meta.seats.reduce((a, s) => a + s.n, 0);
+                          const baselines = [0, 1, 2, 3].map((p) =>
+                            totalSeatN ? (meta.seats.reduce((a, s) => a + s.places[p], 0) / totalSeatN) * 100 : 0,
+                          );
+                          const labels = ["1st", "2nd", "3rd", "4th"];
+                          return (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {meta.seats.map((s, si) => {
+                                const ps = personalMeta.seats[si];
+                                const pct = (v: number) => (s.n ? (v / s.n) * 100 : 0);
+                                const gTop2 = pct(s.top2);
+                                const gPts = s.n ? s.points / s.n : 0;
+                                return (
+                                  <div key={s.seat} className="rounded-lg border border-border/60 bg-background/30 p-3">
+                                    <div className="flex items-baseline justify-between mb-2">
+                                      <div className="font-display text-sm">Seat {s.seat}</div>
+                                      <div className="text-xs text-muted-foreground tabular-nums">
+                                        {s.n} seats{showPersonal && ps.n ? ` · you ${ps.n}` : ""}
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-1 text-center">
+                                      {labels.map((lb, p) => {
+                                        const val = s.n ? pct(s.places[p]) : null;
+                                        const pv = ps.n ? (ps.places[p] / ps.n) * 100 : null;
+                                        return (
+                                          <div key={lb} className="rounded-md bg-card/60 py-1.5">
+                                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{lb}</div>
+                                            <div className={`text-base font-display tabular-nums ${placeTone(val, baselines[p], p + 1)}`}>
+                                              {val === null ? "—" : `${val.toFixed(1)}%`}
+                                            </div>
+                                            {showPersonal && (
+                                              <div className={`text-[10px] tabular-nums ${placeTone(pv, baselines[p], p + 1)}`}>
+                                                {pv === null ? "—" : `you ${pv.toFixed(0)}%`}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                    {s.n > 0 && (
+                                      <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-muted/40">
+                                        {[0, 1, 2, 3].map((p) => (
+                                          <div
+                                            key={p}
+                                            className={PLACE_BAR[p]}
+                                            style={{ width: `${pct(s.places[p])}%` }}
+                                          />
+                                        ))}
+                                      </div>
+                                    )}
+                                    <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground tabular-nums">
+                                      <span>
+                                        Top 2 <span className={placeTone(s.n ? gTop2 : null, baselines[0] + baselines[1], 1)}>{s.n ? `${gTop2.toFixed(1)}%` : "—"}</span>
+                                        {showPersonal && ps.n ? <span className="ml-1">(you {((ps.top2 / ps.n) * 100).toFixed(0)}%)</span> : null}
+                                      </span>
+                                      <span>
+                                        Avg pts <span className="text-foreground">{s.n ? gPts.toFixed(1) : "—"}</span>
+                                        {showPersonal && ps.n ? <span className="ml-1">(you {(ps.points / ps.n).toFixed(1)})</span> : null}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
                       </Card>
 
                       <Card className="p-5 border-border/60 bg-card/70 shadow-arena">
