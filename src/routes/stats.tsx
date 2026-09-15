@@ -364,7 +364,7 @@ function StatsPage() {
     let countedGames = 0;
     const map = new Map<string, AdvAgg>();
     const pmap = new Map<string, AdvAgg>();
-    const seats: SeatStat[] = [1, 2, 3, 4].map((seat) => ({ seat, n: 0, wins: 0, top2: 0, points: 0 }));
+    const seats: SeatStat[] = [1, 2, 3, 4].map((seat) => ({ seat, n: 0, wins: 0, top2: 0, points: 0, places: [0, 0, 0, 0] }));
     const upgrades: UpgradeStat[] = [
       { label: "Both HC + SM", n: 0, wins: 0, placementSum: 0 },
       { label: "Swordmaster only", n: 0, wins: 0, placementSum: 0 },
