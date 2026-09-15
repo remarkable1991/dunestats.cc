@@ -1143,12 +1143,16 @@ function StatsPage() {
                               const claimed = meta.allianceGames[f];
                               const pct = meta.allianceGameN ? (claimed / meta.allianceGameN) * 100 : null;
                               const pPct = personalMeta.allianceGameN ? (personalMeta.allianceGames[f] / personalMeta.allianceGameN) * 100 : null;
+                              const gLvl = meta.factionLevelN[f] ? meta.factionLevelSum[f] / meta.factionLevelN[f] : null;
+                              const pLvl = personalMeta.factionLevelN[f] ? personalMeta.factionLevelSum[f] / personalMeta.factionLevelN[f] : null;
                               return (
                                 <tr key={f} className="border-t border-border/40">
                                   <td className="py-2">{FACTION_LABEL[f]}</td>
                                   <td className="py-2 text-right tabular-nums">{pct === null ? "—" : `${pct.toFixed(1)}%`}</td>
                                   {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pPct, pct ?? 0, "%")}</td>}
                                   <td className="py-2 text-right tabular-nums">{pct === null ? "—" : `${(100 - pct).toFixed(1)}%`}</td>
+                                  <td className="py-2 text-right tabular-nums">{gLvl === null ? "—" : gLvl.toFixed(2)}</td>
+                                  {showPersonal && <td className="py-2 text-right tabular-nums">{personalCell(pLvl, gLvl ?? 0, "", 2)}</td>}
                                 </tr>
                               );
                             })}
