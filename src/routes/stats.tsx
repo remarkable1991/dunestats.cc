@@ -322,9 +322,20 @@ function StatsPage() {
     productiveSum: number;
     productiveN: number;
   };
-  type SeatStat = { seat: number; n: number; wins: number; top2: number; points: number };
+  type SeatStat = { seat: number; n: number; wins: number; top2: number; points: number; places: number[] };
   type UpgradeStat = { label: string; n: number; wins: number; placementSum: number };
   type PaceStat = { label: string; games: number; winScoreSum: number; winScoreN: number };
+  /** Colour a placement share against the fair baseline; 3rd/4th are inverted. */
+  const placeTone = (pct: number | null, baseline: number, place: number) => {
+    if (pct === null || baseline <= 0) return "text-foreground";
+    const diff = place <= 2 ? pct - baseline : baseline - pct;
+    if (diff >= 4) return "text-emerald-400";
+    if (diff >= 1.5) return "text-emerald-300/80";
+    if (diff <= -4) return "text-red-400";
+    if (diff <= -1.5) return "text-amber-400";
+    return "text-foreground";
+  };
+  const PLACE_BAR = ["bg-emerald-400", "bg-teal-400", "bg-amber-400", "bg-red-400"];
   const { advancedAgg, personalAdvAgg, scannedGamesCount, meta, personalMeta } = useMemo(() => {
     const matchBool = (state: TriState, val: boolean | null | undefined) => {
       if (state === "any") return true;
