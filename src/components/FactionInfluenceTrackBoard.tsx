@@ -118,15 +118,17 @@ export function FactionInfluenceTrackBoard({
     const top = Math.max(...scored.map((p) => levelOf(p, f.key) ?? 0));
     const leaders = scored.filter((p) => (levelOf(p, f.key) ?? 0) === top);
     if (leaders.length > 1) {
-      // If one of the tied players already holds the token, keep it — don't re-ask.
+      const editedIsLeader = leaders.some((p) => p.player_name === player.player_name);
       const holder = leaders.find((p) => allianceOf(p, f.key));
-      if (holder) {
+      // Only re-ask when the player being edited actually joins/creates the tie at the top.
+      if (!editedIsLeader && holder) {
         onUpdateInfluence(applyAlliance(next, f, holder.player_name), `${f.label} influence updated`);
         return;
       }
       setConflict({ faction: f, level: top, candidates: leaders, base: next });
       return;
     }
+
     next = applyAlliance(next, f, leaders[0].player_name);
     onUpdateInfluence(next, `${f.label} influence updated`);
   };
