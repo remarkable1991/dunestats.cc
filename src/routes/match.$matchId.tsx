@@ -1048,7 +1048,11 @@ function InfluenceEfficiencyBadges({
       >
         <span className="text-muted-foreground mr-1">VP/Bump</span>
         {eff.vpPerBump.toFixed(3)}
+        <span className="text-muted-foreground ml-1">
+          ({eff.factionVp} VP / {eff.totalBumps} bumps)
+        </span>
       </span>
+
       <span className="px-2 py-0.5 rounded-full border border-border/60 bg-background/40">
         <span className="text-muted-foreground mr-1">Bump Productive</span>
         {eff.productivePct.toFixed(1)}%
