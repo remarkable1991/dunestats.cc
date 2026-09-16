@@ -606,7 +606,7 @@ function StatsPage() {
         strandedPct: pTotalBumps > 0 ? ((pTotalBumps - pProductiveBumps) / pTotalBumps) * 100 : null,
       },
     };
-  }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx, fPlayers, showPersonal, playerKeySet]);
+  }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx, fPlayers, fVerified, showPersonal, playerKeySet]);
 
 
   const advancedSorted = useMemo(() => {
