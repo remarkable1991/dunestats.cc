@@ -183,6 +183,7 @@ function StatsPage() {
   const [fBaseLeaders, setFBaseLeaders] = useState<TriState>("any");
   const [fRiseOfIx, setFRiseOfIx] = useState<TriState>("any");
   const [fPlayers, setFPlayers] = useState<"any" | "3" | "4">("any");
+  const [fVerified, setFVerified] = useState<"any" | "manual">("any");
 
   useEffect(() => {
     if (version !== "ix") setFEpic("any");
@@ -345,6 +346,7 @@ function StatsPage() {
       const st = r.games?.ai_scan_status;
       if (!st || !st.trim()) return false;
       if (st.trim().toLowerCase() === "no") return false;
+      if (fVerified === "manual" && st.trim().toLowerCase() !== "manually verified") return false;
       if (version !== "overall" && r.games?.game_version !== version) return false;
       return (
         matchBool(fImmortality, r.games?.has_immortality) &&
@@ -604,7 +606,7 @@ function StatsPage() {
         strandedPct: pTotalBumps > 0 ? ((pTotalBumps - pProductiveBumps) / pTotalBumps) * 100 : null,
       },
     };
-  }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx, fPlayers, showPersonal, playerKeySet]);
+  }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx, fPlayers, fVerified, showPersonal, playerKeySet]);
 
 
   const advancedSorted = useMemo(() => {
@@ -800,6 +802,16 @@ function StatsPage() {
                           <SelectItem value="any">All</SelectItem>
                           <SelectItem value="3">3 players</SelectItem>
                           <SelectItem value="4">4 players</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-xs uppercase tracking-wider text-muted-foreground ml-2">Verification</span>
+                      <Select value={fVerified} onValueChange={(v) => setFVerified(v as "any" | "manual")}>
+                        <SelectTrigger className="h-8 w-[170px] bg-card/60 border-border/60 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">Any scan status</SelectItem>
+                          <SelectItem value="manual">Manually verified only</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
