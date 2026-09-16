@@ -643,6 +643,9 @@ function StatsPage() {
         factionLevelSum,
         factionLevelN,
         totalBumpsAll,
+        allianceEffect,
+        allianceSeatN,
+        allianceSeatPlaces,
         strandedPct: totalBumpsAll > 0 ? ((totalBumpsAll - productiveBumpsAll) / totalBumpsAll) * 100 : null,
       },
       personalMeta: {
