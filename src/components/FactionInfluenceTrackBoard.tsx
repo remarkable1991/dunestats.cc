@@ -118,6 +118,12 @@ export function FactionInfluenceTrackBoard({
     const top = Math.max(...scored.map((p) => levelOf(p, f.key) ?? 0));
     const leaders = scored.filter((p) => (levelOf(p, f.key) ?? 0) === top);
     if (leaders.length > 1) {
+      // If one of the tied players already holds the token, keep it — don't re-ask.
+      const holder = leaders.find((p) => allianceOf(p, f.key));
+      if (holder) {
+        onUpdateInfluence(applyAlliance(next, f, holder.player_name), `${f.label} influence updated`);
+        return;
+      }
       setConflict({ faction: f, level: top, candidates: leaders, base: next });
       return;
     }
