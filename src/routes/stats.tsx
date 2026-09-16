@@ -508,6 +508,49 @@ function StatsPage() {
           if (r.placement >= 1 && r.placement <= 4) u.places[r.placement - 1] += 1;
         }
 
+        // Card 5: alliances vs placement
+        {
+          allianceSeatN += 1;
+          if (r.placement >= 1 && r.placement <= 4) allianceSeatPlaces[r.placement - 1] += 1;
+          let held = 0;
+          FACTION_KEYS.forEach((f, fi) => {
+            if (players[i][FACTION_ALLIANCE_KEYS[f]] === true) {
+              held += 1;
+              const b = allianceEffect[fi];
+              b.n += 1;
+              if (r.placement === 1) b.wins += 1;
+              b.placementSum += r.placement;
+              if (r.placement >= 1 && r.placement <= 4) b.places[r.placement - 1] += 1;
+            }
+          });
+          if (held === 0) {
+            const b = allianceEffect[4];
+            b.n += 1;
+            if (r.placement === 1) b.wins += 1;
+            b.placementSum += r.placement;
+            if (r.placement >= 1 && r.placement <= 4) b.places[r.placement - 1] += 1;
+          }
+          if (i === meIdx) {
+            pAllianceSeatN += 1;
+            FACTION_KEYS.forEach((f, fi) => {
+              if (players[i][FACTION_ALLIANCE_KEYS[f]] === true) {
+                const b = pAllianceEffect[fi];
+                b.n += 1;
+                if (r.placement === 1) b.wins += 1;
+                b.placementSum += r.placement;
+                if (r.placement >= 1 && r.placement <= 4) b.places[r.placement - 1] += 1;
+              }
+            });
+            if (held === 0) {
+              const b = pAllianceEffect[4];
+              b.n += 1;
+              if (r.placement === 1) b.wins += 1;
+              b.placementSum += r.placement;
+              if (r.placement >= 1 && r.placement <= 4) b.places[r.placement - 1] += 1;
+            }
+          }
+        }
+
         // Card 4: average level reached per faction track
         for (const f of FACTION_KEYS) {
           const lv = r[FACTION_LEVEL_KEYS[f]];
