@@ -385,6 +385,15 @@ function StatsPage() {
     let allianceGameN = 0;
     let totalBumpsAll = 0;
     let productiveBumpsAll = 0;
+    const mkAllianceBuckets = (): UpgradeStat[] => [
+      ...FACTION_KEYS.map((f) => ({ label: FACTION_LABEL[f], n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] })),
+      { label: "No alliance", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
+    ];
+    const allianceEffect = mkAllianceBuckets();
+    let allianceSeatN = 0;
+    const allianceSeatPlaces = [0, 0, 0, 0];
+    const pAllianceEffect = mkAllianceBuckets();
+    let pAllianceSeatN = 0;
     // Personal (compare-with-me) mirrors of the meta cards
     const pSeats: SeatStat[] = [1, 2, 3, 4].map((seat) => ({ seat, n: 0, wins: 0, top2: 0, points: 0, places: [0, 0, 0, 0] }));
     const pUpgrades: UpgradeStat[] = [
@@ -499,6 +508,49 @@ function StatsPage() {
           if (r.placement >= 1 && r.placement <= 4) u.places[r.placement - 1] += 1;
         }
 
+        // Card 5: alliances vs placement
+        {
+          allianceSeatN += 1;
+          if (r.placement >= 1 && r.placement <= 4) allianceSeatPlaces[r.placement - 1] += 1;
+          let held = 0;
+          FACTION_KEYS.forEach((f, fi) => {
+            if (players[i][FACTION_ALLIANCE_KEYS[f]] === true) {
+              held += 1;
+              const b = allianceEffect[fi];
+              b.n += 1;
+              if (r.placement === 1) b.wins += 1;
+              b.placementSum += r.placement;
+              if (r.placement >= 1 && r.placement <= 4) b.places[r.placement - 1] += 1;
+            }
+          });
+          if (held === 0) {
+            const b = allianceEffect[4];
+            b.n += 1;
+            if (r.placement === 1) b.wins += 1;
+            b.placementSum += r.placement;
+            if (r.placement >= 1 && r.placement <= 4) b.places[r.placement - 1] += 1;
+          }
+          if (i === meIdx) {
+            pAllianceSeatN += 1;
+            FACTION_KEYS.forEach((f, fi) => {
+              if (players[i][FACTION_ALLIANCE_KEYS[f]] === true) {
+                const b = pAllianceEffect[fi];
+                b.n += 1;
+                if (r.placement === 1) b.wins += 1;
+                b.placementSum += r.placement;
+                if (r.placement >= 1 && r.placement <= 4) b.places[r.placement - 1] += 1;
+              }
+            });
+            if (held === 0) {
+              const b = pAllianceEffect[4];
+              b.n += 1;
+              if (r.placement === 1) b.wins += 1;
+              b.placementSum += r.placement;
+              if (r.placement >= 1 && r.placement <= 4) b.places[r.placement - 1] += 1;
+            }
+          }
+        }
+
         // Card 4: average level reached per faction track
         for (const f of FACTION_KEYS) {
           const lv = r[FACTION_LEVEL_KEYS[f]];
@@ -591,6 +643,9 @@ function StatsPage() {
         factionLevelSum,
         factionLevelN,
         totalBumpsAll,
+        allianceEffect,
+        allianceSeatN,
+        allianceSeatPlaces,
         strandedPct: totalBumpsAll > 0 ? ((totalBumpsAll - productiveBumpsAll) / totalBumpsAll) * 100 : null,
       },
       personalMeta: {
@@ -601,6 +656,8 @@ function StatsPage() {
         paceKnown: pPaceKnown,
         allianceGames: pAllianceGames,
         allianceGameN: pAllianceGameN,
+        allianceEffect: pAllianceEffect,
+        allianceSeatN: pAllianceSeatN,
         factionLevelSum: pFactionLevelSum,
         factionLevelN: pFactionLevelN,
         strandedPct: pTotalBumps > 0 ? ((pTotalBumps - pProductiveBumps) / pTotalBumps) * 100 : null,
@@ -1184,6 +1241,87 @@ function StatsPage() {
                         <p className="text-xs text-muted-foreground mt-1">
                           Share of all track investments left on dead levels (level 1, level 3 without alliance, or levels 4/5 without alliance).
                         </p>
+                      </Card>
+
+                      <Card className="p-5 border-border/60 bg-card/70 shadow-arena md:col-span-2">
+                        <div className="flex items-center gap-2 font-display text-lg text-sand mb-3">
+                          <Landmark className="size-4" /> Alliances vs placement
+                        </div>
+                        {(() => {
+                          const totalSeats = meta.allianceSeatN;
+                          const baselines = [0, 1, 2, 3].map((p) =>
+                            totalSeats ? (meta.allianceSeatPlaces[p] / totalSeats) * 100 : 0,
+                          );
+                          const labels = ["1st", "2nd", "3rd", "4th"];
+                          return (
+                            <>
+                              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                {meta.allianceEffect.map((u, ui) => {
+                                  const pu = personalMeta.allianceEffect[ui];
+                                  const pct = (v: number) => (u.n ? (v / u.n) * 100 : 0);
+                                  const gShare = totalSeats ? (u.n / totalSeats) * 100 : 0;
+                                  const gWin = u.n ? (u.wins / u.n) * 100 : 0;
+                                  const gPlace = u.n ? u.placementSum / u.n : 0;
+                                  return (
+                                    <div key={u.label} className="rounded-lg border border-border/60 bg-background/30 p-3">
+                                      <div className="flex items-baseline justify-between mb-2">
+                                        <div className="font-display text-sm">{u.label}</div>
+                                        <div className="text-xs text-muted-foreground tabular-nums">
+                                          {u.n} seats{showPersonal && pu.n ? ` · you ${pu.n}` : ""}
+                                        </div>
+                                      </div>
+                                      <div className="grid grid-cols-4 gap-1 text-center">
+                                        {labels.map((lb, p) => {
+                                          const val = u.n ? pct(u.places[p]) : null;
+                                          const pv = pu.n ? (pu.places[p] / pu.n) * 100 : null;
+                                          return (
+                                            <div key={lb} className="rounded-md bg-card/60 py-1.5">
+                                              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{lb}</div>
+                                              <div className={`text-base font-display tabular-nums ${placeTone(val, baselines[p], p + 1)}`}>
+                                                {val === null ? "—" : `${val.toFixed(1)}%`}
+                                              </div>
+                                              {showPersonal && (
+                                                <div className={`text-[10px] tabular-nums ${placeTone(pv, baselines[p], p + 1)}`}>
+                                                  {pv === null ? "—" : `you ${pv.toFixed(0)}%`}
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                      {u.n > 0 && (
+                                        <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-muted/40">
+                                          {[0, 1, 2, 3].map((p) => (
+                                            <div key={p} className={PLACE_BAR[p]} style={{ width: `${pct(u.places[p])}%` }} />
+                                          ))}
+                                        </div>
+                                      )}
+                                      <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground tabular-nums">
+                                        <span>
+                                          Share <span className="text-foreground">{totalSeats ? `${gShare.toFixed(1)}%` : "—"}</span>
+                                          {showPersonal && pu.n && personalMeta.allianceSeatN ? (
+                                            <span className="ml-1">(you {((pu.n / personalMeta.allianceSeatN) * 100).toFixed(0)}%)</span>
+                                          ) : null}
+                                        </span>
+                                        <span>
+                                          Win <span className={placeTone(u.n ? gWin : null, baselines[0], 1)}>{u.n ? `${gWin.toFixed(1)}%` : "—"}</span>
+                                          {showPersonal && pu.n ? <span className="ml-1">(you {((pu.wins / pu.n) * 100).toFixed(0)}%)</span> : null}
+                                        </span>
+                                        <span>
+                                          Avg <span className="text-foreground">{u.n ? gPlace.toFixed(2) : "—"}</span>
+                                          {showPersonal && pu.n ? <span className="ml-1">(you {(pu.placementSum / pu.n).toFixed(2)})</span> : null}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-3">
+                                Based on {totalSeats} player seats. A seat holding several alliances counts in each of those factions, so shares add up past 100%.
+                              </p>
+                            </>
+                          );
+                        })()}
                       </Card>
                     </div>
                   )}
