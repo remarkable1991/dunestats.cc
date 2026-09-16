@@ -346,6 +346,7 @@ function StatsPage() {
       const st = r.games?.ai_scan_status;
       if (!st || !st.trim()) return false;
       if (st.trim().toLowerCase() === "no") return false;
+      if (fVerified === "manual" && st.trim().toLowerCase() !== "manually verified") return false;
       if (version !== "overall" && r.games?.game_version !== version) return false;
       return (
         matchBool(fImmortality, r.games?.has_immortality) &&
