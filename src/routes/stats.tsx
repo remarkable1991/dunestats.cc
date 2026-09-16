@@ -183,6 +183,7 @@ function StatsPage() {
   const [fBaseLeaders, setFBaseLeaders] = useState<TriState>("any");
   const [fRiseOfIx, setFRiseOfIx] = useState<TriState>("any");
   const [fPlayers, setFPlayers] = useState<"any" | "3" | "4">("any");
+  const [fVerified, setFVerified] = useState<"any" | "manual">("any");
 
   useEffect(() => {
     if (version !== "ix") setFEpic("any");
