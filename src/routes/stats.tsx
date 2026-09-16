@@ -804,6 +804,16 @@ function StatsPage() {
                           <SelectItem value="4">4 players</SelectItem>
                         </SelectContent>
                       </Select>
+                      <span className="text-xs uppercase tracking-wider text-muted-foreground ml-2">Verification</span>
+                      <Select value={fVerified} onValueChange={(v) => setFVerified(v as "any" | "manual")}>
+                        <SelectTrigger className="h-8 w-[170px] bg-card/60 border-border/60 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">Any scan status</SelectItem>
+                          <SelectItem value="manual">Manually verified only</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
