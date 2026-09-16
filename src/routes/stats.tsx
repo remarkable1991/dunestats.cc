@@ -656,6 +656,8 @@ function StatsPage() {
         paceKnown: pPaceKnown,
         allianceGames: pAllianceGames,
         allianceGameN: pAllianceGameN,
+        allianceEffect: pAllianceEffect,
+        allianceSeatN: pAllianceSeatN,
         factionLevelSum: pFactionLevelSum,
         factionLevelN: pFactionLevelN,
         strandedPct: pTotalBumps > 0 ? ((pTotalBumps - pProductiveBumps) / pTotalBumps) * 100 : null,
