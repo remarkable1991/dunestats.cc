@@ -385,6 +385,15 @@ function StatsPage() {
     let allianceGameN = 0;
     let totalBumpsAll = 0;
     let productiveBumpsAll = 0;
+    const mkAllianceBuckets = (): UpgradeStat[] => [
+      ...FACTION_KEYS.map((f) => ({ label: FACTION_LABEL[f], n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] })),
+      { label: "No alliance", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
+    ];
+    const allianceEffect = mkAllianceBuckets();
+    let allianceSeatN = 0;
+    const allianceSeatPlaces = [0, 0, 0, 0];
+    const pAllianceEffect = mkAllianceBuckets();
+    let pAllianceSeatN = 0;
     // Personal (compare-with-me) mirrors of the meta cards
     const pSeats: SeatStat[] = [1, 2, 3, 4].map((seat) => ({ seat, n: 0, wins: 0, top2: 0, points: 0, places: [0, 0, 0, 0] }));
     const pUpgrades: UpgradeStat[] = [
