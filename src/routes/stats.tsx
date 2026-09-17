@@ -404,7 +404,7 @@ function StatsPage() {
       { label: "Round 9+", games: 0, winScoreSum: 0, winScoreN: 0 },
     ];
     let paceKnown = 0;
-    const conflictMap = new Map<string, { label: string; total: number; early: number; late: number; versions: Set<string> }>();
+    const conflictMap = new Map<string, { label: string; total: number; early: number; r7: number; r8: number; r9: number; versions: Set<string> }>();
     let conflictTotal = 0;
     const allianceGames: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
     const factionLevelSum: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
@@ -479,11 +479,13 @@ function StatsPage() {
       const rawConflict = gameRows[0]?.games?.conflict_title;
       if (rawConflict && rawConflict.trim()) {
         const label = titleCaseConflict(rawConflict);
-        const c = conflictMap.get(label) ?? { label, total: 0, early: 0, late: 0, versions: new Set<string>() };
+        const c = conflictMap.get(label) ?? { label, total: 0, early: 0, r7: 0, r8: 0, r9: 0, versions: new Set<string>() };
         c.total += 1;
         if (endRound !== null) {
           if (endRound <= 6) c.early += 1;
-          else c.late += 1;
+          else if (endRound === 7) c.r7 += 1;
+          else if (endRound === 8) c.r8 += 1;
+          else c.r9 += 1;
         }
         const gv = gameRows[0]?.games?.game_version;
         if (gv) c.versions.add(gv);
@@ -694,7 +696,7 @@ function StatsPage() {
         strandedPct: totalBumpsAll > 0 ? ((totalBumpsAll - productiveBumpsAll) / totalBumpsAll) * 100 : null,
         conflictTotal,
         conflicts: Array.from(conflictMap.values())
-          .map((c) => ({ label: c.label, total: c.total, early: c.early, late: c.late, versions: Array.from(c.versions).sort() }))
+          .map((c) => ({ label: c.label, total: c.total, early: c.early, r7: c.r7, r8: c.r8, r9: c.r9, versions: Array.from(c.versions).sort() }))
           .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label)),
       },
       personalMeta: {
@@ -1256,7 +1258,9 @@ function StatsPage() {
                                 <th className="py-2 text-right">Times last</th>
                                 <th className="py-2 text-right">Share</th>
                                 <th className="py-2 text-right">Round ≤6</th>
-                                <th className="py-2 text-right">Round 7+</th>
+                                <th className="py-2 text-right">Round 7</th>
+                                <th className="py-2 text-right">Round 8</th>
+                                <th className="py-2 text-right">Round 9+</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1277,7 +1281,9 @@ function StatsPage() {
                                     {meta.conflictTotal ? `${((c.total / meta.conflictTotal) * 100).toFixed(1)}%` : "—"}
                                   </td>
                                   <td className="py-2 text-right tabular-nums">{c.early || <span className="text-muted-foreground/60">—</span>}</td>
-                                  <td className="py-2 text-right tabular-nums">{c.late || <span className="text-muted-foreground/60">—</span>}</td>
+                                  <td className="py-2 text-right tabular-nums">{c.r7 || <span className="text-muted-foreground/60">—</span>}</td>
+                                  <td className="py-2 text-right tabular-nums">{c.r8 || <span className="text-muted-foreground/60">—</span>}</td>
+                                  <td className="py-2 text-right tabular-nums">{c.r9 || <span className="text-muted-foreground/60">—</span>}</td>
                                 </tr>
                               ))}
                             </tbody>
