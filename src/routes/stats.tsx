@@ -109,6 +109,7 @@ type Row = {
     has_base_leaders: boolean | null;
     ai_scan_status: string | null;
     end_round: number | null;
+    conflict_title: string | null;
   } | null;
 };
 
@@ -248,7 +249,7 @@ function StatsPage() {
       while (true) {
         const { data, error } = await supabase
           .from("game_results")
-          .select("placement, leader_name, player_name, points, spice, solaris, water, has_high_council, has_swordmaster, turn_order, player_slot, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance, games!inner(id, game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, ai_scan_status, end_round)")
+          .select("placement, leader_name, player_name, points, spice, solaris, water, has_high_council, has_swordmaster, turn_order, player_slot, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance, games!inner(id, game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, ai_scan_status, end_round, conflict_title)")
           .order("id", { ascending: true })
           .range(from, from + PAGE - 1);
         if (error || !data || data.length === 0) break;
@@ -374,11 +375,14 @@ function StatsPage() {
       { label: "Neither", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
     ];
     const pace: PaceStat[] = [
+      { label: "Round 6 or earlier", games: 0, winScoreSum: 0, winScoreN: 0 },
       { label: "Round 7", games: 0, winScoreSum: 0, winScoreN: 0 },
       { label: "Round 8", games: 0, winScoreSum: 0, winScoreN: 0 },
       { label: "Round 9+", games: 0, winScoreSum: 0, winScoreN: 0 },
     ];
     let paceKnown = 0;
+    const conflictMap = new Map<string, { label: string; total: number; early: number; late: number; versions: Set<string> }>();
+    let conflictTotal = 0;
     const allianceGames: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
     const factionLevelSum: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
     const factionLevelN: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
@@ -446,8 +450,26 @@ function StatsPage() {
 
       // Card 3: pacing
       const endRound = gameRows[0]?.games?.end_round ?? null;
-      if (endRound && endRound >= 7) {
-        const bucket = endRound === 7 ? pace[0] : endRound === 8 ? pace[1] : pace[2];
+      const paceIndex = (n: number) => (n <= 6 ? 0 : n === 7 ? 1 : n === 8 ? 2 : 3);
+
+      // Final conflicts
+      const rawConflict = gameRows[0]?.games?.conflict_title;
+      if (rawConflict && rawConflict.trim()) {
+        const label = titleCaseConflict(rawConflict);
+        const c = conflictMap.get(label) ?? { label, total: 0, early: 0, late: 0, versions: new Set<string>() };
+        c.total += 1;
+        if (endRound !== null) {
+          if (endRound <= 6) c.early += 1;
+          else c.late += 1;
+        }
+        const gv = gameRows[0]?.games?.game_version;
+        if (gv) c.versions.add(gv);
+        conflictMap.set(label, c);
+        conflictTotal += 1;
+      }
+
+      if (endRound && endRound >= 1) {
+        const bucket = pace[paceIndex(endRound)];
         bucket.games += 1;
         paceKnown += 1;
         const winner = gameRows.find((r) => r.placement === 1);
