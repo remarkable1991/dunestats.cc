@@ -1192,6 +1192,54 @@ function StatsPage() {
                         </p>
                       </Card>
 
+                      <Card className="p-5 border-border/60 bg-card/70 shadow-arena md:col-span-2">
+                        <div className="flex items-center gap-2 font-display text-lg text-sand mb-3">
+                          <Swords className="size-4" /> Final conflicts
+                        </div>
+                        {meta.conflicts.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No games with a recorded final conflict yet.</p>
+                        ) : (
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="text-xs uppercase tracking-wider text-muted-foreground">
+                                <th className="py-2 text-left">Conflict</th>
+                                <th className="py-2 text-left">Seen in</th>
+                                <th className="py-2 text-right">Times last</th>
+                                <th className="py-2 text-right">Share</th>
+                                <th className="py-2 text-right">Round ≤6</th>
+                                <th className="py-2 text-right">Round 7+</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {meta.conflicts.map((c) => (
+                                <tr key={c.label} className="border-t border-border/40">
+                                  <td className="py-2">{c.label}</td>
+                                  <td className="py-2">
+                                    <span className="inline-flex flex-wrap gap-1">
+                                      {c.versions.map((v) => (
+                                        <span key={v} className="rounded border border-border/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                                          {v === "ix" ? "Ix" : v === "uprising" ? "Uprising" : "Base"}
+                                        </span>
+                                      ))}
+                                    </span>
+                                  </td>
+                                  <td className="py-2 text-right tabular-nums">{c.total}</td>
+                                  <td className="py-2 text-right tabular-nums">
+                                    {meta.conflictTotal ? `${((c.total / meta.conflictTotal) * 100).toFixed(1)}%` : "—"}
+                                  </td>
+                                  <td className="py-2 text-right tabular-nums">{c.early || <span className="text-muted-foreground/60">—</span>}</td>
+                                  <td className="py-2 text-right tabular-nums">{c.late || <span className="text-muted-foreground/60">—</span>}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Based on {meta.conflictTotal} games with a recorded final conflict. "Round ≤6" counts games that ended on round 6 or earlier.
+                        </p>
+                      </Card>
+
+
                       <Card className="p-5 border-border/60 bg-card/70 shadow-arena">
                         <div className="flex items-center gap-2 font-display text-lg text-sand mb-3">
                           <Landmark className="size-4" /> Faction track dynamics
