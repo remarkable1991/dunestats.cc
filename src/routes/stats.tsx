@@ -11,7 +11,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { LEADERS, classifyLeader } from "@/lib/leaders";
 import { influenceEfficiency, FACTION_KEYS, FACTION_ALLIANCE_KEYS, FACTION_LEVEL_KEYS, type FactionKey } from "@/lib/match-telemetry";
-import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, FlaskConical, HelpCircle, Users, Crown, Timer, Landmark } from "lucide-react";
+import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, FlaskConical, HelpCircle, Users, Crown, Timer, Landmark, Swords } from "lucide-react";
+
+function titleCaseConflict(raw: string) {
+  const small = new Set(["for", "of", "the", "and", "a", "an", "in", "to", "vs"]);
+  return raw
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .split(" ")
+    .map((w, i) => (i > 0 && small.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(" ");
+}
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
@@ -488,8 +499,8 @@ function StatsPage() {
         : -1;
       if (meIdx >= 0) {
         const me = gameRows[meIdx];
-        if (endRound && endRound >= 7) {
-          const bucket = endRound === 7 ? pPace[0] : endRound === 8 ? pPace[1] : pPace[2];
+        if (endRound && endRound >= 1) {
+          const bucket = pPace[paceIndex(endRound)];
           bucket.games += 1;
           pPaceKnown += 1;
           if (me.placement === 1) { bucket.winScoreSum += me.points; bucket.winScoreN += 1; }
@@ -669,6 +680,10 @@ function StatsPage() {
         allianceSeatN,
         allianceSeatPlaces,
         strandedPct: totalBumpsAll > 0 ? ((totalBumpsAll - productiveBumpsAll) / totalBumpsAll) * 100 : null,
+        conflictTotal,
+        conflicts: Array.from(conflictMap.values())
+          .map((c) => ({ label: c.label, total: c.total, early: c.early, late: c.late, versions: Array.from(c.versions).sort() }))
+          .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label)),
       },
       personalMeta: {
         seats: pSeats,
