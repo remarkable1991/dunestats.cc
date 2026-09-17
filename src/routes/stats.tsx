@@ -13,12 +13,24 @@ import { LEADERS, classifyLeader } from "@/lib/leaders";
 import { influenceEfficiency, FACTION_KEYS, FACTION_ALLIANCE_KEYS, FACTION_LEVEL_KEYS, type FactionKey } from "@/lib/match-telemetry";
 import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, FlaskConical, HelpCircle, Users, Crown, Timer, Landmark, Swords } from "lucide-react";
 
+/** Map non-English / variant scan reads of a conflict to its canonical English title. */
+const CONFLICT_ALIASES: Record<string, string> = {
+  "suprématie économique": "Economic Supremacy",
+  "suprematie economique": "Economic Supremacy",
+  "bataille pour le bassin impérial": "Battle for Imperial Basin",
+  "bataille pour le bassin imperial": "Battle for Imperial Basin",
+  "bataille pour arrakeen": "Battle for Arrakeen",
+  "bataille pour carthag": "Battle for Carthag",
+  "bataille pour la raffinerie d'épice": "Battle for Spice Refinery",
+  "bataille pour la raffinerie d'epice": "Battle for Spice Refinery",
+};
+
 function titleCaseConflict(raw: string) {
   const small = new Set(["for", "of", "the", "and", "a", "an", "in", "to", "vs"]);
-  return raw
-    .trim()
-    .replace(/\s+/g, " ")
-    .toLowerCase()
+  const normalized = raw.trim().replace(/\s+/g, " ").toLowerCase();
+  const alias = CONFLICT_ALIASES[normalized];
+  const base = alias ?? normalized;
+  return base
     .split(" ")
     .map((w, i) => (i > 0 && small.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
     .join(" ");
