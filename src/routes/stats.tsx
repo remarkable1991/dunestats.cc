@@ -1258,7 +1258,9 @@ function StatsPage() {
                                 <th className="py-2 text-right">Times last</th>
                                 <th className="py-2 text-right">Share</th>
                                 <th className="py-2 text-right">Round ≤6</th>
-                                <th className="py-2 text-right">Round 7+</th>
+                                <th className="py-2 text-right">Round 7</th>
+                                <th className="py-2 text-right">Round 8</th>
+                                <th className="py-2 text-right">Round 9+</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1279,7 +1281,9 @@ function StatsPage() {
                                     {meta.conflictTotal ? `${((c.total / meta.conflictTotal) * 100).toFixed(1)}%` : "—"}
                                   </td>
                                   <td className="py-2 text-right tabular-nums">{c.early || <span className="text-muted-foreground/60">—</span>}</td>
-                                  <td className="py-2 text-right tabular-nums">{c.late || <span className="text-muted-foreground/60">—</span>}</td>
+                                  <td className="py-2 text-right tabular-nums">{c.r7 || <span className="text-muted-foreground/60">—</span>}</td>
+                                  <td className="py-2 text-right tabular-nums">{c.r8 || <span className="text-muted-foreground/60">—</span>}</td>
+                                  <td className="py-2 text-right tabular-nums">{c.r9 || <span className="text-muted-foreground/60">—</span>}</td>
                                 </tr>
                               ))}
                             </tbody>
