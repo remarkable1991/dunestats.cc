@@ -11,7 +11,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { LEADERS, classifyLeader } from "@/lib/leaders";
 import { influenceEfficiency, FACTION_KEYS, FACTION_ALLIANCE_KEYS, FACTION_LEVEL_KEYS, type FactionKey } from "@/lib/match-telemetry";
-import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, FlaskConical, HelpCircle, Users, Crown, Timer, Landmark } from "lucide-react";
+import { BarChart3, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, FlaskConical, HelpCircle, Users, Crown, Timer, Landmark, Swords } from "lucide-react";
+
+function titleCaseConflict(raw: string) {
+  const small = new Set(["for", "of", "the", "and", "a", "an", "in", "to", "vs"]);
+  return raw
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .split(" ")
+    .map((w, i) => (i > 0 && small.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(" ");
+}
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
@@ -109,6 +120,7 @@ type Row = {
     has_base_leaders: boolean | null;
     ai_scan_status: string | null;
     end_round: number | null;
+    conflict_title: string | null;
   } | null;
 };
 
@@ -248,7 +260,7 @@ function StatsPage() {
       while (true) {
         const { data, error } = await supabase
           .from("game_results")
-          .select("placement, leader_name, player_name, points, spice, solaris, water, has_high_council, has_swordmaster, turn_order, player_slot, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance, games!inner(id, game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, ai_scan_status, end_round)")
+          .select("placement, leader_name, player_name, points, spice, solaris, water, has_high_council, has_swordmaster, turn_order, player_slot, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance, games!inner(id, game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, ai_scan_status, end_round, conflict_title)")
           .order("id", { ascending: true })
           .range(from, from + PAGE - 1);
         if (error || !data || data.length === 0) break;
@@ -374,11 +386,14 @@ function StatsPage() {
       { label: "Neither", n: 0, wins: 0, placementSum: 0, places: [0, 0, 0, 0] },
     ];
     const pace: PaceStat[] = [
+      { label: "Round 6 or earlier", games: 0, winScoreSum: 0, winScoreN: 0 },
       { label: "Round 7", games: 0, winScoreSum: 0, winScoreN: 0 },
       { label: "Round 8", games: 0, winScoreSum: 0, winScoreN: 0 },
       { label: "Round 9+", games: 0, winScoreSum: 0, winScoreN: 0 },
     ];
     let paceKnown = 0;
+    const conflictMap = new Map<string, { label: string; total: number; early: number; late: number; versions: Set<string> }>();
+    let conflictTotal = 0;
     const allianceGames: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
     const factionLevelSum: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
     const factionLevelN: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
@@ -446,8 +461,26 @@ function StatsPage() {
 
       // Card 3: pacing
       const endRound = gameRows[0]?.games?.end_round ?? null;
-      if (endRound && endRound >= 7) {
-        const bucket = endRound === 7 ? pace[0] : endRound === 8 ? pace[1] : pace[2];
+      const paceIndex = (n: number) => (n <= 6 ? 0 : n === 7 ? 1 : n === 8 ? 2 : 3);
+
+      // Final conflicts
+      const rawConflict = gameRows[0]?.games?.conflict_title;
+      if (rawConflict && rawConflict.trim()) {
+        const label = titleCaseConflict(rawConflict);
+        const c = conflictMap.get(label) ?? { label, total: 0, early: 0, late: 0, versions: new Set<string>() };
+        c.total += 1;
+        if (endRound !== null) {
+          if (endRound <= 6) c.early += 1;
+          else c.late += 1;
+        }
+        const gv = gameRows[0]?.games?.game_version;
+        if (gv) c.versions.add(gv);
+        conflictMap.set(label, c);
+        conflictTotal += 1;
+      }
+
+      if (endRound && endRound >= 1) {
+        const bucket = pace[paceIndex(endRound)];
         bucket.games += 1;
         paceKnown += 1;
         const winner = gameRows.find((r) => r.placement === 1);
@@ -466,8 +499,8 @@ function StatsPage() {
         : -1;
       if (meIdx >= 0) {
         const me = gameRows[meIdx];
-        if (endRound && endRound >= 7) {
-          const bucket = endRound === 7 ? pPace[0] : endRound === 8 ? pPace[1] : pPace[2];
+        if (endRound && endRound >= 1) {
+          const bucket = pPace[paceIndex(endRound)];
           bucket.games += 1;
           pPaceKnown += 1;
           if (me.placement === 1) { bucket.winScoreSum += me.points; bucket.winScoreN += 1; }
@@ -647,6 +680,10 @@ function StatsPage() {
         allianceSeatN,
         allianceSeatPlaces,
         strandedPct: totalBumpsAll > 0 ? ((totalBumpsAll - productiveBumpsAll) / totalBumpsAll) * 100 : null,
+        conflictTotal,
+        conflicts: Array.from(conflictMap.values())
+          .map((c) => ({ label: c.label, total: c.total, early: c.early, late: c.late, versions: Array.from(c.versions).sort() }))
+          .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label)),
       },
       personalMeta: {
         seats: pSeats,
@@ -1191,6 +1228,54 @@ function StatsPage() {
                           {showPersonal && personalMeta.paceKnown > 0 && ` Your sample: ${personalMeta.paceKnown} games.`}
                         </p>
                       </Card>
+
+                      <Card className="p-5 border-border/60 bg-card/70 shadow-arena md:col-span-2">
+                        <div className="flex items-center gap-2 font-display text-lg text-sand mb-3">
+                          <Swords className="size-4" /> Final conflicts
+                        </div>
+                        {meta.conflicts.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No games with a recorded final conflict yet.</p>
+                        ) : (
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="text-xs uppercase tracking-wider text-muted-foreground">
+                                <th className="py-2 text-left">Conflict</th>
+                                <th className="py-2 text-left">Seen in</th>
+                                <th className="py-2 text-right">Times last</th>
+                                <th className="py-2 text-right">Share</th>
+                                <th className="py-2 text-right">Round ≤6</th>
+                                <th className="py-2 text-right">Round 7+</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {meta.conflicts.map((c) => (
+                                <tr key={c.label} className="border-t border-border/40">
+                                  <td className="py-2">{c.label}</td>
+                                  <td className="py-2">
+                                    <span className="inline-flex flex-wrap gap-1">
+                                      {c.versions.map((v) => (
+                                        <span key={v} className="rounded border border-border/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                                          {v === "ix" ? "Ix" : v === "uprising" ? "Uprising" : "Base"}
+                                        </span>
+                                      ))}
+                                    </span>
+                                  </td>
+                                  <td className="py-2 text-right tabular-nums">{c.total}</td>
+                                  <td className="py-2 text-right tabular-nums">
+                                    {meta.conflictTotal ? `${((c.total / meta.conflictTotal) * 100).toFixed(1)}%` : "—"}
+                                  </td>
+                                  <td className="py-2 text-right tabular-nums">{c.early || <span className="text-muted-foreground/60">—</span>}</td>
+                                  <td className="py-2 text-right tabular-nums">{c.late || <span className="text-muted-foreground/60">—</span>}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Based on {meta.conflictTotal} games with a recorded final conflict. "Round ≤6" counts games that ended on round 6 or earlier.
+                        </p>
+                      </Card>
+
 
                       <Card className="p-5 border-border/60 bg-card/70 shadow-arena">
                         <div className="flex items-center gap-2 font-display text-lg text-sand mb-3">
