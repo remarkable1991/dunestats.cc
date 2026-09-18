@@ -37,6 +37,7 @@ function titleCaseConflict(raw: string) {
 }
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 type TriState = "any" | "true" | "false";
 
@@ -208,6 +209,8 @@ function StatsPage() {
   const [fRiseOfIx, setFRiseOfIx] = useState<TriState>("any");
   const [fPlayers, setFPlayers] = useState<"any" | "3" | "4">("any");
   const [fVerified, setFVerified] = useState<"any" | "manual">("any");
+  const [fLeader, setFLeader] = useState<string>("any");
+  const [fPlayer, setFPlayer] = useState<string>("");
 
   useEffect(() => {
     if (version !== "ix") setFEpic("any");
