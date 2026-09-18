@@ -447,8 +447,11 @@ function StatsPage() {
     let pTotalBumps = 0;
     let pProductiveBumps = 0;
 
+    const playerQ = fPlayer.trim().toLowerCase();
     for (const gameRows of byGame.values()) {
       if (fPlayers !== "any" && gameRows.length !== Number(fPlayers)) continue;
+      if (fLeader !== "any" && !gameRows.some((r) => canonicalize(r.leader_name)?.name === fLeader)) continue;
+      if (playerQ && !gameRows.some((r) => (r.player_name ?? "").toLowerCase().includes(playerQ))) continue;
       countedGames += 1;
       const players = gameRows.map((r) => ({
         placement: r.placement,
@@ -718,7 +721,17 @@ function StatsPage() {
         strandedPct: pTotalBumps > 0 ? ((pTotalBumps - pProductiveBumps) / pTotalBumps) * 100 : null,
       },
     };
-  }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx, fPlayers, fVerified, showPersonal, playerKeySet]);
+  }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx, fPlayers, fVerified, fLeader, fPlayer, showPersonal, playerKeySet]);
+
+  const ALL_LEADER_NAMES = useMemo(() => Array.from(new Set(Array.from(CANON.values()))).sort(), []);
+  const allPlayerNames = useMemo(() => {
+    const s = new Set<string>();
+    for (const r of rows) {
+      const n = r.player_name?.trim();
+      if (n) s.add(n);
+    }
+    return Array.from(s).sort();
+  }, [rows]);
 
 
   const advancedSorted = useMemo(() => {
