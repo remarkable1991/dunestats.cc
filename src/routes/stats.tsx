@@ -939,6 +939,40 @@ function StatsPage() {
                           <SelectItem value="manual">Manually verified only</SelectItem>
                         </SelectContent>
                       </Select>
+                      <span className="text-xs uppercase tracking-wider text-muted-foreground ml-2">Leader</span>
+                      <Select value={fLeader} onValueChange={setFLeader}>
+                        <SelectTrigger className="h-8 w-[190px] bg-card/60 border-border/60 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">Any leader</SelectItem>
+                          {ALL_LEADER_NAMES.map((n) => (
+                            <SelectItem key={n} value={n}>{n}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <span className="text-xs uppercase tracking-wider text-muted-foreground ml-2">Player</span>
+                      <Input
+                        value={fPlayer}
+                        onChange={(e) => setFPlayer(e.target.value)}
+                        placeholder="Search player…"
+                        list="adv-player-names"
+                        className="h-8 w-[170px] bg-card/60 border-border/60 text-xs"
+                      />
+                      <datalist id="adv-player-names">
+                        {allPlayerNames.map((n) => (
+                          <option key={n} value={n} />
+                        ))}
+                      </datalist>
+                      {(fLeader !== "any" || fPlayer.trim()) && (
+                        <button
+                          type="button"
+                          onClick={() => { setFLeader("any"); setFPlayer(""); }}
+                          className="text-xs text-sand underline underline-offset-2"
+                        >
+                          Clear
+                        </button>
+                      )}
                     </div>
                   </div>
 
