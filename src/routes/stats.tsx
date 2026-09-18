@@ -37,6 +37,7 @@ function titleCaseConflict(raw: string) {
 }
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 type TriState = "any" | "true" | "false";
 
@@ -208,6 +209,8 @@ function StatsPage() {
   const [fRiseOfIx, setFRiseOfIx] = useState<TriState>("any");
   const [fPlayers, setFPlayers] = useState<"any" | "3" | "4">("any");
   const [fVerified, setFVerified] = useState<"any" | "manual">("any");
+  const [fLeader, setFLeader] = useState<string>("any");
+  const [fPlayer, setFPlayer] = useState<string>("");
 
   useEffect(() => {
     if (version !== "ix") setFEpic("any");
@@ -444,8 +447,11 @@ function StatsPage() {
     let pTotalBumps = 0;
     let pProductiveBumps = 0;
 
+    const playerQ = fPlayer.trim().toLowerCase();
     for (const gameRows of byGame.values()) {
       if (fPlayers !== "any" && gameRows.length !== Number(fPlayers)) continue;
+      if (fLeader !== "any" && !gameRows.some((r) => canonicalize(r.leader_name)?.name === fLeader)) continue;
+      if (playerQ && !gameRows.some((r) => (r.player_name ?? "").toLowerCase().includes(playerQ))) continue;
       countedGames += 1;
       const players = gameRows.map((r) => ({
         placement: r.placement,
@@ -715,7 +721,17 @@ function StatsPage() {
         strandedPct: pTotalBumps > 0 ? ((pTotalBumps - pProductiveBumps) / pTotalBumps) * 100 : null,
       },
     };
-  }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx, fPlayers, fVerified, showPersonal, playerKeySet]);
+  }, [rows, version, fEpic, fImmortality, fBaseLeaders, fRiseOfIx, fPlayers, fVerified, fLeader, fPlayer, showPersonal, playerKeySet]);
+
+  const ALL_LEADER_NAMES = useMemo(() => Array.from(new Set(Array.from(CANON.values()))).sort(), []);
+  const allPlayerNames = useMemo(() => {
+    const s = new Set<string>();
+    for (const r of rows) {
+      const n = r.player_name?.trim();
+      if (n) s.add(n);
+    }
+    return Array.from(s).sort();
+  }, [rows]);
 
 
   const advancedSorted = useMemo(() => {
@@ -923,6 +939,40 @@ function StatsPage() {
                           <SelectItem value="manual">Manually verified only</SelectItem>
                         </SelectContent>
                       </Select>
+                      <span className="text-xs uppercase tracking-wider text-muted-foreground ml-2">Leader</span>
+                      <Select value={fLeader} onValueChange={setFLeader}>
+                        <SelectTrigger className="h-8 w-[190px] bg-card/60 border-border/60 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">Any leader</SelectItem>
+                          {ALL_LEADER_NAMES.map((n) => (
+                            <SelectItem key={n} value={n}>{n}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <span className="text-xs uppercase tracking-wider text-muted-foreground ml-2">Player</span>
+                      <Input
+                        value={fPlayer}
+                        onChange={(e) => setFPlayer(e.target.value)}
+                        placeholder="Search player…"
+                        list="adv-player-names"
+                        className="h-8 w-[170px] bg-card/60 border-border/60 text-xs"
+                      />
+                      <datalist id="adv-player-names">
+                        {allPlayerNames.map((n) => (
+                          <option key={n} value={n} />
+                        ))}
+                      </datalist>
+                      {(fLeader !== "any" || fPlayer.trim()) && (
+                        <button
+                          type="button"
+                          onClick={() => { setFLeader("any"); setFPlayer(""); }}
+                          className="text-xs text-sand underline underline-offset-2"
+                        >
+                          Clear
+                        </button>
+                      )}
                     </div>
                   </div>
 
