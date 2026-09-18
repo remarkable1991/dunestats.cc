@@ -431,6 +431,7 @@ function StatsPage() {
     ];
     let pUpgradeTotal = 0;
     const pPace: PaceStat[] = [
+      { label: "Round 6 or earlier", games: 0, winScoreSum: 0, winScoreN: 0 },
       { label: "Round 7", games: 0, winScoreSum: 0, winScoreN: 0 },
       { label: "Round 8", games: 0, winScoreSum: 0, winScoreN: 0 },
       { label: "Round 9+", games: 0, winScoreSum: 0, winScoreN: 0 },
