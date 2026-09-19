@@ -743,6 +743,98 @@ function LeaderDetail() {
           {filtersActive ? " (filtered)" : ""}.
         </p>
 
+        {/* Advanced stats (endboard scan games) */}
+        {!loading && advStats && advStats.games > 0 && (
+          <div className="mt-8">
+            <h2 className="font-display text-lg mb-1">Advanced stats</h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Influence efficiency from {advStats.games} game{advStats.games === 1 ? "" : "s"} with endboard scan data
+              {filtersActive ? " (filtered)" : ""}.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
+              <Card className="p-4 bg-card/70 border-border/60">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">High Council</div>
+                <div className="text-2xl font-display tabular-nums">
+                  {advStats.hcPct !== null ? `${advStats.hcPct.toFixed(1)}%` : "—"}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">of scanned games</div>
+              </Card>
+              <Card className="p-4 bg-card/70 border-border/60">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Swordmaster</div>
+                <div className="text-2xl font-display tabular-nums">
+                  {advStats.smPct !== null ? `${advStats.smPct.toFixed(1)}%` : "—"}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">of scanned games</div>
+              </Card>
+              <Card className="p-4 bg-card/70 border-border/60">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Avg Alliances</div>
+                <div className="text-2xl font-display tabular-nums">
+                  {advStats.avgAlliances !== null ? advStats.avgAlliances.toFixed(2) : "—"}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">per game</div>
+              </Card>
+              <Card className="p-4 bg-card/70 border-border/60">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Avg VP/Bump</div>
+                <div
+                  className={`text-2xl font-display tabular-nums ${
+                    advStats.vpPerBump === null
+                      ? ""
+                      : advStats.vpPerBump >= 0.5
+                        ? "text-emerald-400"
+                        : advStats.vpPerBump < 0.42
+                          ? "text-red-400"
+                          : ""
+                  }`}
+                >
+                  {advStats.vpPerBump !== null ? advStats.vpPerBump.toFixed(3) : "—"}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">benchmark 0.500</div>
+              </Card>
+              <Card className="p-4 bg-card/70 border-border/60 col-span-2 md:col-span-1">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Bump Productive</div>
+                <div
+                  className={`text-2xl font-display tabular-nums ${
+                    advStats.productivePct === null
+                      ? ""
+                      : advStats.productivePct >= 55
+                        ? "text-emerald-400"
+                        : advStats.productivePct < 40
+                          ? "text-red-400"
+                          : ""
+                  }`}
+                >
+                  {advStats.productivePct !== null ? `${advStats.productivePct.toFixed(1)}%` : "—"}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">of bumps yielded value</div>
+              </Card>
+            </div>
+            <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
+                      <th className="px-4 py-3 text-left">Faction track</th>
+                      <th className="px-4 py-3 text-right">Avg level</th>
+                      <th className="px-4 py-3 text-right">Alliances</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {advStats.factions.map((f) => (
+                      <tr key={f.key} className="border-t border-border/40 hover:bg-secondary/30">
+                        <td className="px-4 py-2.5 font-medium">{f.label}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">
+                          {f.avgLevel !== null ? f.avgLevel.toFixed(2) : "—"}
+                        </td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">{f.alliances}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+        )}
+
         {/* Comparison to native version */}
         {showCompare && compareStats && (
           <div className="mt-8">
