@@ -9,6 +9,20 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import {
+  influenceEfficiency,
+  FACTION_KEYS,
+  FACTION_ALLIANCE_KEYS,
+  FACTION_LEVEL_KEYS,
+  type FactionKey,
+} from "@/lib/match-telemetry";
+
+const FACTION_LABEL: Record<FactionKey, string> = {
+  emperor: "Emperor",
+  spacing_guild: "Spacing Guild",
+  bene_gesserit: "Bene Gesserit",
+  fremen: "Fremen",
+};
+import {
   findLeader,
   leaderSlug,
   ORIGIN_COLOR,
@@ -41,12 +55,29 @@ type Row = {
   placement: number;
   points: number;
   leader_name: string | null;
+  player_name?: string | null;
+  spice?: number | null;
+  solaris?: number | null;
+  water?: number | null;
+  turn_order?: number | null;
+  player_slot?: number | null;
+  has_high_council?: boolean | null;
+  has_swordmaster?: boolean | null;
+  emperor_level?: number | null;
+  emperor_alliance?: boolean | null;
+  spacing_guild_level?: number | null;
+  spacing_guild_alliance?: boolean | null;
+  bene_gesserit_level?: number | null;
+  bene_gesserit_alliance?: boolean | null;
+  fremen_level?: number | null;
+  fremen_alliance?: boolean | null;
   games: {
     id: string;
     game_version: GameVersion;
     has_immortality: boolean;
     has_epic_mode: boolean;
     has_rise_of_ix: boolean;
+    ai_scan_status?: string | null;
   } | null;
 };
 
@@ -91,6 +122,7 @@ function LeaderDetail() {
   const leader = findLeader(origin, slug);
 
   const [rows, setRows] = useState<Row[]>([]);
+  const [advGames, setAdvGames] = useState<Row[][]>([]);
   const [allSeats, setAllSeats] = useState<
     { leader_name: string | null; gameId: string | null; version: GameVersion | null; immo: boolean; epic: boolean; ix: boolean }[]
   >([]);
@@ -132,18 +164,20 @@ function LeaderDetail() {
       const PAGE = 1000;
       const out: Row[] = [];
       const seats: typeof allSeats = [];
+      const all: Row[] = [];
       let from = 0;
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const { data, error } = await supabase
           .from("game_results")
           .select(
-            "placement, points, leader_name, games!inner(id, game_version, has_immortality, has_epic_mode, has_rise_of_ix)",
+            "placement, points, leader_name, player_name, spice, solaris, water, turn_order, player_slot, has_high_council, has_swordmaster, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance, games!inner(id, game_version, has_immortality, has_epic_mode, has_rise_of_ix, ai_scan_status)",
           )
           .range(from, from + PAGE - 1);
         if (error || !data || data.length === 0) break;
         for (const r of data as unknown as Row[]) {
           if (!r.leader_name) continue;
+          all.push(r);
           seats.push({
             leader_name: r.leader_name,
             gameId: r.games?.id ?? null,
@@ -157,6 +191,18 @@ function LeaderDetail() {
         if (data.length < PAGE) break;
         from += PAGE;
       }
+      // Keep full game rows (all seats) for every game this leader played in,
+      // so influence efficiency can compare against rivals.
+      const leaderGameIds = new Set(out.map((r) => r.games?.id).filter(Boolean) as string[]);
+      const byGame = new Map<string, Row[]>();
+      for (const r of all) {
+        const gid = r.games?.id;
+        if (!gid || !leaderGameIds.has(gid)) continue;
+        const arr = byGame.get(gid) ?? [];
+        arr.push(r);
+        byGame.set(gid, arr);
+      }
+      setAdvGames(Array.from(byGame.values()));
       setRows(out);
       setAllSeats(seats);
       setLoading(false);
@@ -337,6 +383,99 @@ function LeaderDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [filteredRows, version, seatsByVersion, showCompare, nativeVersion],
   );
+
+  // ---------- Advanced stats (games with endboard scan data) ----------
+  const advStats = useMemo(() => {
+    if (!leader || advGames.length === 0) return null;
+    const aliases = collectAliases(leader.name);
+    const coIds = coLeader ? coLeaderGameIds : null;
+    let games = 0;
+    let hcN = 0, hcYes = 0, smN = 0, smYes = 0;
+    let allianceSum = 0, allianceN = 0;
+    let vpPerBumpSum = 0, vpPerBumpN = 0, productiveSum = 0, productiveN = 0;
+    const factionLevelSum: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+    const factionLevelN: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+    const factionAllianceN: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+
+    for (const gameRows of advGames) {
+      const g = gameRows[0]?.games;
+      if (!g) continue;
+      const st = g.ai_scan_status;
+      if (!st || !st.trim() || st.trim().toLowerCase() === "no") continue;
+      if (version !== "overall" && g.game_version !== version) continue;
+      if (filterImmo && !g.has_immortality) continue;
+      if (filterEpic && !g.has_epic_mode) continue;
+      if (filterIx && !g.has_rise_of_ix) continue;
+      if (coIds && !coIds.has(g.id)) continue;
+      const idx = gameRows.findIndex((r) => r.leader_name && aliases.includes(normalize(r.leader_name)));
+      if (idx < 0) continue;
+
+      const players = gameRows.map((r) => ({
+        placement: r.placement,
+        player_name: r.player_name ?? "",
+        leader_name: r.leader_name,
+        points: r.points,
+        spice: r.spice ?? null,
+        solaris: r.solaris ?? null,
+        water: r.water ?? null,
+        is_leaver: null,
+        player_slot: r.player_slot ?? null,
+        turn_order: r.turn_order ?? null,
+        player_color: null,
+        has_first_player: null,
+        has_high_council: r.has_high_council ?? null,
+        has_swordmaster: r.has_swordmaster ?? null,
+        emperor_level: r.emperor_level ?? null,
+        emperor_alliance: r.emperor_alliance ?? null,
+        spacing_guild_level: r.spacing_guild_level ?? null,
+        spacing_guild_alliance: r.spacing_guild_alliance ?? null,
+        bene_gesserit_level: r.bene_gesserit_level ?? null,
+        bene_gesserit_alliance: r.bene_gesserit_alliance ?? null,
+        fremen_level: r.fremen_level ?? null,
+        fremen_alliance: r.fremen_alliance ?? null,
+      }));
+
+      const me = gameRows[idx];
+      const eff = influenceEfficiency(players[idx], players);
+      games += 1;
+      if (me.has_high_council !== null && me.has_high_council !== undefined) { hcN += 1; if (me.has_high_council) hcYes += 1; }
+      if (me.has_swordmaster !== null && me.has_swordmaster !== undefined) { smN += 1; if (me.has_swordmaster) smYes += 1; }
+      allianceN += 1;
+      allianceSum += FACTION_KEYS.filter((f) => players[idx][FACTION_ALLIANCE_KEYS[f]] === true).length;
+      if (eff.vpPerBump !== null) { vpPerBumpSum += eff.vpPerBump; vpPerBumpN += 1; }
+      if (eff.productivePct !== null) { productiveSum += eff.productivePct; productiveN += 1; }
+      for (const f of FACTION_KEYS) {
+        const lv = me[FACTION_LEVEL_KEYS[f]];
+        if (lv !== null && lv !== undefined) { factionLevelSum[f] += Number(lv); factionLevelN[f] += 1; }
+        if (players[idx][FACTION_ALLIANCE_KEYS[f]] === true) factionAllianceN[f] += 1;
+      }
+    }
+
+    if (games === 0)
+      return {
+        games: 0,
+        hcPct: null,
+        smPct: null,
+        avgAlliances: null,
+        vpPerBump: null,
+        productivePct: null,
+        factions: FACTION_KEYS.map((f) => ({ key: f, label: FACTION_LABEL[f], avgLevel: null, alliances: 0 })),
+      };
+    return {
+      games,
+      hcPct: hcN ? (hcYes / hcN) * 100 : null,
+      smPct: smN ? (smYes / smN) * 100 : null,
+      avgAlliances: allianceN ? allianceSum / allianceN : null,
+      vpPerBump: vpPerBumpN ? vpPerBumpSum / vpPerBumpN : null,
+      productivePct: productiveN ? productiveSum / productiveN : null,
+      factions: FACTION_KEYS.map((f) => ({
+        key: f,
+        label: FACTION_LABEL[f],
+        avgLevel: factionLevelN[f] ? factionLevelSum[f] / factionLevelN[f] : null,
+        alliances: factionAllianceN[f],
+      })),
+    };
+  }, [leader, advGames, version, filterImmo, filterEpic, filterIx, coLeader, coLeaderGameIds]);
 
   // ---- color logic per spec ----
   const winTone = (winPct: number) => {
@@ -612,6 +751,98 @@ function LeaderDetail() {
           {version !== "overall" ? ` in ${GAME_VERSIONS.find((g) => g.value === version)?.label}` : ""}
           {filtersActive ? " (filtered)" : ""}.
         </p>
+
+        {/* Advanced stats (endboard scan games) */}
+        {!loading && advStats && advStats.games > 0 && (
+          <div className="mt-8">
+            <h2 className="font-display text-lg mb-1">Advanced stats</h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Influence efficiency from {advStats.games} game{advStats.games === 1 ? "" : "s"} with endboard scan data
+              {filtersActive ? " (filtered)" : ""}.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
+              <Card className="p-4 bg-card/70 border-border/60">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">High Council</div>
+                <div className="text-2xl font-display tabular-nums">
+                  {advStats.hcPct !== null ? `${advStats.hcPct.toFixed(1)}%` : "—"}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">of scanned games</div>
+              </Card>
+              <Card className="p-4 bg-card/70 border-border/60">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Swordmaster</div>
+                <div className="text-2xl font-display tabular-nums">
+                  {advStats.smPct !== null ? `${advStats.smPct.toFixed(1)}%` : "—"}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">of scanned games</div>
+              </Card>
+              <Card className="p-4 bg-card/70 border-border/60">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Avg Alliances</div>
+                <div className="text-2xl font-display tabular-nums">
+                  {advStats.avgAlliances !== null ? advStats.avgAlliances.toFixed(2) : "—"}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">per game</div>
+              </Card>
+              <Card className="p-4 bg-card/70 border-border/60">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Avg VP/Bump</div>
+                <div
+                  className={`text-2xl font-display tabular-nums ${
+                    advStats.vpPerBump === null
+                      ? ""
+                      : advStats.vpPerBump >= 0.5
+                        ? "text-emerald-400"
+                        : advStats.vpPerBump < 0.42
+                          ? "text-red-400"
+                          : ""
+                  }`}
+                >
+                  {advStats.vpPerBump !== null ? advStats.vpPerBump.toFixed(3) : "—"}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">benchmark 0.500</div>
+              </Card>
+              <Card className="p-4 bg-card/70 border-border/60 col-span-2 md:col-span-1">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Bump Productive</div>
+                <div
+                  className={`text-2xl font-display tabular-nums ${
+                    advStats.productivePct === null
+                      ? ""
+                      : advStats.productivePct >= 55
+                        ? "text-emerald-400"
+                        : advStats.productivePct < 40
+                          ? "text-red-400"
+                          : ""
+                  }`}
+                >
+                  {advStats.productivePct !== null ? `${advStats.productivePct.toFixed(1)}%` : "—"}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">of bumps yielded value</div>
+              </Card>
+            </div>
+            <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
+                      <th className="px-4 py-3 text-left">Faction track</th>
+                      <th className="px-4 py-3 text-right">Avg level</th>
+                      <th className="px-4 py-3 text-right">Alliances</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {advStats.factions.map((f) => (
+                      <tr key={f.key} className="border-t border-border/40 hover:bg-secondary/30">
+                        <td className="px-4 py-2.5 font-medium">{f.label}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">
+                          {f.avgLevel !== null ? f.avgLevel.toFixed(2) : "—"}
+                        </td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">{f.alliances}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+        )}
 
         {/* Comparison to native version */}
         {showCompare && compareStats && (
