@@ -55,12 +55,29 @@ type Row = {
   placement: number;
   points: number;
   leader_name: string | null;
+  player_name?: string | null;
+  spice?: number | null;
+  solaris?: number | null;
+  water?: number | null;
+  turn_order?: number | null;
+  player_slot?: number | null;
+  has_high_council?: boolean | null;
+  has_swordmaster?: boolean | null;
+  emperor_level?: number | null;
+  emperor_alliance?: boolean | null;
+  spacing_guild_level?: number | null;
+  spacing_guild_alliance?: boolean | null;
+  bene_gesserit_level?: number | null;
+  bene_gesserit_alliance?: boolean | null;
+  fremen_level?: number | null;
+  fremen_alliance?: boolean | null;
   games: {
     id: string;
     game_version: GameVersion;
     has_immortality: boolean;
     has_epic_mode: boolean;
     has_rise_of_ix: boolean;
+    ai_scan_status?: string | null;
   } | null;
 };
 
