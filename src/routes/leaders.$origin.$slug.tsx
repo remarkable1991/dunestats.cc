@@ -163,18 +163,20 @@ function LeaderDetail() {
       const PAGE = 1000;
       const out: Row[] = [];
       const seats: typeof allSeats = [];
+      const all: Row[] = [];
       let from = 0;
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const { data, error } = await supabase
           .from("game_results")
           .select(
-            "placement, points, leader_name, games!inner(id, game_version, has_immortality, has_epic_mode, has_rise_of_ix)",
+            "placement, points, leader_name, player_name, spice, solaris, water, turn_order, player_slot, has_high_council, has_swordmaster, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance, games!inner(id, game_version, has_immortality, has_epic_mode, has_rise_of_ix, ai_scan_status)",
           )
           .range(from, from + PAGE - 1);
         if (error || !data || data.length === 0) break;
         for (const r of data as unknown as Row[]) {
           if (!r.leader_name) continue;
+          all.push(r);
           seats.push({
             leader_name: r.leader_name,
             gameId: r.games?.id ?? null,
@@ -188,6 +190,18 @@ function LeaderDetail() {
         if (data.length < PAGE) break;
         from += PAGE;
       }
+      // Keep full game rows (all seats) for every game this leader played in,
+      // so influence efficiency can compare against rivals.
+      const leaderGameIds = new Set(out.map((r) => r.games?.id).filter(Boolean) as string[]);
+      const byGame = new Map<string, Row[]>();
+      for (const r of all) {
+        const gid = r.games?.id;
+        if (!gid || !leaderGameIds.has(gid)) continue;
+        const arr = byGame.get(gid) ?? [];
+        arr.push(r);
+        byGame.set(gid, arr);
+      }
+      setAdvGames(Array.from(byGame.values()));
       setRows(out);
       setAllSeats(seats);
       setLoading(false);
