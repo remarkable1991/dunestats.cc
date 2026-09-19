@@ -9,6 +9,20 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import {
+  influenceEfficiency,
+  FACTION_KEYS,
+  FACTION_ALLIANCE_KEYS,
+  FACTION_LEVEL_KEYS,
+  type FactionKey,
+} from "@/lib/match-telemetry";
+
+const FACTION_LABEL: Record<FactionKey, string> = {
+  emperor: "Emperor",
+  spacing_guild: "Spacing Guild",
+  bene_gesserit: "Bene Gesserit",
+  fremen: "Fremen",
+};
+import {
   findLeader,
   leaderSlug,
   ORIGIN_COLOR,
