@@ -451,7 +451,16 @@ function LeaderDetail() {
       }
     }
 
-    if (games === 0) return { games: 0 };
+    if (games === 0)
+      return {
+        games: 0,
+        hcPct: null,
+        smPct: null,
+        avgAlliances: null,
+        vpPerBump: null,
+        productivePct: null,
+        factions: FACTION_KEYS.map((f) => ({ key: f, label: FACTION_LABEL[f], avgLevel: null, alliances: 0 })),
+      };
     return {
       games,
       hcPct: hcN ? (hcYes / hcN) * 100 : null,
