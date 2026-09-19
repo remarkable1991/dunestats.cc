@@ -122,6 +122,7 @@ function LeaderDetail() {
   const leader = findLeader(origin, slug);
 
   const [rows, setRows] = useState<Row[]>([]);
+  const [advGames, setAdvGames] = useState<Row[][]>([]);
   const [allSeats, setAllSeats] = useState<
     { leader_name: string | null; gameId: string | null; version: GameVersion | null; immo: boolean; epic: boolean; ix: boolean }[]
   >([]);
