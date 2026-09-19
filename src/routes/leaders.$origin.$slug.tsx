@@ -384,6 +384,90 @@ function LeaderDetail() {
     [filteredRows, version, seatsByVersion, showCompare, nativeVersion],
   );
 
+  // ---------- Advanced stats (games with endboard scan data) ----------
+  const advStats = useMemo(() => {
+    if (!leader || advGames.length === 0) return null;
+    const aliases = collectAliases(leader.name);
+    const coIds = coLeader ? coLeaderGameIds : null;
+    let games = 0;
+    let hcN = 0, hcYes = 0, smN = 0, smYes = 0;
+    let allianceSum = 0, allianceN = 0;
+    let vpPerBumpSum = 0, vpPerBumpN = 0, productiveSum = 0, productiveN = 0;
+    const factionLevelSum: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+    const factionLevelN: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+    const factionAllianceN: Record<FactionKey, number> = { emperor: 0, spacing_guild: 0, bene_gesserit: 0, fremen: 0 };
+
+    for (const gameRows of advGames) {
+      const g = gameRows[0]?.games;
+      if (!g) continue;
+      const st = g.ai_scan_status;
+      if (!st || !st.trim() || st.trim().toLowerCase() === "no") continue;
+      if (version !== "overall" && g.game_version !== version) continue;
+      if (filterImmo && !g.has_immortality) continue;
+      if (filterEpic && !g.has_epic_mode) continue;
+      if (filterIx && !g.has_rise_of_ix) continue;
+      if (coIds && !coIds.has(g.id)) continue;
+      const idx = gameRows.findIndex((r) => r.leader_name && aliases.includes(normalize(r.leader_name)));
+      if (idx < 0) continue;
+
+      const players = gameRows.map((r) => ({
+        placement: r.placement,
+        player_name: r.player_name ?? "",
+        leader_name: r.leader_name,
+        points: r.points,
+        spice: r.spice ?? null,
+        solaris: r.solaris ?? null,
+        water: r.water ?? null,
+        is_leaver: null,
+        player_slot: r.player_slot ?? null,
+        turn_order: r.turn_order ?? null,
+        player_color: null,
+        has_first_player: null,
+        has_high_council: r.has_high_council ?? null,
+        has_swordmaster: r.has_swordmaster ?? null,
+        emperor_level: r.emperor_level ?? null,
+        emperor_alliance: r.emperor_alliance ?? null,
+        spacing_guild_level: r.spacing_guild_level ?? null,
+        spacing_guild_alliance: r.spacing_guild_alliance ?? null,
+        bene_gesserit_level: r.bene_gesserit_level ?? null,
+        bene_gesserit_alliance: r.bene_gesserit_alliance ?? null,
+        fremen_level: r.fremen_level ?? null,
+        fremen_alliance: r.fremen_alliance ?? null,
+      }));
+
+      const me = gameRows[idx];
+      const eff = influenceEfficiency(players[idx], players);
+      games += 1;
+      if (me.has_high_council !== null && me.has_high_council !== undefined) { hcN += 1; if (me.has_high_council) hcYes += 1; }
+      if (me.has_swordmaster !== null && me.has_swordmaster !== undefined) { smN += 1; if (me.has_swordmaster) smYes += 1; }
+      allianceN += 1;
+      allianceSum += FACTION_KEYS.filter((f) => players[idx][FACTION_ALLIANCE_KEYS[f]] === true).length;
+      if (eff.vpPerBump !== null) { vpPerBumpSum += eff.vpPerBump; vpPerBumpN += 1; }
+      if (eff.productivePct !== null) { productiveSum += eff.productivePct; productiveN += 1; }
+      for (const f of FACTION_KEYS) {
+        const lv = me[FACTION_LEVEL_KEYS[f]];
+        if (lv !== null && lv !== undefined) { factionLevelSum[f] += Number(lv); factionLevelN[f] += 1; }
+        if (players[idx][FACTION_ALLIANCE_KEYS[f]] === true) factionAllianceN[f] += 1;
+      }
+    }
+
+    if (games === 0) return { games: 0 };
+    return {
+      games,
+      hcPct: hcN ? (hcYes / hcN) * 100 : null,
+      smPct: smN ? (smYes / smN) * 100 : null,
+      avgAlliances: allianceN ? allianceSum / allianceN : null,
+      vpPerBump: vpPerBumpN ? vpPerBumpSum / vpPerBumpN : null,
+      productivePct: productiveN ? productiveSum / productiveN : null,
+      factions: FACTION_KEYS.map((f) => ({
+        key: f,
+        label: FACTION_LABEL[f],
+        avgLevel: factionLevelN[f] ? factionLevelSum[f] / factionLevelN[f] : null,
+        alliances: factionAllianceN[f],
+      })),
+    };
+  }, [leader, advGames, version, filterImmo, filterEpic, filterIx, coLeader, coLeaderGameIds]);
+
   // ---- color logic per spec ----
   const winTone = (winPct: number) => {
     if (winPct > 28) return "text-emerald-400";
