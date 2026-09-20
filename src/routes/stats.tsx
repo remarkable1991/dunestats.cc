@@ -349,6 +349,8 @@ function StatsPage() {
     vpPerBumpN: number;
     productiveSum: number;
     productiveN: number;
+    seatN: number[];
+    seatPlaceSum: number[];
   };
   type SeatStat = { seat: number; n: number; wins: number; top2: number; points: number; places: number[] };
   type UpgradeStat = { label: string; n: number; wins: number; placementSum: number; places: number[] };
@@ -364,6 +366,14 @@ function StatsPage() {
     return "text-foreground";
   };
   const PLACE_BAR = ["bg-emerald-400", "bg-teal-400", "bg-amber-400", "bg-red-400"];
+  /** Rank a leader's seats by average placement (lower is better). */
+  const seatRank = (a: { seatN: number[]; seatPlaceSum: number[] }) =>
+    a.seatN
+      .map((n, i) => ({ seat: i + 1, n, avg: n > 0 ? a.seatPlaceSum[i] / n : null }))
+      .filter((s) => s.avg !== null)
+      .sort((x, y) => x.avg! - y.avg!);
+  const seatLabel = (s: { seat: number; n: number; avg: number | null } | undefined) =>
+    s ? `Seat ${s.seat} · ${s.avg!.toFixed(2)}` : "—";
   const { advancedAgg, personalAdvAgg, scannedGamesCount, meta, personalMeta } = useMemo(() => {
     const matchBool = (state: TriState, val: boolean | null | undefined) => {
       if (state === "any") return true;
@@ -653,8 +663,10 @@ function StatsPage() {
           leader: c.name, group: c.group, games: 0,
           hcN: 0, hcYes: 0, smN: 0, smYes: 0, allianceSum: 0, allianceN: 0,
           vpPerBumpSum: 0, vpPerBumpN: 0, productiveSum: 0, productiveN: 0,
+          seatN: [0, 0, 0, 0], seatPlaceSum: [0, 0, 0, 0],
         };
         a.games += 1;
+        if (seat && seat >= 1 && seat <= 4) { a.seatN[seat - 1] += 1; a.seatPlaceSum[seat - 1] += r.placement; }
         if (r.has_high_council !== null) { a.hcN += 1; if (r.has_high_council) a.hcYes += 1; }
         if (r.has_swordmaster !== null) { a.smN += 1; if (r.has_swordmaster) a.smYes += 1; }
         a.allianceN += 1;
@@ -668,8 +680,10 @@ function StatsPage() {
             leader: c.name, group: c.group, games: 0,
             hcN: 0, hcYes: 0, smN: 0, smYes: 0, allianceSum: 0, allianceN: 0,
             vpPerBumpSum: 0, vpPerBumpN: 0, productiveSum: 0, productiveN: 0,
+            seatN: [0, 0, 0, 0], seatPlaceSum: [0, 0, 0, 0],
           };
           p.games += 1;
+          if (seat && seat >= 1 && seat <= 4) { p.seatN[seat - 1] += 1; p.seatPlaceSum[seat - 1] += r.placement; }
           if (r.has_high_council !== null) { p.hcN += 1; if (r.has_high_council) p.hcYes += 1; }
           if (r.has_swordmaster !== null) { p.smN += 1; if (r.has_swordmaster) p.smYes += 1; }
           p.allianceN += 1;
@@ -1023,12 +1037,16 @@ function StatsPage() {
                               {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                               <AdvTh label="Avg Bump Productive %" k="prod" info="Share of bumps that yielded VPs or defended an alliance against the closest rival. Bumps left stranded on levels 1, 3, or on lost alliance tracks are penalised." />
                               {showPersonal && <th className="px-4 py-3 text-right">You</th>}
+                              <th className="px-4 py-3 text-right" title="Starting seat with the best average placement for this leader">Best seat</th>
+                              <th className="px-4 py-3 text-right" title="Starting seat with the 2nd best average placement">2nd best</th>
+                              <th className="px-4 py-3 text-right" title="Starting seat with the 3rd best average placement">3rd best</th>
+                              <th className="px-4 py-3 text-right" title="Starting seat with the worst average placement for this leader">Worst seat</th>
                             </tr>
                           </thead>
                           <tbody>
                             {loading && (
                               <tr>
-                                <td colSpan={showPersonal ? 13 : 7} className="py-10 text-center text-muted-foreground">Loading stats…</td>
+                                <td colSpan={showPersonal ? 17 : 11} className="py-10 text-center text-muted-foreground">Loading stats…</td>
                               </tr>
                             )}
                             {!loading &&
@@ -1078,12 +1096,27 @@ function StatsPage() {
                                     {gProd !== null ? `${gProd.toFixed(1)}%` : "—"}
                                   </td>
                                   {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{personalCell(pProd, gProd ?? 0, "%")}</td>}
+                                  {(() => {
+                                    const sr = seatRank(a);
+                                    const best = sr[0];
+                                    const second = sr.length > 1 ? sr[1] : undefined;
+                                    const third = sr.length > 2 ? sr[sr.length - 2] : undefined;
+                                    const worst = sr.length > 1 ? sr[sr.length - 1] : undefined;
+                                    return (
+                                      <>
+                                        <td className="px-4 py-3 text-right tabular-nums text-emerald-400">{seatLabel(best)}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums text-emerald-300/80">{seatLabel(second)}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums text-amber-400">{seatLabel(third)}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums text-red-400">{seatLabel(worst)}</td>
+                                      </>
+                                    );
+                                  })()}
                                 </tr>
                                 );
                               })}
                             {!loading && advancedSorted.length === 0 && (
                               <tr>
-                                <td colSpan={showPersonal ? 13 : 7} className="py-10 text-center text-muted-foreground">
+                                <td colSpan={showPersonal ? 17 : 11} className="py-10 text-center text-muted-foreground">
                                   No scanned endboard games for {v.label} yet.
                                 </td>
                               </tr>
