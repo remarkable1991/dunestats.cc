@@ -788,6 +788,55 @@ function LeaderDetail() {
           {filtersActive ? " (filtered)" : ""}.
         </p>
 
+        {/* Results per seat (turn order) */}
+        {!loading && seatStats.rows.length > 0 && (
+          <div className="mt-8">
+            <h2 className="font-display text-lg mb-1">Results per seat</h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Placement split by starting turn order, from {seatStats.known} seat
+              {seatStats.known === 1 ? "" : "s"} with a recorded position.
+            </p>
+            <div className="overflow-x-auto rounded-lg border border-border/60">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Seat</th>
+                    <th className="px-4 py-3 text-right">Games</th>
+                    <th className="px-4 py-3 text-right">1st</th>
+                    <th className="px-4 py-3 text-right">2nd</th>
+                    <th className="px-4 py-3 text-right">3rd</th>
+                    <th className="px-4 py-3 text-right">4th</th>
+                    <th className="px-4 py-3 text-right">Top 2</th>
+                    <th className="px-4 py-3 text-right">Avg pts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {seatStats.rows.map((s) => (
+                    <tr key={s.seat} className="border-t border-border/40">
+                      <td className="px-4 py-3 font-medium">Seat {s.seat}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{s.games}</td>
+                      {[0, 1, 2, 3].map((i) => (
+                        <td
+                          key={i}
+                          className={`px-4 py-3 text-right tabular-nums ${seatTone(s.pcts[i], i >= 2)}`}
+                        >
+                          {s.pcts[i].toFixed(1)}%
+                          <span className="block text-[11px] text-muted-foreground">{s.counts[i]}</span>
+                        </td>
+                      ))}
+                      <td className={`px-4 py-3 text-right tabular-nums ${s.top2 > 54 ? "text-emerald-400" : ""}`}>
+                        {s.top2.toFixed(1)}%
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">{s.avgPts.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+
         {/* Advanced stats (endboard scan games) */}
         {!loading && advStats && advStats.games > 0 && (
           <div className="mt-8">
