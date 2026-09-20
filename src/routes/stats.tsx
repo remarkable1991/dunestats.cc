@@ -366,6 +366,14 @@ function StatsPage() {
     return "text-foreground";
   };
   const PLACE_BAR = ["bg-emerald-400", "bg-teal-400", "bg-amber-400", "bg-red-400"];
+  /** Rank a leader's seats by average placement (lower is better). */
+  const seatRank = (a: { seatN: number[]; seatPlaceSum: number[] }) =>
+    a.seatN
+      .map((n, i) => ({ seat: i + 1, n, avg: n > 0 ? a.seatPlaceSum[i] / n : null }))
+      .filter((s) => s.avg !== null)
+      .sort((x, y) => x.avg! - y.avg!);
+  const seatLabel = (s: { seat: number; n: number; avg: number | null } | undefined) =>
+    s ? `Seat ${s.seat} · ${s.avg!.toFixed(2)}` : "—";
   const { advancedAgg, personalAdvAgg, scannedGamesCount, meta, personalMeta } = useMemo(() => {
     const matchBool = (state: TriState, val: boolean | null | undefined) => {
       if (state === "any") return true;
@@ -1029,6 +1037,10 @@ function StatsPage() {
                               {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                               <AdvTh label="Avg Bump Productive %" k="prod" info="Share of bumps that yielded VPs or defended an alliance against the closest rival. Bumps left stranded on levels 1, 3, or on lost alliance tracks are penalised." />
                               {showPersonal && <th className="px-4 py-3 text-right">You</th>}
+                              <th className="px-4 py-3 text-right" title="Starting seat with the best average placement for this leader">Best seat</th>
+                              <th className="px-4 py-3 text-right" title="Starting seat with the 2nd best average placement">2nd best</th>
+                              <th className="px-4 py-3 text-right" title="Starting seat with the 3rd best average placement">3rd best</th>
+                              <th className="px-4 py-3 text-right" title="Starting seat with the worst average placement for this leader">Worst seat</th>
                             </tr>
                           </thead>
                           <tbody>
