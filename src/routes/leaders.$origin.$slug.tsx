@@ -384,6 +384,35 @@ function LeaderDetail() {
     [filteredRows, version, seatsByVersion, showCompare, nativeVersion],
   );
 
+  // ---------- Results per seat (turn order) ----------
+  const seatStats = useMemo(() => {
+    const f = version === "overall" ? filteredRows : filteredRows.filter((r) => r.games?.game_version === version);
+    const buckets = new Map<number, { games: number; places: number[]; points: number }>();
+    let known = 0;
+    for (const r of f) {
+      const seat = r.turn_order ?? r.player_slot ?? null;
+      if (!seat || seat < 1 || seat > 6) continue;
+      known += 1;
+      const b = buckets.get(seat) ?? { games: 0, places: [0, 0, 0, 0], points: 0 };
+      b.games += 1;
+      if (r.placement >= 1 && r.placement <= 4) b.places[r.placement - 1] += 1;
+      b.points += r.points ?? 0;
+      buckets.set(seat, b);
+    }
+    const rowsOut = [...buckets.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([seat, b]) => ({
+        seat,
+        games: b.games,
+        pcts: b.places.map((n) => (b.games ? (n / b.games) * 100 : 0)),
+        counts: b.places,
+        top2: b.games ? ((b.places[0] + b.places[1]) / b.games) * 100 : 0,
+        avgPts: b.games ? b.points / b.games : 0,
+      }));
+    return { known, rows: rowsOut };
+  }, [filteredRows, version]);
+
+
   // ---------- Advanced stats (games with endboard scan data) ----------
   const advStats = useMemo(() => {
     if (!leader || advGames.length === 0) return null;
