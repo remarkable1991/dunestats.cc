@@ -1046,7 +1046,7 @@ function StatsPage() {
                           <tbody>
                             {loading && (
                               <tr>
-                                <td colSpan={showPersonal ? 13 : 7} className="py-10 text-center text-muted-foreground">Loading stats…</td>
+                                <td colSpan={showPersonal ? 17 : 11} className="py-10 text-center text-muted-foreground">Loading stats…</td>
                               </tr>
                             )}
                             {!loading &&
@@ -1116,7 +1116,7 @@ function StatsPage() {
                               })}
                             {!loading && advancedSorted.length === 0 && (
                               <tr>
-                                <td colSpan={showPersonal ? 13 : 7} className="py-10 text-center text-muted-foreground">
+                                <td colSpan={showPersonal ? 17 : 11} className="py-10 text-center text-muted-foreground">
                                   No scanned endboard games for {v.label} yet.
                                 </td>
                               </tr>
