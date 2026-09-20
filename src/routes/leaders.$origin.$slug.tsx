@@ -384,6 +384,35 @@ function LeaderDetail() {
     [filteredRows, version, seatsByVersion, showCompare, nativeVersion],
   );
 
+  // ---------- Results per seat (turn order) ----------
+  const seatStats = useMemo(() => {
+    const f = version === "overall" ? filteredRows : filteredRows.filter((r) => r.games?.game_version === version);
+    const buckets = new Map<number, { games: number; places: number[]; points: number }>();
+    let known = 0;
+    for (const r of f) {
+      const seat = r.turn_order ?? r.player_slot ?? null;
+      if (!seat || seat < 1 || seat > 6) continue;
+      known += 1;
+      const b = buckets.get(seat) ?? { games: 0, places: [0, 0, 0, 0], points: 0 };
+      b.games += 1;
+      if (r.placement >= 1 && r.placement <= 4) b.places[r.placement - 1] += 1;
+      b.points += r.points ?? 0;
+      buckets.set(seat, b);
+    }
+    const rowsOut = [...buckets.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([seat, b]) => ({
+        seat,
+        games: b.games,
+        pcts: b.places.map((n) => (b.games ? (n / b.games) * 100 : 0)),
+        counts: b.places,
+        top2: b.games ? ((b.places[0] + b.places[1]) / b.games) * 100 : 0,
+        avgPts: b.games ? b.points / b.games : 0,
+      }));
+    return { known, rows: rowsOut };
+  }, [filteredRows, version]);
+
+
   // ---------- Advanced stats (games with endboard scan data) ----------
   const advStats = useMemo(() => {
     if (!leader || advGames.length === 0) return null;
@@ -494,6 +523,13 @@ function LeaderDetail() {
   };
   const top2Tone = (firstPct: number, secondPct: number) =>
     firstPct + secondPct > 54 ? "text-emerald-400" : "";
+  // Seat share vs the neutral 25% baseline (lower is better for 3rd/4th).
+  const seatTone = (pctValue: number, lowerIsBetter = false) => {
+    const delta = lowerIsBetter ? 25 - pctValue : pctValue - 25;
+    if (delta >= 6) return "text-emerald-400";
+    if (delta <= -6) return "text-red-400";
+    return "";
+  };
 
   const availableTabs = leader ? versionsForOrigin(leader.origin) : (["overall"] as GameVersion[]);
 
@@ -751,6 +787,55 @@ function LeaderDetail() {
           {version !== "overall" ? ` in ${GAME_VERSIONS.find((g) => g.value === version)?.label}` : ""}
           {filtersActive ? " (filtered)" : ""}.
         </p>
+
+        {/* Results per seat (turn order) */}
+        {!loading && seatStats.rows.length > 0 && (
+          <div className="mt-8">
+            <h2 className="font-display text-lg mb-1">Results per seat</h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Placement split by starting turn order, from {seatStats.known} seat
+              {seatStats.known === 1 ? "" : "s"} with a recorded position.
+            </p>
+            <div className="overflow-x-auto rounded-lg border border-border/60">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Seat</th>
+                    <th className="px-4 py-3 text-right">Games</th>
+                    <th className="px-4 py-3 text-right">1st</th>
+                    <th className="px-4 py-3 text-right">2nd</th>
+                    <th className="px-4 py-3 text-right">3rd</th>
+                    <th className="px-4 py-3 text-right">4th</th>
+                    <th className="px-4 py-3 text-right">Top 2</th>
+                    <th className="px-4 py-3 text-right">Avg pts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {seatStats.rows.map((s) => (
+                    <tr key={s.seat} className="border-t border-border/40">
+                      <td className="px-4 py-3 font-medium">Seat {s.seat}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{s.games}</td>
+                      {[0, 1, 2, 3].map((i) => (
+                        <td
+                          key={i}
+                          className={`px-4 py-3 text-right tabular-nums ${seatTone(s.pcts[i], i >= 2)}`}
+                        >
+                          {s.pcts[i].toFixed(1)}%
+                          <span className="block text-[11px] text-muted-foreground">{s.counts[i]}</span>
+                        </td>
+                      ))}
+                      <td className={`px-4 py-3 text-right tabular-nums ${s.top2 > 54 ? "text-emerald-400" : ""}`}>
+                        {s.top2.toFixed(1)}%
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">{s.avgPts.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
 
         {/* Advanced stats (endboard scan games) */}
         {!loading && advStats && advStats.games > 0 && (
