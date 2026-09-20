@@ -349,6 +349,8 @@ function StatsPage() {
     vpPerBumpN: number;
     productiveSum: number;
     productiveN: number;
+    seatN: number[];
+    seatPlaceSum: number[];
   };
   type SeatStat = { seat: number; n: number; wins: number; top2: number; points: number; places: number[] };
   type UpgradeStat = { label: string; n: number; wins: number; placementSum: number; places: number[] };
@@ -653,8 +655,10 @@ function StatsPage() {
           leader: c.name, group: c.group, games: 0,
           hcN: 0, hcYes: 0, smN: 0, smYes: 0, allianceSum: 0, allianceN: 0,
           vpPerBumpSum: 0, vpPerBumpN: 0, productiveSum: 0, productiveN: 0,
+          seatN: [0, 0, 0, 0], seatPlaceSum: [0, 0, 0, 0],
         };
         a.games += 1;
+        if (seat && seat >= 1 && seat <= 4) { a.seatN[seat - 1] += 1; a.seatPlaceSum[seat - 1] += r.placement; }
         if (r.has_high_council !== null) { a.hcN += 1; if (r.has_high_council) a.hcYes += 1; }
         if (r.has_swordmaster !== null) { a.smN += 1; if (r.has_swordmaster) a.smYes += 1; }
         a.allianceN += 1;
@@ -668,8 +672,10 @@ function StatsPage() {
             leader: c.name, group: c.group, games: 0,
             hcN: 0, hcYes: 0, smN: 0, smYes: 0, allianceSum: 0, allianceN: 0,
             vpPerBumpSum: 0, vpPerBumpN: 0, productiveSum: 0, productiveN: 0,
+            seatN: [0, 0, 0, 0], seatPlaceSum: [0, 0, 0, 0],
           };
           p.games += 1;
+          if (seat && seat >= 1 && seat <= 4) { p.seatN[seat - 1] += 1; p.seatPlaceSum[seat - 1] += r.placement; }
           if (r.has_high_council !== null) { p.hcN += 1; if (r.has_high_council) p.hcYes += 1; }
           if (r.has_swordmaster !== null) { p.smN += 1; if (r.has_swordmaster) p.smYes += 1; }
           p.allianceN += 1;
