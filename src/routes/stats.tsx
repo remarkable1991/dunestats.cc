@@ -1096,6 +1096,21 @@ function StatsPage() {
                                     {gProd !== null ? `${gProd.toFixed(1)}%` : "—"}
                                   </td>
                                   {showPersonal && <td className="px-4 py-3 text-right tabular-nums">{personalCell(pProd, gProd ?? 0, "%")}</td>}
+                                  {(() => {
+                                    const sr = seatRank(a);
+                                    const best = sr[0];
+                                    const second = sr.length > 1 ? sr[1] : undefined;
+                                    const third = sr.length > 2 ? sr[sr.length - 2] : undefined;
+                                    const worst = sr.length > 1 ? sr[sr.length - 1] : undefined;
+                                    return (
+                                      <>
+                                        <td className="px-4 py-3 text-right tabular-nums text-emerald-400">{seatLabel(best)}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums text-emerald-300/80">{seatLabel(second)}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums text-amber-400">{seatLabel(third)}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums text-red-400">{seatLabel(worst)}</td>
+                                      </>
+                                    );
+                                  })()}
                                 </tr>
                                 );
                               })}
