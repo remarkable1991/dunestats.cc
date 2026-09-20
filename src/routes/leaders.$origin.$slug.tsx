@@ -523,6 +523,13 @@ function LeaderDetail() {
   };
   const top2Tone = (firstPct: number, secondPct: number) =>
     firstPct + secondPct > 54 ? "text-emerald-400" : "";
+  // Seat share vs the neutral 25% baseline (lower is better for 3rd/4th).
+  const seatTone = (pctValue: number, lowerIsBetter = false) => {
+    const delta = lowerIsBetter ? 25 - pctValue : pctValue - 25;
+    if (delta >= 6) return "text-emerald-400";
+    if (delta <= -6) return "text-red-400";
+    return "";
+  };
 
   const availableTabs = leader ? versionsForOrigin(leader.origin) : (["overall"] as GameVersion[]);
 
