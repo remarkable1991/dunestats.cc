@@ -197,7 +197,7 @@ function StatsPage() {
   const [version, setVersion] = useState<GameVersion>("overall");
   const [mode, setMode] = useState<"basic" | "advanced">("basic");
   const [advView, setAdvView] = useState<"leaders" | "meta">("leaders");
-  const [advSortKey, setAdvSortKey] = useState<"games" | "hc" | "sm" | "alliances" | "vpb" | "prod">("games");
+  const [advSortKey, setAdvSortKey] = useState<"games" | "hc" | "sm" | "alliances" | "vpb" | "prod" | "bestSeat" | "secondSeat" | "thirdSeat" | "worstSeat">("games");
   const [advSortDir, setAdvSortDir] = useState<"desc" | "asc">("desc");
   const [userLeaders, setUserLeaders] = useState<Set<string>>(new Set());
   const [playerKeys, setPlayerKeys] = useState<string[]>([]);
@@ -758,6 +758,10 @@ function StatsPage() {
         case "alliances": return a.allianceN ? a.allianceSum / a.allianceN : -1;
         case "vpb": return a.vpPerBumpN ? a.vpPerBumpSum / a.vpPerBumpN : -1;
         case "prod": return a.productiveN ? a.productiveSum / a.productiveN : -1;
+        case "bestSeat": { const sr = seatRank(a); return sr[0]?.avg ?? 99; }
+        case "secondSeat": { const sr = seatRank(a); return sr.length > 1 ? sr[1].avg! : 99; }
+        case "thirdSeat": { const sr = seatRank(a); return sr.length > 2 ? sr[sr.length - 2].avg! : 99; }
+        case "worstSeat": { const sr = seatRank(a); return sr.length > 1 ? sr[sr.length - 1].avg! : 99; }
       }
     };
     return [...advancedAgg].sort((a, b) => {
@@ -1037,10 +1041,10 @@ function StatsPage() {
                               {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                               <AdvTh label="Avg Bump Productive %" k="prod" info="Share of bumps that yielded VPs or defended an alliance against the closest rival. Bumps left stranded on levels 1, 3, or on lost alliance tracks are penalised." />
                               {showPersonal && <th className="px-4 py-3 text-right">You</th>}
-                              <th className="px-4 py-3 text-right" title="Starting seat with the best average placement for this leader">Best seat</th>
-                              <th className="px-4 py-3 text-right" title="Starting seat with the 2nd best average placement">2nd best</th>
-                              <th className="px-4 py-3 text-right" title="Starting seat with the 3rd best average placement">3rd best</th>
-                              <th className="px-4 py-3 text-right" title="Starting seat with the worst average placement for this leader">Worst seat</th>
+                              <AdvTh label="Best seat" k="bestSeat" info="The starting seat where this leader has the best (lowest) average placement in scanned endboard games. Seat 1 · 2.50 means an average placement of 2.50 from seat 1. Sorts by that average placement." />
+                              <AdvTh label="2nd best" k="secondSeat" info="The starting seat with this leader's second-best average placement in scanned endboard games. Sorts by that average placement." />
+                              <AdvTh label="3rd best" k="thirdSeat" info="The starting seat with this leader's third-best average placement in scanned endboard games. Sorts by that average placement." />
+                              <AdvTh label="Worst seat" k="worstSeat" info="The starting seat where this leader has the worst (highest) average placement in scanned endboard games. Sorts by that average placement." />
                             </tr>
                           </thead>
                           <tbody>
