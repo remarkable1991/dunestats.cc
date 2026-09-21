@@ -1118,10 +1118,10 @@ function StatsPage() {
                                     const worst = sr.length > 1 ? sr[sr.length - 1] : undefined;
                                     return (
                                       <>
-                                        <td className="px-4 py-3 text-right tabular-nums text-emerald-400">{seatLabel(best)}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums text-emerald-300/80">{seatLabel(second)}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums text-amber-400">{seatLabel(third)}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums text-red-400">{seatLabel(worst)}</td>
+                                        <td className={`px-4 py-3 text-right tabular-nums ${seatTone(best?.avg ?? null)}`}>{seatLabel(best)}</td>
+                                        <td className={`px-4 py-3 text-right tabular-nums ${seatTone(second?.avg ?? null)}`}>{seatLabel(second)}</td>
+                                        <td className={`px-4 py-3 text-right tabular-nums ${seatTone(third?.avg ?? null)}`}>{seatLabel(third)}</td>
+                                        <td className={`px-4 py-3 text-right tabular-nums ${seatTone(worst?.avg ?? null)}`}>{seatLabel(worst)}</td>
                                       </>
                                     );
                                   })()}
