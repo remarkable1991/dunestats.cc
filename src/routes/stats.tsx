@@ -374,6 +374,16 @@ function StatsPage() {
       .sort((x, y) => x.avg! - y.avg!);
   const seatLabel = (s: { seat: number; n: number; avg: number | null } | undefined) =>
     s ? `Seat ${s.seat} · ${s.avg!.toFixed(2)}` : "—";
+  /** Colour by distance from the 2.5 average placement: greener below, redder above. */
+  const seatTone = (avg: number | null) => {
+    if (avg === null) return "text-muted-foreground";
+    const d = avg - 2.5;
+    if (d <= -0.75) return "text-emerald-400";
+    if (d <= -0.25) return "text-emerald-300/80";
+    if (d < 0.25) return "text-amber-400";
+    if (d < 0.75) return "text-orange-400";
+    return "text-red-400";
+  };
   const { advancedAgg, personalAdvAgg, scannedGamesCount, meta, personalMeta } = useMemo(() => {
     const matchBool = (state: TriState, val: boolean | null | undefined) => {
       if (state === "any") return true;
@@ -1029,13 +1039,13 @@ function StatsPage() {
                           <thead>
                             <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
                               <th className="px-4 py-3 text-left">Leader</th>
-                              <AdvTh label="Games" k="games" />
+                              <AdvTh label="Games" k="games" info="Number of scanned endboard games this leader appeared in." />
                               {showPersonal && <th className="px-4 py-3 text-right">You</th>}
-                              <AdvTh label="HC %" k="hc" />
+                              <AdvTh label="HC %" k="hc" info="Share of games where this leader held the High Council card." />
                               {showPersonal && <th className="px-4 py-3 text-right">You</th>}
-                              <AdvTh label="SM %" k="sm" />
+                              <AdvTh label="SM %" k="sm" info="Share of games where this leader was the Swordmaster." />
                               {showPersonal && <th className="px-4 py-3 text-right">You</th>}
-                              <AdvTh label="Avg Alliances" k="alliances" />
+                              <AdvTh label="Avg Alliances" k="alliances" info="Average number of alliance tokens this leader held at game end across the four influence tracks." />
                               {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                               <AdvTh label="Avg VP/Bump" k="vpb" info="Direct victory points gained per influence bump. Benchmark is 0.500." />
                               {showPersonal && <th className="px-4 py-3 text-right">You</th>}
@@ -1108,10 +1118,10 @@ function StatsPage() {
                                     const worst = sr.length > 1 ? sr[sr.length - 1] : undefined;
                                     return (
                                       <>
-                                        <td className="px-4 py-3 text-right tabular-nums text-emerald-400">{seatLabel(best)}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums text-emerald-300/80">{seatLabel(second)}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums text-amber-400">{seatLabel(third)}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums text-red-400">{seatLabel(worst)}</td>
+                                        <td className={`px-4 py-3 text-right tabular-nums ${seatTone(best?.avg ?? null)}`}>{seatLabel(best)}</td>
+                                        <td className={`px-4 py-3 text-right tabular-nums ${seatTone(second?.avg ?? null)}`}>{seatLabel(second)}</td>
+                                        <td className={`px-4 py-3 text-right tabular-nums ${seatTone(third?.avg ?? null)}`}>{seatLabel(third)}</td>
+                                        <td className={`px-4 py-3 text-right tabular-nums ${seatTone(worst?.avg ?? null)}`}>{seatLabel(worst)}</td>
                                       </>
                                     );
                                   })()}
