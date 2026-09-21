@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Plus, Save, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Loader2, Plus, Save, Trash2, Upload } from "lucide-react";
 import { TournamentPlayModeBadge } from "@/components/TournamentPlayModeBadge";
 import { parseTournamentMatchesCsv } from "@/lib/tournament-csv";
 import {
@@ -199,6 +199,9 @@ function AdminTournaments() {
           <div className="flex gap-2">
             <Button asChild variant="ghost" size="sm">
               <Link to="/tournament"><ArrowLeft className="size-4 mr-1" />Back</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="gap-1 border-sand/50 text-sand hover:bg-sand/10">
+              <Link to="/admin/match-approvals"><ClipboardCheck className="size-4" />Match approvals</Link>
             </Button>
             <Button
               size="sm"

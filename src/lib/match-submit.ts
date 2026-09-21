@@ -121,22 +121,17 @@ export async function submitMatch(input: SubmitMatchInput): Promise<SubmitMatchR
   const publicMatchId = g?.public_match_id ?? saveResult.game_id;
 
   // 5. Tournament writes
+  //
+  // A table is only written directly when EVERY detected player maps to a
+  // roster slot for that table. A single mismatch (substitute player, renamed
+  // account, OCR slip) means the table would end up half-filled, so the whole
+  // match goes to admin approval instead.
   let tournamentApplied = false;
+  let pending = input.pendingTournament ?? null;
+
   if (input.tournament) {
     const { num, round, table } = input.tournament;
     try {
-      if (screenshotPath) {
-        await supabase.from("tournament_table_screenshots").upsert(
-          {
-            tournament_num: num,
-            round_type: round,
-            table_identifier: table,
-            image_url: screenshotPath,
-            created_by: input.userId,
-          },
-          { onConflict: "tournament_num,round_type,table_identifier" },
-        );
-      }
       const { data: slot } = await supabase
         .from("tournament_matches")
         .select("id, player_name")
@@ -144,24 +139,58 @@ export async function submitMatch(input: SubmitMatchInput): Promise<SubmitMatchR
         .eq("round_type", round)
         .eq("table_identifier", table);
       const slotRows = slot ?? [];
-      for (const pr of rows) {
+      const usedSlotIds = new Set<string>();
+      const pairs = rows.map((pr) => {
         const lower = pr.player_name.toLowerCase();
         const target = slotRows.find((r) => {
+          if (usedSlotIds.has(r.id)) return false;
           const rn = (r.player_name ?? "").toLowerCase();
           return rn === lower || rn.includes(lower) || lower.includes(rn);
         });
-        if (!target) continue;
-        await supabase
-          .from("tournament_matches")
-          .update({
-            placement: pr.placement,
-            points: pr.points,
-            leader_name: pr.leader_name,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", target.id);
+        if (target) usedSlotIds.add(target.id);
+        return { pr, target };
+      });
+      const leftover = slotRows.filter((r) => !usedSlotIds.has(r.id));
+      const missed = pairs.filter((p) => !p.target);
+
+      if (slotRows.length && (missed.length > 0 || leftover.length > 0)) {
+        // Roster mismatch → route to approval instead of a partial write.
+        pending = {
+          num,
+          round,
+          table,
+          unmatched: missed.map((m, i) => ({
+            detected: m.pr.player_name,
+            suggested: leftover[i]?.player_name ?? null,
+          })),
+        };
+      } else {
+        if (screenshotPath) {
+          await supabase.from("tournament_table_screenshots").upsert(
+            {
+              tournament_num: num,
+              round_type: round,
+              table_identifier: table,
+              image_url: screenshotPath,
+              created_by: input.userId,
+            },
+            { onConflict: "tournament_num,round_type,table_identifier" },
+          );
+        }
+        for (const { pr, target } of pairs) {
+          if (!target) continue;
+          await supabase
+            .from("tournament_matches")
+            .update({
+              placement: pr.placement,
+              points: pr.points,
+              leader_name: pr.leader_name,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", target.id);
+        }
+        tournamentApplied = true;
       }
-      tournamentApplied = true;
     } catch (e) {
       console.error("Tournament write failed:", e);
       tournamentApplied = false;
@@ -170,15 +199,15 @@ export async function submitMatch(input: SubmitMatchInput): Promise<SubmitMatchR
 
   // 6. Queue for admin approval instead of writing the tournament table
   let pendingReview = false;
-  if (!input.tournament && input.pendingTournament) {
+  if (!tournamentApplied && pending) {
     const { error } = await supabase.from("tournament_pending_matches").insert({
       game_id: saveResult.game_id,
-      tournament_num: input.pendingTournament.num,
-      round_type: input.pendingTournament.round,
-      table_identifier: input.pendingTournament.table,
+      tournament_num: pending.num,
+      round_type: pending.round,
+      table_identifier: pending.table,
       submitted_by: input.userId,
       detected_players: rows,
-      unmatched: input.pendingTournament.unmatched,
+      unmatched: pending.unmatched,
     });
     if (error) console.error("Pending tournament review insert failed:", error);
     else pendingReview = true;

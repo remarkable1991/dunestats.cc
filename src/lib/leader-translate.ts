@@ -37,6 +37,21 @@ export const CANONICAL_LEADERS = [
 const ALIASES: Array<[string, string]> = [
   // Base
   ["Baron Vladimir Harkonnen", "Baron Vladimir Harkonnen"],
+  // Polish
+  ["Paul Atryda", "Paul Atreides"],
+  ["Ksiaze Leto Atryda", "Duke Leto Atreides"],
+  ["Książę Leto Atryda", "Duke Leto Atreides"],
+  ["Leto Atryda", "Duke Leto Atreides"],
+  ["Hrabia Ilban Richese", "Count Ilban Richese"],
+  ["Hrabina Ariana Thorvald", "Countess Ariana Thorvald"],
+  ["Hrabia Memnon Thorvald", "Earl Memnon Thorvald"],
+  ['Glossu "Bestia" Rabban', 'Glossu "Beast" Rabban'],
+  ["Wicehrabia Hundro Moritani", "Viscount Hundro Moritani"],
+  ["Arcyksiaze Armand Ecaz", "Archduke Armand Ecaz"],
+  ["Arcyksiążę Armand Ecaz", "Archduke Armand Ecaz"],
+  ["Ksiaze Rhombur Vernius", "Prince Rhombur Vernius"],
+  ["Książę Rhombur Vernius", "Prince Rhombur Vernius"],
+  ["Lady Jessika", "Lady Jessica"],
   ["Graf Ilban Richese", "Count Ilban Richese"],
   ["Comte Ilban Richese", "Count Ilban Richese"],
   ["Count Ilban Richese", "Count Ilban Richese"],
