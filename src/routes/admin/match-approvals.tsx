@@ -54,6 +54,22 @@ function MatchApprovals() {
   const [rows, setRows] = useState<Pending[]>([]);
   const [forms, setForms] = useState<Record<string, FormState>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  /** pending id -> roster names for the chosen round/table */
+  const [rosters, setRosters] = useState<Record<string, string[]>>({});
+
+  const loadRoster = async (id: string, num: number, round: string, table: string) => {
+    let q = supabase
+      .from("tournament_matches")
+      .select("player_name, round_type, table_identifier")
+      .eq("tournament_num", num);
+    if (round.trim()) q = q.eq("round_type", round.trim());
+    if (table.trim()) q = q.eq("table_identifier", table.trim());
+    const { data } = await q;
+    const names = Array.from(
+      new Set(((data ?? []) as { player_name: string }[]).map((r) => r.player_name).filter(Boolean)),
+    ).sort((a, b) => a.localeCompare(b));
+    setRosters((m) => ({ ...m, [id]: names }));
+  };
 
   const load = async () => {
     const { data } = await supabase
