@@ -374,6 +374,16 @@ function StatsPage() {
       .sort((x, y) => x.avg! - y.avg!);
   const seatLabel = (s: { seat: number; n: number; avg: number | null } | undefined) =>
     s ? `Seat ${s.seat} · ${s.avg!.toFixed(2)}` : "—";
+  /** Colour by distance from the 2.5 average placement: greener below, redder above. */
+  const seatTone = (avg: number | null) => {
+    if (avg === null) return "text-muted-foreground";
+    const d = avg - 2.5;
+    if (d <= -0.75) return "text-emerald-400";
+    if (d <= -0.25) return "text-emerald-300/80";
+    if (d < 0.25) return "text-amber-400";
+    if (d < 0.75) return "text-orange-400";
+    return "text-red-400";
+  };
   const { advancedAgg, personalAdvAgg, scannedGamesCount, meta, personalMeta } = useMemo(() => {
     const matchBool = (state: TriState, val: boolean | null | undefined) => {
       if (state === "any") return true;
