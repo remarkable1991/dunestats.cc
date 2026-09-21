@@ -1039,13 +1039,13 @@ function StatsPage() {
                           <thead>
                             <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
                               <th className="px-4 py-3 text-left">Leader</th>
-                              <AdvTh label="Games" k="games" />
+                              <AdvTh label="Games" k="games" info="Number of scanned endboard games this leader appeared in." />
                               {showPersonal && <th className="px-4 py-3 text-right">You</th>}
-                              <AdvTh label="HC %" k="hc" />
+                              <AdvTh label="HC %" k="hc" info="Share of games where this leader held the High Council card." />
                               {showPersonal && <th className="px-4 py-3 text-right">You</th>}
-                              <AdvTh label="SM %" k="sm" />
+                              <AdvTh label="SM %" k="sm" info="Share of games where this leader was the Swordmaster." />
                               {showPersonal && <th className="px-4 py-3 text-right">You</th>}
-                              <AdvTh label="Avg Alliances" k="alliances" />
+                              <AdvTh label="Avg Alliances" k="alliances" info="Average number of alliance tokens this leader held at game end across the four influence tracks." />
                               {showPersonal && <th className="px-4 py-3 text-right">You</th>}
                               <AdvTh label="Avg VP/Bump" k="vpb" info="Direct victory points gained per influence bump. Benchmark is 0.500." />
                               {showPersonal && <th className="px-4 py-3 text-right">You</th>}
