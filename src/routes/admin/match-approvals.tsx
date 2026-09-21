@@ -98,6 +98,12 @@ function MatchApprovals() {
       };
     }
     setForms(next);
+    setRosters({});
+    await Promise.all(
+      list.map((r) =>
+        loadRoster(r.id, r.tournament_num, r.round_type ?? "", r.table_identifier ?? ""),
+      ),
+    );
   };
 
   useEffect(() => {
