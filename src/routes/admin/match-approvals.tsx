@@ -234,47 +234,80 @@ function MatchApprovals() {
               <div className="grid sm:grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs">Round</Label>
-                  <Input value={f.round} onChange={(e) => setForm(row.id, { round: e.target.value })} placeholder="Game 2" />
+                  <Input
+                    value={f.round}
+                    onChange={(e) => setForm(row.id, { round: e.target.value })}
+                    onBlur={() => void loadRoster(row.id, row.tournament_num, f.round, f.table)}
+                    placeholder="Game 2"
+                  />
                 </div>
                 <div>
                   <Label className="text-xs">Table</Label>
-                  <Input value={f.table} onChange={(e) => setForm(row.id, { table: e.target.value })} placeholder="Table 6" />
+                  <Input
+                    value={f.table}
+                    onChange={(e) => setForm(row.id, { table: e.target.value })}
+                    onBlur={() => void loadRoster(row.id, row.tournament_num, f.round, f.table)}
+                    placeholder="Table 6"
+                  />
                 </div>
               </div>
 
               {row.unmatched.length > 0 && (
                 <div className="rounded-md border border-amber-500/50 bg-amber-500/5 p-3 space-y-3">
                   <p className="text-xs text-amber-300">
-                    These screenshot players are not on the table roster. Correct the registered name so
-                    it matches the screenshot.
+                    These screenshot players are not on the table roster. Pick who they registered as —
+                    the roster name is replaced by the screenshot name everywhere in this tournament.
                   </p>
-                  {row.unmatched.map((u) => (
-                    <div key={u.detected} className="grid sm:grid-cols-2 gap-2 items-end">
-                      <div>
-                        <Label className="text-xs">Registered as (roster name)</Label>
-                        <Input
-                          value={
-                            Object.keys(f.fixes).find((k) => f.fixes[k] === u.detected) ??
-                            u.suggested ??
-                            ""
-                          }
-                          onChange={(e) => {
-                            const fixes = { ...f.fixes };
-                            for (const k of Object.keys(fixes)) {
-                              if (fixes[k] === u.detected) delete fixes[k];
-                            }
-                            if (e.target.value.trim()) fixes[e.target.value.trim()] = u.detected;
-                            setForm(row.id, { fixes });
-                          }}
-                          placeholder="wrong roster name"
-                        />
+                  {row.unmatched.map((u) => {
+                    const current =
+                      Object.keys(f.fixes).find((k) => f.fixes[k] === u.detected) ?? "";
+                    const taken = new Set(
+                      Object.keys(f.fixes).filter((k) => k !== current),
+                    );
+                    const options = (rosters[row.id] ?? []).filter((n) => !taken.has(n));
+                    if (current && !options.includes(current)) options.unshift(current);
+                    const setFix = (name: string) => {
+                      const fixes = { ...f.fixes };
+                      for (const k of Object.keys(fixes)) {
+                        if (fixes[k] === u.detected) delete fixes[k];
+                      }
+                      if (name) fixes[name] = u.detected;
+                      setForm(row.id, { fixes });
+                    };
+                    return (
+                      <div key={u.detected} className="grid sm:grid-cols-2 gap-2 items-end">
+                        <div>
+                          <Label className="text-xs">Registered as (roster name)</Label>
+                          {options.length > 0 ? (
+                            <Select
+                              value={current || "__none__"}
+                              onValueChange={(v) => setFix(v === "__none__" ? "" : v)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Pick a roster player" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">— leave unchanged —</SelectItem>
+                                {options.map((n) => (
+                                  <SelectItem key={n} value={n}>{n}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input
+                              value={current}
+                              onChange={(e) => setFix(e.target.value.trim())}
+                              placeholder="wrong roster name"
+                            />
+                          )}
+                        </div>
+                        <div>
+                          <Label className="text-xs">Rename to (from screenshot)</Label>
+                          <Input value={u.detected} readOnly className="opacity-80" />
+                        </div>
                       </div>
-                      <div>
-                        <Label className="text-xs">Rename to (from screenshot)</Label>
-                        <Input value={u.detected} readOnly className="opacity-80" />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
