@@ -200,6 +200,9 @@ function AdminTournaments() {
             <Button asChild variant="ghost" size="sm">
               <Link to="/tournament"><ArrowLeft className="size-4 mr-1" />Back</Link>
             </Button>
+            <Button asChild variant="outline" size="sm" className="gap-1 border-sand/50 text-sand hover:bg-sand/10">
+              <Link to="/admin/match-approvals"><ClipboardCheck className="size-4" />Match approvals</Link>
+            </Button>
             <Button
               size="sm"
               className="bg-sand text-background hover:bg-sand/90 gap-1"
