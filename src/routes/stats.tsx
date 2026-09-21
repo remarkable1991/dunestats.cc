@@ -1118,10 +1118,10 @@ function StatsPage() {
                                     const worst = sr.length > 1 ? sr[sr.length - 1] : undefined;
                                     return (
                                       <>
-                                        <td className={`px-4 py-3 text-right tabular-nums ${seatTone(best?.avg ?? null)}`}>{seatLabel(best)}</td>
-                                        <td className={`px-4 py-3 text-right tabular-nums ${seatTone(second?.avg ?? null)}`}>{seatLabel(second)}</td>
-                                        <td className={`px-4 py-3 text-right tabular-nums ${seatTone(third?.avg ?? null)}`}>{seatLabel(third)}</td>
-                                        <td className={`px-4 py-3 text-right tabular-nums ${seatTone(worst?.avg ?? null)}`}>{seatLabel(worst)}</td>
+                                        <td className={`px-4 py-3 text-right tabular-nums ${seatTone(best?.avg ?? null)}`} title={best ? `${best.n} game${best.n === 1 ? "" : "s"} at Seat ${best.seat}` : undefined}>{seatLabel(best)}</td>
+                                        <td className={`px-4 py-3 text-right tabular-nums ${seatTone(second?.avg ?? null)}`} title={second ? `${second.n} game${second.n === 1 ? "" : "s"} at Seat ${second.seat}` : undefined}>{seatLabel(second)}</td>
+                                        <td className={`px-4 py-3 text-right tabular-nums ${seatTone(third?.avg ?? null)}`} title={third ? `${third.n} game${third.n === 1 ? "" : "s"} at Seat ${third.seat}` : undefined}>{seatLabel(third)}</td>
+                                        <td className={`px-4 py-3 text-right tabular-nums ${seatTone(worst?.avg ?? null)}`} title={worst ? `${worst.n} game${worst.n === 1 ? "" : "s"} at Seat ${worst.seat}` : undefined}>{seatLabel(worst)}</td>
                                       </>
                                     );
                                   })()}
