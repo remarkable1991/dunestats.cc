@@ -448,16 +448,24 @@ function LfgCard({
       </div>
 
       <div className="flex items-center gap-2 text-sm">
-        <span className="relative flex size-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ backgroundColor: accent }} />
-          <span className="relative inline-flex size-2 rounded-full" style={{ backgroundColor: accent }} />
-        </span>
-        {countdown ? (
-          <span className="flex items-center gap-1">
-            <Clock className="size-3.5" /> Auto-start in {countdown}
+        {expired ? (
+          <span className="inline-flex items-center rounded-full border border-destructive/50 bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+            Expired
           </span>
         ) : (
-          <span>Waiting for players ({seats.length}/4)</span>
+          <>
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ backgroundColor: accent }} />
+              <span className="relative inline-flex size-2 rounded-full" style={{ backgroundColor: accent }} />
+            </span>
+            {countdown ? (
+              <span className="flex items-center gap-1">
+                <Clock className="size-3.5" /> Auto-start in {countdown}
+              </span>
+            ) : (
+              <span>Waiting for players ({seats.length}/4)</span>
+            )}
+          </>
         )}
       </div>
 
@@ -470,7 +478,7 @@ function LfgCard({
             </a>
           </Button>
         )}
-        {seated && (
+        {seated && !expired && (
           <>
             <Button size="sm" disabled={busy} onClick={() => call("lfg_start_game")}>
               <Gamepad2 className="size-4" />
@@ -494,7 +502,7 @@ function LfgCard({
             </DropdownMenu>
           </>
         )}
-        {open > 0 && !seated && (
+        {open > 0 && !seated && !expired && (
           <span className="text-xs text-muted-foreground">
             {open} seat{open === 1 ? "" : "s"} open
           </span>
