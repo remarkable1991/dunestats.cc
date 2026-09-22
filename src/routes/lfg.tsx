@@ -267,9 +267,12 @@ function LfgPage() {
         if (!active || !data) return;
         setDiscordNames((prev) => {
           const next = { ...prev };
-          for (const id of missing) next[id] = "Discord Player";
+          for (const id of missing) next[id] = UNKNOWN_NAME;
           for (const row of data) {
-            if (row.discord_user_id) next[row.discord_user_id] = row.display_name ?? row.player_key ?? "Discord Player";
+            if (row.discord_user_id) {
+              const resolved = row.display_name?.trim() || row.player_key?.trim() || "";
+              next[row.discord_user_id] = resolved || UNKNOWN_NAME;
+            }
           }
           return next;
         });
