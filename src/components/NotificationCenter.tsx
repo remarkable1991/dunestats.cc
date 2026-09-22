@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Bell, Trophy, Gift, Swords, X, Sparkles, AlarmClock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { TruncatedInfoText } from "@/components/TruncatedInfoText";
 import {
   Dialog,
   DialogContent,
@@ -267,7 +268,7 @@ export function NotificationCenter() {
         open={!!checkin}
         onOpenChange={(o) => !o && checkin && void dismiss("tournament_checkin", checkin.tournament_num)}
       >
-        <DialogContent className="border-2 border-emerald-500">
+        <DialogContent className="border-2 border-emerald-500 max-h-[85dvh] flex flex-col">
           {checkin ? (
             <>
               <DialogHeader>
@@ -279,12 +280,14 @@ export function NotificationCenter() {
                   Tournament #{checkin.tournament_num} · starts {formatLongDate(checkin.start_date)}
                 </DialogDescription>
               </DialogHeader>
-              <p className="font-medium">{checkin.info_title || checkin.name}</p>
-              <p className="text-sm text-emerald-300">
-                Check-in closes 1 hour before the tournament starts. You must check in on Discord to be seated at a
-                table.
-              </p>
-              <DialogFooter className="gap-2 sm:justify-between">
+              <div className="overflow-y-auto pr-1">
+                <p className="font-medium">{checkin.info_title || checkin.name}</p>
+                <p className="text-sm text-emerald-300">
+                  Check-in closes 1 hour before the tournament starts. You must check in on Discord to be seated at a
+                  table.
+                </p>
+              </div>
+              <DialogFooter className="gap-2 sm:justify-between shrink-0">
                 <Button
                   variant="ghost"
                   onClick={() => void dismiss("tournament_checkin", checkin.tournament_num)}
@@ -310,10 +313,10 @@ export function NotificationCenter() {
         open={!checkin && !!current}
         onOpenChange={(o) => !o && current && void dismiss("tournament_modal", current.tournament_num)}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[85dvh] flex flex-col">
           {current ? (
             <>
-              <DialogHeader>
+              <DialogHeader className="shrink-0">
                 <DialogTitle className="flex items-center gap-2">
                   <Trophy className="size-5 text-primary" />
                   {current.name}
@@ -322,13 +325,12 @@ export function NotificationCenter() {
                   Registration is open · starts {formatLongDate(current.start_date)}
                 </DialogDescription>
               </DialogHeader>
-              {current.info_title ? <p className="font-medium">{current.info_title}</p> : null}
-              {current.info_text ? (
-                <p className="whitespace-pre-line text-sm text-muted-foreground">{current.info_text}</p>
-              ) : null}
-              <ModeIcons num={current.tournament_num} />
-
-              <DialogFooter className="gap-2 sm:justify-between">
+              <div className="overflow-y-auto pr-1 space-y-3">
+                {current.info_title ? <p className="font-medium">{current.info_title}</p> : null}
+                <TruncatedInfoText text={current.info_text} maxLength={600} />
+                <ModeIcons num={current.tournament_num} />
+              </div>
+              <DialogFooter className="gap-2 sm:justify-between shrink-0">
                 <Button variant="ghost" onClick={() => void dismiss("tournament_modal", current.tournament_num)}>
                   Got it
                 </Button>
