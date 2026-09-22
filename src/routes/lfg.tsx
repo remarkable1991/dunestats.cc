@@ -691,7 +691,249 @@ function LfgCard({
           </span>
         )}
       </div>
+      {canManage && (
+        <ManageLfgDialog
+          open={manageOpen}
+          onOpenChange={setManageOpen}
+          row={row}
+          discordNames={discordNames}
+          onSaved={onChanged}
+        />
+      )}
     </Card>
+  );
+}
+
+function ManageLfgDialog({
+  open,
+  onOpenChange,
+  row,
+  discordNames,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  row: LfgRow;
+  discordNames: Record<string, string>;
+  onSaved: () => void;
+}) {
+  const [mode, setMode] = useState<"live" | "async">(isLive(row) ? "live" : "async");
+  const [board, setBoard] = useState<"Uprising" | "Base Game">(
+    (row.board_type ?? "").toLowerCase().includes("base") ? "Base Game" : "Uprising",
+  );
+  const [exps, setExps] = useState<string[]>(row.expansions ?? []);
+  const [notes, setNotes] = useState(row.message_text?.replace(/<[^>]*>/g, "").trim() ?? "");
+  const [password, setPassword] = useState(row.lobby_password ?? "");
+  const [minutes, setMinutes] = useState(() => {
+    if (!row.expires_at) return isLive(row) ? 180 : 900;
+    const left = Math.round((new Date(row.expires_at).getTime() - Date.now()) / 60000);
+    return Math.min(1440, Math.max(5, left));
+  });
+  const [guests, setGuests] = useState<string[]>(row.guest_players ?? []);
+  const [removedWeb, setRemovedWeb] = useState<string[]>([]);
+  const [removedDiscord, setRemovedDiscord] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setMode(isLive(row) ? "live" : "async");
+    setBoard((row.board_type ?? "").toLowerCase().includes("base") ? "Base Game" : "Uprising");
+    setExps(row.expansions ?? []);
+    setNotes(row.message_text?.replace(/<[^>]*>/g, "").trim() ?? "");
+    setPassword(row.lobby_password ?? "");
+    setGuests(row.guest_players ?? []);
+    setRemovedWeb([]);
+    setRemovedDiscord([]);
+  }, [open, row]);
+
+  const toggleExp = (key: string) =>
+    setExps((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+
+  const webSeats = (row.web_player_ids ?? []).map((id, i) => ({
+    id,
+    name: (row.web_player_names ?? [])[i]?.trim() || UNKNOWN_NAME,
+    host: !!row.web_host_id && id === row.web_host_id,
+  }));
+  const discordSeats = (row.player_ids ?? []).map((id) => ({
+    id,
+    name: discordNames[id] ?? UNKNOWN_NAME,
+    host: !row.web_host_id && id === row.host_id,
+  }));
+
+  const save = async () => {
+    setBusy(true);
+    const { data, error } = await supabase.rpc("lfg_update_lobby", {
+      p_id: row.id,
+      p_mode: mode,
+      p_board: board,
+      p_expansions: exps,
+      p_notes: notes,
+      p_password: password,
+      p_expires_minutes: minutes,
+      p_guest_players: guests.map((g) => g.trim()).filter(Boolean),
+      p_remove_web_ids: removedWeb,
+      p_remove_discord_ids: removedDiscord,
+    });
+    setBusy(false);
+    const res = data as { ok?: boolean; error?: string } | null;
+    if (error || !res?.ok) {
+      toast.error(res?.error ?? error?.message ?? "Could not save the lobby");
+      return;
+    }
+    toast.success("Lobby updated");
+    onOpenChange(false);
+    onSaved();
+  };
+
+  const seatRow = (
+    key: string,
+    name: string,
+    host: boolean,
+    removed: boolean,
+    onToggle: () => void,
+  ) => (
+    <div
+      key={key}
+      className={`flex items-center justify-between rounded-full border border-border/50 bg-card/60 px-3 py-1.5 text-sm ${removed ? "opacity-50 line-through" : ""}`}
+    >
+      <span className={`truncate ${name === UNKNOWN_NAME ? "text-muted-foreground italic" : ""}`}>
+        {name}
+        {host ? " · Host" : ""}
+      </span>
+      {!host && (
+        <button className="text-xs text-muted-foreground hover:text-destructive" onClick={onToggle}>
+          {removed ? "Undo" : <X className="size-3.5" />}
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Lobby settings</DialogTitle>
+          <DialogDescription>
+            Change this lobby's setup and manage who is in it. The host seat cannot be removed.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <Label>Players</Label>
+            <div className="space-y-1.5">
+              {webSeats.map((s) =>
+                seatRow(`w-${s.id}`, s.name, s.host, removedWeb.includes(s.id), () =>
+                  setRemovedWeb((p) => (p.includes(s.id) ? p.filter((x) => x !== s.id) : [...p, s.id])),
+                ),
+              )}
+              {discordSeats.map((s) =>
+                seatRow(`d-${s.id}`, s.name, s.host, removedDiscord.includes(s.id), () =>
+                  setRemovedDiscord((p) =>
+                    p.includes(s.id) ? p.filter((x) => x !== s.id) : [...p, s.id],
+                  ),
+                ),
+              )}
+              {guests.map((g, i) => (
+                <div key={`g-${i}`} className="flex items-center gap-2">
+                  <Input
+                    value={g}
+                    onChange={(e) => setGuests((p) => p.map((x, j) => (j === i ? e.target.value : x)))}
+                    placeholder="Player name"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Remove player"
+                    onClick={() => setGuests((p) => p.filter((_, j) => j !== i))}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              ))}
+              {webSeats.length + discordSeats.length + guests.length < 4 && (
+                <Button variant="outline" size="sm" onClick={() => setGuests((p) => [...p, ""])}>
+                  <UserPlus className="size-4" />
+                  Add player
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Mode</Label>
+            <RadioGroup value={mode} onValueChange={(v) => setMode(v as typeof mode)} className="flex gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <RadioGroupItem value="live" />
+                <img src={liveIcon.url} alt="" className="size-4" /> Live
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <RadioGroupItem value="async" />
+                <img src={asyncIcon.url} alt="" className="size-4" /> ASync
+              </label>
+            </RadioGroup>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Board</Label>
+            <RadioGroup value={board} onValueChange={(v) => setBoard(v as typeof board)} className="flex gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <RadioGroupItem value="Uprising" />
+                <img src={uprisingIcon.url} alt="" className="size-4" /> Uprising
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <RadioGroupItem value="Base Game" /> Base game
+              </label>
+            </RadioGroup>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Expansions</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {EXPANSION_OPTIONS.map((e) => (
+                <label key={e.key} className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={exps.includes(e.key)} onCheckedChange={() => toggleExp(e.key)} />
+                  {e.icon && <img src={e.icon} alt="" className="size-4" />}
+                  {e.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={`edit-notes-${row.id}`}>Notes</Label>
+            <Input id={`edit-notes-${row.id}`} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={`edit-pass-${row.id}`}>Password</Label>
+            <Input
+              id={`edit-pass-${row.id}`}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Leave empty for none"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>
+              Expires in {minutes >= 60 ? `${Math.round(minutes / 60)} hours` : `${minutes} minutes`}
+            </Label>
+            <Slider min={5} max={1440} step={5} value={[minutes]} onValueChange={(v) => setMinutes(v[0])} />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={save} disabled={busy}>
+            {busy && <Loader2 className="size-4 animate-spin" />}
+            Save changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
