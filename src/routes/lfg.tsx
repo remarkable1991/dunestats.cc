@@ -792,7 +792,7 @@ function CreateLfgDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="lfg-guests">Guest players (optional)</Label>
+              <Label htmlFor="lfg-guests">Players already joining you (optional)</Label>
               <Input
                 id="lfg-guests"
                 value={guests}
