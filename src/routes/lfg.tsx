@@ -430,6 +430,23 @@ function LfgCard({
     toast.success("Role ping requested");
   };
 
+  const addPlayer = async () => {
+    const name = addName.trim();
+    if (!name) return;
+    setAddBusy(true);
+    const { data, error } = await supabase.rpc("lfg_add_guest", { p_id: row.id, p_name: name });
+    setAddBusy(false);
+    const res = data as { ok?: boolean; error?: string } | null;
+    if (error || !res?.ok) {
+      toast.error(res?.error ?? error?.message ?? "Could not add that player");
+      return;
+    }
+    toast.success(`${name} marked as already in this game`);
+    setAddName("");
+    setAddOpen(false);
+    onChanged();
+  };
+
   const discordUrl =
     row.guild_id && row.channel_id && row.message_id
       ? `https://discord.com/channels/${row.guild_id}/${row.channel_id}/${row.message_id}`
