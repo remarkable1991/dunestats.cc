@@ -799,7 +799,10 @@ function CreateLfgDialog({
                 onChange={(e) => setGuests(e.target.value)}
                 placeholder="Friend 1, Friend 2"
               />
-              <p className="text-xs text-muted-foreground">Separate up to two names with a comma.</p>
+              <p className="text-xs text-muted-foreground">
+                Mark people who are already playing with you, so their seats show as taken. Up to two names,
+                separated by a comma. This does not invite them.
+              </p>
             </div>
 
             <div className="space-y-2">
