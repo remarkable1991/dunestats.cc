@@ -31,10 +31,14 @@ export type Database = {
           match_id: string | null
           message_id: string
           message_text: string
+          mode: string | null
           modules: string[] | null
           notify_user_ids: string[] | null
           player_ids: string[] | null
           status: string
+          web_host_id: string | null
+          web_player_ids: string[] | null
+          web_player_names: string[] | null
         }
         Insert: {
           auto_start_at?: string | null
@@ -52,10 +56,14 @@ export type Database = {
           match_id?: string | null
           message_id: string
           message_text: string
+          mode?: string | null
           modules?: string[] | null
           notify_user_ids?: string[] | null
           player_ids?: string[] | null
           status?: string
+          web_host_id?: string | null
+          web_player_ids?: string[] | null
+          web_player_names?: string[] | null
         }
         Update: {
           auto_start_at?: string | null
@@ -73,10 +81,14 @@ export type Database = {
           match_id?: string | null
           message_id?: string
           message_text?: string
+          mode?: string | null
           modules?: string[] | null
           notify_user_ids?: string[] | null
           player_ids?: string[] | null
           status?: string
+          web_host_id?: string | null
+          web_player_ids?: string[] | null
+          web_player_names?: string[] | null
         }
         Relationships: []
       }
@@ -249,6 +261,38 @@ export type Database = {
           tournament_num?: number | null
         }
         Relationships: []
+      }
+      lobby_quick_chats: {
+        Row: {
+          created_at: string | null
+          id: string
+          lobby_id: number | null
+          message_code: string
+          sender_name: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          lobby_id?: number | null
+          message_code: string
+          sender_name: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          lobby_id?: number | null
+          message_code?: string
+          sender_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lobby_quick_chats_lobby_id_fkey"
+            columns: ["lobby_id"]
+            isOneToOne: false
+            referencedRelation: "active_async_matches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       match_audit_log: {
         Row: {
@@ -743,6 +787,48 @@ export type Database = {
           id?: number
           name?: string
           starts_at?: string
+        }
+        Relationships: []
+      }
+      tournament_checkins: {
+        Row: {
+          channel_id: string
+          closed_at: string | null
+          created_at: string
+          deleted_at: string | null
+          expires_at: string
+          guild_id: string
+          id: string
+          message_id: string
+          notified_user_ids: string[]
+          remove_after_24h: boolean
+          tournament_num: number
+        }
+        Insert: {
+          channel_id: string
+          closed_at?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          expires_at: string
+          guild_id: string
+          id?: string
+          message_id: string
+          notified_user_ids?: string[]
+          remove_after_24h?: boolean
+          tournament_num: number
+        }
+        Update: {
+          channel_id?: string
+          closed_at?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          expires_at?: string
+          guild_id?: string
+          id?: string
+          message_id?: string
+          notified_user_ids?: string[]
+          remove_after_24h?: boolean
+          tournament_num?: number
         }
         Relationships: []
       }
