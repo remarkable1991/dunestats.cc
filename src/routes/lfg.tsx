@@ -408,7 +408,7 @@ function LfgCard({
               ) : (
                 <span className="text-muted-foreground text-xs">Empty seat</span>
               )}
-              {!seat && userId && (
+              {!seat && userId && !expired && (
                 <button
                   disabled={busy}
                   onClick={() => call("lfg_join_seat")}
