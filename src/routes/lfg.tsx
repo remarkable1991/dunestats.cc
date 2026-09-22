@@ -569,9 +569,12 @@ function LfgCard({
 
       <div className="flex flex-wrap items-center gap-2">
         {discordUrl && (
-          <Button asChild variant="outline" size="icon" title="Open in Discord">
+          <Button asChild variant="outline" size="sm" title="Open in Discord">
             <a href={discordUrl} target="_blank" rel="noreferrer" aria-label="Open in Discord">
-              <DiscordMark />
+              <span className="inline-flex size-4 items-center justify-center">
+                <DiscordMark />
+              </span>
+              Open in Discord
               <ExternalLink className="size-2.5 opacity-60" />
             </a>
           </Button>
