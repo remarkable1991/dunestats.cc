@@ -227,7 +227,13 @@ function LfgPage() {
 
   // Resolve Discord user IDs to in-game names via player_discord_map
   useEffect(() => {
-    const ids = [...new Set(rows.flatMap((r) => r.player_ids ?? []).filter(Boolean))];
+    const ids = [
+      ...new Set(
+        rows
+          .flatMap((r) => [...(r.player_ids ?? []), ...(r.web_host_id ? [] : [r.host_id])])
+          .filter(Boolean),
+      ),
+    ];
     const missing = ids.filter((id) => !(id in discordNames));
     if (missing.length === 0) return;
     let active = true;
