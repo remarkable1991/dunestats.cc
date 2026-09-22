@@ -249,7 +249,9 @@ function LfgPage() {
           <div>
             <h1 className="text-3xl font-display text-gradient-sand">Looking for group</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {loading ? "Loading lobbies…" : `${rows.length} open lobb${rows.length === 1 ? "y" : "ies"} right now`}
+              {loading
+                ? "Loading lobbies…"
+                : `${rows.filter((r) => !isExpired(r, now)).length} open lobb${rows.filter((r) => !isExpired(r, now)).length === 1 ? "y" : "ies"} right now`}
             </p>
           </div>
           <Button onClick={() => setCreateOpen(true)} className="gap-2">
@@ -278,7 +280,7 @@ function LfgPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {filtered.map((r) => (
-              <LfgCard key={r.id} row={r} userId={userId} myIgn={myIgn} onChanged={load} />
+              <LfgCard key={r.id} row={r} userId={userId} myIgn={myIgn} discordNames={discordNames} onChanged={load} />
             ))}
           </div>
         )}
