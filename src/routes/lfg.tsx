@@ -239,6 +239,12 @@ function LfgPage() {
       }
       const { data } = await supabase.rpc("lfg_my_ign");
       if (active) setMyIgn((data as string | null) ?? null);
+      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", uid);
+      if (active) {
+        setIsLfgAdmin(
+          (roles ?? []).some((r) => r.role === "admin" || (r.role as string) === "lfg_admin"),
+        );
+      }
     };
     supabase.auth.getSession().then(({ data }) => resolve(data.session?.user.id ?? null));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => resolve(s?.user.id ?? null));
