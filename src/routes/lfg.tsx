@@ -369,6 +369,9 @@ function LfgCard({
   const [busy, setBusy] = useState(false);
   const [pingBusy, setPingBusy] = useState(false);
   const [localPromptedAt, setLocalPromptedAt] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addBusy, setAddBusy] = useState(false);
   const live = isLive(row);
   const seats = seatsOf(row, discordNames);
   const open = Math.max(0, 4 - seats.length);
