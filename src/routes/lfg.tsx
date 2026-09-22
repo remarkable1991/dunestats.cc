@@ -118,11 +118,19 @@ function hasExp(r: LfgRow, needle: string) {
 
 type Seat = { name: string; web: boolean; discord: boolean };
 
-function seatsOf(r: LfgRow): Seat[] {
+function seatsOf(r: LfgRow, discordNames: Record<string, string>): Seat[] {
   const web = (r.web_player_names ?? []).map((n) => ({ name: n, web: true, discord: false }));
-  const discord = (r.player_ids ?? []).map(() => ({ name: "Discord player", web: false, discord: true }));
+  const discord = (r.player_ids ?? []).map((id) => ({
+    name: discordNames[id] ?? "Discord Player",
+    web: false,
+    discord: true,
+  }));
   const guests = (r.guest_players ?? []).map((n) => ({ name: n, web: false, discord: false }));
   return [...web, ...discord, ...guests].slice(0, 4);
+}
+
+function isExpired(r: LfgRow, now: number) {
+  return !r.expires_at || new Date(r.expires_at).getTime() <= now;
 }
 
 function useCountdown(target: string | null) {
@@ -148,6 +156,13 @@ function LfgPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [myIgn, setMyIgn] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [discordNames, setDiscordNames] = useState<Record<string, string>>({});
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 15000);
+    return () => clearInterval(t);
+  }, []);
 
   const load = useCallback(async () => {
     const { data } = await supabase
