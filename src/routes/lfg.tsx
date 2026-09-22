@@ -100,6 +100,7 @@ const QUICK_CHATS = [
   { code: "password_ask", emoji: "🔑", label: "What's the password?" },
   { code: "need_5", emoji: "⏳", label: "Need 5 mins" },
   { code: "lobby_name_ask", emoji: "📛", label: "What is the lobby name?" },
+  { code: "ign_ask", emoji: "🙋", label: "What is your in-game name?" },
 ] as const;
 
 const PING_COOLDOWN_MS = 45 * 60 * 1000;
