@@ -312,21 +312,31 @@ function LfgCard({
   row,
   userId,
   myIgn,
+  discordNames,
   onChanged,
 }: {
   row: LfgRow;
   userId: string | null;
   myIgn: string | null;
+  discordNames: Record<string, string>;
   onChanged: () => void;
 }) {
   const [reveal, setReveal] = useState(false);
   const [busy, setBusy] = useState(false);
   const live = isLive(row);
-  const seats = seatsOf(row);
+  const seats = seatsOf(row, discordNames);
   const open = Math.max(0, 4 - seats.length);
   const countdown = useCountdown(row.auto_start_at);
   const seated = !!userId && (row.web_player_ids ?? []).includes(userId);
   const accent = live ? "var(--teal)" : "var(--coral)";
+
+  // Tick every second so an active lobby flips to "Expired" the moment it lapses
+  const [cardNow, setCardNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setCardNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const expired = isExpired(row, cardNow);
 
   const call = async (fn: "lfg_join_seat" | "lfg_start_game") => {
     setBusy(true);
