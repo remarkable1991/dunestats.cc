@@ -207,9 +207,38 @@ function LfgPage() {
     };
   }, []);
 
+  // Resolve Discord user IDs to in-game names via player_discord_map
+  useEffect(() => {
+    const ids = [...new Set(rows.flatMap((r) => r.player_ids ?? []).filter(Boolean))];
+    const missing = ids.filter((id) => !(id in discordNames));
+    if (missing.length === 0) return;
+    let active = true;
+    supabase
+      .from("player_discord_map")
+      .select("discord_user_id,player_key,display_name")
+      .in("discord_user_id", missing)
+      .then(({ data }) => {
+        if (!active || !data) return;
+        setDiscordNames((prev) => {
+          const next = { ...prev };
+          for (const row of data) {
+            if (row.discord_user_id) next[row.discord_user_id] = row.display_name ?? row.player_key ?? "Discord Player";
+          }
+          return next;
+        });
+      });
+    return () => {
+      active = false;
+    };
+  }, [rows, discordNames]);
+
   const filtered = useMemo(
-    () => rows.filter((r) => (tab === "all" ? true : tab === "live" ? isLive(r) : !isLive(r))),
-    [rows, tab],
+    () =>
+      rows.filter(
+        (r) =>
+          !isExpired(r, now) && (tab === "all" ? true : tab === "live" ? isLive(r) : !isLive(r)),
+      ),
+    [rows, tab, now],
   );
 
   return (
