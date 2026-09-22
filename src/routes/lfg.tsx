@@ -503,6 +503,18 @@ function LfgCard({
           {hasExp(row, "ix") && <ExpansionBadge src={ixIcon.url} title="Rise of Ix" />}
           {hasExp(row, "immo") && <ExpansionBadge src={immoIcon.url} title="Immortality" />}
           {hasExp(row, "epic") && <ExpansionBadge src={epicIcon.url} title="Epic Mode" />}
+          {canManage && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              title="Lobby settings"
+              aria-label="Lobby settings"
+              onClick={() => setManageOpen(true)}
+            >
+              <Settings className="size-4" />
+            </Button>
+          )}
         </div>
       </div>
 
