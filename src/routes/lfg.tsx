@@ -73,6 +73,7 @@ export type LfgRow = {
   message_id: string;
   channel_id: string;
   guild_id: string;
+  host_id: string;
   status: string;
   message_text: string;
   lobby_password: string | null;
