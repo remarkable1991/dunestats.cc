@@ -118,11 +118,19 @@ function hasExp(r: LfgRow, needle: string) {
 
 type Seat = { name: string; web: boolean; discord: boolean };
 
-function seatsOf(r: LfgRow): Seat[] {
+function seatsOf(r: LfgRow, discordNames: Record<string, string>): Seat[] {
   const web = (r.web_player_names ?? []).map((n) => ({ name: n, web: true, discord: false }));
-  const discord = (r.player_ids ?? []).map(() => ({ name: "Discord player", web: false, discord: true }));
+  const discord = (r.player_ids ?? []).map((id) => ({
+    name: discordNames[id] ?? "Discord Player",
+    web: false,
+    discord: true,
+  }));
   const guests = (r.guest_players ?? []).map((n) => ({ name: n, web: false, discord: false }));
   return [...web, ...discord, ...guests].slice(0, 4);
+}
+
+function isExpired(r: LfgRow, now: number) {
+  return !r.expires_at || new Date(r.expires_at).getTime() <= now;
 }
 
 function useCountdown(target: string | null) {
@@ -148,6 +156,13 @@ function LfgPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [myIgn, setMyIgn] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [discordNames, setDiscordNames] = useState<Record<string, string>>({});
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 15000);
+    return () => clearInterval(t);
+  }, []);
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -192,9 +207,38 @@ function LfgPage() {
     };
   }, []);
 
+  // Resolve Discord user IDs to in-game names via player_discord_map
+  useEffect(() => {
+    const ids = [...new Set(rows.flatMap((r) => r.player_ids ?? []).filter(Boolean))];
+    const missing = ids.filter((id) => !(id in discordNames));
+    if (missing.length === 0) return;
+    let active = true;
+    supabase
+      .from("player_discord_map")
+      .select("discord_user_id,player_key,display_name")
+      .in("discord_user_id", missing)
+      .then(({ data }) => {
+        if (!active || !data) return;
+        setDiscordNames((prev) => {
+          const next = { ...prev };
+          for (const row of data) {
+            if (row.discord_user_id) next[row.discord_user_id] = row.display_name ?? row.player_key ?? "Discord Player";
+          }
+          return next;
+        });
+      });
+    return () => {
+      active = false;
+    };
+  }, [rows, discordNames]);
+
   const filtered = useMemo(
-    () => rows.filter((r) => (tab === "all" ? true : tab === "live" ? isLive(r) : !isLive(r))),
-    [rows, tab],
+    () =>
+      rows.filter(
+        (r) =>
+          !isExpired(r, now) && (tab === "all" ? true : tab === "live" ? isLive(r) : !isLive(r)),
+      ),
+    [rows, tab, now],
   );
 
   return (
@@ -205,7 +249,9 @@ function LfgPage() {
           <div>
             <h1 className="text-3xl font-display text-gradient-sand">Looking for group</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {loading ? "Loading lobbies…" : `${rows.length} open lobb${rows.length === 1 ? "y" : "ies"} right now`}
+              {loading
+                ? "Loading lobbies…"
+                : `${rows.filter((r) => !isExpired(r, now)).length} open lobb${rows.filter((r) => !isExpired(r, now)).length === 1 ? "y" : "ies"} right now`}
             </p>
           </div>
           <Button onClick={() => setCreateOpen(true)} className="gap-2">
@@ -234,7 +280,7 @@ function LfgPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {filtered.map((r) => (
-              <LfgCard key={r.id} row={r} userId={userId} myIgn={myIgn} onChanged={load} />
+              <LfgCard key={r.id} row={r} userId={userId} myIgn={myIgn} discordNames={discordNames} onChanged={load} />
             ))}
           </div>
         )}
@@ -266,21 +312,31 @@ function LfgCard({
   row,
   userId,
   myIgn,
+  discordNames,
   onChanged,
 }: {
   row: LfgRow;
   userId: string | null;
   myIgn: string | null;
+  discordNames: Record<string, string>;
   onChanged: () => void;
 }) {
   const [reveal, setReveal] = useState(false);
   const [busy, setBusy] = useState(false);
   const live = isLive(row);
-  const seats = seatsOf(row);
+  const seats = seatsOf(row, discordNames);
   const open = Math.max(0, 4 - seats.length);
   const countdown = useCountdown(row.auto_start_at);
   const seated = !!userId && (row.web_player_ids ?? []).includes(userId);
   const accent = live ? "var(--teal)" : "var(--coral)";
+
+  // Tick every second so an active lobby flips to "Expired" the moment it lapses
+  const [cardNow, setCardNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setCardNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const expired = isExpired(row, cardNow);
 
   const call = async (fn: "lfg_join_seat" | "lfg_start_game") => {
     setBusy(true);
@@ -352,7 +408,7 @@ function LfgCard({
               ) : (
                 <span className="text-muted-foreground text-xs">Empty seat</span>
               )}
-              {!seat && userId && (
+              {!seat && userId && !expired && (
                 <button
                   disabled={busy}
                   onClick={() => call("lfg_join_seat")}
@@ -392,16 +448,24 @@ function LfgCard({
       </div>
 
       <div className="flex items-center gap-2 text-sm">
-        <span className="relative flex size-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ backgroundColor: accent }} />
-          <span className="relative inline-flex size-2 rounded-full" style={{ backgroundColor: accent }} />
-        </span>
-        {countdown ? (
-          <span className="flex items-center gap-1">
-            <Clock className="size-3.5" /> Auto-start in {countdown}
+        {expired ? (
+          <span className="inline-flex items-center rounded-full border border-destructive/50 bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+            Expired
           </span>
         ) : (
-          <span>Waiting for players ({seats.length}/4)</span>
+          <>
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ backgroundColor: accent }} />
+              <span className="relative inline-flex size-2 rounded-full" style={{ backgroundColor: accent }} />
+            </span>
+            {countdown ? (
+              <span className="flex items-center gap-1">
+                <Clock className="size-3.5" /> Auto-start in {countdown}
+              </span>
+            ) : (
+              <span>Waiting for players ({seats.length}/4)</span>
+            )}
+          </>
         )}
       </div>
 
@@ -414,7 +478,7 @@ function LfgCard({
             </a>
           </Button>
         )}
-        {seated && (
+        {seated && !expired && (
           <>
             <Button size="sm" disabled={busy} onClick={() => call("lfg_start_game")}>
               <Gamepad2 className="size-4" />
@@ -438,7 +502,7 @@ function LfgCard({
             </DropdownMenu>
           </>
         )}
-        {open > 0 && !seated && (
+        {open > 0 && !seated && !expired && (
           <span className="text-xs text-muted-foreground">
             {open} seat{open === 1 ? "" : "s"} open
           </span>
