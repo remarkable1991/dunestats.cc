@@ -383,7 +383,8 @@ function LfgCard({
     return () => clearInterval(t);
   }, []);
   const expired = isExpired(row, cardNow);
-  const hostName = row.web_player_names?.[0] ?? discordNames[row.host_id] ?? null;
+  const hostSeatName = seats.find((s) => s.host)?.name ?? null;
+  const hostName = hostSeatName && hostSeatName !== UNKNOWN_NAME ? hostSeatName : null;
   const displayId = row.match_id ?? String(row.id);
   const promptedAt = localPromptedAt ?? row.last_prompted_at;
   const pingRemaining = promptedAt
