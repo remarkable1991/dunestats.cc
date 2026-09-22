@@ -54,6 +54,21 @@ export function Navbar() {
             </Link>
           </Button>
           <Button asChild variant="ghost" size="sm">
+            <Link to="/lfg">
+              <Users className="size-4" />
+              <span className="hidden sm:inline">LFG</span>
+              {lfgCount > 0 && (
+                <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[11px] font-medium text-emerald-400">
+                  <span className="relative flex size-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+                    <span className="relative inline-flex size-1.5 rounded-full bg-emerald-400" />
+                  </span>
+                  {lfgCount}
+                </span>
+              )}
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
             <Link to="/matches">
               <ListOrdered className="size-4" />
               <span className="hidden sm:inline">Matches</span>
