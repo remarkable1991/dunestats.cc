@@ -38,6 +38,7 @@ import {
   Loader2,
   Globe,
   Clock,
+  UserPlus,
 } from "lucide-react";
 import asyncIcon from "@/assets/async-mode.png.asset.json";
 import liveIcon from "@/assets/live-mode.png.asset.json";
@@ -100,6 +101,7 @@ const QUICK_CHATS = [
   { code: "password_ask", emoji: "🔑", label: "What's the password?" },
   { code: "need_5", emoji: "⏳", label: "Need 5 mins" },
   { code: "lobby_name_ask", emoji: "📛", label: "What is the lobby name?" },
+  { code: "ign_ask", emoji: "🙋", label: "What is your in-game name?" },
 ] as const;
 
 const PING_COOLDOWN_MS = 45 * 60 * 1000;
@@ -120,17 +122,35 @@ function hasExp(r: LfgRow, needle: string) {
   return all.includes(needle);
 }
 
-type Seat = { name: string; web: boolean; discord: boolean };
+type Seat = { name: string; web: boolean; discord: boolean; host: boolean };
+
+const UNKNOWN_NAME = "Unknown player name";
 
 function seatsOf(r: LfgRow, discordNames: Record<string, string>): Seat[] {
-  const web = (r.web_player_names ?? []).map((n) => ({ name: n, web: true, discord: false }));
+  const webIds = r.web_player_ids ?? [];
+  const web = (r.web_player_names ?? []).map((n, i) => ({
+    name: n?.trim() ? n : UNKNOWN_NAME,
+    web: true,
+    discord: false,
+    host: !!r.web_host_id && webIds[i] === r.web_host_id,
+  }));
   const discord = (r.player_ids ?? []).map((id) => ({
-    name: discordNames[id] ?? "Discord Player",
+    name: discordNames[id] ?? UNKNOWN_NAME,
     web: false,
     discord: true,
+    host: !r.web_host_id && id === r.host_id,
   }));
-  const guests = (r.guest_players ?? []).map((n) => ({ name: n, web: false, discord: false }));
-  return [...web, ...discord, ...guests].slice(0, 4);
+  const guests = (r.guest_players ?? []).map((n) => ({
+    name: n?.trim() ? n : UNKNOWN_NAME,
+    web: false,
+    discord: false,
+    host: false,
+  }));
+  const all = [...web, ...discord, ...guests];
+  // Host always sits at the top of the roster
+  const hostIndex = all.findIndex((s) => s.host);
+  if (hostIndex > 0) all.unshift(...all.splice(hostIndex, 1));
+  return all.slice(0, 4);
 }
 
 function isExpired(r: LfgRow, now: number) {
@@ -350,6 +370,9 @@ function LfgCard({
   const [busy, setBusy] = useState(false);
   const [pingBusy, setPingBusy] = useState(false);
   const [localPromptedAt, setLocalPromptedAt] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addBusy, setAddBusy] = useState(false);
   const live = isLive(row);
   const seats = seatsOf(row, discordNames);
   const open = Math.max(0, 4 - seats.length);
@@ -364,7 +387,8 @@ function LfgCard({
     return () => clearInterval(t);
   }, []);
   const expired = isExpired(row, cardNow);
-  const hostName = row.web_player_names?.[0] ?? discordNames[row.host_id] ?? null;
+  const hostSeatName = seats.find((s) => s.host)?.name ?? null;
+  const hostName = hostSeatName && hostSeatName !== UNKNOWN_NAME ? hostSeatName : null;
   const displayId = row.match_id ?? String(row.id);
   const promptedAt = localPromptedAt ?? row.last_prompted_at;
   const pingRemaining = promptedAt
@@ -408,6 +432,23 @@ function LfgCard({
     }
     setLocalPromptedAt(new Date().toISOString());
     toast.success("Role ping requested");
+  };
+
+  const addPlayer = async () => {
+    const name = addName.trim();
+    if (!name) return;
+    setAddBusy(true);
+    const { data, error } = await supabase.rpc("lfg_add_guest", { p_id: row.id, p_name: name });
+    setAddBusy(false);
+    const res = data as { ok?: boolean; error?: string } | null;
+    if (error || !res?.ok) {
+      toast.error(res?.error ?? error?.message ?? "Could not add that player");
+      return;
+    }
+    toast.success(`${name} marked as already in this game`);
+    setAddName("");
+    setAddOpen(false);
+    onChanged();
   };
 
   const discordUrl =
@@ -454,7 +495,14 @@ function LfgCard({
               {seat ? (
                 <span className="flex items-center gap-2 truncate">
                   {seat.web && <Globe className="size-3.5 text-teal" />}
-                  <span className="truncate">{seat.name}</span>
+                  <span className={`truncate ${seat.name === UNKNOWN_NAME ? "text-muted-foreground italic" : ""}`}>
+                    {seat.name}
+                  </span>
+                  {seat.host && (
+                    <span className="shrink-0 rounded-full border border-border/60 px-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Host
+                    </span>
+                  )}
                 </span>
               ) : (
                 <span className="text-muted-foreground text-xs">Empty seat</span>
@@ -522,9 +570,12 @@ function LfgCard({
 
       <div className="flex flex-wrap items-center gap-2">
         {discordUrl && (
-          <Button asChild variant="outline" size="icon" title="Open in Discord">
+          <Button asChild variant="outline" size="sm" title="Open in Discord">
             <a href={discordUrl} target="_blank" rel="noreferrer" aria-label="Open in Discord">
-              <DiscordMark />
+              <span className="inline-flex size-4 items-center justify-center">
+                <DiscordMark />
+              </span>
+              Open in Discord
               <ExternalLink className="size-2.5 opacity-60" />
             </a>
           </Button>
@@ -559,8 +610,43 @@ function LfgCard({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+            {open > 0 && (
+              <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+                <UserPlus className="size-4" />
+                Add player
+              </Button>
+            )}
           </>
         )}
+        <Dialog open={addOpen} onOpenChange={setAddOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add a player already in this game</DialogTitle>
+              <DialogDescription>
+                Use this to fill a seat for someone who is already playing with you but is not on the site — a
+                friend at the table or a player you arranged outside Discord. It does not invite anyone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor={`add-player-${row.id}`}>Player name</Label>
+              <Input
+                id={`add-player-${row.id}`}
+                value={addName}
+                onChange={(e) => setAddName(e.target.value)}
+                placeholder="Their in-game name"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={addPlayer} disabled={addBusy || !addName.trim()}>
+                {addBusy && <Loader2 className="size-4 animate-spin" />}
+                Add player
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         {open > 0 && !seated && !expired && (
           <span className="text-xs text-muted-foreground">
             {open} seat{open === 1 ? "" : "s"} open
@@ -706,14 +792,17 @@ function CreateLfgDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="lfg-guests">Guest players (optional)</Label>
+              <Label htmlFor="lfg-guests">Players already joining you (optional)</Label>
               <Input
                 id="lfg-guests"
                 value={guests}
                 onChange={(e) => setGuests(e.target.value)}
                 placeholder="Friend 1, Friend 2"
               />
-              <p className="text-xs text-muted-foreground">Separate up to two names with a comma.</p>
+              <p className="text-xs text-muted-foreground">
+                Mark people who are already playing with you, so their seats show as taken. Up to two names,
+                separated by a comma. This does not invite them.
+              </p>
             </div>
 
             <div className="space-y-2">

@@ -1323,6 +1323,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      lfg_add_guest: { Args: { p_id: number; p_name: string }; Returns: Json }
       lfg_create_lobby:
         | {
             Args: {
