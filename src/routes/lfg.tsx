@@ -197,6 +197,7 @@ function LfgPage() {
   const [myIgn, setMyIgn] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [discordNames, setDiscordNames] = useState<Record<string, string>>({});
+  const [isLfgAdmin, setIsLfgAdmin] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
