@@ -494,7 +494,14 @@ function LfgCard({
               {seat ? (
                 <span className="flex items-center gap-2 truncate">
                   {seat.web && <Globe className="size-3.5 text-teal" />}
-                  <span className="truncate">{seat.name}</span>
+                  <span className={`truncate ${seat.name === UNKNOWN_NAME ? "text-muted-foreground italic" : ""}`}>
+                    {seat.name}
+                  </span>
+                  {seat.host && (
+                    <span className="shrink-0 rounded-full border border-border/60 px-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Host
+                    </span>
+                  )}
                 </span>
               ) : (
                 <span className="text-muted-foreground text-xs">Empty seat</span>
