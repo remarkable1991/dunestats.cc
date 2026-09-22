@@ -381,14 +381,17 @@ function LfgCard({
   userId,
   myIgn,
   discordNames,
+  canManage,
   onChanged,
 }: {
   row: LfgRow;
   userId: string | null;
   myIgn: string | null;
   discordNames: Record<string, string>;
+  canManage: boolean;
   onChanged: () => void;
 }) {
+  const [manageOpen, setManageOpen] = useState(false);
   const [reveal, setReveal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pingBusy, setPingBusy] = useState(false);
