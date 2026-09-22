@@ -38,6 +38,7 @@ import {
   Loader2,
   Globe,
   Clock,
+  UserPlus,
 } from "lucide-react";
 import asyncIcon from "@/assets/async-mode.png.asset.json";
 import liveIcon from "@/assets/live-mode.png.asset.json";
