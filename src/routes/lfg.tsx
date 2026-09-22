@@ -338,7 +338,17 @@ function LfgPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {filtered.map((r) => (
-              <LfgCard key={r.id} row={r} userId={userId} myIgn={myIgn} discordNames={discordNames} onChanged={load} />
+              <LfgCard
+                key={r.id}
+                row={r}
+                userId={userId}
+                myIgn={myIgn}
+                discordNames={discordNames}
+                canManage={
+                  isLfgAdmin || (!!userId && (r.web_host_id === userId || r.host_id === userId))
+                }
+                onChanged={load}
+              />
             ))}
           </div>
         )}
