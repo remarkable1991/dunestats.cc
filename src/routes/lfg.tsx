@@ -92,7 +92,7 @@ export type LfgRow = {
 };
 
 const SELECT_COLS =
-  "id,match_id,message_id,channel_id,guild_id,status,message_text,lobby_password,board_type,expansions,modules,created_at,last_prompted_at,expires_at,auto_start_at,mode,player_ids,guest_players,web_host_id,web_player_ids,web_player_names";
+  "id,match_id,message_id,channel_id,guild_id,host_id,status,message_text,lobby_password,board_type,expansions,modules,created_at,last_prompted_at,expires_at,auto_start_at,mode,player_ids,guest_players,web_host_id,web_player_ids,web_player_names";
 
 const QUICK_CHATS = [
   { code: "room_up", emoji: "🎮", label: "Room is up!" },
