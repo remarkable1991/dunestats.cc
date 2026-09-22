@@ -4,16 +4,37 @@ import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "./Logo";
 import { NotificationCenter } from "./NotificationCenter";
 import { Button } from "@/components/ui/button";
-import { Trophy, Upload, LogOut, User as UserIcon, ListOrdered, BarChart3, Medal, Sparkles } from "lucide-react";
+import { Trophy, Upload, LogOut, User as UserIcon, ListOrdered, BarChart3, Medal, Sparkles, Users } from "lucide-react";
 
 export function Navbar() {
   const [userId, setUserId] = useState<string | null>(null);
+  const [lfgCount, setLfgCount] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setUserId(s?.user.id ?? null));
     return () => sub.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const refresh = async () => {
+      const { data } = await supabase
+        .from("active_async_matches")
+        .select("id")
+        .eq("status", "searching");
+      setLfgCount(data?.length ?? 0);
+    };
+    refresh();
+    const channel = supabase
+      .channel("navbar-lfg-count")
+      .on("postgres_changes", { event: "*", schema: "public", table: "active_async_matches" }, () => {
+        refresh();
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -30,6 +51,21 @@ export function Navbar() {
             <Link to="/leaderboard">
               <Medal className="size-4" />
               <span className="hidden sm:inline">Leaderboard</span>
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/lfg">
+              <Users className="size-4" />
+              <span className="hidden sm:inline">LFG</span>
+              {lfgCount > 0 && (
+                <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[11px] font-medium text-emerald-400">
+                  <span className="relative flex size-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+                    <span className="relative inline-flex size-1.5 rounded-full bg-emerald-400" />
+                  </span>
+                  {lfgCount}
+                </span>
+              )}
             </Link>
           </Button>
           <Button asChild variant="ghost" size="sm">

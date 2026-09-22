@@ -1323,6 +1323,20 @@ export type Database = {
         }
         Returns: boolean
       }
+      lfg_create_lobby: {
+        Args: {
+          p_board: string
+          p_expansions: string[]
+          p_expires_minutes: number
+          p_mode: string
+          p_notes: string
+          p_password: string
+        }
+        Returns: Json
+      }
+      lfg_join_seat: { Args: { p_id: number }; Returns: Json }
+      lfg_my_ign: { Args: never; Returns: string }
+      lfg_start_game: { Args: { p_id: number }; Returns: Json }
       mark_async_game_started: {
         Args: {
           p_round_type: string
