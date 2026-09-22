@@ -73,6 +73,7 @@ export type LfgRow = {
   message_id: string;
   channel_id: string;
   guild_id: string;
+  host_id: string;
   status: string;
   message_text: string;
   lobby_password: string | null;
@@ -80,6 +81,7 @@ export type LfgRow = {
   expansions: string[] | null;
   modules: string[] | null;
   created_at: string;
+  last_prompted_at: string | null;
   expires_at: string | null;
   auto_start_at: string | null;
   mode: string | null;
@@ -91,14 +93,16 @@ export type LfgRow = {
 };
 
 const SELECT_COLS =
-  "id,match_id,message_id,channel_id,guild_id,status,message_text,lobby_password,board_type,expansions,modules,created_at,expires_at,auto_start_at,mode,player_ids,guest_players,web_host_id,web_player_ids,web_player_names";
+  "id,match_id,message_id,channel_id,guild_id,host_id,status,message_text,lobby_password,board_type,expansions,modules,created_at,last_prompted_at,expires_at,auto_start_at,mode,player_ids,guest_players,web_host_id,web_player_ids,web_player_names";
 
 const QUICK_CHATS = [
   { code: "room_up", emoji: "🎮", label: "Room is up!" },
   { code: "password_ask", emoji: "🔑", label: "What's the password?" },
   { code: "need_5", emoji: "⏳", label: "Need 5 mins" },
-  { code: "ping", emoji: "📢", label: "Need 1 more" },
+  { code: "lobby_name_ask", emoji: "📛", label: "What is the lobby name?" },
 ] as const;
+
+const PING_COOLDOWN_MS = 45 * 60 * 1000;
 
 const EXPANSION_OPTIONS = [
   { key: "Rise of IX", label: "Rise of Ix", icon: ixIcon.url },
@@ -147,6 +151,20 @@ function useCountdown(target: string | null) {
   const s = Math.floor((diff % 60000) / 1000);
   const h = Math.floor(m / 60);
   return h > 0 ? `${h}h ${m % 60}m` : `${m}m ${String(s).padStart(2, "0")}s`;
+}
+
+function formatCooldown(milliseconds: number) {
+  const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const minutes = Math.floor(seconds / 60);
+  return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function DiscordMark() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+      <path d="M19.54 5.34A16.3 16.3 0 0 0 15.44 4l-.5 1.02a15.15 15.15 0 0 0-5.85 0L8.56 4a16.7 16.7 0 0 0-4.1 1.35C1.86 9.2 1.16 12.94 1.52 16.63a16.6 16.6 0 0 0 5.03 2.55l1.22-1.66a10.6 10.6 0 0 1-1.92-.93l.47-.36c3.7 1.72 7.72 1.72 11.38 0l.48.36c-.62.37-1.27.68-1.93.93l1.22 1.66a16.55 16.55 0 0 0 5.02-2.55c.43-4.28-.73-7.98-2.95-11.29ZM8.82 14.37c-1.12 0-2.04-1.03-2.04-2.3s.9-2.3 2.04-2.3c1.14 0 2.06 1.04 2.04 2.3 0 1.27-.9 2.3-2.04 2.3Zm6.36 0c-1.12 0-2.04-1.03-2.04-2.3s.9-2.3 2.04-2.3c1.14 0 2.06 1.04 2.04 2.3 0 1.27-.9 2.3-2.04 2.3Z" />
+    </svg>
+  );
 }
 
 function LfgPage() {
@@ -209,7 +227,13 @@ function LfgPage() {
 
   // Resolve Discord user IDs to in-game names via player_discord_map
   useEffect(() => {
-    const ids = [...new Set(rows.flatMap((r) => r.player_ids ?? []).filter(Boolean))];
+    const ids = [
+      ...new Set(
+        rows
+          .flatMap((r) => [...(r.player_ids ?? []), ...(r.web_host_id ? [] : [r.host_id])])
+          .filter(Boolean),
+      ),
+    ];
     const missing = ids.filter((id) => !(id in discordNames));
     if (missing.length === 0) return;
     let active = true;
@@ -323,6 +347,8 @@ function LfgCard({
 }) {
   const [reveal, setReveal] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pingBusy, setPingBusy] = useState(false);
+  const [localPromptedAt, setLocalPromptedAt] = useState<string | null>(null);
   const live = isLive(row);
   const seats = seatsOf(row, discordNames);
   const open = Math.max(0, 4 - seats.length);
@@ -337,6 +363,12 @@ function LfgCard({
     return () => clearInterval(t);
   }, []);
   const expired = isExpired(row, cardNow);
+  const hostName = row.web_player_names?.[0] ?? discordNames[row.host_id] ?? null;
+  const displayId = row.match_id ?? String(row.id);
+  const promptedAt = localPromptedAt ?? row.last_prompted_at;
+  const pingRemaining = promptedAt
+    ? Math.max(0, new Date(promptedAt).getTime() + PING_COOLDOWN_MS - cardNow)
+    : 0;
 
   const call = async (fn: "lfg_join_seat" | "lfg_start_game") => {
     setBusy(true);
@@ -361,6 +393,22 @@ function LfgCard({
     else toast.success(`Sent: ${label}`);
   };
 
+  const pingRole = async () => {
+    setPingBusy(true);
+    const { error } = await supabase.from("lobby_quick_chats").insert({
+      lobby_id: row.id,
+      sender_name: myIgn ?? "Web player",
+      message_code: "ping",
+    });
+    setPingBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setLocalPromptedAt(new Date().toISOString());
+    toast.success("Role ping requested");
+  };
+
   const discordUrl =
     row.guild_id && row.channel_id && row.message_id
       ? `https://discord.com/channels/${row.guild_id}/${row.channel_id}/${row.message_id}`
@@ -372,7 +420,9 @@ function LfgCard({
         <div className="flex items-center gap-2 min-w-0">
           <img src={live ? liveIcon.url : asyncIcon.url} alt={live ? "Live" : "Async"} className="size-6 shrink-0" />
           <div className="min-w-0">
-            <div className="font-display truncate">{row.match_id ?? `Lobby #${row.id}`}</div>
+            <div className="font-display truncate">
+              {hostName ? `${hostName}'s Game [ID: ${displayId}]` : `New Match Open! [ID: ${displayId}]`}
+            </div>
             <div className="text-xs uppercase tracking-wide" style={{ color: accent }}>
               {live ? "Live" : "ASync"} · {row.board_type?.replace(/<[^>]*>/g, "").trim() || "Not specified"}
             </div>
@@ -471,10 +521,10 @@ function LfgCard({
 
       <div className="flex flex-wrap items-center gap-2">
         {discordUrl && (
-          <Button asChild variant="outline" size="sm">
-            <a href={discordUrl} target="_blank" rel="noreferrer">
-              <ExternalLink className="size-4" />
-              Open in Discord
+          <Button asChild variant="outline" size="icon" title="Open in Discord">
+            <a href={discordUrl} target="_blank" rel="noreferrer" aria-label="Open in Discord">
+              <DiscordMark />
+              <ExternalLink className="size-2.5 opacity-60" />
             </a>
           </Button>
         )}
@@ -483,6 +533,14 @@ function LfgCard({
             <Button size="sm" disabled={busy} onClick={() => call("lfg_start_game")}>
               <Gamepad2 className="size-4" />
               Start game
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={pingBusy || pingRemaining > 0}
+              onClick={pingRole}
+            >
+              {pingRemaining > 0 ? `Available in ${formatCooldown(pingRemaining)}` : "📢 Ping Role"}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -530,14 +588,23 @@ function CreateLfgDialog({
   const [exps, setExps] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [password, setPassword] = useState("None");
-  const [liveMinutes, setLiveMinutes] = useState(60);
-  const [asyncHours, setAsyncHours] = useState(6);
+  const [guests, setGuests] = useState("");
+  const [liveMinutes, setLiveMinutes] = useState(180);
+  const [asyncHours, setAsyncHours] = useState(15);
   const [busy, setBusy] = useState(false);
 
   const toggleExp = (key: string) =>
     setExps((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
   const submit = async () => {
+    const guestPlayers = guests
+      .split(",")
+      .map((name) => name.trim())
+      .filter(Boolean);
+    if (guestPlayers.length > 2) {
+      toast.error("You can add up to 2 guest players.");
+      return;
+    }
     setBusy(true);
     const { data, error } = await supabase.rpc("lfg_create_lobby", {
       p_mode: mode,
@@ -546,6 +613,7 @@ function CreateLfgDialog({
       p_notes: notes,
       p_password: password.trim().toLowerCase() === "none" ? "" : password,
       p_expires_minutes: mode === "live" ? liveMinutes : asyncHours * 60,
+      p_guest_players: guestPlayers,
     });
     setBusy(false);
     const res = data as { ok?: boolean; error?: string } | null;
@@ -572,6 +640,15 @@ function CreateLfgDialog({
           <p className="text-sm text-destructive">You must claim your in-game name to create a lobby.</p>
         ) : (
           <div className="space-y-5">
+            <div className="rounded-md border border-primary/40 bg-primary/10 px-4 py-3 text-center">
+              <p className="font-display text-lg text-foreground">Lobby Name: {myIgn}'s Game</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="lfg-ign">In-Game Name</Label>
+              <Input id="lfg-ign" value={myIgn} readOnly aria-readonly="true" />
+            </div>
+
             <div className="space-y-2">
               <Label>Mode</Label>
               <RadioGroup value={mode} onValueChange={(v) => setMode(v as typeof mode)} className="flex gap-4">
@@ -625,6 +702,17 @@ function CreateLfgDialog({
             <div className="space-y-2">
               <Label htmlFor="lfg-pass">Password</Label>
               <Input id="lfg-pass" value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="lfg-guests">Guest players (optional)</Label>
+              <Input
+                id="lfg-guests"
+                value={guests}
+                onChange={(e) => setGuests(e.target.value)}
+                placeholder="Friend 1, Friend 2"
+              />
+              <p className="text-xs text-muted-foreground">Separate up to two names with a comma.</p>
             </div>
 
             <div className="space-y-2">
