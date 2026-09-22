@@ -44,9 +44,11 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Logo />
-        <nav className="flex items-center gap-1 sm:gap-2">
+      <div className="container mx-auto flex h-16 min-w-0 items-center justify-between gap-2 px-4">
+        <div className="shrink-0">
+          <Logo />
+        </div>
+        <nav className="flex min-w-0 flex-1 items-center justify-end gap-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-2">
           <Button asChild variant="ghost" size="sm">
             <Link to="/leaderboard">
               <Medal className="size-4" />

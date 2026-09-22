@@ -149,15 +149,15 @@ export function FloatingBubbles() {
   return (
     <>
       {!hideDiscord && (
-        <div className="fixed bottom-6 left-6 z-50">
+        <div className="fixed bottom-3 left-3 z-50 sm:bottom-6 sm:left-6">
           <a
             href={DISCORD_URL}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Join our Discord"
-            className="relative inline-flex size-14 items-center justify-center rounded-full bg-[#5865F2] text-white shadow-lg shadow-black/30 transition-transform hover:scale-110 hover:bg-[#4752c4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="relative inline-flex size-11 items-center justify-center rounded-full bg-[#5865F2] text-white shadow-lg shadow-black/30 transition-transform hover:scale-110 hover:bg-[#4752c4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-14"
           >
-            <DiscordIcon className="size-7" />
+            <DiscordIcon className="size-5 sm:size-7" />
           </a>
           {canDismissDiscord && (
             <DismissX onClick={dismissDiscord} label="Hide Discord button" />
@@ -166,14 +166,14 @@ export function FloatingBubbles() {
       )}
 
       {!feedbackDismissed && (
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed bottom-3 right-3 z-50 sm:bottom-6 sm:right-6">
           <button
             type="button"
             onClick={() => setOpen(true)}
             aria-label="Send feedback"
-            className="relative inline-flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-black/30 transition-transform hover:scale-110 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="relative inline-flex size-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-black/30 transition-transform hover:scale-110 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-14"
           >
-            <MessageCircle className="size-6" />
+            <MessageCircle className="size-5 sm:size-6" />
           </button>
           {isLoggedIn && (
             <DismissX onClick={dismissFeedback} label="Hide feedback button" />
