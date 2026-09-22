@@ -118,13 +118,30 @@
     border-color: var(--color-border);
   }
 
+  html {
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
+    position: relative;
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
-    background-image: var(--gradient-arena);
-    background-attachment: fixed;
     min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Fixed gradient backdrop without background-attachment: fixed
+     (which breaks touch scrolling on iOS WebKit). */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: var(--gradient-arena);
+    background-color: var(--color-background);
   }
 
   h1, h2, h3, .font-display {
