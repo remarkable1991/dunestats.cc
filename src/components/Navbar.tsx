@@ -19,11 +19,11 @@ export function Navbar() {
 
   useEffect(() => {
     const refresh = async () => {
-      const { count } = await supabase
+      const { data } = await supabase
         .from("active_async_matches")
-        .select("id", { count: "exact", head: true })
+        .select("id")
         .eq("status", "searching");
-      setLfgCount(count ?? 0);
+      setLfgCount(data?.length ?? 0);
     };
     refresh();
     const channel = supabase
