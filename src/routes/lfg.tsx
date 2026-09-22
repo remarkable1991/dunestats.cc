@@ -245,6 +245,7 @@ function LfgPage() {
         if (!active || !data) return;
         setDiscordNames((prev) => {
           const next = { ...prev };
+          for (const id of missing) next[id] = "Discord Player";
           for (const row of data) {
             if (row.discord_user_id) next[row.discord_user_id] = row.display_name ?? row.player_key ?? "Discord Player";
           }
