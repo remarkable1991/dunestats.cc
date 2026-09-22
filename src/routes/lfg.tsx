@@ -120,17 +120,35 @@ function hasExp(r: LfgRow, needle: string) {
   return all.includes(needle);
 }
 
-type Seat = { name: string; web: boolean; discord: boolean };
+type Seat = { name: string; web: boolean; discord: boolean; host: boolean };
+
+const UNKNOWN_NAME = "Unknown player name";
 
 function seatsOf(r: LfgRow, discordNames: Record<string, string>): Seat[] {
-  const web = (r.web_player_names ?? []).map((n) => ({ name: n, web: true, discord: false }));
+  const webIds = r.web_player_ids ?? [];
+  const web = (r.web_player_names ?? []).map((n, i) => ({
+    name: n?.trim() ? n : UNKNOWN_NAME,
+    web: true,
+    discord: false,
+    host: !!r.web_host_id && webIds[i] === r.web_host_id,
+  }));
   const discord = (r.player_ids ?? []).map((id) => ({
-    name: discordNames[id] ?? "Discord Player",
+    name: discordNames[id] ?? UNKNOWN_NAME,
     web: false,
     discord: true,
+    host: !r.web_host_id && id === r.host_id,
   }));
-  const guests = (r.guest_players ?? []).map((n) => ({ name: n, web: false, discord: false }));
-  return [...web, ...discord, ...guests].slice(0, 4);
+  const guests = (r.guest_players ?? []).map((n) => ({
+    name: n?.trim() ? n : UNKNOWN_NAME,
+    web: false,
+    discord: false,
+    host: false,
+  }));
+  const all = [...web, ...discord, ...guests];
+  // Host always sits at the top of the roster
+  const hostIndex = all.findIndex((s) => s.host);
+  if (hostIndex > 0) all.unshift(...all.splice(hostIndex, 1));
+  return all.slice(0, 4);
 }
 
 function isExpired(r: LfgRow, now: number) {
