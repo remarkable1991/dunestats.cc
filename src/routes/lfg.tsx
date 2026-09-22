@@ -235,6 +235,7 @@ function LfgPage() {
       setUserId(uid);
       if (!uid) {
         setMyIgn(null);
+        setIsLfgAdmin(false);
         return;
       }
       const { data } = await supabase.rpc("lfg_my_ign");
