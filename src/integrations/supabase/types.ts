@@ -1351,6 +1351,21 @@ export type Database = {
       lfg_join_seat: { Args: { p_id: number }; Returns: Json }
       lfg_my_ign: { Args: never; Returns: string }
       lfg_start_game: { Args: { p_id: number }; Returns: Json }
+      lfg_update_lobby: {
+        Args: {
+          p_board: string
+          p_expansions: string[]
+          p_expires_minutes: number
+          p_guest_players?: string[]
+          p_id: number
+          p_mode: string
+          p_notes: string
+          p_password: string
+          p_remove_discord_ids?: string[]
+          p_remove_web_ids?: string[]
+        }
+        Returns: Json
+      }
       mark_async_game_started: {
         Args: {
           p_round_type: string
@@ -1456,7 +1471,7 @@ export type Database = {
           }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      app_role: "admin" | "moderator" | "user" | "lfg_admin"
       game_version: "base" | "ix" | "uprising" | "overall"
     }
     CompositeTypes: {
@@ -1585,7 +1600,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user"],
+      app_role: ["admin", "moderator", "user", "lfg_admin"],
       game_version: ["base", "ix", "uprising", "overall"],
     },
   },
