@@ -609,8 +609,43 @@ function LfgCard({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+            {open > 0 && (
+              <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+                <UserPlus className="size-4" />
+                Add player
+              </Button>
+            )}
           </>
         )}
+        <Dialog open={addOpen} onOpenChange={setAddOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add a player already in this game</DialogTitle>
+              <DialogDescription>
+                Use this to fill a seat for someone who is already playing with you but is not on the site — a
+                friend at the table or a player you arranged outside Discord. It does not invite anyone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor={`add-player-${row.id}`}>Player name</Label>
+              <Input
+                id={`add-player-${row.id}`}
+                value={addName}
+                onChange={(e) => setAddName(e.target.value)}
+                placeholder="Their in-game name"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={addPlayer} disabled={addBusy || !addName.trim()}>
+                {addBusy && <Loader2 className="size-4 animate-spin" />}
+                Add player
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         {open > 0 && !seated && !expired && (
           <span className="text-xs text-muted-foreground">
             {open} seat{open === 1 ? "" : "s"} open
