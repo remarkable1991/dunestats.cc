@@ -4,16 +4,37 @@ import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "./Logo";
 import { NotificationCenter } from "./NotificationCenter";
 import { Button } from "@/components/ui/button";
-import { Trophy, Upload, LogOut, User as UserIcon, ListOrdered, BarChart3, Medal, Sparkles } from "lucide-react";
+import { Trophy, Upload, LogOut, User as UserIcon, ListOrdered, BarChart3, Medal, Sparkles, Users } from "lucide-react";
 
 export function Navbar() {
   const [userId, setUserId] = useState<string | null>(null);
+  const [lfgCount, setLfgCount] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setUserId(s?.user.id ?? null));
     return () => sub.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const refresh = async () => {
+      const { count } = await supabase
+        .from("active_async_matches")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "searching");
+      setLfgCount(count ?? 0);
+    };
+    refresh();
+    const channel = supabase
+      .channel("navbar-lfg-count")
+      .on("postgres_changes", { event: "*", schema: "public", table: "active_async_matches" }, () => {
+        refresh();
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleLogout = async () => {

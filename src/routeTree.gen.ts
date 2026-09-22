@@ -20,6 +20,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as MatchesRouteImport } from './routes/matches'
+import { Route as LfgRouteImport } from './routes/lfg'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ClaimRouteImport } from './routes/claim'
@@ -89,6 +90,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const MatchesRoute = MatchesRouteImport.update({
   id: '/matches',
   path: '/matches',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LfgRoute = LfgRouteImport.update({
+  id: '/lfg',
+  path: '/lfg',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeaderboardRoute = LeaderboardRouteImport.update({
@@ -173,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/claim': typeof ClaimRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/lfg': typeof LfgRoute
   '/matches': typeof MatchesRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -201,6 +208,7 @@ export interface FileRoutesByTo {
   '/claim': typeof ClaimRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/lfg': typeof LfgRoute
   '/matches': typeof MatchesRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -230,6 +238,7 @@ export interface FileRoutesById {
   '/claim': typeof ClaimRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/lfg': typeof LfgRoute
   '/matches': typeof MatchesRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -260,6 +269,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/forgot-password'
     | '/leaderboard'
+    | '/lfg'
     | '/matches'
     | '/privacy'
     | '/profile'
@@ -288,6 +298,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/forgot-password'
     | '/leaderboard'
+    | '/lfg'
     | '/matches'
     | '/privacy'
     | '/profile'
@@ -316,6 +327,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/forgot-password'
     | '/leaderboard'
+    | '/lfg'
     | '/matches'
     | '/privacy'
     | '/profile'
@@ -345,6 +357,7 @@ export interface RootRouteChildren {
   ClaimRoute: typeof ClaimRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LeaderboardRoute: typeof LeaderboardRoute
+  LfgRoute: typeof LfgRoute
   MatchesRoute: typeof MatchesRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
@@ -445,6 +458,13 @@ declare module '@tanstack/react-router' {
       path: '/matches'
       fullPath: '/matches'
       preLoaderRoute: typeof MatchesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lfg': {
+      id: '/lfg'
+      path: '/lfg'
+      fullPath: '/lfg'
+      preLoaderRoute: typeof LfgRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leaderboard': {
@@ -561,6 +581,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClaimRoute: ClaimRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LeaderboardRoute: LeaderboardRoute,
+  LfgRoute: LfgRoute,
   MatchesRoute: MatchesRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
