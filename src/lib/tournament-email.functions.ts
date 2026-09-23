@@ -73,14 +73,88 @@ function formatMode(t: TournamentRow): string {
   return `${parts.join(" + ")} · ${t.play_mode === "async" ? "Async" : "Live"}`;
 }
 
-function fillTemplate(tpl: string, t: TournamentRow): string {
-  const prizes = [t.prizes_summary, t.prizes_text].filter((v) => v && v.trim()).join("\n\n");
-  const prizesBlock = prizes
-    ? `<div style="margin-top:22px;padding:14px 16px;background:#202024;border-left:3px solid #d9943b;border-radius:6px;">
-        <div style="color:#d9943b;font-weight:bold;font-size:13px;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Prizes</div>
-        <div style="white-space:pre-line;font-size:14px;line-height:1.6;color:#d6d6db;">${escapeHtml(prizes)}</div>
-      </div>`
+/** Absolute, email-safe image URLs (hosted assets). */
+const IMG = {
+  uprising: `${SITE_URL}/__l5e/assets-v1/cae6ede9-1764-4273-b2cf-8ee91ce0a0bd/uprising.png`,
+  ix: `${SITE_URL}/__l5e/assets-v1/14fa7f9d-31bd-48ec-9147-311555a463be/ix.png`,
+  immortality: `${SITE_URL}/__l5e/assets-v1/8a039ec3-2b22-4829-a5be-0cf046fe7ccf/immo.png`,
+  epic: `${SITE_URL}/__l5e/assets-v1/ccaab891-c7f4-4b96-a3af-aaf36740877c/epic.png`,
+  live: `${SITE_URL}/__l5e/assets-v1/80d86a9e-99ce-453c-b491-5956cae54f42/live-mode.png`,
+  async: `${SITE_URL}/__l5e/assets-v1/366751c5-5c04-41b2-8b5a-b577ddf214aa/async-mode.png`,
+  logo: `${SITE_URL}/__l5e/assets-v1/86019993-985b-40c6-9313-a7f6caafee03/logo.png`,
+};
+
+function iconChip(src: string | null, label: string): string {
+  const img = src
+    ? `<img src="${src}" height="18" alt="${escapeHtml(label)}" style="vertical-align:middle;margin-right:4px;">`
     : "";
+  return `${img}${escapeHtml(label)}`;
+}
+
+function formatModeHtml(t: TournamentRow): string {
+  const chips: string[] = [];
+  if (t.board_version === "base") chips.push(iconChip(null, "Base Game"));
+  else chips.push(iconChip(IMG.uprising, "Uprising"));
+  if (t.has_rise_of_ix) chips.push(iconChip(IMG.ix, "Rise of Ix"));
+  if (t.has_immortality) chips.push(iconChip(IMG.immortality, "Immortality"));
+  if (t.has_epic_mode) chips.push(iconChip(IMG.epic, "Epic"));
+  if (t.has_base_leaders) chips.push(iconChip(null, "Base leaders"));
+  chips.push(
+    t.play_mode === "async" ? iconChip(IMG.async, "Async") : iconChip(IMG.live, "Live"),
+  );
+  return chips.join(" &nbsp;&middot;&nbsp; ");
+}
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+function ordinal(n: number): string {
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1:
+      return `${n}st`;
+    case 2:
+      return `${n}nd`;
+    case 3:
+      return `${n}rd`;
+    default:
+      return `${n}th`;
+  }
+}
+
+/** "2026-09-25" -> "Friday 25th of September 2026" */
+function longDate(value: string | null | undefined): string {
+  if (!value) return "";
+  const d = new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return `${WEEKDAYS[d.getUTCDay()]} ${ordinal(d.getUTCDate())} of ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+function fillTemplate(tpl: string, t: TournamentRow, unsubscribeUrl = `${SITE_URL}/profile`): string {
+  const prizes = [t.prizes_summary, t.prizes_text]
+    .filter((v) => v && v.trim())
+    .map((v) => (v as string).trim())
+    .join("\n\n")
+    .trim();
+  const prizesBlock = prizes
+    ? `<div style="margin-top:22px;padding:14px 16px;background:#202024;border-left:3px solid #d9943b;border-radius:6px;"><div style="color:#d9943b;font-weight:bold;font-size:13px;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Prizes</div><div style="white-space:pre-line;font-size:14px;line-height:1.6;color:#d6d6db;">${escapeHtml(prizes)}</div></div>`
+    : "";
+
+  const bool = (v: boolean) => (v ? "true" : "");
 
   const values: Record<string, string> = {
     tournament_num: String(t.tournament_num),
@@ -90,17 +164,30 @@ function fillTemplate(tpl: string, t: TournamentRow): string {
     prizes_summary: escapeHtml(t.prizes_summary ?? ""),
     prizes_text: escapeHtml(t.prizes_text ?? ""),
     prizes_block: prizesBlock,
-    format: escapeHtml(formatMode(t)),
-    start_date: t.start_date,
-    end_date: t.end_date,
+    format: formatModeHtml(t),
+    format_html: formatModeHtml(t),
+    format_text: escapeHtml(formatMode(t)),
+    is_live: bool(t.play_mode !== "async"),
+    is_async: bool(t.play_mode === "async"),
+    has_uprising: bool(t.board_version !== "base"),
+    has_base: bool(t.board_version === "base"),
+    has_rise_of_ix: bool(t.has_rise_of_ix),
+    has_immortality: bool(t.has_immortality),
+    has_epic_mode: bool(t.has_epic_mode),
+    has_base_leaders: bool(t.has_base_leaders),
+    start_date: longDate(t.start_date),
+    end_date: longDate(t.end_date),
+    start_date_raw: t.start_date,
+    end_date_raw: t.end_date,
     logo_url: LOGO_URL,
     site_url: SITE_URL,
     register_url: `${SITE_URL}/tournament`,
     profile_url: `${SITE_URL}/profile`,
+    unsubscribe_url: unsubscribeUrl,
     year: String(new Date().getFullYear()),
   };
 
-  return tpl.replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (m, key: string) => values[key.toLowerCase()] ?? m);
+  return tpl.replace(/\{\{\s*([a-z_0-9]+)\s*\}\}/gi, (m, key: string) => values[key.toLowerCase()] ?? m);
 }
 
 async function assertAdmin(context: { supabase: any; userId: string }) {
