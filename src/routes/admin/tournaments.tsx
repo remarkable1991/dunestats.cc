@@ -206,6 +206,11 @@ function AdminTournaments() {
             <Button asChild variant="outline" size="sm" className="gap-1 border-sand/50 text-sand hover:bg-sand/10">
               <Link to="/admin/tournament-emails"><Mail className="size-4" />Tournament emails</Link>
             </Button>
+            {isMainAdminForNotif && (
+              <Button asChild variant="outline" size="sm" className="gap-1 border-sand/50 text-sand hover:bg-sand/10">
+                <Link to="/admin/notification-emails"><Mail className="size-4" />Notification emails</Link>
+              </Button>
+            )}
             <Button
               size="sm"
               className="bg-sand text-background hover:bg-sand/90 gap-1"
