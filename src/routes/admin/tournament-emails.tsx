@@ -27,7 +27,9 @@ import { ArrowLeft, Eye, Loader2, Mail, RotateCcw, Save, Send } from "lucide-rea
 import { fetchTournaments, type TournamentConfig } from "@/lib/tournaments";
 import {
   DEFAULT_HTML,
+  DEFAULT_PREVIEW_TEXT,
   DEFAULT_SUBJECT,
+  DEFAULT_TEXT,
   getTournamentEmailSetup,
   previewTournamentEmail,
   saveTournamentTemplate,
@@ -90,12 +92,19 @@ function TournamentEmails() {
   const [tournaments, setTournaments] = useState<TournamentConfig[]>([]);
   const [num, setNum] = useState<string>("");
   const [subject, setSubject] = useState(DEFAULT_SUBJECT);
+  const [previewText, setPreviewText] = useState(DEFAULT_PREVIEW_TEXT);
+  const [text, setText] = useState(DEFAULT_TEXT);
   const [html, setHtml] = useState(DEFAULT_HTML);
   const [counts, setCounts] = useState({ all: 0, subscribed: 0 });
   const [testEmail, setTestEmail] = useState("");
   const [saving, setSaving] = useState(false);
   const [previewing, setPreviewing] = useState(false);
-  const [previewData, setPreviewData] = useState<{ subject: string; html: string } | null>(null);
+  const [previewData, setPreviewData] = useState<{
+    subject: string;
+    previewText: string;
+    text: string;
+    html: string;
+  } | null>(null);
   const [confirm, setConfirm] = useState<Audience | null>(null);
   const [sending, setSending] = useState(false);
 
@@ -108,6 +117,8 @@ function TournamentEmails() {
         setTournaments(list);
         setNum(list.length > 0 ? String(list[0].tournament_num) : "");
         setSubject(setup.subject);
+        setPreviewText(setup.previewText);
+        setText(setup.text);
         setHtml(setup.html);
         setCounts(setup.counts);
         setTestEmail(setup.adminEmail ?? "");
@@ -130,7 +141,7 @@ function TournamentEmails() {
   async function onSave() {
     setSaving(true);
     try {
-      await saveTpl({ data: { subject, html } });
+      await saveTpl({ data: { subject, previewText, text, html } });
       toast.success("Template saved as the default");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save the template");
@@ -143,7 +154,9 @@ function TournamentEmails() {
     if (!selected) return toast.error("Pick a tournament first");
     setPreviewing(true);
     try {
-      const res = await preview({ data: { tournament_num: selected.tournament_num, subject, html } });
+      const res = await preview({
+        data: { tournament_num: selected.tournament_num, subject, previewText, text, html },
+      });
       setPreviewData(res);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not build the preview");
@@ -160,6 +173,8 @@ function TournamentEmails() {
         data: {
           tournament_num: selected.tournament_num,
           subject,
+          previewText,
+          text,
           html,
           audience,
           test_email: audience === "test" ? testEmail || undefined : undefined,
@@ -225,6 +240,32 @@ function TournamentEmails() {
               </div>
 
               <div className="space-y-1.5">
+                <Label>Preview text</Label>
+                <Input
+                  value={previewText}
+                  onChange={(e) => setPreviewText(e.target.value)}
+                  placeholder="Short text shown beside the subject in the inbox"
+                  maxLength={500}
+                />
+                <p className="text-xs text-muted-foreground">
+                  This appears as the inbox snippet in email apps that support it.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Plain text</Label>
+                <Textarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  className="font-mono text-xs min-h-[220px]"
+                  spellCheck={false}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Fallback content for recipients whose email app does not display HTML.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <Label>Email HTML</Label>
                   <Button
@@ -233,6 +274,8 @@ function TournamentEmails() {
                     className="h-auto p-0 text-sand"
                     onClick={() => {
                       setSubject(DEFAULT_SUBJECT);
+                      setPreviewText(DEFAULT_PREVIEW_TEXT);
+                      setText(DEFAULT_TEXT);
                       setHtml(DEFAULT_HTML);
                     }}
                   >
@@ -297,8 +340,20 @@ function TournamentEmails() {
             <DialogTitle className="font-display">Preview</DialogTitle>
             <DialogDescription>{previewData?.subject}</DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto rounded-md border border-border">
-            <iframe title="Email preview" srcDoc={previewData?.html ?? ""} className="w-full h-[60vh] bg-white" />
+          <div className="shrink-0 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+            <span className="font-medium">Inbox preview:</span>{" "}
+            <span className="text-muted-foreground">{previewData?.previewText}</span>
+          </div>
+          <div className="min-h-0 overflow-y-auto space-y-3">
+            <div className="rounded-md border border-border">
+              <iframe title="Email preview" srcDoc={previewData?.html ?? ""} className="w-full h-[52vh] bg-white" />
+            </div>
+            <details className="rounded-md border border-border p-3">
+              <summary className="cursor-pointer text-sm font-medium">Plain-text preview</summary>
+              <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-muted-foreground font-mono">
+                {previewData?.text}
+              </pre>
+            </details>
           </div>
         </DialogContent>
       </Dialog>
