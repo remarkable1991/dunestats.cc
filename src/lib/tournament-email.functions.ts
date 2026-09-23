@@ -32,7 +32,7 @@ export const DEFAULT_HTML = `<div style="margin:0;padding:24px 0;background:#121
     <tr>
       <td style="padding:18px 24px;background:#131316;border-top:1px solid #2c2c31;color:#77777f;font-size:11px;text-align:center;">
         You receive this because you are registered on Strategy Arena.<br />
-        <a href="{{profile_url}}" style="color:#d9943b;">Manage email preferences</a> · <a href="{{site_url}}" style="color:#d9943b;">dunestats.cc</a>
+        <a href="{{profile_url}}" style="color:#d9943b;">Manage email preferences</a> · <a href="{{unsubscribe_url}}" style="color:#d9943b;">Unsubscribe</a> · <a href="{{site_url}}" style="color:#d9943b;">dunestats.cc</a>
       </td>
     </tr>
   </table>
