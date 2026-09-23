@@ -555,10 +555,14 @@ export type Database = {
           availability_baseline: Json | null
           created_at: string
           discord_username: string | null
+          game_result_emails_opt_in: boolean
           has_used_reset: boolean
           id: string
           last_sign_in_at: string | null
           last_sp_checkin_at: string | null
+          lfg_async_emails_opt_in: boolean
+          lfg_live_emails_opt_in: boolean
+          news_emails_opt_in: boolean
           pending_signup_sp: number
           referral_phase1_paid: boolean
           referral_phase2_paid: boolean
@@ -571,10 +575,14 @@ export type Database = {
           availability_baseline?: Json | null
           created_at?: string
           discord_username?: string | null
+          game_result_emails_opt_in?: boolean
           has_used_reset?: boolean
           id: string
           last_sign_in_at?: string | null
           last_sp_checkin_at?: string | null
+          lfg_async_emails_opt_in?: boolean
+          lfg_live_emails_opt_in?: boolean
+          news_emails_opt_in?: boolean
           pending_signup_sp?: number
           referral_phase1_paid?: boolean
           referral_phase2_paid?: boolean
@@ -587,10 +595,14 @@ export type Database = {
           availability_baseline?: Json | null
           created_at?: string
           discord_username?: string | null
+          game_result_emails_opt_in?: boolean
           has_used_reset?: boolean
           id?: string
           last_sign_in_at?: string | null
           last_sp_checkin_at?: string | null
+          lfg_async_emails_opt_in?: boolean
+          lfg_live_emails_opt_in?: boolean
+          news_emails_opt_in?: boolean
           pending_signup_sp?: number
           referral_phase1_paid?: boolean
           referral_phase2_paid?: boolean
