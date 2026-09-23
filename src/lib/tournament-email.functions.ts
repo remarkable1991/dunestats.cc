@@ -32,7 +32,7 @@ export const DEFAULT_HTML = `<div style="margin:0;padding:24px 0;background:#121
     <tr>
       <td style="padding:18px 24px;background:#131316;border-top:1px solid #2c2c31;color:#77777f;font-size:11px;text-align:center;">
         You receive this because you are registered on Strategy Arena.<br />
-        <a href="{{profile_url}}" style="color:#d9943b;">Manage email preferences</a> · <a href="{{site_url}}" style="color:#d9943b;">dunestats.cc</a>
+        <a href="{{profile_url}}" style="color:#d9943b;">Manage email preferences</a> · <a href="{{unsubscribe_url}}" style="color:#d9943b;">Unsubscribe</a> · <a href="{{site_url}}" style="color:#d9943b;">dunestats.cc</a>
       </td>
     </tr>
   </table>
@@ -73,14 +73,88 @@ function formatMode(t: TournamentRow): string {
   return `${parts.join(" + ")} · ${t.play_mode === "async" ? "Async" : "Live"}`;
 }
 
-function fillTemplate(tpl: string, t: TournamentRow): string {
-  const prizes = [t.prizes_summary, t.prizes_text].filter((v) => v && v.trim()).join("\n\n");
-  const prizesBlock = prizes
-    ? `<div style="margin-top:22px;padding:14px 16px;background:#202024;border-left:3px solid #d9943b;border-radius:6px;">
-        <div style="color:#d9943b;font-weight:bold;font-size:13px;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Prizes</div>
-        <div style="white-space:pre-line;font-size:14px;line-height:1.6;color:#d6d6db;">${escapeHtml(prizes)}</div>
-      </div>`
+/** Absolute, email-safe image URLs (hosted assets). */
+const IMG = {
+  uprising: `${SITE_URL}/__l5e/assets-v1/cae6ede9-1764-4273-b2cf-8ee91ce0a0bd/uprising.png`,
+  ix: `${SITE_URL}/__l5e/assets-v1/14fa7f9d-31bd-48ec-9147-311555a463be/ix.png`,
+  immortality: `${SITE_URL}/__l5e/assets-v1/8a039ec3-2b22-4829-a5be-0cf046fe7ccf/immo.png`,
+  epic: `${SITE_URL}/__l5e/assets-v1/ccaab891-c7f4-4b96-a3af-aaf36740877c/epic.png`,
+  live: `${SITE_URL}/__l5e/assets-v1/80d86a9e-99ce-453c-b491-5956cae54f42/live-mode.png`,
+  async: `${SITE_URL}/__l5e/assets-v1/366751c5-5c04-41b2-8b5a-b577ddf214aa/async-mode.png`,
+  logo: `${SITE_URL}/__l5e/assets-v1/86019993-985b-40c6-9313-a7f6caafee03/logo.png`,
+};
+
+function iconChip(src: string | null, label: string): string {
+  const img = src
+    ? `<img src="${src}" height="18" alt="${escapeHtml(label)}" style="vertical-align:middle;margin-right:4px;">`
     : "";
+  return `${img}${escapeHtml(label)}`;
+}
+
+function formatModeHtml(t: TournamentRow): string {
+  const chips: string[] = [];
+  if (t.board_version === "base") chips.push(iconChip(null, "Base Game"));
+  else chips.push(iconChip(IMG.uprising, "Uprising"));
+  if (t.has_rise_of_ix) chips.push(iconChip(IMG.ix, "Rise of Ix"));
+  if (t.has_immortality) chips.push(iconChip(IMG.immortality, "Immortality"));
+  if (t.has_epic_mode) chips.push(iconChip(IMG.epic, "Epic"));
+  if (t.has_base_leaders) chips.push(iconChip(null, "Base leaders"));
+  chips.push(
+    t.play_mode === "async" ? iconChip(IMG.async, "Async") : iconChip(IMG.live, "Live"),
+  );
+  return chips.join(" &nbsp;&middot;&nbsp; ");
+}
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+function ordinal(n: number): string {
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1:
+      return `${n}st`;
+    case 2:
+      return `${n}nd`;
+    case 3:
+      return `${n}rd`;
+    default:
+      return `${n}th`;
+  }
+}
+
+/** "2026-09-25" -> "Friday 25th of September 2026" */
+function longDate(value: string | null | undefined): string {
+  if (!value) return "";
+  const d = new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return `${WEEKDAYS[d.getUTCDay()]} ${ordinal(d.getUTCDate())} of ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+function fillTemplate(tpl: string, t: TournamentRow, unsubscribeUrl = `${SITE_URL}/profile`): string {
+  const prizes = [t.prizes_summary, t.prizes_text]
+    .filter((v) => v && v.trim())
+    .map((v) => (v as string).trim())
+    .join("\n\n")
+    .trim();
+  const prizesBlock = prizes
+    ? `<div style="margin-top:22px;padding:14px 16px;background:#202024;border-left:3px solid #d9943b;border-radius:6px;"><div style="color:#d9943b;font-weight:bold;font-size:13px;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Prizes</div><div style="white-space:pre-line;font-size:14px;line-height:1.6;color:#d6d6db;">${escapeHtml(prizes)}</div></div>`
+    : "";
+
+  const bool = (v: boolean) => (v ? "true" : "");
 
   const values: Record<string, string> = {
     tournament_num: String(t.tournament_num),
@@ -90,17 +164,30 @@ function fillTemplate(tpl: string, t: TournamentRow): string {
     prizes_summary: escapeHtml(t.prizes_summary ?? ""),
     prizes_text: escapeHtml(t.prizes_text ?? ""),
     prizes_block: prizesBlock,
-    format: escapeHtml(formatMode(t)),
-    start_date: t.start_date,
-    end_date: t.end_date,
+    format: formatModeHtml(t),
+    format_html: formatModeHtml(t),
+    format_text: escapeHtml(formatMode(t)),
+    is_live: bool(t.play_mode !== "async"),
+    is_async: bool(t.play_mode === "async"),
+    has_uprising: bool(t.board_version !== "base"),
+    has_base: bool(t.board_version === "base"),
+    has_rise_of_ix: bool(t.has_rise_of_ix),
+    has_immortality: bool(t.has_immortality),
+    has_epic_mode: bool(t.has_epic_mode),
+    has_base_leaders: bool(t.has_base_leaders),
+    start_date: longDate(t.start_date),
+    end_date: longDate(t.end_date),
+    start_date_raw: t.start_date,
+    end_date_raw: t.end_date,
     logo_url: LOGO_URL,
     site_url: SITE_URL,
     register_url: `${SITE_URL}/tournament`,
     profile_url: `${SITE_URL}/profile`,
+    unsubscribe_url: unsubscribeUrl,
     year: String(new Date().getFullYear()),
   };
 
-  return tpl.replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (m, key: string) => values[key.toLowerCase()] ?? m);
+  return tpl.replace(/\{\{\s*([a-z_0-9]+)\s*\}\}/gi, (m, key: string) => values[key.toLowerCase()] ?? m);
 }
 
 async function assertAdmin(context: { supabase: any; userId: string }) {
@@ -212,11 +299,23 @@ export const previewTournamentEmail = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context as any);
     const t = await loadTournament(data.tournament_num);
+    const url = await unsubscribeUrlFor((context as any).userId as string);
     return {
-      subject: fillTemplate(data.subject || DEFAULT_SUBJECT, t),
-      html: fillTemplate(data.html || DEFAULT_HTML, t),
+      subject: fillTemplate(data.subject || DEFAULT_SUBJECT, t, url),
+      html: fillTemplate(data.html || DEFAULT_HTML, t, url),
     };
   });
+
+async function unsubscribeUrlFor(userId: string | null | undefined): Promise<string> {
+  if (!userId) return `${SITE_URL}/profile`;
+  try {
+    const { signUnsubscribe } = await import("./unsubscribe.server");
+    const token = await signUnsubscribe(userId);
+    return `${SITE_URL}/unsubscribe?uid=${encodeURIComponent(userId)}&token=${token}`;
+  } catch {
+    return `${SITE_URL}/profile`;
+  }
+}
 
 /** Send the tournament email to a test address, subscribers, or everyone. */
 export const sendTournamentEmail = createServerFn({ method: "POST" })
@@ -241,24 +340,31 @@ export const sendTournamentEmail = createServerFn({ method: "POST" })
 
     const t = await loadTournament(data.tournament_num);
     const subject = fillTemplate(data.subject || DEFAULT_SUBJECT, t);
-    const html = fillTemplate(data.html || DEFAULT_HTML, t);
 
-    let emails: string[];
+    let recipients: Recipient[];
     if (data.audience === "test") {
       const to = data.test_email ?? (context as any).claims?.email;
       if (!to) throw new Error("No test email address available");
-      emails = [to];
+      recipients = [{ id: (context as any).userId as string, email: to }];
     } else {
-      emails = (await audienceRecipients(data.audience)).map((r) => r.email);
+      recipients = await audienceRecipients(data.audience);
     }
-    if (emails.length === 0) return { ok: true, sent: 0, failed: 0 };
+    if (recipients.length === 0) return { ok: true, sent: 0, failed: 0 };
 
     let sent = 0;
     let failed = 0;
     let lastError = "";
     const chunkSize = 50;
-    for (let i = 0; i < emails.length; i += chunkSize) {
-      const chunk = emails.slice(i, i + chunkSize);
+    for (let i = 0; i < recipients.length; i += chunkSize) {
+      const chunk = recipients.slice(i, i + chunkSize);
+      const payload = await Promise.all(
+        chunk.map(async (r) => ({
+          from: FROM,
+          to: [r.email],
+          subject,
+          html: fillTemplate(data.html || DEFAULT_HTML, t, await unsubscribeUrlFor(r.id)),
+        })),
+      );
       const res = await fetch("https://connector-gateway.lovable.dev/resend/emails/batch", {
         method: "POST",
         headers: {
@@ -266,7 +372,7 @@ export const sendTournamentEmail = createServerFn({ method: "POST" })
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
           "X-Connection-Api-Key": RESEND_API_KEY,
         },
-        body: JSON.stringify(chunk.map((to) => ({ from: FROM, to: [to], subject, html }))),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         sent += chunk.length;

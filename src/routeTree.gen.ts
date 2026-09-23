@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UploadRouteImport } from './routes/upload'
+import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as TournamentRegisterRouteImport } from './routes/tournament-register'
 import { Route as TournamentRouteImport } from './routes/tournament'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -41,6 +42,11 @@ import { Route as LeadersOriginSlugRouteImport } from './routes/leaders.$origin.
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',
   path: '/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnsubscribeRoute = UnsubscribeRouteImport.update({
+  id: '/unsubscribe',
+  path: '/unsubscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TournamentRegisterRoute = TournamentRegisterRouteImport.update({
@@ -196,6 +202,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/upload': typeof UploadRoute
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/tournament-emails': typeof AdminTournamentEmailsRoute
@@ -226,6 +233,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/upload': typeof UploadRoute
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/tournament-emails': typeof AdminTournamentEmailsRoute
@@ -257,6 +265,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/upload': typeof UploadRoute
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/tournament-emails': typeof AdminTournamentEmailsRoute
@@ -289,6 +298,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/tournament'
     | '/tournament-register'
+    | '/unsubscribe'
     | '/upload'
     | '/admin/match-approvals'
     | '/admin/tournament-emails'
@@ -319,6 +329,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/tournament'
     | '/tournament-register'
+    | '/unsubscribe'
     | '/upload'
     | '/admin/match-approvals'
     | '/admin/tournament-emails'
@@ -349,6 +360,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/tournament'
     | '/tournament-register'
+    | '/unsubscribe'
     | '/upload'
     | '/admin/match-approvals'
     | '/admin/tournament-emails'
@@ -380,6 +392,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   TournamentRoute: typeof TournamentRoute
   TournamentRegisterRoute: typeof TournamentRegisterRoute
+  UnsubscribeRoute: typeof UnsubscribeRoute
   UploadRoute: typeof UploadRoute
   AdminMatchApprovalsRoute: typeof AdminMatchApprovalsRoute
   AdminTournamentEmailsRoute: typeof AdminTournamentEmailsRoute
@@ -401,6 +414,13 @@ declare module '@tanstack/react-router' {
       path: '/upload'
       fullPath: '/upload'
       preLoaderRoute: typeof UploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/unsubscribe': {
+      id: '/unsubscribe'
+      path: '/unsubscribe'
+      fullPath: '/unsubscribe'
+      preLoaderRoute: typeof UnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tournament-register': {
@@ -612,6 +632,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   TournamentRoute: TournamentRoute,
   TournamentRegisterRoute: TournamentRegisterRoute,
+  UnsubscribeRoute: UnsubscribeRoute,
   UploadRoute: UploadRoute,
   AdminMatchApprovalsRoute: AdminMatchApprovalsRoute,
   AdminTournamentEmailsRoute: AdminTournamentEmailsRoute,
