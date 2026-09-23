@@ -97,7 +97,9 @@ export type Database = {
           created_at: string
           html_template: string
           id: string
+          preview_text_template: string | null
           subject_template: string
+          text_template: string | null
           updated_at: string
           updated_by: string | null
         }
@@ -105,7 +107,9 @@ export type Database = {
           created_at?: string
           html_template?: string
           id: string
+          preview_text_template?: string | null
           subject_template?: string
+          text_template?: string | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -113,7 +117,9 @@ export type Database = {
           created_at?: string
           html_template?: string
           id?: string
+          preview_text_template?: string | null
           subject_template?: string
+          text_template?: string | null
           updated_at?: string
           updated_by?: string | null
         }
