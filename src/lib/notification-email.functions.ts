@@ -237,8 +237,10 @@ export const sendNotificationTest = createServerFn({ method: "POST" })
     const LOVABLE_API_KEY = process.env["LOVABLE_API_KEY"];
     const RESEND_API_KEY = process.env["RESEND_API_KEY"];
     if (!LOVABLE_API_KEY || !RESEND_API_KEY) throw new Error("Email service is not configured");
-    const { unsubscribeUrlFor } = await import("./unsubscribe-url.server");
-    const v = values(data.kind, await unsubscribeUrlFor((context as any).userId));
+    const { signUnsubscribe } = await import("./unsubscribe.server");
+    const uid = (context as any).userId as string;
+    const token = await signUnsubscribe(uid);
+    const v = values(data.kind, `${SITE_URL}/unsubscribe?uid=${uid}&token=${token}`);
     const res = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
       method: "POST",
       headers: {
