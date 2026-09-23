@@ -92,6 +92,33 @@ export type Database = {
         }
         Relationships: []
       }
+      email_templates: {
+        Row: {
+          created_at: string
+          html_template: string
+          id: string
+          subject_template: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          html_template?: string
+          id: string
+          subject_template?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          html_template?: string
+          id?: string
+          subject_template?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       game_results: {
         Row: {
           bene_gesserit_alliance: boolean | null
@@ -530,6 +557,7 @@ export type Database = {
           referral_phase1_paid: boolean
           referral_phase2_paid: boolean
           referred_by_player_key: string | null
+          tournament_emails_opt_in: boolean
           updated_at: string
           username: string | null
         }
@@ -545,6 +573,7 @@ export type Database = {
           referral_phase1_paid?: boolean
           referral_phase2_paid?: boolean
           referred_by_player_key?: string | null
+          tournament_emails_opt_in?: boolean
           updated_at?: string
           username?: string | null
         }
@@ -560,6 +589,7 @@ export type Database = {
           referral_phase1_paid?: boolean
           referral_phase2_paid?: boolean
           referred_by_player_key?: string | null
+          tournament_emails_opt_in?: boolean
           updated_at?: string
           username?: string | null
         }
