@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { saveGame } from "@/lib/games.functions";
-import { mirrorFileToR2 } from "@/lib/storage-r2";
+import { uploadToR2 } from "@/lib/storage-r2";
 
 export type SubmitMatchRow = {
   placement: number;
@@ -57,7 +57,7 @@ export type SubmitMatchResult =
  *
  * 1. Duplicate check against the last 100 uploaded games (fingerprint on
  *    placement|player|leader|points). Skippable via confirmDuplicate.
- * 2. Upload screenshot to `match-screenshots`.
+ * 2. Upload screenshot directly to Cloudflare R2 (`match-screenshots`).
  * 3. Save game globally via `saveGame` (ELO + game_results rows).
  * 4. Fire-and-forget sandbox sync (never blocks).
  * 5. If a tournament slot is provided: upsert `tournament_table_screenshots`
