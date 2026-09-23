@@ -118,6 +118,7 @@ function MatchDetailsPage() {
   const [totals, setTotals] = useState<Record<string, RatingTotals>>({});
   const [tourneyTable, setTourneyTable] = useState<{ round: string; table: string } | null>(null);
   const [canEdit, setCanEdit] = useState(false);
+  const [isMatchStaff, setIsMatchStaff] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [playerOrder, setPlayerOrder] = useState<"placement" | "slot" | "turn">("placement");
   const [leaverBusy, setLeaverBusy] = useState<string | null>(null);
@@ -199,7 +200,7 @@ function MatchDetailsPage() {
     void (async () => {
       const { data: userRes } = await supabase.auth.getUser();
       const uid = userRes.user?.id;
-      if (!uid) { if (!cancelled) setCanEdit(false); return; }
+      if (!uid) { if (!cancelled) { setCanEdit(false); setIsMatchStaff(false); } return; }
       const names = new Set(game.game_results.map((r) => r.player_name.toLowerCase().trim()));
       const [{ data: roles }, { data: prof }, { data: claimed }] = await Promise.all([
         supabase.from("user_roles").select("role").eq("user_id", uid),
