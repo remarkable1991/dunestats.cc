@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { saveGame } from "@/lib/games.functions";
-import { mirrorFileToR2 } from "@/lib/storage-r2";
+import { uploadToR2 } from "@/lib/storage-r2";
 
 export type SubmitMatchRow = {
   placement: number;
@@ -57,7 +57,7 @@ export type SubmitMatchResult =
  *
  * 1. Duplicate check against the last 100 uploaded games (fingerprint on
  *    placement|player|leader|points). Skippable via confirmDuplicate.
- * 2. Upload screenshot to `match-screenshots`.
+ * 2. Upload screenshot directly to Cloudflare R2 (`match-screenshots`).
  * 3. Save game globally via `saveGame` (ELO + game_results rows).
  * 4. Fire-and-forget sandbox sync (never blocks).
  * 5. If a tournament slot is provided: upsert `tournament_table_screenshots`
@@ -76,18 +76,14 @@ export async function submitMatch(input: SubmitMatchInput): Promise<SubmitMatchR
     if (dup) return { status: "duplicate" };
   }
 
-  // 1. Screenshot upload (Supabase + Cloudflare R2 backup)
+  // 1. Screenshot upload — Cloudflare R2 only (Supabase Storage no longer used)
   let screenshotPath: string | null = null;
   if (input.file) {
     const ext = (input.file.name.split(".").pop() || "png").toLowerCase();
     const path = `${input.userId}/${crypto.randomUUID()}.${ext}`;
     const contentType = input.file.type || "image/png";
-    const { error: upErr } = await supabase.storage
-      .from("match-screenshots")
-      .upload(path, input.file, { contentType, upsert: false });
-    if (upErr) throw upErr;
+    await uploadToR2("match-screenshots", path, contentType, input.file);
     screenshotPath = path;
-    void mirrorFileToR2("match-screenshots", path, contentType, input.file);
   }
 
 
