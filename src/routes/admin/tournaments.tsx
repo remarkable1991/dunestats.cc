@@ -138,6 +138,7 @@ function emptyDraft(nextNum: number): Draft {
 function AdminTournaments() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isMainAdminForNotif, setIsMainAdminForNotif] = useState(false);
   const [tournaments, setTournaments] = useState<TournamentConfig[]>([]);
   const [editing, setEditing] = useState<Draft | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -151,6 +152,7 @@ function AdminTournaments() {
       if (uid) {
         const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", uid);
         setIsAdmin((roles ?? []).some((r) => r.role === "admin" || r.role === "tournament_host"));
+        setIsMainAdminForNotif((roles ?? []).some((r) => r.role === "admin"));
       }
       await reload();
       setLoading(false);
@@ -206,6 +208,11 @@ function AdminTournaments() {
             <Button asChild variant="outline" size="sm" className="gap-1 border-sand/50 text-sand hover:bg-sand/10">
               <Link to="/admin/tournament-emails"><Mail className="size-4" />Tournament emails</Link>
             </Button>
+            {isMainAdminForNotif && (
+              <Button asChild variant="outline" size="sm" className="gap-1 border-sand/50 text-sand hover:bg-sand/10">
+                <Link to="/admin/notification-emails"><Mail className="size-4" />Notification emails</Link>
+              </Button>
+            )}
             <Button
               size="sm"
               className="bg-sand text-background hover:bg-sand/90 gap-1"
