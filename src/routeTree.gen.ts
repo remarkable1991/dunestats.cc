@@ -33,6 +33,7 @@ import { Route as PlayersKeyRouteImport } from './routes/players.$key'
 import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
 import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
 import { Route as AdminTournamentsRouteImport } from './routes/admin/tournaments'
+import { Route as AdminTournamentEmailsRouteImport } from './routes/admin/tournament-emails'
 import { Route as AdminMatchApprovalsRouteImport } from './routes/admin/match-approvals'
 import { Route as TournamentNumTableRouteImport } from './routes/tournament_.$num_.$table'
 import { Route as LeadersOriginSlugRouteImport } from './routes/leaders.$origin.$slug'
@@ -157,6 +158,11 @@ const AdminTournamentsRoute = AdminTournamentsRouteImport.update({
   path: '/admin/tournaments',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminTournamentEmailsRoute = AdminTournamentEmailsRouteImport.update({
+  id: '/admin/tournament-emails',
+  path: '/admin/tournament-emails',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminMatchApprovalsRoute = AdminMatchApprovalsRouteImport.update({
   id: '/admin/match-approvals',
   path: '/admin/match-approvals',
@@ -192,6 +198,7 @@ export interface FileRoutesByFullPath {
   '/tournament-register': typeof TournamentRegisterRoute
   '/upload': typeof UploadRoute
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
+  '/admin/tournament-emails': typeof AdminTournamentEmailsRoute
   '/admin/tournaments': typeof AdminTournamentsRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/match/$matchId': typeof MatchMatchIdRoute
@@ -221,6 +228,7 @@ export interface FileRoutesByTo {
   '/tournament-register': typeof TournamentRegisterRoute
   '/upload': typeof UploadRoute
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
+  '/admin/tournament-emails': typeof AdminTournamentEmailsRoute
   '/admin/tournaments': typeof AdminTournamentsRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/match/$matchId': typeof MatchMatchIdRoute
@@ -251,6 +259,7 @@ export interface FileRoutesById {
   '/tournament-register': typeof TournamentRegisterRoute
   '/upload': typeof UploadRoute
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
+  '/admin/tournament-emails': typeof AdminTournamentEmailsRoute
   '/admin/tournaments': typeof AdminTournamentsRoute
   '/auth_/callback': typeof AuthCallbackRoute
   '/match/$matchId': typeof MatchMatchIdRoute
@@ -282,6 +291,7 @@ export interface FileRouteTypes {
     | '/tournament-register'
     | '/upload'
     | '/admin/match-approvals'
+    | '/admin/tournament-emails'
     | '/admin/tournaments'
     | '/auth/callback'
     | '/match/$matchId'
@@ -311,6 +321,7 @@ export interface FileRouteTypes {
     | '/tournament-register'
     | '/upload'
     | '/admin/match-approvals'
+    | '/admin/tournament-emails'
     | '/admin/tournaments'
     | '/auth/callback'
     | '/match/$matchId'
@@ -340,6 +351,7 @@ export interface FileRouteTypes {
     | '/tournament-register'
     | '/upload'
     | '/admin/match-approvals'
+    | '/admin/tournament-emails'
     | '/admin/tournaments'
     | '/auth_/callback'
     | '/match/$matchId'
@@ -370,6 +382,7 @@ export interface RootRouteChildren {
   TournamentRegisterRoute: typeof TournamentRegisterRoute
   UploadRoute: typeof UploadRoute
   AdminMatchApprovalsRoute: typeof AdminMatchApprovalsRoute
+  AdminTournamentEmailsRoute: typeof AdminTournamentEmailsRoute
   AdminTournamentsRoute: typeof AdminTournamentsRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   MatchMatchIdRoute: typeof MatchMatchIdRoute
@@ -551,6 +564,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTournamentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/tournament-emails': {
+      id: '/admin/tournament-emails'
+      path: '/admin/tournament-emails'
+      fullPath: '/admin/tournament-emails'
+      preLoaderRoute: typeof AdminTournamentEmailsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/match-approvals': {
       id: '/admin/match-approvals'
       path: '/admin/match-approvals'
@@ -594,6 +614,7 @@ const rootRouteChildren: RootRouteChildren = {
   TournamentRegisterRoute: TournamentRegisterRoute,
   UploadRoute: UploadRoute,
   AdminMatchApprovalsRoute: AdminMatchApprovalsRoute,
+  AdminTournamentEmailsRoute: AdminTournamentEmailsRoute,
   AdminTournamentsRoute: AdminTournamentsRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   MatchMatchIdRoute: MatchMatchIdRoute,
