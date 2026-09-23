@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown, Target, History, TrendingUp, type LucideIcon } from "lucide-react";
 import { EloHistoryChart } from "@/components/EloHistoryChart";
+import { AdminRoleManager } from "@/components/AdminRoleManager";
 
 import { ScreenshotButton } from "@/components/ScreenshotButton";
 import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
