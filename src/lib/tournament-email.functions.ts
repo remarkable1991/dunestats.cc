@@ -241,11 +241,10 @@ function withPreheader(html: string, previewText: string): string {
 }
 
 async function assertAdmin(context: { supabase: any; userId: string }) {
-  const { data, error } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: "admin",
+  const { data, error } = await context.supabase.rpc("is_tournament_host", {
+    _uid: context.userId,
   });
-  if (error || !data) throw new Error("Forbidden: admin only");
+  if (error || !data) throw new Error("Forbidden: admin or tournament host only");
 }
 
 async function loadTournament(num: number): Promise<TournamentRow> {
