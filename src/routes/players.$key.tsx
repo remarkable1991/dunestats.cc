@@ -587,6 +587,11 @@ function ProfilePage() {
               />
             </div>
 
+            <AdminRoleManager
+              userId={ratings.find((r) => r.claimed_by)?.claimed_by ?? null}
+              displayName={displayName}
+            />
+
             <EloHistoryChart playerKey={playerKey} />
 
             {achievements.length > 0 && (
