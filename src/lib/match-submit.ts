@@ -76,18 +76,14 @@ export async function submitMatch(input: SubmitMatchInput): Promise<SubmitMatchR
     if (dup) return { status: "duplicate" };
   }
 
-  // 1. Screenshot upload (Supabase + Cloudflare R2 backup)
+  // 1. Screenshot upload — Cloudflare R2 only (Supabase Storage no longer used)
   let screenshotPath: string | null = null;
   if (input.file) {
     const ext = (input.file.name.split(".").pop() || "png").toLowerCase();
     const path = `${input.userId}/${crypto.randomUUID()}.${ext}`;
     const contentType = input.file.type || "image/png";
-    const { error: upErr } = await supabase.storage
-      .from("match-screenshots")
-      .upload(path, input.file, { contentType, upsert: false });
-    if (upErr) throw upErr;
+    await uploadToR2("match-screenshots", path, contentType, input.file);
     screenshotPath = path;
-    void mirrorFileToR2("match-screenshots", path, contentType, input.file);
   }
 
 
