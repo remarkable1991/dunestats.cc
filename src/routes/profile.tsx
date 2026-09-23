@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
-import { User as UserIcon, UserPlus, BadgeCheck, Trophy, KeyRound, Link2, Gift, Copy } from "lucide-react";
+import { Bell, User as UserIcon, UserPlus, BadgeCheck, Trophy, KeyRound, Link2, Gift, Copy } from "lucide-react";
 import { loadChampions, type ChampionMap } from "@/lib/champions";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 import { SpProgress } from "@/components/SpProgress";
 import { SpHistory } from "@/components/SpHistory";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
@@ -19,6 +20,15 @@ export const Route = createFileRoute("/profile")({
   head: () => ({ meta: [{ title: "My profile · Strategy Arena" }] }),
   component: ProfileLanding,
 });
+
+const PREFS = [
+  { key: "tournament_emails_opt_in", label: "New tournaments", hint: "Announcements and registration for tournaments", def: true },
+  { key: "lfg_live_emails_opt_in", label: "New LFG — Live games", hint: "When someone opens a live lobby", def: false },
+  { key: "lfg_async_emails_opt_in", label: "New LFG — Async games", hint: "When someone opens an async lobby", def: false },
+  { key: "game_result_emails_opt_in", label: "Game results", hint: "Your result after a match is uploaded", def: true },
+  { key: "news_emails_opt_in", label: "General news", hint: "Site updates and seasons", def: true },
+] as const;
+type PrefKey = (typeof PREFS)[number]["key"];
 
 type Claim = { player_key: string; display_name: string; game_version: string; elo: number; games_played: number };
 
@@ -38,6 +48,7 @@ function ProfileLanding() {
   const [identities, setIdentities] = useState<string[]>([]);
   const [linkingGoogle, setLinkingGoogle] = useState(false);
   const titles = usePlayerTitles();
+  const [prefs, setPrefs] = useState<Record<PrefKey, boolean> | null>(null);
 
 
   const refreshDiscordIdentity = async (uid: string) => {
@@ -81,9 +92,26 @@ function ProfileLanding() {
         .eq("claimed_by", uid);
       setClaims((rows as Claim[]) ?? []);
       await refreshDiscordIdentity(uid);
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select(PREFS.map((p) => p.key).join(", "))
+        .eq("id", uid)
+        .maybeSingle();
+      const p = (prof ?? {}) as unknown as Partial<Record<PrefKey, boolean>>;
+      setPrefs(Object.fromEntries(PREFS.map((x) => [x.key, p[x.key] ?? x.def])) as Record<PrefKey, boolean>);
       setChecking(false);
     });
   }, [navigate]);
+
+  const togglePref = async (key: PrefKey, value: boolean) => {
+    if (!userId || !prefs) return;
+    setPrefs({ ...prefs, [key]: value });
+    const { error } = await supabase.from("profiles").update({ [key]: value } as never).eq("id", userId);
+    if (error) {
+      setPrefs({ ...prefs, [key]: !value });
+      toast.error("Could not save your email setting");
+    }
+  };
 
   const linkGoogle = async () => {
     setLinkingGoogle(true);
@@ -347,6 +375,26 @@ function ProfileLanding() {
           </div>
         </Card>
 
+
+        {prefs && (
+          <Card className="p-5 border-border/60 bg-card/70 mt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Bell className="size-5 text-sand" />
+              <h2 className="font-display text-lg">Email notifications</h2>
+            </div>
+            <div className="space-y-3">
+              {PREFS.map((p) => (
+                <div key={p.key} className="flex items-center justify-between gap-4">
+                  <div className="text-sm">
+                    <div className="font-medium">{p.label}</div>
+                    <div className="text-xs text-muted-foreground">{p.hint}</div>
+                  </div>
+                  <Switch checked={prefs[p.key]} onCheckedChange={(v) => togglePref(p.key, v)} aria-label={p.label} />
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         <Card className="p-5 border-border/60 bg-card/70 mt-6">
           <div className="flex items-center gap-2 mb-3">
