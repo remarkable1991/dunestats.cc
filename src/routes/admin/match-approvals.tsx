@@ -112,7 +112,7 @@ function MatchApprovals() {
       const uid = sess.session?.user.id;
       if (uid) {
         const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", uid);
-        setIsAdmin((roles ?? []).some((r) => r.role === "admin"));
+        setIsAdmin((roles ?? []).some((r) => r.role === "admin" || r.role === "tournament_moderator"));
       }
       await load();
       setLoading(false);
@@ -178,9 +178,9 @@ function MatchApprovals() {
         <Navbar />
         <div className="container mx-auto px-4 py-10 max-w-2xl">
           <Card className="p-6 border-sand/40">
-            <h1 className="font-display text-2xl mb-2">Admins only</h1>
+            <h1 className="font-display text-2xl mb-2">Moderators only</h1>
             <p className="text-sm text-muted-foreground">
-              You need an admin role to review match submissions.{" "}
+              You need the admin or tournament moderator role to review match submissions.{" "}
               <Link to="/tournament" className="text-sand underline">Back to tournaments</Link>
             </p>
           </Card>

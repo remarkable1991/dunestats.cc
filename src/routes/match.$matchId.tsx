@@ -118,6 +118,7 @@ function MatchDetailsPage() {
   const [totals, setTotals] = useState<Record<string, RatingTotals>>({});
   const [tourneyTable, setTourneyTable] = useState<{ round: string; table: string } | null>(null);
   const [canEdit, setCanEdit] = useState(false);
+  const [isMatchStaff, setIsMatchStaff] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [playerOrder, setPlayerOrder] = useState<"placement" | "slot" | "turn">("placement");
   const [leaverBusy, setLeaverBusy] = useState<string | null>(null);
@@ -199,7 +200,7 @@ function MatchDetailsPage() {
     void (async () => {
       const { data: userRes } = await supabase.auth.getUser();
       const uid = userRes.user?.id;
-      if (!uid) { if (!cancelled) setCanEdit(false); return; }
+      if (!uid) { if (!cancelled) { setCanEdit(false); setIsMatchStaff(false); } return; }
       const names = new Set(game.game_results.map((r) => r.player_name.toLowerCase().trim()));
       const [{ data: roles }, { data: prof }, { data: claimed }] = await Promise.all([
         supabase.from("user_roles").select("role").eq("user_id", uid),
@@ -207,11 +208,13 @@ function MatchDetailsPage() {
         supabase.from("player_ratings").select("player_key").eq("claimed_by", uid),
       ]);
       if (cancelled) return;
-      const isAdmin = (roles ?? []).some((r) => r.role === "admin");
+      // Admins and match moderators may edit any match, verified or not.
+      const staff = (roles ?? []).some((r) => r.role === "admin" || r.role === "match_moderator");
       const mine = new Set<string>();
       if (prof?.username) mine.add(prof.username.toLowerCase().trim());
       (claimed ?? []).forEach((r) => r.player_key && mine.add(r.player_key.toLowerCase().trim()));
-      setCanEdit(isAdmin || [...mine].some((n) => names.has(n)));
+      setIsMatchStaff(staff);
+      setCanEdit(staff || [...mine].some((n) => names.has(n)));
     })();
     return () => { cancelled = true; };
   }, [game?.id]);
@@ -341,35 +344,33 @@ function MatchDetailsPage() {
   const toggleLeaver = async (playerName: string, value: boolean) => {
     setLeaverBusy(playerName);
     try {
-      const client = supabase as unknown as {
-        rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
-      };
-      const { error } = await client.rpc("update_match_details", {
-        p_game_id: game.id,
-        p_end_round: game.end_round,
-        p_board_version: game.board_version,
-        p_has_rise_of_ix: game.has_rise_of_ix,
-        p_has_epic_mode: game.has_epic_mode,
-        p_has_immortality: game.has_immortality,
-        p_has_base_leaders: game.has_base_leaders,
-        p_conflict_title: game.conflict_title,
-        p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
-        p_players: game.game_results.map((r) => ({
-          player_name: r.player_name,
-          spice: r.spice,
-          solaris: r.solaris,
-          water: r.water,
-          is_leaver: r.player_name === playerName ? value : (r.is_leaver ?? false),
-          player_color: r.player_color,
-          player_slot: r.player_slot,
-          turn_order: r.turn_order,
-          has_first_player: r.has_first_player,
-          has_high_council: r.has_high_council,
-          has_swordmaster: r.has_swordmaster,
-        })),
-      });
-      if (error) throw new Error(error.message);
-      toast.success(value ? "Marked as leaver" : "Leaver mark removed");
+      await saveMatchDetails(
+        {
+          p_game_id: game.id,
+          p_end_round: game.end_round,
+          p_board_version: game.board_version,
+          p_has_rise_of_ix: game.has_rise_of_ix,
+          p_has_epic_mode: game.has_epic_mode,
+          p_has_immortality: game.has_immortality,
+          p_has_base_leaders: game.has_base_leaders,
+          p_conflict_title: game.conflict_title,
+          p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
+          p_players: game.game_results.map((r) => ({
+            player_name: r.player_name,
+            spice: r.spice,
+            solaris: r.solaris,
+            water: r.water,
+            is_leaver: r.player_name === playerName ? value : (r.is_leaver ?? false),
+            player_color: r.player_color,
+            player_slot: r.player_slot,
+            turn_order: r.turn_order,
+            has_first_player: r.has_first_player,
+            has_high_council: r.has_high_council,
+            has_swordmaster: r.has_swordmaster,
+          })),
+        },
+        value ? "Marked as leaver" : "Leaver mark removed",
+      );
       setReloadKey((k) => k + 1);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not update leaver status");
@@ -382,23 +383,21 @@ function MatchDetailsPage() {
 
   const saveInfluence = async (next: TelemetryPlayer[], message: string) => {
     try {
-      const client = supabase as unknown as {
-        rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
-      };
-      const { error } = await client.rpc("update_match_details", {
-        p_game_id: game.id,
-        p_end_round: game.end_round,
-        p_board_version: game.board_version,
-        p_has_rise_of_ix: game.has_rise_of_ix,
-        p_has_epic_mode: game.has_epic_mode,
-        p_has_immortality: game.has_immortality,
-        p_has_base_leaders: game.has_base_leaders,
-        p_conflict_title: game.conflict_title,
-        p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
-        p_players: next.map(telemetryPayload),
-      });
-      if (error) throw new Error(error.message);
-      toast.success(message);
+      await saveMatchDetails(
+        {
+          p_game_id: game.id,
+          p_end_round: game.end_round,
+          p_board_version: game.board_version,
+          p_has_rise_of_ix: game.has_rise_of_ix,
+          p_has_epic_mode: game.has_epic_mode,
+          p_has_immortality: game.has_immortality,
+          p_has_base_leaders: game.has_base_leaders,
+          p_conflict_title: game.conflict_title,
+          p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
+          p_players: next.map(telemetryPayload),
+        },
+        message,
+      );
       setReloadKey((k) => k + 1);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save influence");
@@ -407,35 +406,33 @@ function MatchDetailsPage() {
 
   const markVerified = async () => {
     try {
-      const client = supabase as unknown as {
-        rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
-      };
-      const { error } = await client.rpc("update_match_details", {
-        p_game_id: game.id,
-        p_end_round: game.end_round,
-        p_board_version: game.board_version,
-        p_has_rise_of_ix: game.has_rise_of_ix,
-        p_has_epic_mode: game.has_epic_mode,
-        p_has_immortality: game.has_immortality,
-        p_has_base_leaders: game.has_base_leaders,
-        p_conflict_title: game.conflict_title,
-        p_ai_scan_status: "Manually verified",
-        p_players: game.game_results.map((r) => ({
-          player_name: r.player_name,
-          spice: r.spice,
-          solaris: r.solaris,
-          water: r.water,
-          is_leaver: r.is_leaver ?? false,
-          player_color: r.player_color,
-          player_slot: r.player_slot,
-          turn_order: r.turn_order,
-          has_first_player: r.has_first_player,
-          has_high_council: r.has_high_council,
-          has_swordmaster: r.has_swordmaster,
-        })),
-      });
-      if (error) throw new Error(error.message);
-      toast.success("Marked as manually verified");
+      await saveMatchDetails(
+        {
+          p_game_id: game.id,
+          p_end_round: game.end_round,
+          p_board_version: game.board_version,
+          p_has_rise_of_ix: game.has_rise_of_ix,
+          p_has_epic_mode: game.has_epic_mode,
+          p_has_immortality: game.has_immortality,
+          p_has_base_leaders: game.has_base_leaders,
+          p_conflict_title: game.conflict_title,
+          p_ai_scan_status: "Manually verified",
+          p_players: game.game_results.map((r) => ({
+            player_name: r.player_name,
+            spice: r.spice,
+            solaris: r.solaris,
+            water: r.water,
+            is_leaver: r.is_leaver ?? false,
+            player_color: r.player_color,
+            player_slot: r.player_slot,
+            turn_order: r.turn_order,
+            has_first_player: r.has_first_player,
+            has_high_council: r.has_high_council,
+            has_swordmaster: r.has_swordmaster,
+          })),
+        },
+        "Marked as manually verified",
+      );
       setReloadKey((k) => k + 1);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not update status");
@@ -505,10 +502,15 @@ function MatchDetailsPage() {
               ✓ Manually Verified
             </span>
           )}
-          {canEdit && game.ai_scan_status !== "Manually verified" && (
+          {isMatchStaff && game.ai_scan_status !== "Manually verified" && (
             <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => void markVerified()}>
               Manually verified completed
             </Button>
+          )}
+          {canEdit && !isMatchStaff && game.ai_scan_status === "Manually verified" && (
+            <span className="text-xs px-2 py-0.5 rounded border border-amber-500/50 bg-amber-500/10 text-amber-400">
+              Locked — changes are reported to a moderator
+            </span>
           )}
           {game.ai_scan_status === "Issue detected" && (
             <span
@@ -1113,6 +1115,30 @@ type PlayerForm = {
 const manualReviewStatus = (status: string | null | undefined) =>
   status === "Manually verified" ? null : "Manually reviewed";
 
+/**
+ * Saves match details. Returns false when the match is locked (already
+ * manually verified): the attempt is logged server-side and the match is
+ * flagged as "Issue detected" for a moderator to review.
+ */
+async function saveMatchDetails(args: Record<string, unknown>, successMessage: string): Promise<boolean> {
+  const client = supabase as unknown as {
+    rpc: (
+      fn: string,
+      a: Record<string, unknown>,
+    ) => PromiseLike<{ data: { locked?: boolean; message?: string } | null; error: { message: string } | null }>;
+  };
+  const { data, error } = await client.rpc("update_match_details", args);
+  if (error) throw new Error(error.message);
+  if (data?.locked) {
+    toast.warning(
+      data.message ?? "This match is manually verified. Your change was logged and flagged for review.",
+    );
+    return false;
+  }
+  toast.success(successMessage);
+  return true;
+}
+
 const numToStr = (n: number | null | undefined) =>
   n === null || n === undefined ? "" : String(n);
 
@@ -1178,35 +1204,33 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
   const save = async () => {
     setSaving(true);
     try {
-      const client = supabase as unknown as {
-        rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
-      };
-      const { error } = await client.rpc("update_match_details", {
-        p_game_id: game.id,
-        p_end_round: endRound.trim() === "" ? null : Number(endRound),
-        p_board_version: board,
-        p_has_rise_of_ix: ix,
-        p_has_epic_mode: epic,
-        p_has_immortality: immo,
-        p_has_base_leaders: baseLeaders,
-        p_conflict_title: conflictTitle.trim() === "" ? null : conflictTitle.trim(),
-        p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
-        p_players: players.map((p) => ({
-          player_name: p.player_name,
-          spice: p.spice.trim() === "" ? null : Number(p.spice),
-          solaris: p.solaris.trim() === "" ? null : Number(p.solaris),
-          water: p.water.trim() === "" ? null : Number(p.water),
-          is_leaver: p.is_leaver,
-          player_color: p.player_color || null,
-          player_slot: p.player_slot.trim() === "" ? null : Number(p.player_slot),
-          turn_order: p.turn_order.trim() === "" ? null : Number(p.turn_order),
-          has_first_player: p.has_first_player,
-          has_high_council: p.has_high_council,
-          has_swordmaster: p.has_swordmaster,
-        })),
-      });
-      if (error) throw new Error(error.message);
-      toast.success("Match details updated!");
+      await saveMatchDetails(
+        {
+          p_game_id: game.id,
+          p_end_round: endRound.trim() === "" ? null : Number(endRound),
+          p_board_version: board,
+          p_has_rise_of_ix: ix,
+          p_has_epic_mode: epic,
+          p_has_immortality: immo,
+          p_has_base_leaders: baseLeaders,
+          p_conflict_title: conflictTitle.trim() === "" ? null : conflictTitle.trim(),
+          p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
+          p_players: players.map((p) => ({
+            player_name: p.player_name,
+            spice: p.spice.trim() === "" ? null : Number(p.spice),
+            solaris: p.solaris.trim() === "" ? null : Number(p.solaris),
+            water: p.water.trim() === "" ? null : Number(p.water),
+            is_leaver: p.is_leaver,
+            player_color: p.player_color || null,
+            player_slot: p.player_slot.trim() === "" ? null : Number(p.player_slot),
+            turn_order: p.turn_order.trim() === "" ? null : Number(p.turn_order),
+            has_first_player: p.has_first_player,
+            has_high_council: p.has_high_council,
+            has_swordmaster: p.has_swordmaster,
+          })),
+        },
+        "Match details updated!",
+      );
       setOpen(false);
       onSaved();
     } catch (e) {
@@ -1729,24 +1753,21 @@ function VerificationCard({
     setPlayers(next);
     setSaving(true);
     try {
-      const client = supabase as unknown as {
-        rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
-      };
-
-      const { error } = await client.rpc("update_match_details", {
-        p_game_id: game.id,
-        p_end_round: game.end_round,
-        p_board_version: game.board_version,
-        p_has_rise_of_ix: game.has_rise_of_ix,
-        p_has_epic_mode: game.has_epic_mode,
-        p_has_immortality: game.has_immortality,
-        p_has_base_leaders: game.has_base_leaders,
-        p_conflict_title: game.conflict_title,
-        p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
-        p_players: next.map(telemetryPayload),
-      });
-      if (error) throw new Error(error.message);
-      toast.success(message);
+      await saveMatchDetails(
+        {
+          p_game_id: game.id,
+          p_end_round: game.end_round,
+          p_board_version: game.board_version,
+          p_has_rise_of_ix: game.has_rise_of_ix,
+          p_has_epic_mode: game.has_epic_mode,
+          p_has_immortality: game.has_immortality,
+          p_has_base_leaders: game.has_base_leaders,
+          p_conflict_title: game.conflict_title,
+          p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
+          p_players: next.map(telemetryPayload),
+        },
+        message,
+      );
       onSaved();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save telemetry");
