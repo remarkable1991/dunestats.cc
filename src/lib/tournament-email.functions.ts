@@ -299,11 +299,23 @@ export const previewTournamentEmail = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context as any);
     const t = await loadTournament(data.tournament_num);
+    const url = await unsubscribeUrlFor((context as any).userId as string);
     return {
-      subject: fillTemplate(data.subject || DEFAULT_SUBJECT, t),
-      html: fillTemplate(data.html || DEFAULT_HTML, t),
+      subject: fillTemplate(data.subject || DEFAULT_SUBJECT, t, url),
+      html: fillTemplate(data.html || DEFAULT_HTML, t, url),
     };
   });
+
+async function unsubscribeUrlFor(userId: string | null | undefined): Promise<string> {
+  if (!userId) return `${SITE_URL}/profile`;
+  try {
+    const { signUnsubscribe } = await import("./unsubscribe.server");
+    const token = await signUnsubscribe(userId);
+    return `${SITE_URL}/unsubscribe?uid=${encodeURIComponent(userId)}&token=${token}`;
+  } catch {
+    return `${SITE_URL}/profile`;
+  }
+}
 
 /** Send the tournament email to a test address, subscribers, or everyone. */
 export const sendTournamentEmail = createServerFn({ method: "POST" })
@@ -328,24 +340,31 @@ export const sendTournamentEmail = createServerFn({ method: "POST" })
 
     const t = await loadTournament(data.tournament_num);
     const subject = fillTemplate(data.subject || DEFAULT_SUBJECT, t);
-    const html = fillTemplate(data.html || DEFAULT_HTML, t);
 
-    let emails: string[];
+    let recipients: Recipient[];
     if (data.audience === "test") {
       const to = data.test_email ?? (context as any).claims?.email;
       if (!to) throw new Error("No test email address available");
-      emails = [to];
+      recipients = [{ id: (context as any).userId as string, email: to }];
     } else {
-      emails = (await audienceRecipients(data.audience)).map((r) => r.email);
+      recipients = await audienceRecipients(data.audience);
     }
-    if (emails.length === 0) return { ok: true, sent: 0, failed: 0 };
+    if (recipients.length === 0) return { ok: true, sent: 0, failed: 0 };
 
     let sent = 0;
     let failed = 0;
     let lastError = "";
     const chunkSize = 50;
-    for (let i = 0; i < emails.length; i += chunkSize) {
-      const chunk = emails.slice(i, i + chunkSize);
+    for (let i = 0; i < recipients.length; i += chunkSize) {
+      const chunk = recipients.slice(i, i + chunkSize);
+      const payload = await Promise.all(
+        chunk.map(async (r) => ({
+          from: FROM,
+          to: [r.email],
+          subject,
+          html: fillTemplate(data.html || DEFAULT_HTML, t, await unsubscribeUrlFor(r.id)),
+        })),
+      );
       const res = await fetch("https://connector-gateway.lovable.dev/resend/emails/batch", {
         method: "POST",
         headers: {
@@ -353,7 +372,7 @@ export const sendTournamentEmail = createServerFn({ method: "POST" })
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
           "X-Connection-Api-Key": RESEND_API_KEY,
         },
-        body: JSON.stringify(chunk.map((to) => ({ from: FROM, to: [to], subject, html }))),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         sent += chunk.length;
