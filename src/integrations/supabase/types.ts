@@ -1507,7 +1507,14 @@ export type Database = {
           }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user" | "lfg_admin"
+      app_role:
+        | "admin"
+        | "moderator"
+        | "user"
+        | "lfg_admin"
+        | "tournament_host"
+        | "tournament_moderator"
+        | "match_moderator"
       game_version: "base" | "ix" | "uprising" | "overall"
     }
     CompositeTypes: {
@@ -1636,7 +1643,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user", "lfg_admin"],
+      app_role: [
+        "admin",
+        "moderator",
+        "user",
+        "lfg_admin",
+        "tournament_host",
+        "tournament_moderator",
+        "match_moderator",
+      ],
       game_version: ["base", "ix", "uprising", "overall"],
     },
   },
