@@ -4,10 +4,27 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const TEMPLATE_ID = "tournament_announcement";
 const SITE_URL = "https://dunestats.cc";
-const FROM = "Dune Stats <notifications@dunestats.cc>";
+const FROM = "Strategy Arena <notifications@dunestats.cc>";
 const LOGO_URL = `${SITE_URL}/favicon.ico`;
 
 export const DEFAULT_SUBJECT = "⚔️ Tournament {{tournament_num}}: {{tournament_name}}";
+export const DEFAULT_PREVIEW_TEXT =
+  "Registration and details for Tournament {{tournament_num}}: {{tournament_name}}.";
+export const DEFAULT_TEXT = `{{info_title}}
+
+Tournament {{tournament_num}}
+Format: {{format_text}}
+Dates: {{start_date}} to {{end_date}}
+
+{{info_text}}
+
+{{prizes_text}}
+
+View tournament: {{register_url}}
+Manage email preferences: {{profile_url}}
+Unsubscribe: {{unsubscribe_url}}
+
+Strategy Arena · {{site_url}}`;
 
 export const DEFAULT_HTML = `<div style="margin:0;padding:24px 0;background:#121214;font-family:Arial,Helvetica,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#1a1a1d;border:1px solid #2c2c31;border-radius:12px;overflow:hidden;">
@@ -190,6 +207,39 @@ function fillTemplate(tpl: string, t: TournamentRow, unsubscribeUrl = `${SITE_UR
   return tpl.replace(/\{\{\s*([a-z_0-9]+)\s*\}\}/gi, (m, key: string) => values[key.toLowerCase()] ?? m);
 }
 
+function fillTextTemplate(tpl: string, t: TournamentRow, unsubscribeUrl = `${SITE_URL}/profile`): string {
+  const prizes = [t.prizes_summary, t.prizes_text]
+    .filter((value) => value?.trim())
+    .map((value) => String(value).trim())
+    .join("\n\n");
+  const values: Record<string, string> = {
+    tournament_num: String(t.tournament_num),
+    tournament_name: t.name,
+    info_title: t.info_title?.trim() || t.name,
+    info_text: t.info_text ?? "",
+    prizes_summary: t.prizes_summary ?? "",
+    prizes_text: prizes,
+    format: formatMode(t),
+    format_text: formatMode(t),
+    start_date: longDate(t.start_date),
+    end_date: longDate(t.end_date),
+    start_date_raw: t.start_date,
+    end_date_raw: t.end_date,
+    site_url: SITE_URL,
+    register_url: `${SITE_URL}/tournament`,
+    profile_url: `${SITE_URL}/profile`,
+    unsubscribe_url: unsubscribeUrl,
+    year: String(new Date().getFullYear()),
+  };
+  return tpl.replace(/\{\{\s*([a-z_0-9]+)\s*\}\}/gi, (match, key: string) => values[key.toLowerCase()] ?? match);
+}
+
+function withPreheader(html: string, previewText: string): string {
+  if (!previewText.trim()) return html;
+  const preheader = `<div style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;max-height:0;max-width:0;overflow:hidden;mso-hide:all;">${escapeHtml(previewText)}</div>`;
+  return `${preheader}${html}`;
+}
+
 async function assertAdmin(context: { supabase: any; userId: string }) {
   const { data, error } = await context.supabase.rpc("has_role", {
     _user_id: context.userId,
@@ -246,7 +296,7 @@ export const getTournamentEmailSetup = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await supabaseAdmin
       .from("email_templates")
-      .select("subject_template, html_template")
+      .select("subject_template, html_template, preview_text_template, text_template")
       .eq("id", TEMPLATE_ID)
       .maybeSingle();
 
@@ -255,10 +305,17 @@ export const getTournamentEmailSetup = createServerFn({ method: "POST" })
       audienceRecipients("subscribed"),
     ]);
 
-    const row = data as { subject_template?: string; html_template?: string } | null;
+    const row = data as {
+      subject_template?: string;
+      html_template?: string;
+      preview_text_template?: string | null;
+      text_template?: string | null;
+    } | null;
     return {
       subject: row?.subject_template?.trim() ? row.subject_template : DEFAULT_SUBJECT,
       html: row?.html_template?.trim() ? row.html_template : DEFAULT_HTML,
+      previewText: row?.preview_text_template?.trim() ? row.preview_text_template : DEFAULT_PREVIEW_TEXT,
+      text: row?.text_template?.trim() ? row.text_template : DEFAULT_TEXT,
       counts: { all: all.length, subscribed: subscribed.length },
       adminEmail: (context as any).claims?.email ?? "",
     };
@@ -268,7 +325,14 @@ export const getTournamentEmailSetup = createServerFn({ method: "POST" })
 export const saveTournamentTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({ subject: z.string().trim().min(1).max(300), html: z.string().min(1).max(200000) }).parse(d),
+    z
+      .object({
+        subject: z.string().trim().min(1).max(300),
+        previewText: z.string().max(500),
+        text: z.string().max(100000),
+        html: z.string().min(1).max(200000),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context as any);
@@ -276,6 +340,8 @@ export const saveTournamentTemplate = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.from("email_templates").upsert({
       id: TEMPLATE_ID,
       subject_template: data.subject,
+      preview_text_template: data.previewText,
+      text_template: data.text,
       html_template: data.html,
       updated_by: (context as any).userId,
       updated_at: new Date().toISOString(),
@@ -292,6 +358,8 @@ export const previewTournamentEmail = createServerFn({ method: "POST" })
       .object({
         tournament_num: z.number().int(),
         subject: z.string().max(300),
+        previewText: z.string().max(500),
+        text: z.string().max(100000),
         html: z.string().max(200000),
       })
       .parse(d),
@@ -300,9 +368,12 @@ export const previewTournamentEmail = createServerFn({ method: "POST" })
     await assertAdmin(context as any);
     const t = await loadTournament(data.tournament_num);
     const url = await unsubscribeUrlFor((context as any).userId as string);
+    const previewText = fillTextTemplate(data.previewText || DEFAULT_PREVIEW_TEXT, t, url);
     return {
       subject: fillTemplate(data.subject || DEFAULT_SUBJECT, t, url),
-      html: fillTemplate(data.html || DEFAULT_HTML, t, url),
+      previewText,
+      text: fillTextTemplate(data.text || DEFAULT_TEXT, t, url),
+      html: withPreheader(fillTemplate(data.html || DEFAULT_HTML, t, url), previewText),
     };
   });
 
@@ -325,6 +396,8 @@ export const sendTournamentEmail = createServerFn({ method: "POST" })
       .object({
         tournament_num: z.number().int(),
         subject: z.string().max(300),
+        previewText: z.string().max(500),
+        text: z.string().max(100000),
         html: z.string().max(200000),
         audience: z.enum(["test", "subscribed", "all"]),
         test_email: z.string().trim().email().max(255).optional(),
@@ -358,12 +431,17 @@ export const sendTournamentEmail = createServerFn({ method: "POST" })
     for (let i = 0; i < recipients.length; i += chunkSize) {
       const chunk = recipients.slice(i, i + chunkSize);
       const payload = await Promise.all(
-        chunk.map(async (r) => ({
-          from: FROM,
-          to: [r.email],
-          subject,
-          html: fillTemplate(data.html || DEFAULT_HTML, t, await unsubscribeUrlFor(r.id)),
-        })),
+        chunk.map(async (r) => {
+          const unsubscribeUrl = await unsubscribeUrlFor(r.id);
+          const previewText = fillTextTemplate(data.previewText || DEFAULT_PREVIEW_TEXT, t, unsubscribeUrl);
+          return {
+            from: FROM,
+            to: [r.email],
+            subject,
+            text: fillTextTemplate(data.text || DEFAULT_TEXT, t, unsubscribeUrl),
+            html: withPreheader(fillTemplate(data.html || DEFAULT_HTML, t, unsubscribeUrl), previewText),
+          };
+        }),
       );
       const res = await fetch("https://connector-gateway.lovable.dev/resend/emails/batch", {
         method: "POST",
