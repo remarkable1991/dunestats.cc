@@ -208,11 +208,13 @@ function MatchDetailsPage() {
         supabase.from("player_ratings").select("player_key").eq("claimed_by", uid),
       ]);
       if (cancelled) return;
-      const isAdmin = (roles ?? []).some((r) => r.role === "admin");
+      // Admins and match moderators may edit any match, verified or not.
+      const staff = (roles ?? []).some((r) => r.role === "admin" || r.role === "match_moderator");
       const mine = new Set<string>();
       if (prof?.username) mine.add(prof.username.toLowerCase().trim());
       (claimed ?? []).forEach((r) => r.player_key && mine.add(r.player_key.toLowerCase().trim()));
-      setCanEdit(isAdmin || [...mine].some((n) => names.has(n)));
+      setIsMatchStaff(staff);
+      setCanEdit(staff || [...mine].some((n) => names.has(n)));
     })();
     return () => { cancelled = true; };
   }, [game?.id]);
@@ -500,10 +502,15 @@ function MatchDetailsPage() {
               ✓ Manually Verified
             </span>
           )}
-          {canEdit && game.ai_scan_status !== "Manually verified" && (
+          {isMatchStaff && game.ai_scan_status !== "Manually verified" && (
             <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => void markVerified()}>
               Manually verified completed
             </Button>
+          )}
+          {canEdit && !isMatchStaff && game.ai_scan_status === "Manually verified" && (
+            <span className="text-xs px-2 py-0.5 rounded border border-amber-500/50 bg-amber-500/10 text-amber-400">
+              Locked — changes are reported to a moderator
+            </span>
           )}
           {game.ai_scan_status === "Issue detected" && (
             <span
