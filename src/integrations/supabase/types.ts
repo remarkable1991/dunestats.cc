@@ -1265,6 +1265,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_list_user_roles: { Args: { p_user_id: string }; Returns: string[] }
       admin_set_table_roster: {
         Args: {
           p_players: Json
@@ -1272,6 +1273,10 @@ export type Database = {
           p_table_identifier: string
           p_tournament_num: number
         }
+        Returns: Json
+      }
+      admin_set_user_role: {
+        Args: { p_enabled: boolean; p_role: string; p_user_id: string }
         Returns: Json
       }
       approve_pending_tournament_match: {
@@ -1359,6 +1364,9 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_match_staff: { Args: { _uid: string }; Returns: boolean }
+      is_tournament_host: { Args: { _uid: string }; Returns: boolean }
+      is_tournament_moderator: { Args: { _uid: string }; Returns: boolean }
       lfg_add_guest: { Args: { p_id: number; p_name: string }; Returns: Json }
       lfg_create_lobby:
         | {
@@ -1411,6 +1419,7 @@ export type Database = {
         Returns: Json
       }
       match_actor_name: { Args: { _uid: string }; Returns: string }
+      my_roles: { Args: never; Returns: string[] }
       promote_to_grandfinal: {
         Args: { p_players: string[]; p_tournament_num: number }
         Returns: Json
