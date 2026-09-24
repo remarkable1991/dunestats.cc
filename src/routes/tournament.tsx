@@ -66,9 +66,11 @@ import {
   bracketPlan,
   seedSemiTables,
   formatLongDate,
+  isInCheckin,
   registrationClosesAt,
   tournamentDayCount,
 } from "@/lib/tournaments";
+import { TournamentCheckin } from "@/components/TournamentCheckin";
 
 import { AvailabilityHeatmap, type HeatmapPlayer } from "@/components/AvailabilityHeatmap";
 import { TableScheduleControls } from "@/components/TableScheduleControls";
