@@ -431,7 +431,7 @@ function MatchDetailsPage() {
             has_swordmaster: r.has_swordmaster,
           })),
         },
-        "Marked as manually verified",
+        status === "No" ? "Status reset to no scan" : "Marked as manually verified",
       );
       setReloadKey((k) => k + 1);
     } catch (e) {
