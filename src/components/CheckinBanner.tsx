@@ -177,11 +177,14 @@ export function CheckinBanner() {
                   </p>
                 </div>
               </div>
-              <Button asChild className="bg-emerald-600 text-white hover:bg-emerald-600/90">
-                <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
-                  Check in on Discord
-                </a>
-              </Button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <WebsiteCheckinAction tournamentNum={t.tournament_num} />
+                <Button asChild variant="outline" className="border-emerald-500/60 text-emerald-300 hover:bg-emerald-500/10">
+                  <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
+                    Check in on Discord
+                  </a>
+                </Button>
+              </div>
             </div>
 
             <p className="text-sm text-muted-foreground">
