@@ -1063,11 +1063,14 @@ export type Database = {
         Row: {
           active_on_discord: boolean
           availability: Json
+          check_in_method: string | null
+          checked_in_at: string | null
           consents: Json
           created_at: string
           direwolf_name: string
           discord_username: string
           email: string | null
+          has_checked_in: boolean | null
           id: string
           owns_expansions: boolean
           timezone: string | null
@@ -1078,11 +1081,14 @@ export type Database = {
         Insert: {
           active_on_discord?: boolean
           availability?: Json
+          check_in_method?: string | null
+          checked_in_at?: string | null
           consents?: Json
           created_at?: string
           direwolf_name: string
           discord_username: string
           email?: string | null
+          has_checked_in?: boolean | null
           id?: string
           owns_expansions?: boolean
           timezone?: string | null
@@ -1093,11 +1099,14 @@ export type Database = {
         Update: {
           active_on_discord?: boolean
           availability?: Json
+          check_in_method?: string | null
+          checked_in_at?: string | null
           consents?: Json
           created_at?: string
           direwolf_name?: string
           discord_username?: string
           email?: string | null
+          has_checked_in?: boolean | null
           id?: string
           owns_expansions?: boolean
           timezone?: string | null
