@@ -354,7 +354,7 @@ function MatchDetailsPage() {
           p_has_immortality: game.has_immortality,
           p_has_base_leaders: game.has_base_leaders,
           p_conflict_title: game.conflict_title,
-          p_ai_scan_status: manualReviewStatus(game.ai_scan_status, game.tournament_num),
+          p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
           p_players: game.game_results.map((r) => ({
             player_name: r.player_name,
             spice: r.spice,
@@ -393,7 +393,7 @@ function MatchDetailsPage() {
           p_has_immortality: game.has_immortality,
           p_has_base_leaders: game.has_base_leaders,
           p_conflict_title: game.conflict_title,
-          p_ai_scan_status: manualReviewStatus(game.ai_scan_status, game.tournament_num),
+          p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
           p_players: next.map(telemetryPayload),
         },
         message,
@@ -404,7 +404,7 @@ function MatchDetailsPage() {
     }
   };
 
-  const markVerified = async () => {
+  const markVerified = async (status: "Manually verified" | "No" = "Manually verified") => {
     try {
       await saveMatchDetails(
         {
@@ -416,7 +416,7 @@ function MatchDetailsPage() {
           p_has_immortality: game.has_immortality,
           p_has_base_leaders: game.has_base_leaders,
           p_conflict_title: game.conflict_title,
-          p_ai_scan_status: "Manually verified",
+          p_ai_scan_status: status,
           p_players: game.game_results.map((r) => ({
             player_name: r.player_name,
             spice: r.spice,
@@ -431,7 +431,7 @@ function MatchDetailsPage() {
             has_swordmaster: r.has_swordmaster,
           })),
         },
-        "Marked as manually verified",
+        status === "No" ? "Status reset to no scan" : "Marked as manually verified",
       );
       setReloadKey((k) => k + 1);
     } catch (e) {
@@ -505,6 +505,17 @@ function MatchDetailsPage() {
           {isMatchStaff && game.ai_scan_status !== "Manually verified" && (
             <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => void markVerified()}>
               Manually verified completed
+            </Button>
+          )}
+          {isMatchStaff && game.ai_scan_status && game.ai_scan_status !== "No" && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-xs text-muted-foreground"
+              title="Reset the status to 'No scan' (e.g. when someone edited this match by mistake)"
+              onClick={() => void markVerified("No")}
+            >
+              Set to no scan
             </Button>
           )}
           {canEdit && !isMatchStaff && game.ai_scan_status === "Manually verified" && (
@@ -1109,11 +1120,11 @@ type PlayerForm = {
 };
 
 /**
- * Any manual change to a non-tournament match marks it as "Manually reviewed"; tournament games keep their status.
+ * Any manual change to a match marks it as "Manually reviewed".
  * A match already confirmed complete ("Manually verified") stays that way.
  */
-const manualReviewStatus = (status: string | null | undefined, tournamentNum?: number | null) =>
-  status === "Manually verified" || tournamentNum != null ? null : "Manually reviewed";
+const manualReviewStatus = (status: string | null | undefined) =>
+  status === "Manually verified" ? null : "Manually reviewed";
 
 /**
  * Saves match details. Returns false when the match is locked (already
@@ -1214,7 +1225,7 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
           p_has_immortality: immo,
           p_has_base_leaders: baseLeaders,
           p_conflict_title: conflictTitle.trim() === "" ? null : conflictTitle.trim(),
-          p_ai_scan_status: manualReviewStatus(game.ai_scan_status, game.tournament_num),
+          p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
           p_players: players.map((p) => ({
             player_name: p.player_name,
             spice: p.spice.trim() === "" ? null : Number(p.spice),
@@ -1763,7 +1774,7 @@ function VerificationCard({
           p_has_immortality: game.has_immortality,
           p_has_base_leaders: game.has_base_leaders,
           p_conflict_title: game.conflict_title,
-          p_ai_scan_status: manualReviewStatus(game.ai_scan_status, game.tournament_num),
+          p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
           p_players: next.map(telemetryPayload),
         },
         message,
