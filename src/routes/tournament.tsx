@@ -1851,6 +1851,8 @@ function FutureTournaments() {
             Check-in opens {checkinStart(t).toLocaleString()} · Tournament starts 24 hours later · Minimum availability{" "}
             {t.required_availability_pct}% overall and {t.required_weekly_pct}% per week
           </div>
+
+          {isInCheckin(t) ? <TournamentCheckin tournamentNum={t.tournament_num} /> : null}
         </Card>
       ))}
     </div>
