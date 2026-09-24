@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlarmClock } from "lucide-react";
+import { AlarmClock, CheckCircle2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { DISCORD_INVITE_URL } from "@/lib/tournament-config";
 import {
   type TournamentConfig,
