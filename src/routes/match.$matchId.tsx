@@ -404,7 +404,7 @@ function MatchDetailsPage() {
     }
   };
 
-  const markVerified = async () => {
+  const markVerified = async (status: "Manually verified" | "No" = "Manually verified") => {
     try {
       await saveMatchDetails(
         {
@@ -416,7 +416,7 @@ function MatchDetailsPage() {
           p_has_immortality: game.has_immortality,
           p_has_base_leaders: game.has_base_leaders,
           p_conflict_title: game.conflict_title,
-          p_ai_scan_status: "Manually verified",
+          p_ai_scan_status: status,
           p_players: game.game_results.map((r) => ({
             player_name: r.player_name,
             spice: r.spice,
@@ -505,6 +505,17 @@ function MatchDetailsPage() {
           {isMatchStaff && game.ai_scan_status !== "Manually verified" && (
             <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => void markVerified()}>
               Manually verified completed
+            </Button>
+          )}
+          {isMatchStaff && game.ai_scan_status && game.ai_scan_status !== "No" && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-xs text-muted-foreground"
+              title="Reset the status to 'No scan' (e.g. when someone edited this match by mistake)"
+              onClick={() => void markVerified("No")}
+            >
+              Set to no scan
             </Button>
           )}
           {canEdit && !isMatchStaff && game.ai_scan_status === "Manually verified" && (
