@@ -1689,8 +1689,8 @@ function TournamentPage() {
     let cancelled = false;
     void (async () => {
       const [{ count: live }, { count: past }] = await Promise.all([
-        supabase.from("tournament_matches").select("id", { count: "exact", head: true }).eq("tournament_num", t),
-        supabase.from("past_tournament_results").select("id", { count: "exact", head: true }).eq("tournament_num", t),
+        supabase.from("tournament_matches").select("tournament_num", { count: "exact", head: true }).eq("tournament_num", t),
+        supabase.from("past_tournament_results").select("tournament_num", { count: "exact", head: true }).eq("tournament_num", t),
       ]);
       if (cancelled) return;
       if (!live && past) {
@@ -2177,6 +2177,7 @@ function PreviousTournaments() {
   const [rows, setRows] = useState<PastRow[]>([]);
   const [loading, setLoading] = useState(true);
   const prevSearch = Route.useSearch();
+  const prevNavigate = Route.useNavigate();
   const [selected, setSelected] = useState<number | null>(prevSearch.t ?? null);
 
   const [, setModesLoaded] = useState(0);
@@ -2248,7 +2249,15 @@ function PreviousTournaments() {
       setSelected(null);
       return null;
     }
-    return <TournamentDeepDive tournament={t} onBack={() => setSelected(null)} />;
+    return (
+      <TournamentDeepDive
+        tournament={t}
+        onBack={() => {
+          setSelected(null);
+          void prevNavigate({ search: { t: undefined, round: undefined, table: undefined } });
+        }}
+      />
+    );
   }
 
   return (
