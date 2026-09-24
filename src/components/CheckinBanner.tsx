@@ -66,7 +66,11 @@ function WebsiteCheckinAction({ tournamentNum }: { tournamentNum: number }) {
 
   if (status === "loading" || status === "hidden") return null;
 
-  async function checkIn(patch: Record<string, unknown>) {
+  async function checkIn(patch: {
+    has_checked_in?: boolean;
+    check_in_method?: string;
+    checked_in_at?: string;
+  }) {
     setSubmitting(true);
     const { data: auth } = await supabase.auth.getUser();
     const uid = auth.user?.id;
