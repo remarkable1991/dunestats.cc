@@ -1682,6 +1682,27 @@ function TournamentPage() {
   const [prev, setPrev] = useState<TopTab>("current");
   const dir = TAB_ORDER.indexOf(tab) - TAB_ORDER.indexOf(prev); // +1 right, -1 left
 
+  const pageSearch = Route.useSearch();
+  useEffect(() => {
+    const t = pageSearch.t;
+    if (t == null || !Number.isFinite(t)) return;
+    let cancelled = false;
+    void (async () => {
+      const [{ count: live }, { count: past }] = await Promise.all([
+        supabase.from("tournament_matches").select("tournament_num", { count: "exact", head: true }).eq("tournament_num", t),
+        supabase.from("past_tournament_results").select("tournament_num", { count: "exact", head: true }).eq("tournament_num", t),
+      ]);
+      if (cancelled) return;
+      if (!live && past) {
+        setPrev("current");
+        setTab("previous");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pageSearch.t]);
+
   const switchTo = (next: TopTab) => {
     if (next === tab) return;
     setPrev(tab);
@@ -2155,7 +2176,9 @@ function PlayerLink({ name, className }: { name: string; className?: string }) {
 function PreviousTournaments() {
   const [rows, setRows] = useState<PastRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<number | null>(null);
+  const prevSearch = Route.useSearch();
+  const prevNavigate = Route.useNavigate();
+  const [selected, setSelected] = useState<number | null>(prevSearch.t ?? null);
 
   const [, setModesLoaded] = useState(0);
   useEffect(() => {
@@ -2226,7 +2249,15 @@ function PreviousTournaments() {
       setSelected(null);
       return null;
     }
-    return <TournamentDeepDive tournament={t} onBack={() => setSelected(null)} />;
+    return (
+      <TournamentDeepDive
+        tournament={t}
+        onBack={() => {
+          setSelected(null);
+          void prevNavigate({ search: { t: undefined, round: undefined, table: undefined } });
+        }}
+      />
+    );
   }
 
   return (
