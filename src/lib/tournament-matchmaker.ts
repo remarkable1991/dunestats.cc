@@ -20,17 +20,21 @@ export type MatchmakerSettings = {
   patience: number;
   initialTemperature: number;
   coolingRate: number;
+  startStage: number;
+  quickProbeSeeds: number;
 };
 
 export type Strategy = {
   minSlots: number;
   spacing: number;
   nearMode: "none" | "backup_only" | "full";
+  minPairHours: number;
+  proximityBlocks: number;
   name: string;
   detail: string;
 };
 
-export type SuggestedSlot = { index: number; type: "perfect" | "near"; missing: string | null };
+export type SuggestedSlot = { index: number; type: "perfect" | "near"; missing: string | null; gap: number | null };
 export type MatchmakerTable = {
   round: number;
   table: number;
@@ -38,6 +42,7 @@ export type MatchmakerTable = {
   slots: SuggestedSlot[];
   averageSharedHours: number;
   playerCompatibility: Record<string, number>;
+  broken: boolean;
 };
 export type MatchmakerCandidate = {
   strategyIndex: number;
@@ -60,12 +65,12 @@ export type MatchmakerProgress = {
 };
 
 export const STRATEGIES: Strategy[] = [
-  { minSlots: 2, spacing: 20, nearMode: "none", name: "Strict", detail: "2+ unanimous slots · 10h spacing" },
-  { minSlots: 1, spacing: 20, nearMode: "none", name: "Wide spacing", detail: "1+ unanimous slot · 10h spacing" },
-  { minSlots: 1, spacing: 4, nearMode: "none", name: "Tight spacing", detail: "1+ unanimous slot · 2h spacing" },
-  { minSlots: 1, spacing: 20, nearMode: "backup_only", name: "Wide backup", detail: "First unanimous · backups 3/4 · 10h spacing" },
-  { minSlots: 1, spacing: 4, nearMode: "backup_only", name: "Hybrid", detail: "First unanimous · backups may be 3/4" },
-  { minSlots: 2, spacing: 4, nearMode: "full", name: "Near match", detail: "2+ slots · true 3/4 options allowed" },
+  { minSlots: 2, spacing: 20, nearMode: "none", minPairHours: 2, proximityBlocks: 0, name: "Strict", detail: "2+ unanimous slots · 10h gap" },
+  { minSlots: 1, spacing: 20, nearMode: "none", minPairHours: 2, proximityBlocks: 0, name: "Wide spacing", detail: "1+ unanimous slot · 10h gap" },
+  { minSlots: 1, spacing: 4, nearMode: "none", minPairHours: 2, proximityBlocks: 0, name: "Tight spacing", detail: "1+ unanimous slot · 2h gap" },
+  { minSlots: 1, spacing: 4, nearMode: "backup_only", minPairHours: 2, proximityBlocks: 3, name: "Hybrid", detail: "Slot A unanimous · backups 3/4 within ±90m" },
+  { minSlots: 1, spacing: 4, nearMode: "full", minPairHours: 2, proximityBlocks: 3, name: "Realistic 3/4", detail: "2h pair floor · 3/4 if missing player within ±90m" },
+  { minSlots: 1, spacing: 4, nearMode: "full", minPairHours: 0.5, proximityBlocks: 6, name: "Emergency", detail: "0.5h pair floor · missing player within ±3h" },
 ];
 
 export function availabilityOf(value: unknown): string[] {
@@ -189,53 +194,71 @@ function prepare(rows: MatchmakerRegistration[], settings: MatchmakerSettings): 
 function evaluate(template: number[][][], mapping: string[], prepared: Prepared, strategy: Strategy, targetSlots: number) {
   const busy = new Map(mapping.map((player) => [player, new Set<number>()]));
   const tables: MatchmakerTable[] = [];
+  const len = prepared.timeline.length;
+  const has = (player: string, i: number) => prepared.available.get(player)?.has(prepared.timeline[i]) ?? false;
+  const freeAt = (player: string, i: number) => [0, 1, 2, 3].every((o) => has(player, i + o));
+  const isBusy = (players: string[], i: number) => players.some((p) => [0, 1, 2, 3].some((o) => busy.get(p)?.has(i + o)));
   let score = 0;
   let brokenTables = 0;
   for (let round = 0; round < template.length; round++) {
     for (let table = 0; table < template[round].length; table++) {
       const players = template[round][table].map((index) => mapping[index]);
-      const selected: SuggestedSlot[] = [];
-      for (let i = 0; i <= prepared.timeline.length - 4 && selected.length < targetSlots; i++) {
-        const block = [0, 1, 2, 3].map((offset) => prepared.timeline[i + offset]);
-        const free = players.filter((player) => block.every((slot) => prepared.available.get(player)?.has(slot)));
-        const overlaps = players.some((player) => block.some((slot) => busy.get(player)?.has(slot)));
-        const spaced = selected.every((slot) => Math.abs(i - slot.index) >= strategy.spacing);
-        if (free.length === 4 && !overlaps && spaced) selected.push({ index: i, type: "perfect", missing: null });
+      const hours = pairsOf(players).map(([a, b]) => prepared.pairHours.get(`${a}\u0001${b}`) ?? 0);
+      const average = hours.reduce((sum, value) => sum + value, 0) / Math.max(1, hours.length);
+      const playerCompatibility = Object.fromEntries(players.map((player) => {
+        const values = players.filter((other) => other !== player).map((other) => prepared.pairHours.get(`${player}\u0001${other}`) ?? 0);
+        return [player, Number((values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length)).toFixed(1))];
+      }));
+      const push = (slots: SuggestedSlot[], broken: boolean) => tables.push({ round: round + 1, table: table + 1, players, slots, averageSharedHours: Number(average.toFixed(1)), playerCompatibility, broken });
+      if (hours.some((h) => h < strategy.minPairHours)) {
+        brokenTables++; score -= 6000; push([], true); continue;
       }
-      const allowNear = strategy.nearMode === "full" || (strategy.nearMode === "backup_only" && selected.length > 0);
-      if (allowNear && selected.length < targetSlots) {
+      const selected: SuggestedSlot[] = [];
+      for (let i = 0; i <= len - 4 && selected.length < targetSlots; i++) {
+        if (!players.every((p) => freeAt(p, i)) || isBusy(players, i)) continue;
+        if (selected.some((slot) => Math.abs(i - slot.index) < strategy.spacing)) continue;
+        selected.push({ index: i, type: "perfect", missing: null, gap: null });
+      }
+      const allowNear = selected.length < targetSlots && (strategy.nearMode === "full" || (strategy.nearMode === "backup_only" && selected.length > 0));
+      if (allowNear) {
         const near: SuggestedSlot[] = [];
-        for (let i = 0; i <= prepared.timeline.length - 4; i++) {
-          const block = [0, 1, 2, 3].map((offset) => prepared.timeline[i + offset]);
-          if (players.some((player) => block.some((slot) => busy.get(player)?.has(slot)))) continue;
-          const free = players.filter((player) => block.every((slot) => prepared.available.get(player)?.has(slot)));
-          if (free.length === 3) near.push({ index: i, type: "near", missing: players.find((player) => !free.includes(player)) ?? null });
+        for (let i = 0; i <= len - 4; i++) {
+          if (isBusy(players, i)) continue;
+          const missingList = players.filter((p) => !freeAt(p, i));
+          if (missingList.length !== 1) continue;
+          const missing = missingList[0];
+          if (strategy.proximityBlocks > 0) {
+            let nearby = 0;
+            for (let j = Math.max(0, i - strategy.proximityBlocks); j < Math.min(len, i + 4 + strategy.proximityBlocks); j++) if (has(missing, j)) nearby++;
+            if (nearby < 2) continue;
+          }
+          let gapBlocks = 999;
+          for (let j = Math.max(0, i - 12); j < Math.min(len, i + 16); j++) {
+            if (!has(missing, j)) continue;
+            const dist = j < i ? i - j : j > i + 3 ? j - (i + 3) : 0;
+            if (dist < gapBlocks) gapBlocks = dist;
+          }
+          near.push({ index: i, type: "near", missing, gap: gapBlocks * 0.5 });
         }
         for (const preferUnique of [true, false]) {
           for (const slot of near) {
             if (selected.length >= targetSlots) break;
             if (selected.some((other) => Math.abs(other.index - slot.index) < strategy.spacing)) continue;
-            if (preferUnique && selected.some((other) => other.missing === slot.missing)) continue;
+            if (preferUnique && selected.some((other) => other.missing != null && other.missing === slot.missing)) continue;
             selected.push(slot);
           }
         }
       }
       const perfect = selected.filter((slot) => slot.type === "perfect").length;
-      const hours = pairsOf(players).map(([a, b]) => prepared.pairHours.get(`${a}\u0001${b}`) ?? 0);
-      const average = hours.reduce((sum, value) => sum + value, 0) / Math.max(1, hours.length);
-      const minimum = Math.min(...hours);
       const broken = selected.length < strategy.minSlots || (strategy.nearMode === "backup_only" && perfect === 0);
       if (broken) { brokenTables++; score -= 500; }
       else {
-        const averagePosition = selected.reduce((sum, slot) => sum + slot.index, 0) / Math.max(1, selected.length) / prepared.timeline.length;
-        score += 70 * perfect + 30 * (selected.length - perfect) + Math.trunc((1 - averagePosition) * 20) + Math.trunc(Math.min(40, average * 2) - Math.max(0, 4 - minimum) * 5);
-        selected.forEach((slot) => players.forEach((player) => [0, 1, 2, 3].forEach((offset) => busy.get(player)?.add(prepared.timeline[slot.index + offset]))));
+        const averagePosition = selected.reduce((sum, slot) => sum + slot.index, 0) / Math.max(1, selected.length) / len;
+        score += 70 * perfect + 30 * (selected.length - perfect) + Math.trunc((1 - averagePosition) * 20) + Math.trunc(average * 2);
+        // Only the first slot is locked, to avoid ghost-booking later rounds.
+        if (selected.length) players.forEach((player) => [0, 1, 2, 3].forEach((o) => busy.get(player)?.add(selected[0].index + o)));
       }
-      const playerCompatibility = Object.fromEntries(players.map((player) => {
-        const values = players.filter((other) => other !== player).map((other) => prepared.pairHours.get(`${player}\u0001${other}`) ?? 0);
-        return [player, Number((values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length)).toFixed(1))];
-      }));
-      tables.push({ round: round + 1, table: table + 1, players, slots: selected, averageSharedHours: Number(average.toFixed(1)), playerCompatibility });
+      push(selected, broken);
     }
   }
   return { score: score - brokenTables * 5000, brokenTables, tables };
@@ -250,7 +273,20 @@ export async function runMatchmaker(
   const prepared = prepare(rows, settings);
   let bestAcrossLevels: MatchmakerCandidate | null = null;
   const historical: { template: number[][][]; mapping: string[] }[] = [];
-  for (let strategyIndex = 0; strategyIndex < STRATEGIES.length; strategyIndex++) {
+  const startIndex = Math.min(STRATEGIES.length - 1, Math.max(0, settings.startStage - 1));
+  // Quick probe of earlier stages to build warm-start memory when skipping ahead.
+  for (let probe = 0; probe < startIndex; probe++) {
+    for (let i = 0; i < settings.quickProbeSeeds; i++) {
+      if (isCancelled()) return null;
+      const template = socialGolfer(prepared.players.length);
+      if (!template) break;
+      const mapping = shuffle(prepared.players);
+      const result = evaluate(template, mapping, prepared, STRATEGIES[probe], settings.targetSlots);
+      if (result.brokenTables <= 3) historical.push({ template, mapping });
+    }
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+  }
+  for (let strategyIndex = startIndex; strategyIndex < STRATEGIES.length; strategyIndex++) {
     const strategy = STRATEGIES[strategyIndex];
     let levelBest: MatchmakerCandidate | null = null;
     let stagnant = 0;
@@ -301,7 +337,7 @@ export async function runMatchmaker(
         stagnant = 0;
         if (candidate.brokenTables <= 2) {
           historical.push({ template, mapping: seedBest.mapping });
-          if (historical.length > 5) historical.shift();
+          if (historical.length > 8) historical.shift();
         }
       } else stagnant++;
       const currentLevelBest = levelBest ?? candidate;
@@ -324,19 +360,50 @@ export function matchupsCsv(candidate: MatchmakerCandidate, tournamentNum: numbe
   const lines = [header.map(csvCell).join(",")];
   candidate.tables.forEach((table) => table.players.forEach((player) => {
     const detail = details.get(player);
-    const suggestions = table.slots.map((slot) => `<t:${Math.floor(candidate.timeline[slot.index] / 1000)}:F>${slot.type === "near" ? ` [3/4 Match - Check ${slot.missing}]` : ""}`);
+    const suggestions = table.slots.map((slot) => slotText(candidate, slot));
     lines.push([tournamentNum, `Game_${table.round}`, `Table_${table.table}`, player, detail?.discord_username ?? "", "", "", "", table.averageSharedHours, table.playerCompatibility[player], suggestions[0] ?? "", suggestions[1] ?? "", suggestions[2] ?? "", JSON.stringify(availabilityOf(detail?.availability))].map(csvCell).join(","));
   }));
   return lines.join("\n");
+}
+
+export function slotText(candidate: MatchmakerCandidate, slot: SuggestedSlot) {
+  return `<t:${Math.floor(candidate.timeline[slot.index] / 1000)}:F>${slot.type === "near" ? ` [3/4 Match - Check ${slot.missing}:${slot.gap ?? 0}]` : ""}`;
 }
 
 export function discordCsv(candidate: MatchmakerCandidate, rows: MatchmakerRegistration[], round: number): string {
   const details = new Map(rows.map((row) => [row.direwolf_name, row]));
   const lines = [["thread_title", "pings", "slot_1", "slot_2", "slot_3"].map(csvCell).join(",")];
   candidate.tables.filter((table) => table.round === round).forEach((table) => {
-    const pings = table.players.map((player) => details.get(player)?.discord_username?.trim() ? `@${details.get(player)?.discord_username} (${player})` : `**${player}**`).join(", ");
-    const slots = table.slots.map((slot) => `<t:${Math.floor(candidate.timeline[slot.index] / 1000)}:F>${slot.type === "near" ? ` [3/4 Match - Check ${slot.missing}]` : ""}`);
+    const warnings = new Map<string, { letters: string[]; gap: number }>();
+    table.slots.forEach((slot, i) => {
+      if (slot.type !== "near" || !slot.missing) return;
+      const w = warnings.get(slot.missing) ?? { letters: [], gap: 0 };
+      w.letters.push(String.fromCharCode(65 + i));
+      w.gap = Math.max(w.gap, slot.gap ?? 0);
+      warnings.set(slot.missing, w);
+    });
+    const pings = table.players.map((player) => {
+      const disc = details.get(player)?.discord_username?.trim();
+      const w = warnings.get(player);
+      const warn = w ? ` - ⚠️ Near-Match: Not available for Slot ${w.letters.join("/")} but is ${w.gap}h away` : "";
+      return disc ? `@${disc} (${player}${warn})` : `**${player}**${warn}`;
+    }).join(", ");
+    const slots = table.slots.map((slot) => `<t:${Math.floor(candidate.timeline[slot.index] / 1000)}:F>`);
     lines.push([`Game ${round} Table ${table.table}`, pings, slots[0] ?? "", slots[1] ?? "", slots[2] ?? ""].map(csvCell).join(","));
   });
   return lines.join("\n");
+}
+
+export function publishRows(candidate: MatchmakerCandidate, tournamentNum: number, rows: MatchmakerRegistration[]) {
+  const details = new Map(rows.map((row) => [row.direwolf_name, row]));
+  return candidate.tables.flatMap((table) => table.players.map((player) => ({
+    tournament_num: tournamentNum,
+    round_type: `Game_${table.round}`,
+    table_identifier: `Table_${table.table}`,
+    player_name: player,
+    discord_username: details.get(player)?.discord_username ?? null,
+    table_score: table.averageSharedHours,
+    player_compatibility_score: table.playerCompatibility[player],
+    player_availability: availabilityOf(details.get(player)?.availability),
+  })));
 }
