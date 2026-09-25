@@ -108,6 +108,8 @@ function shuffle<T>(items: T[]): T[] {
   return next;
 }
 
+const golferPairKey = (a: number, b: number) => `${Math.min(a, b)}:${Math.max(a, b)}`;
+
 function socialGolfer(count: number): number[][][] | null {
   const tableCount = count / 4;
   for (let attempt = 0; attempt < 800; attempt++) {
@@ -115,7 +117,9 @@ function socialGolfer(count: number): number[][][] | null {
     const used = new Set<string>();
     const first = Array.from({ length: tableCount }, (_, table) => Array.from({ length: 4 }, (_, seat) => table * 4 + seat));
     rounds.push(first);
-    first.flatMap((table) => pairsOf(table.map(String))).forEach(([a, b]) => used.add(`${a}:${b}`));
+    first.forEach((table) => {
+      for (let i = 0; i < table.length; i++) for (let j = i + 1; j < table.length; j++) used.add(golferPairKey(table[i], table[j]));
+    });
     let valid = true;
     for (let round = 1; round < 3; round++) {
       let found: number[][] | null = null;
@@ -125,7 +129,7 @@ function socialGolfer(count: number): number[][][] | null {
         for (let table = 0; table < tableCount; table++) {
           const seated = [available.shift() as number];
           while (seated.length < 4) {
-            const index = available.findIndex((candidate) => seated.every((other) => !used.has(`${Math.min(candidate, other)}:${Math.max(candidate, other)}`)));
+            const index = available.findIndex((candidate) => seated.every((other) => !used.has(golferPairKey(candidate, other))));
             if (index < 0) break;
             seated.push(available.splice(index, 1)[0]);
           }
@@ -135,7 +139,9 @@ function socialGolfer(count: number): number[][][] | null {
         if (tables.length === tableCount) found = tables;
       }
       if (!found) { valid = false; break; }
-      found.forEach((table) => pairsOf(table.map(String)).forEach(([a, b]) => used.add(`${a}:${b}`)));
+      found.forEach((table) => {
+        for (let i = 0; i < table.length; i++) for (let j = i + 1; j < table.length; j++) used.add(golferPairKey(table[i], table[j]));
+      });
       rounds.push(found);
     }
     if (valid) return rounds;
@@ -245,6 +251,24 @@ export async function runMatchmaker(
     const strategy = STRATEGIES[strategyIndex];
     let levelBest: MatchmakerCandidate | null = null;
     let stagnant = 0;
+    for (let historyIndex = 0; historyIndex < historical.length; historyIndex++) {
+      const previous = historical[historyIndex];
+      const result = evaluate(previous.template, previous.mapping, prepared, strategy, settings.targetSlots);
+      const candidate: MatchmakerCandidate = {
+        strategyIndex,
+        strategy,
+        seed: -(historyIndex + 1),
+        score: result.score,
+        brokenTables: result.brokenTables,
+        tables: result.tables,
+        timeline: prepared.timeline,
+      };
+      if (!levelBest || candidate.brokenTables < levelBest.brokenTables || (candidate.brokenTables === levelBest.brokenTables && candidate.score > levelBest.score)) {
+        levelBest = candidate;
+        bestAcrossLevels = candidate;
+      }
+    }
+    if (levelBest?.brokenTables === 0) return levelBest;
     for (let seed = 1; seed <= settings.maxSeeds; seed++) {
       if (isCancelled()) return bestAcrossLevels;
       const template = socialGolfer(prepared.players.length);
