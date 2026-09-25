@@ -277,9 +277,10 @@ export async function runMatchmaker(
           if (historical.length > 5) historical.shift();
         }
       } else stagnant++;
-      onProgress({ strategyIndex, seed, maxSeeds: settings.maxSeeds, score: candidate.score, brokenTables: candidate.brokenTables, bestScore: levelBest.score, bestBrokenTables: levelBest.brokenTables, newBest: isNew }, bestAcrossLevels);
+      const currentLevelBest = levelBest ?? candidate;
+      onProgress({ strategyIndex, seed, maxSeeds: settings.maxSeeds, score: candidate.score, brokenTables: candidate.brokenTables, bestScore: currentLevelBest.score, bestBrokenTables: currentLevelBest.brokenTables, newBest: isNew }, bestAcrossLevels);
       await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
-      if (levelBest.brokenTables === 0) return levelBest;
+      if (currentLevelBest.brokenTables === 0) return currentLevelBest;
       if (stagnant >= settings.patience) break;
     }
   }
