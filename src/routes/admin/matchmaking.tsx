@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Bot,
+  CalendarDays,
   CalendarClock,
   CheckCircle2,
   Clipboard,
@@ -19,13 +20,25 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
+import { HeatmapBody, type HeatmapPlayer } from "@/components/AvailabilityHeatmap";
 import { Navbar } from "@/components/Navbar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRoles } from "@/hooks/use-roles";
 import { supabase } from "@/integrations/supabase/client";
@@ -119,6 +132,8 @@ function MatchmakingPage() {
   const [progress, setProgress] = useState<MatchmakerProgress | null>(null);
   const [best, setBest] = useState<MatchmakerCandidate | null>(null);
   const [selectedRound, setSelectedRound] = useState("1");
+  const [pendingCheckIn, setPendingCheckIn] = useState<{ row: MatchmakerRegistration; checked: boolean } | null>(null);
+  const [checkInBusy, setCheckInBusy] = useState(false);
   const cancelled = useRef(false);
 
   useEffect(() => {
@@ -142,7 +157,7 @@ function MatchmakingPage() {
     setProgress(null);
     void supabase
       .from("tournament_registrations")
-      .select("id, user_id, direwolf_name, discord_username, availability, created_at, has_checked_in")
+      .select("id, user_id, direwolf_name, discord_username, availability, created_at, has_checked_in, check_in_method, checked_in_at")
       .eq("tournament_num", selectedNum)
       .order("created_at", { ascending: true })
       .then(({ data, error }) => {
@@ -169,6 +184,35 @@ function MatchmakingPage() {
       : `All registered players have checked in for Tournament ${selectedNum}.`;
     await navigator.clipboard.writeText(text);
     toast.success("Discord reminder copied");
+  };
+
+  const confirmCheckInChange = async () => {
+    if (!pendingCheckIn) return;
+    setCheckInBusy(true);
+    const checkedAt = pendingCheckIn.checked ? new Date().toISOString() : null;
+    const { error } = await supabase
+      .from("tournament_registrations")
+      .update({
+        has_checked_in: pendingCheckIn.checked,
+        check_in_method: pendingCheckIn.checked ? "admin" : null,
+        checked_in_at: checkedAt,
+      })
+      .eq("id", pendingCheckIn.row.id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      setRows((current) => current.map((row) => row.id === pendingCheckIn.row.id ? {
+        ...row,
+        has_checked_in: pendingCheckIn.checked,
+        check_in_method: pendingCheckIn.checked ? "admin" : null,
+        checked_in_at: checkedAt,
+      } : row));
+      setBest(null);
+      setProgress(null);
+      toast.success(`${pendingCheckIn.row.direwolf_name} marked ${pendingCheckIn.checked ? "checked in" : "not checked in"}`);
+      setPendingCheckIn(null);
+    }
+    setCheckInBusy(false);
   };
 
   const run = async () => {
@@ -225,17 +269,19 @@ function MatchmakingPage() {
 
           <AuditPanel audit={audit} total={rows.length} tournamentNum={selectedNum} onCopy={() => void copyReminders()} />
 
+          <PlayerAvailabilityPanel rows={rows} onCheckInChange={(row, checked) => setPendingCheckIn({ row, checked })} />
+
           {settings && <SettingsPanel settings={settings} disabled={running} onChange={setSettings} onReset={() => tournament && setSettings(settingsFor(tournament))} />}
 
           <Card className="overflow-hidden border-sand/40">
             <div className="border-b border-border/60 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div><h2 className="font-display text-xl">Search console</h2><p className="text-xs text-muted-foreground">Five fallback levels automatically relax only when stricter rules stall.</p></div>
+                <div><h2 className="font-display text-xl">Search console</h2><p className="text-xs text-muted-foreground">Six fallback levels automatically relax only when stricter rules stall.</p></div>
                 {running ? <Button variant="destructive" onClick={() => { cancelled.current = true; }}><Square className="size-4" /> Stop search</Button> : <Button className="bg-sand text-background hover:bg-sand/90" onClick={() => void run()} disabled={!settings || audit.active.length < 16 || audit.duplicates.length > 0}><Play className="size-4" /> Run matchmaker</Button>}
               </div>
               {(running || progress) && <div className="mt-5 space-y-2"><Progress value={completion} /><div className="flex justify-between text-xs text-muted-foreground"><span>{progress ? `Level ${progress.strategyIndex + 1}: ${STRATEGIES[progress.strategyIndex].name} · Seed ${progress.seed}/${progress.maxSeeds}` : "Preparing player availability…"}</span><span>{Math.round(completion)}%</span></div></div>}
             </div>
-            <div className="grid grid-cols-5 divide-x divide-border/50">
+            <div className="grid grid-cols-2 divide-x divide-y divide-border/50 sm:grid-cols-3 lg:grid-cols-6">
               {STRATEGIES.map((strategy, index) => {
                 const active = progress?.strategyIndex === index;
                 const passed = progress != null && progress.strategyIndex > index;
@@ -253,6 +299,26 @@ function MatchmakingPage() {
           <Card className="border-border/60 p-4"><div className="flex items-center gap-2"><Gauge className="size-5 text-teal" /><h2 className="font-display text-lg">How it chooses</h2></div><ul className="mt-3 space-y-2 text-xs text-muted-foreground"><li>• Three rounds without repeat opponents</li><li>• Four-player tables only</li><li>• Earlier unanimous time windows score higher</li><li>• Shared availability and weak links affect quality</li><li>• Later levels allow controlled 3/4 backups</li></ul></Card>
         </aside>
       </div>
+
+      <AlertDialog open={pendingCheckIn != null} onOpenChange={(open) => { if (!open && !checkInBusy) setPendingCheckIn(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{pendingCheckIn?.checked ? "Check player in?" : "Remove player check-in?"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingCheckIn?.checked
+                ? `${pendingCheckIn.row.direwolf_name} will join the active field, subject to the four-player cutoff.`
+                : `${pendingCheckIn?.row.direwolf_name ?? "This player"} will be removed from the active field and any current browser draft will be cleared.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={checkInBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={checkInBusy} onClick={(event) => { event.preventDefault(); void confirmCheckInChange(); }}>
+              {checkInBusy && <Loader2 className="size-4 animate-spin" />}
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageShell>
   );
 }
@@ -269,6 +335,49 @@ function AuditPanel({ audit, total, tournamentNum, onCopy }: { audit: Audit; tot
   return <Card className="border-border/60 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="flex items-center gap-2"><Users className="size-5 text-teal" /><h2 className="font-display text-xl">Check-in audit</h2></div><p className="mt-1 text-xs text-muted-foreground">A fast field check for Tournament {tournamentNum ?? "—"}. No records are changed.</p></div><Button variant="outline" size="sm" onClick={onCopy} disabled={!total}><Clipboard className="size-4" /> Copy Discord reminder</Button></div><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4"><Metric label="Registered" value={String(total)} /><Metric label="Checked in" value={String(audit.checked.length)} /><Metric label="Active field" value={String(audit.active.length)} /><Metric label="Standby" value={String(audit.standby.length)} danger={audit.standby.length > 0} /></div>{audit.duplicates.length > 0 && <div className="mt-4 flex gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span>{audit.duplicates.length} duplicate registration group{audit.duplicates.length === 1 ? "" : "s"} found. Matchmaking is paused until these are resolved.</span></div>}{audit.missing.length > 0 && <div className="mt-4"><div className="mb-2 text-xs font-medium text-muted-foreground">Awaiting check-in</div><div className="flex flex-wrap gap-2">{audit.missing.map((row) => <span key={row.id} className="rounded-md border border-border bg-muted/50 px-2 py-1 text-xs">{row.direwolf_name}</span>)}</div></div>}{audit.standby.length > 0 && <div className="mt-4"><div className="mb-2 text-xs font-medium text-muted-foreground">Standby · latest registrations</div><div className="flex flex-wrap gap-2">{audit.standby.map((row) => <span key={row.id} className="rounded-md border border-coral/40 bg-coral/10 px-2 py-1 text-xs text-coral">{row.direwolf_name}</span>)}</div></div>}</Card>;
 }
 
+function availabilitySummary(row: MatchmakerRegistration) {
+  const values = availabilityOf(row.availability)
+    .map((value) => new Date(value))
+    .filter((value) => Number.isFinite(value.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime());
+  if (!values.length) return { slots: 0, hours: 0, range: "No availability" };
+  const unique = new Set(values.map((value) => value.getTime()));
+  const first = values[0].toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  const last = values[values.length - 1].toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  return { slots: unique.size, hours: unique.size / 2, range: first === last ? first : `${first} – ${last}` };
+}
+
+function PlayerAvailabilityPanel({ rows, onCheckInChange }: { rows: MatchmakerRegistration[]; onCheckInChange: (row: MatchmakerRegistration, checked: boolean) => void }) {
+  const summaries = useMemo(() => new Map(rows.map((row) => [row.id, availabilitySummary(row)])), [rows]);
+  return (
+    <Card className="overflow-hidden border-border/60">
+      <div className="border-b border-border/60 p-5">
+        <div className="flex items-center gap-2"><CalendarDays className="size-5 text-sand" /><h2 className="font-display text-xl">Players &amp; availability</h2></div>
+        <p className="mt-1 text-xs text-muted-foreground">Review recorded availability. Changing check-in requires confirmation and clears the current draft.</p>
+      </div>
+      <div className="max-h-[34rem] overflow-auto">
+        <div className="min-w-[650px] divide-y divide-border/50">
+          <div className="grid grid-cols-[minmax(180px,1.4fr)_minmax(150px,1fr)_90px_120px] gap-3 bg-muted/30 px-5 py-2 text-[10px] font-medium uppercase text-muted-foreground">
+            <span>Player</span><span>Availability</span><span>Hours</span><span className="text-right">Checked in</span>
+          </div>
+          {rows.map((row) => {
+            const summary = summaries.get(row.id) ?? { slots: 0, hours: 0, range: "No availability" };
+            return (
+              <div key={row.id} className="grid grid-cols-[minmax(180px,1.4fr)_minmax(150px,1fr)_90px_120px] items-center gap-3 px-5 py-3 text-sm">
+                <div className="min-w-0"><div className="truncate font-medium">{row.direwolf_name}</div><div className="truncate text-[11px] text-muted-foreground">{row.discord_username ? `@${row.discord_username}` : "No Discord name"}</div></div>
+                <div><div>{summary.range}</div><div className="text-[11px] text-muted-foreground">{summary.slots} half-hour slots</div></div>
+                <span className={summary.hours ? "tabular-nums text-teal" : "text-muted-foreground"}>{summary.hours.toFixed(1)}h</span>
+                <div className="flex items-center justify-end gap-2"><span className="text-xs text-muted-foreground">{row.has_checked_in ? "Yes" : "No"}</span><Switch checked={row.has_checked_in === true} onCheckedChange={(checked) => onCheckInChange(row, checked)} aria-label={`Set check-in for ${row.direwolf_name}`} /></div>
+              </div>
+            );
+          })}
+          {!rows.length && <p className="px-5 py-8 text-center text-sm text-muted-foreground">No registrations found.</p>}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function SettingsPanel({ settings, disabled, onChange, onReset }: { settings: MatchmakerSettings; disabled: boolean; onChange: (v: MatchmakerSettings) => void; onReset: () => void }) {
   const set = <K extends keyof MatchmakerSettings>(key: K, value: MatchmakerSettings[K]) => onChange({ ...settings, [key]: value });
   const numeric = (key: keyof MatchmakerSettings, value: string) => set(key, Number(value) as never);
@@ -280,9 +389,20 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Results({ candidate, rows, tournamentNum, selectedRound, onRoundChange }: { candidate: MatchmakerCandidate; rows: MatchmakerRegistration[]; tournamentNum: number; selectedRound: string; onRoundChange: (v: string) => void }) {
   const round = Number(selectedRound);
   const tables = candidate.tables.filter((table) => table.round === round);
-  return <Card className="border-sand/50 p-5 shadow-arena"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-teal"><CheckCircle2 className="size-5" /><span className="text-xs font-semibold uppercase">Review-ready browser draft</span></div><h2 className="mt-1 font-display text-2xl">Best schedule found</h2><p className="text-xs text-muted-foreground">Nothing has been saved to Supabase. Download and review before importing.</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => downloadText(`t${tournamentNum}_balanced_live_tournament_matchups.csv`, matchupsCsv(candidate, tournamentNum, rows))}><Download className="size-4" /> Matchups CSV</Button><Button variant="outline" size="sm" onClick={() => downloadText(`t${tournamentNum}_round_${round}_live_bot_ready.csv`, discordCsv(candidate, rows, round))}><Bot className="size-4" /> Discord round {round}</Button></div></div><Tabs value={selectedRound} onValueChange={onRoundChange} className="mt-5"><TabsList>{[1, 2, 3].map((item) => <TabsTrigger key={item} value={String(item)}>Game {item}</TabsTrigger>)}</TabsList>{[1, 2, 3].map((item) => <TabsContent key={item} value={String(item)}><div className="grid gap-3 md:grid-cols-2">{tables.map((table) => <TablePreview key={table.table} table={table} timeline={candidate.timeline} />)}</div></TabsContent>)}</Tabs></Card>;
+  return <section className="border-y border-sand/50 py-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-teal"><CheckCircle2 className="size-5" /><span className="text-xs font-semibold uppercase">Review-ready browser draft</span></div><h2 className="mt-1 font-display text-2xl">Best schedule found</h2><p className="text-xs text-muted-foreground">Nothing has been saved to Supabase. Download and review before importing.</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => downloadText(`t${tournamentNum}_balanced_live_tournament_matchups.csv`, matchupsCsv(candidate, tournamentNum, rows))}><Download className="size-4" /> Matchups CSV</Button><Button variant="outline" size="sm" onClick={() => downloadText(`t${tournamentNum}_round_${round}_live_bot_ready.csv`, discordCsv(candidate, rows, round))}><Bot className="size-4" /> Discord round {round}</Button></div></div><Tabs value={selectedRound} onValueChange={onRoundChange} className="mt-5"><TabsList>{[1, 2, 3].map((item) => <TabsTrigger key={item} value={String(item)}>Game {item}</TabsTrigger>)}</TabsList>{[1, 2, 3].map((item) => <TabsContent key={item} value={String(item)}><div className="space-y-4">{tables.map((table) => <TablePreview key={table.table} table={table} timeline={candidate.timeline} rows={rows} />)}</div></TabsContent>)}</Tabs></section>;
 }
 
-function TablePreview({ table, timeline }: { table: MatchmakerCandidate["tables"][number]; timeline: number[] }) {
-  return <div className="overflow-hidden rounded-md border border-border/70 bg-background/30"><div className="flex items-center justify-between border-b border-border/60 px-4 py-3"><div className="font-display text-sand">Table {table.table}</div><div className="text-xs text-muted-foreground">{table.averageSharedHours.toFixed(1)}h shared avg</div></div><div className="divide-y divide-border/40">{table.players.map((player, index) => <div key={player} className="flex items-center justify-between px-4 py-2 text-sm"><div className="flex items-center gap-2"><span className="flex size-5 items-center justify-center rounded-sm bg-muted text-[10px] text-muted-foreground">{index + 1}</span><span>{player}</span></div><span className="text-xs tabular-nums text-muted-foreground">{table.playerCompatibility[player].toFixed(1)}h</span></div>)}</div><div className="space-y-2 border-t border-border/60 p-3">{table.slots.length ? table.slots.map((slot, index) => <div key={`${slot.index}-${index}`} className={`flex items-center justify-between gap-3 rounded-sm border px-2 py-1.5 text-xs ${slot.type === "perfect" ? "border-teal/30 bg-teal/10" : "border-coral/30 bg-coral/10"}`}><span className="font-medium">Option {String.fromCharCode(65 + index)}</span><span className="tabular-nums">{new Date(timeline[slot.index]).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>{slot.missing && <span className="text-coral">check {slot.missing}</span>}</div>) : <div className="flex items-center gap-2 text-xs text-destructive"><AlertTriangle className="size-4" /> No qualifying time window</div>}</div></div>;
+function TablePreview({ table, timeline, rows }: { table: MatchmakerCandidate["tables"][number]; timeline: number[]; rows: MatchmakerRegistration[] }) {
+  const byName = new Map(rows.map((row) => [row.direwolf_name, row]));
+  const players: HeatmapPlayer[] = table.players.map((player) => ({
+    player_name: player,
+    discord_username: byName.get(player)?.discord_username ?? null,
+    player_compatibility_score: table.playerCompatibility[player],
+    player_availability: availabilityOf(byName.get(player)?.availability),
+  }));
+  const suggestedSlots = table.slots.map((slot, index) => ({
+    label: String.fromCharCode(65 + index),
+    time_text: `<t:${Math.floor(timeline[slot.index] / 1000)}:F>${slot.type === "near" ? ` · 3/4, check ${slot.missing}` : ""}`,
+  }));
+  return <div className="overflow-hidden rounded-md border border-border/70 bg-background/30"><div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-4 py-3"><div><div className="font-display text-lg text-sand">Game {table.round} · Table {table.table}</div><div className="text-xs text-muted-foreground">Draft table mapping · seats follow the list below</div></div><div className="text-xs text-muted-foreground">{table.averageSharedHours.toFixed(1)}h shared avg</div></div><div className="grid divide-y divide-border/40 sm:grid-cols-4 sm:divide-x sm:divide-y-0">{table.players.map((player, index) => <div key={player} className="flex items-center gap-2 px-3 py-2 text-sm"><span className="flex size-6 shrink-0 items-center justify-center rounded-sm bg-muted text-[10px] text-muted-foreground">{index + 1}</span><div className="min-w-0"><div className="truncate font-medium">{player}</div><div className="text-[10px] text-muted-foreground">{table.playerCompatibility[player].toFixed(1)}h compatibility</div></div></div>)}</div><div className="p-4"><HeatmapBody tableId={`Game ${table.round} · Table ${table.table}`} matchQuality={table.averageSharedHours} players={players} suggestedSlots={suggestedSlots} playMode="live" /></div></div>;
 }
