@@ -1,0 +1,288 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Bot,
+  CalendarClock,
+  CheckCircle2,
+  Clipboard,
+  Download,
+  Gauge,
+  Loader2,
+  Play,
+  RotateCcw,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Square,
+  Trophy,
+  Users,
+} from "lucide-react";
+import { Navbar } from "@/components/Navbar";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRoles } from "@/hooks/use-roles";
+import { supabase } from "@/integrations/supabase/client";
+import { fetchTournaments, type TournamentConfig } from "@/lib/tournaments";
+import {
+  STRATEGIES,
+  availabilityOf,
+  discordCsv,
+  duplicateGroups,
+  matchupsCsv,
+  runMatchmaker,
+  type MatchmakerCandidate,
+  type MatchmakerProgress,
+  type MatchmakerRegistration,
+  type MatchmakerSettings,
+} from "@/lib/tournament-matchmaker";
+import { toast } from "sonner";
+
+export const Route = createFileRoute("/admin/matchmaking")({
+  head: () => ({
+    meta: [
+      { title: "Live Tournament Matchmaker — Strategy Arena" },
+      { name: "description", content: "Build and review balanced live tournament tables from player availability." },
+      { property: "og:title", content: "Live Tournament Matchmaker — Strategy Arena" },
+      { property: "og:description", content: "Build and review balanced live tournament tables from player availability." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: MatchmakingPage,
+});
+
+type Audit = {
+  checked: MatchmakerRegistration[];
+  missing: MatchmakerRegistration[];
+  active: MatchmakerRegistration[];
+  standby: MatchmakerRegistration[];
+  duplicates: MatchmakerRegistration[][];
+};
+
+function dateTimeValue(date: Date, end = false) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  const value = local.toISOString().slice(0, 16);
+  return end ? `${value.slice(0, 11)}23:59` : value;
+}
+
+function settingsFor(tournament: TournamentConfig): MatchmakerSettings {
+  return {
+    startDate: dateTimeValue(new Date(`${tournament.start_date}T00:00:00`)),
+    cutoffDate: dateTimeValue(new Date(`${tournament.end_date}T00:00:00`), true),
+    targetSlots: 3,
+    maxSeeds: 120,
+    stepsPerSeed: 500,
+    checkpointStep: 200,
+    patience: 20,
+    initialTemperature: 120,
+    coolingRate: 0.998,
+  };
+}
+
+function auditRows(rows: MatchmakerRegistration[]): Audit {
+  const checked = rows.filter((row) => row.has_checked_in === true).sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const activeCount = Math.floor(checked.length / 4) * 4;
+  return {
+    checked,
+    missing: rows.filter((row) => row.has_checked_in !== true),
+    active: checked.slice(0, activeCount),
+    standby: checked.slice(activeCount),
+    duplicates: duplicateGroups(rows),
+  };
+}
+
+function downloadText(filename: string, text: string, type = "text/csv") {
+  const url = URL.createObjectURL(new Blob([text], { type: `${type};charset=utf-8` }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function MatchmakingPage() {
+  const roles = useRoles();
+  const canManage = roles.isAdmin || roles.isTournamentHost;
+  const [loading, setLoading] = useState(true);
+  const [tournaments, setTournaments] = useState<TournamentConfig[]>([]);
+  const [selectedNum, setSelectedNum] = useState<number | null>(null);
+  const [rows, setRows] = useState<MatchmakerRegistration[]>([]);
+  const [settings, setSettings] = useState<MatchmakerSettings | null>(null);
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<MatchmakerProgress | null>(null);
+  const [best, setBest] = useState<MatchmakerCandidate | null>(null);
+  const [selectedRound, setSelectedRound] = useState("1");
+  const cancelled = useRef(false);
+
+  useEffect(() => {
+    if (roles.loading) return;
+    if (!canManage) { setLoading(false); return; }
+    void fetchTournaments().then((items) => {
+      setTournaments(items);
+      const initial = items.find((item) => item.registration_open) ?? items[0] ?? null;
+      if (initial) {
+        setSelectedNum(initial.tournament_num);
+        setSettings(settingsFor(initial));
+      }
+      setLoading(false);
+    });
+  }, [canManage, roles.loading]);
+
+  useEffect(() => {
+    if (!canManage || selectedNum == null) return;
+    setRows([]);
+    setBest(null);
+    setProgress(null);
+    void supabase
+      .from("tournament_registrations")
+      .select("id, user_id, direwolf_name, discord_username, availability, created_at, has_checked_in")
+      .eq("tournament_num", selectedNum)
+      .order("created_at", { ascending: true })
+      .then(({ data, error }) => {
+        if (error) toast.error(error.message);
+        setRows((data ?? []) as MatchmakerRegistration[]);
+      });
+  }, [canManage, selectedNum]);
+
+  const tournament = tournaments.find((item) => item.tournament_num === selectedNum) ?? null;
+  const audit = useMemo(() => auditRows(rows), [rows]);
+  const completion = progress ? ((progress.strategyIndex * progress.maxSeeds + progress.seed) / (STRATEGIES.length * progress.maxSeeds)) * 100 : 0;
+
+  const chooseTournament = (value: string) => {
+    const num = Number(value);
+    const next = tournaments.find((item) => item.tournament_num === num);
+    setSelectedNum(num);
+    if (next) setSettings(settingsFor(next));
+  };
+
+  const copyReminders = async () => {
+    const tags = audit.missing.map((row) => row.discord_username?.trim() ? `@${row.discord_username.trim()}` : row.direwolf_name).join(" ");
+    const text = audit.missing.length
+      ? `Friendly reminder to check in for Tournament ${selectedNum}:\n${tags}\n\nMissing count: ${audit.missing.length} / ${rows.length}`
+      : `All registered players have checked in for Tournament ${selectedNum}.`;
+    await navigator.clipboard.writeText(text);
+    toast.success("Discord reminder copied");
+  };
+
+  const run = async () => {
+    if (!settings || !tournament) return;
+    if (audit.duplicates.length) { toast.error("Resolve duplicate registrations before matchmaking."); return; }
+    if (audit.active.length < 16) { toast.error("At least 16 checked-in players are required."); return; }
+    cancelled.current = false;
+    setRunning(true);
+    setProgress(null);
+    setBest(null);
+    try {
+      const result = await runMatchmaker(audit.active, settings, (next, candidate) => {
+        setProgress(next);
+        if (candidate) setBest(candidate);
+      }, () => cancelled.current);
+      setBest(result);
+      if (!cancelled.current) {
+        if (result?.brokenTables === 0) toast.success("A conflict-free schedule is ready to review.");
+        else toast.warning("Search finished with unresolved tables. Review the best draft below.");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Matchmaking failed");
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  if (loading || roles.loading) return <PageShell><div className="flex justify-center py-16"><Loader2 className="size-7 animate-spin text-sand" /></div></PageShell>;
+  if (!canManage) return (
+    <PageShell>
+      <Card className="border-sand/40 p-6"><h1 className="font-display text-2xl">Tournament hosts only</h1><p className="mt-2 text-sm text-muted-foreground">You need the admin or tournament host role to use the matchmaker.</p></Card>
+    </PageShell>
+  );
+
+  return (
+    <PageShell>
+      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border/60 pb-5">
+        <div>
+          <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase text-sand"><Sparkles className="size-4" /> Live tournament operations</div>
+          <h1 className="font-display text-3xl sm:text-4xl">Matchmaker Studio</h1>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Audit the field, test balanced schedules, compare the strongest draft, and export files for the Discord bot.</p>
+        </div>
+        <Button asChild variant="ghost" size="sm"><Link to="/admin/tournaments"><ArrowLeft className="size-4" /> Manage tournaments</Link></Button>
+      </header>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-5">
+          <Card className="border-sand/40 p-5">
+            <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+              <div><Label>Tournament</Label><Select value={selectedNum == null ? undefined : String(selectedNum)} onValueChange={chooseTournament}><SelectTrigger className="mt-1"><SelectValue placeholder="Choose a tournament" /></SelectTrigger><SelectContent>{tournaments.map((item) => <SelectItem key={item.tournament_num} value={String(item.tournament_num)}>#{item.tournament_num} — {item.name}</SelectItem>)}</SelectContent></Select></div>
+              <div className="flex items-center gap-2 rounded-md border border-teal/30 bg-teal/10 px-3 py-2 text-xs text-teal"><ShieldCheck className="size-4" /> Read-only draft</div>
+            </div>
+          </Card>
+
+          <AuditPanel audit={audit} total={rows.length} tournamentNum={selectedNum} onCopy={() => void copyReminders()} />
+
+          {settings && <SettingsPanel settings={settings} disabled={running} onChange={setSettings} onReset={() => tournament && setSettings(settingsFor(tournament))} />}
+
+          <Card className="overflow-hidden border-sand/40">
+            <div className="border-b border-border/60 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div><h2 className="font-display text-xl">Search console</h2><p className="text-xs text-muted-foreground">Five fallback levels automatically relax only when stricter rules stall.</p></div>
+                {running ? <Button variant="destructive" onClick={() => { cancelled.current = true; }}><Square className="size-4" /> Stop search</Button> : <Button className="bg-sand text-background hover:bg-sand/90" onClick={() => void run()} disabled={!settings || audit.active.length < 16 || audit.duplicates.length > 0}><Play className="size-4" /> Run matchmaker</Button>}
+              </div>
+              {(running || progress) && <div className="mt-5 space-y-2"><Progress value={completion} /><div className="flex justify-between text-xs text-muted-foreground"><span>{progress ? `Level ${progress.strategyIndex + 1}: ${STRATEGIES[progress.strategyIndex].name} · Seed ${progress.seed}/${progress.maxSeeds}` : "Preparing player availability…"}</span><span>{Math.round(completion)}%</span></div></div>}
+            </div>
+            <div className="grid grid-cols-5 divide-x divide-border/50">
+              {STRATEGIES.map((strategy, index) => {
+                const active = progress?.strategyIndex === index;
+                const passed = progress != null && progress.strategyIndex > index;
+                return <div key={strategy.name} className={`min-h-24 p-3 ${active ? "bg-sand/10" : ""}`}><div className={`mb-2 flex size-6 items-center justify-center rounded-full border text-xs ${active ? "border-sand bg-sand text-background" : passed ? "border-teal text-teal" : "border-border text-muted-foreground"}`}>{passed ? <CheckCircle2 className="size-4" /> : index + 1}</div><div className="text-xs font-semibold">{strategy.name}</div><div className="mt-1 hidden text-[10px] leading-4 text-muted-foreground sm:block">{strategy.detail}</div></div>;
+              })}
+            </div>
+            {progress && <div className="grid grid-cols-3 gap-px border-t border-border/60 bg-border/60"><Metric label="Current score" value={Math.round(progress.score).toLocaleString()} /><Metric label="Best score" value={Math.round(progress.bestScore).toLocaleString()} /><Metric label="Broken tables" value={String(progress.bestBrokenTables)} danger={progress.bestBrokenTables > 0} /></div>}
+          </Card>
+
+          {best && <Results candidate={best} rows={audit.active} tournamentNum={selectedNum ?? 0} selectedRound={selectedRound} onRoundChange={setSelectedRound} />}
+        </div>
+
+        <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+          <Card className="border-sand/40 p-4"><div className="flex items-center gap-2"><Trophy className="size-5 text-sand" /><h2 className="font-display text-lg">Best version</h2></div>{best ? <div className="mt-4 space-y-3"><div className="flex items-end justify-between"><div><div className="text-3xl font-semibold tabular-nums">{Math.round(best.score).toLocaleString()}</div><div className="text-xs text-muted-foreground">quality score</div></div><div className={`rounded-md border px-2 py-1 text-xs ${best.brokenTables ? "border-destructive/50 text-destructive" : "border-teal/50 bg-teal/10 text-teal"}`}>{best.brokenTables ? `${best.brokenTables} unresolved` : "All tables clean"}</div></div><div className="border-t border-border/60 pt-3 text-sm"><div className="font-medium text-sand">Level {best.strategyIndex + 1} · {best.strategy.name}</div><div className="mt-1 text-xs text-muted-foreground">Seed {best.seed} · {best.strategy.detail}</div></div></div> : <p className="mt-3 text-sm text-muted-foreground">The strongest schedule appears here while the search is running.</p>}</Card>
+          <Card className="border-border/60 p-4"><div className="flex items-center gap-2"><Gauge className="size-5 text-teal" /><h2 className="font-display text-lg">How it chooses</h2></div><ul className="mt-3 space-y-2 text-xs text-muted-foreground"><li>• Three rounds without repeat opponents</li><li>• Four-player tables only</li><li>• Earlier unanimous time windows score higher</li><li>• Shared availability and weak links affect quality</li><li>• Later levels allow controlled 3/4 backups</li></ul></Card>
+        </aside>
+      </div>
+    </PageShell>
+  );
+}
+
+function PageShell({ children }: { children: React.ReactNode }) {
+  return <div className="min-h-screen"><Navbar /><main className="container mx-auto max-w-7xl space-y-6 px-4 py-6">{children}</main></div>;
+}
+
+function Metric({ label, value, danger = false }: { label: string; value: string; danger?: boolean }) {
+  return <div className="bg-card p-4 text-center"><div className={`text-xl font-semibold tabular-nums ${danger ? "text-destructive" : "text-foreground"}`}>{value}</div><div className="text-[10px] uppercase text-muted-foreground">{label}</div></div>;
+}
+
+function AuditPanel({ audit, total, tournamentNum, onCopy }: { audit: Audit; total: number; tournamentNum: number | null; onCopy: () => void }) {
+  return <Card className="border-border/60 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="flex items-center gap-2"><Users className="size-5 text-teal" /><h2 className="font-display text-xl">Check-in audit</h2></div><p className="mt-1 text-xs text-muted-foreground">A fast field check for Tournament {tournamentNum ?? "—"}. No records are changed.</p></div><Button variant="outline" size="sm" onClick={onCopy} disabled={!total}><Clipboard className="size-4" /> Copy Discord reminder</Button></div><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4"><Metric label="Registered" value={String(total)} /><Metric label="Checked in" value={String(audit.checked.length)} /><Metric label="Active field" value={String(audit.active.length)} /><Metric label="Standby" value={String(audit.standby.length)} danger={audit.standby.length > 0} /></div>{audit.duplicates.length > 0 && <div className="mt-4 flex gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span>{audit.duplicates.length} duplicate registration group{audit.duplicates.length === 1 ? "" : "s"} found. Matchmaking is paused until these are resolved.</span></div>}{audit.missing.length > 0 && <div className="mt-4"><div className="mb-2 text-xs font-medium text-muted-foreground">Awaiting check-in</div><div className="flex flex-wrap gap-2">{audit.missing.map((row) => <span key={row.id} className="rounded-md border border-border bg-muted/50 px-2 py-1 text-xs">{row.direwolf_name}</span>)}</div></div>}{audit.standby.length > 0 && <div className="mt-4"><div className="mb-2 text-xs font-medium text-muted-foreground">Standby · latest registrations</div><div className="flex flex-wrap gap-2">{audit.standby.map((row) => <span key={row.id} className="rounded-md border border-coral/40 bg-coral/10 px-2 py-1 text-xs text-coral">{row.direwolf_name}</span>)}</div></div>}</Card>;
+}
+
+function SettingsPanel({ settings, disabled, onChange, onReset }: { settings: MatchmakerSettings; disabled: boolean; onChange: (v: MatchmakerSettings) => void; onReset: () => void }) {
+  const set = <K extends keyof MatchmakerSettings>(key: K, value: MatchmakerSettings[K]) => onChange({ ...settings, [key]: value });
+  const numeric = (key: keyof MatchmakerSettings, value: string) => set(key, Number(value) as never);
+  return <Card className="border-border/60 p-5"><div className="flex items-center justify-between gap-3"><div><div className="flex items-center gap-2"><CalendarClock className="size-5 text-coral" /><h2 className="font-display text-xl">Search controls</h2></div><p className="mt-1 text-xs text-muted-foreground">Adjust this run without changing tournament settings.</p></div><Button variant="ghost" size="icon" onClick={onReset} disabled={disabled} title="Reset controls"><RotateCcw className="size-4" /></Button></div><div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Field label="Availability starts"><Input type="datetime-local" value={settings.startDate} disabled={disabled} onChange={(e) => set("startDate", e.target.value)} /></Field><Field label="Availability ends"><Input type="datetime-local" value={settings.cutoffDate} disabled={disabled} onChange={(e) => set("cutoffDate", e.target.value)} /></Field><Field label="Suggestions per table"><Input type="number" min={1} max={5} value={settings.targetSlots} disabled={disabled} onChange={(e) => numeric("targetSlots", e.target.value)} /></Field><Field label="Search seeds"><Input type="number" min={1} max={300} value={settings.maxSeeds} disabled={disabled} onChange={(e) => numeric("maxSeeds", e.target.value)} /></Field><Field label="Steps per seed"><Input type="number" min={25} max={2000} step={25} value={settings.stepsPerSeed} disabled={disabled} onChange={(e) => numeric("stepsPerSeed", e.target.value)} /></Field><Field label="Early check step"><Input type="number" min={10} max={settings.stepsPerSeed} step={10} value={settings.checkpointStep} disabled={disabled} onChange={(e) => numeric("checkpointStep", e.target.value)} /></Field><Field label="Stagnant seed limit"><Input type="number" min={1} max={100} value={settings.patience} disabled={disabled} onChange={(e) => numeric("patience", e.target.value)} /></Field><Field label="Starting temperature"><Input type="number" min={1} max={500} value={settings.initialTemperature} disabled={disabled} onChange={(e) => numeric("initialTemperature", e.target.value)} /></Field></div></Card>;
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <div className="space-y-1"><Label className="text-xs text-muted-foreground">{label}</Label>{children}</div>; }
+
+function Results({ candidate, rows, tournamentNum, selectedRound, onRoundChange }: { candidate: MatchmakerCandidate; rows: MatchmakerRegistration[]; tournamentNum: number; selectedRound: string; onRoundChange: (v: string) => void }) {
+  const round = Number(selectedRound);
+  const tables = candidate.tables.filter((table) => table.round === round);
+  return <Card className="border-sand/50 p-5 shadow-arena"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-teal"><CheckCircle2 className="size-5" /><span className="text-xs font-semibold uppercase">Review-ready browser draft</span></div><h2 className="mt-1 font-display text-2xl">Best schedule found</h2><p className="text-xs text-muted-foreground">Nothing has been saved to Supabase. Download and review before importing.</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => downloadText(`t${tournamentNum}_balanced_live_tournament_matchups.csv`, matchupsCsv(candidate, tournamentNum, rows))}><Download className="size-4" /> Matchups CSV</Button><Button variant="outline" size="sm" onClick={() => downloadText(`t${tournamentNum}_round_${round}_live_bot_ready.csv`, discordCsv(candidate, rows, round))}><Bot className="size-4" /> Discord round {round}</Button></div></div><Tabs value={selectedRound} onValueChange={onRoundChange} className="mt-5"><TabsList>{[1, 2, 3].map((item) => <TabsTrigger key={item} value={String(item)}>Game {item}</TabsTrigger>)}</TabsList>{[1, 2, 3].map((item) => <TabsContent key={item} value={String(item)}><div className="grid gap-3 md:grid-cols-2">{tables.map((table) => <TablePreview key={table.table} table={table} timeline={candidate.timeline} />)}</div></TabsContent>)}</Tabs></Card>;
+}
+
+function TablePreview({ table, timeline }: { table: MatchmakerCandidate["tables"][number]; timeline: number[] }) {
+  return <div className="overflow-hidden rounded-md border border-border/70 bg-background/30"><div className="flex items-center justify-between border-b border-border/60 px-4 py-3"><div className="font-display text-sand">Table {table.table}</div><div className="text-xs text-muted-foreground">{table.averageSharedHours.toFixed(1)}h shared avg</div></div><div className="divide-y divide-border/40">{table.players.map((player, index) => <div key={player} className="flex items-center justify-between px-4 py-2 text-sm"><div className="flex items-center gap-2"><span className="flex size-5 items-center justify-center rounded-sm bg-muted text-[10px] text-muted-foreground">{index + 1}</span><span>{player}</span></div><span className="text-xs tabular-nums text-muted-foreground">{table.playerCompatibility[player].toFixed(1)}h</span></div>)}</div><div className="space-y-2 border-t border-border/60 p-3">{table.slots.length ? table.slots.map((slot, index) => <div key={`${slot.index}-${index}`} className={`flex items-center justify-between gap-3 rounded-sm border px-2 py-1.5 text-xs ${slot.type === "perfect" ? "border-teal/30 bg-teal/10" : "border-coral/30 bg-coral/10"}`}><span className="font-medium">Option {String.fromCharCode(65 + index)}</span><span className="tabular-nums">{new Date(timeline[slot.index]).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>{slot.missing && <span className="text-coral">check {slot.missing}</span>}</div>) : <div className="flex items-center gap-2 text-xs text-destructive"><AlertTriangle className="size-4" /> No qualifying time window</div>}</div></div>;
+}

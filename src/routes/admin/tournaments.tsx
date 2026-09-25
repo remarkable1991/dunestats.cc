@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, ClipboardCheck, Loader2, Mail, Plus, Save, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Loader2, Mail, Plus, Save, Sparkles, Trash2, Upload } from "lucide-react";
 import { TournamentPlayModeBadge } from "@/components/TournamentPlayModeBadge";
 import { parseTournamentMatchesCsv } from "@/lib/tournament-csv";
 import {
@@ -207,6 +207,9 @@ function AdminTournaments() {
             </Button>
             <Button asChild variant="outline" size="sm" className="gap-1 border-sand/50 text-sand hover:bg-sand/10">
               <Link to="/admin/tournament-emails"><Mail className="size-4" />Tournament emails</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="gap-1 border-sand/50 text-sand hover:bg-sand/10">
+              <Link to="/admin/matchmaking"><Sparkles className="size-4" />Matchmaker</Link>
             </Button>
             {isMainAdminForNotif && (
               <Button asChild variant="outline" size="sm" className="gap-1 border-sand/50 text-sand hover:bg-sand/10">
