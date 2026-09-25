@@ -18,6 +18,7 @@ import {
   Sparkles,
   Square,
   Trophy,
+  Upload,
   Users,
 } from "lucide-react";
 import { HeatmapBody, type HeatmapPlayer } from "@/components/AvailabilityHeatmap";
@@ -49,6 +50,7 @@ import {
   discordCsv,
   duplicateGroups,
   matchupsCsv,
+  publishRows,
   runMatchmaker,
   type MatchmakerCandidate,
   type MatchmakerProgress,
@@ -96,6 +98,8 @@ function settingsFor(tournament: TournamentConfig): MatchmakerSettings {
     patience: 20,
     initialTemperature: 120,
     coolingRate: 0.998,
+    startStage: 1,
+    quickProbeSeeds: 15,
   };
 }
 
@@ -134,7 +138,35 @@ function MatchmakingPage() {
   const [selectedRound, setSelectedRound] = useState("1");
   const [pendingCheckIn, setPendingCheckIn] = useState<{ row: MatchmakerRegistration; checked: boolean } | null>(null);
   const [checkInBusy, setCheckInBusy] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [existingCount, setExistingCount] = useState<number | null>(null);
   const cancelled = useRef(false);
+
+  useEffect(() => {
+    if (!publishOpen || selectedNum == null) return;
+    setExistingCount(null);
+    void supabase.from("tournament_matches").select("id", { count: "exact", head: true }).eq("tournament_num", selectedNum).in("round_type", ["Game_1", "Game_2", "Game_3"]).then(({ count }) => setExistingCount(count ?? 0));
+  }, [publishOpen, selectedNum]);
+
+  const publish = async () => {
+    if (!best || selectedNum == null) return;
+    setPublishing(true);
+    try {
+      if (existingCount) {
+        const { error } = await supabase.from("tournament_matches").delete().eq("tournament_num", selectedNum).in("round_type", ["Game_1", "Game_2", "Game_3"]).is("placement", null);
+        if (error) throw error;
+      }
+      const { error } = await supabase.from("tournament_matches").insert(publishRows(best, selectedNum, audit.active));
+      if (error) throw error;
+      toast.success(`Published ${best.tables.length} tables to Tournament ${selectedNum}`);
+      setPublishOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Publishing failed");
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   useEffect(() => {
     if (roles.loading) return;
@@ -276,7 +308,7 @@ function MatchmakingPage() {
           <Card className="overflow-hidden border-sand/40">
             <div className="border-b border-border/60 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div><h2 className="font-display text-xl">Search console</h2><p className="text-xs text-muted-foreground">Six fallback levels automatically relax only when stricter rules stall.</p></div>
+                <div><h2 className="font-display text-xl">Search console</h2><p className="text-xs text-muted-foreground">Six fallback levels automatically relax only when stricter rules stall.</p><div className="mt-2 flex flex-wrap items-center gap-1 text-xs"><span className="mr-1 text-muted-foreground">Start at:</span>{STRATEGIES.map((_, i) => <Button key={i} size="sm" variant={settings?.startStage === i + 1 ? "default" : "outline"} className="h-7 px-2" disabled={running || !settings} onClick={() => settings && setSettings({ ...settings, startStage: i + 1 })}>{i + 1}</Button>)}<Button size="sm" variant="ghost" className="h-7 px-2 text-sand" disabled={running || !settings} onClick={() => settings && setSettings({ ...settings, startStage: 5 })}><Sparkles className="size-3" /> Jump to 3/4 stages</Button></div></div>
                 {running ? <Button variant="destructive" onClick={() => { cancelled.current = true; }}><Square className="size-4" /> Stop search</Button> : <Button className="bg-sand text-background hover:bg-sand/90" onClick={() => void run()} disabled={!settings || audit.active.length < 16 || audit.duplicates.length > 0}><Play className="size-4" /> Run matchmaker</Button>}
               </div>
               {(running || progress) && <div className="mt-5 space-y-2"><Progress value={completion} /><div className="flex justify-between text-xs text-muted-foreground"><span>{progress ? `Level ${progress.strategyIndex + 1}: ${STRATEGIES[progress.strategyIndex].name} · Seed ${progress.seed}/${progress.maxSeeds}` : "Preparing player availability…"}</span><span>{Math.round(completion)}%</span></div></div>}
@@ -284,14 +316,15 @@ function MatchmakingPage() {
             <div className="grid grid-cols-2 divide-x divide-y divide-border/50 sm:grid-cols-3 lg:grid-cols-6">
               {STRATEGIES.map((strategy, index) => {
                 const active = progress?.strategyIndex === index;
+                const skipped = !progress && settings != null && index + 1 < settings.startStage;
                 const passed = progress != null && progress.strategyIndex > index;
-                return <div key={strategy.name} className={`min-h-24 p-3 ${active ? "bg-sand/10" : ""}`}><div className={`mb-2 flex size-6 items-center justify-center rounded-full border text-xs ${active ? "border-sand bg-sand text-background" : passed ? "border-teal text-teal" : "border-border text-muted-foreground"}`}>{passed ? <CheckCircle2 className="size-4" /> : index + 1}</div><div className="text-xs font-semibold">{strategy.name}</div><div className="mt-1 hidden text-[10px] leading-4 text-muted-foreground sm:block">{strategy.detail}</div></div>;
+                return <div key={strategy.name} className={`min-h-24 p-3 ${active ? "bg-sand/10" : ""} ${skipped ? "opacity-40" : ""}`}><div className={`mb-2 flex size-6 items-center justify-center rounded-full border text-xs ${active ? "border-sand bg-sand text-background" : passed ? "border-teal text-teal" : "border-border text-muted-foreground"}`}>{passed ? <CheckCircle2 className="size-4" /> : index + 1}</div><div className="text-xs font-semibold">{strategy.name}</div><div className="mt-1 hidden text-[10px] leading-4 text-muted-foreground sm:block">{strategy.detail}</div></div>;
               })}
             </div>
             {progress && <div className="grid grid-cols-3 gap-px border-t border-border/60 bg-border/60"><Metric label="Current score" value={Math.round(progress.score).toLocaleString()} /><Metric label="Best score" value={Math.round(progress.bestScore).toLocaleString()} /><Metric label="Broken tables" value={String(progress.bestBrokenTables)} danger={progress.bestBrokenTables > 0} /></div>}
           </Card>
 
-          {best && <Results candidate={best} rows={audit.active} tournamentNum={selectedNum ?? 0} selectedRound={selectedRound} onRoundChange={setSelectedRound} />}
+          {best && <Results candidate={best} rows={audit.active} tournamentNum={selectedNum ?? 0} selectedRound={selectedRound} onRoundChange={setSelectedRound} onPublish={() => setPublishOpen(true)} canPublish={!running} />}
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
@@ -315,6 +348,25 @@ function MatchmakingPage() {
             <AlertDialogAction disabled={checkInBusy} onClick={(event) => { event.preventDefault(); void confirmCheckInChange(); }}>
               {checkInBusy && <Loader2 className="size-4 animate-spin" />}
               Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={publishOpen} onOpenChange={(open) => { if (!publishing) setPublishOpen(open); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Publish tables to Tournament {selectedNum}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {best?.tables.length ?? 0} tables for Games 1–3 will appear on the live tournament page.
+              {existingCount == null ? " Checking existing tables…" : existingCount > 0 ? ` ${existingCount} existing Game 1–3 rows without results will be replaced; rows with results are kept.` : " No existing Game 1–3 tables found."}
+              {best && best.brokenTables > 0 ? ` Warning: ${best.brokenTables} tables are unresolved.` : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={publishing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={publishing || existingCount == null} onClick={(event) => { event.preventDefault(); void publish(); }}>
+              {publishing && <Loader2 className="size-4 animate-spin" />}
+              Publish
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -381,15 +433,29 @@ function PlayerAvailabilityPanel({ rows, onCheckInChange }: { rows: MatchmakerRe
 function SettingsPanel({ settings, disabled, onChange, onReset }: { settings: MatchmakerSettings; disabled: boolean; onChange: (v: MatchmakerSettings) => void; onReset: () => void }) {
   const set = <K extends keyof MatchmakerSettings>(key: K, value: MatchmakerSettings[K]) => onChange({ ...settings, [key]: value });
   const numeric = (key: keyof MatchmakerSettings, value: string) => set(key, Number(value) as never);
-  return <Card className="border-border/60 p-5"><div className="flex items-center justify-between gap-3"><div><div className="flex items-center gap-2"><CalendarClock className="size-5 text-coral" /><h2 className="font-display text-xl">Search controls</h2></div><p className="mt-1 text-xs text-muted-foreground">Adjust this run without changing tournament settings.</p></div><Button variant="ghost" size="icon" onClick={onReset} disabled={disabled} title="Reset controls"><RotateCcw className="size-4" /></Button></div><div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Field label="Availability starts"><Input type="datetime-local" value={settings.startDate} disabled={disabled} onChange={(e) => set("startDate", e.target.value)} /></Field><Field label="Availability ends"><Input type="datetime-local" value={settings.cutoffDate} disabled={disabled} onChange={(e) => set("cutoffDate", e.target.value)} /></Field><Field label="Suggestions per table"><Input type="number" min={1} max={5} value={settings.targetSlots} disabled={disabled} onChange={(e) => numeric("targetSlots", e.target.value)} /></Field><Field label="Search seeds"><Input type="number" min={1} max={300} value={settings.maxSeeds} disabled={disabled} onChange={(e) => numeric("maxSeeds", e.target.value)} /></Field><Field label="Steps per seed"><Input type="number" min={25} max={2000} step={25} value={settings.stepsPerSeed} disabled={disabled} onChange={(e) => numeric("stepsPerSeed", e.target.value)} /></Field><Field label="Early check step"><Input type="number" min={10} max={settings.stepsPerSeed} step={10} value={settings.checkpointStep} disabled={disabled} onChange={(e) => numeric("checkpointStep", e.target.value)} /></Field><Field label="Stagnant seed limit"><Input type="number" min={1} max={100} value={settings.patience} disabled={disabled} onChange={(e) => numeric("patience", e.target.value)} /></Field><Field label="Starting temperature"><Input type="number" min={1} max={500} value={settings.initialTemperature} disabled={disabled} onChange={(e) => numeric("initialTemperature", e.target.value)} /></Field></div></Card>;
+  return <Card className="border-border/60 p-5"><div className="flex items-center justify-between gap-3"><div><div className="flex items-center gap-2"><CalendarClock className="size-5 text-coral" /><h2 className="font-display text-xl">Search controls</h2></div><p className="mt-1 text-xs text-muted-foreground">Adjust this run without changing tournament settings.</p></div><Button variant="ghost" size="icon" onClick={onReset} disabled={disabled} title="Reset controls"><RotateCcw className="size-4" /></Button></div><div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Field label="Availability starts"><Input type="datetime-local" value={settings.startDate} disabled={disabled} onChange={(e) => set("startDate", e.target.value)} /></Field><Field label="Availability ends"><Input type="datetime-local" value={settings.cutoffDate} disabled={disabled} onChange={(e) => set("cutoffDate", e.target.value)} /></Field><Field label="Suggestions per table"><Input type="number" min={1} max={5} value={settings.targetSlots} disabled={disabled} onChange={(e) => numeric("targetSlots", e.target.value)} /></Field><Field label="Search seeds"><Input type="number" min={1} max={300} value={settings.maxSeeds} disabled={disabled} onChange={(e) => numeric("maxSeeds", e.target.value)} /></Field><Field label="Steps per seed"><Input type="number" min={25} max={2000} step={25} value={settings.stepsPerSeed} disabled={disabled} onChange={(e) => numeric("stepsPerSeed", e.target.value)} /></Field><Field label="Early check step"><Input type="number" min={10} max={settings.stepsPerSeed} step={10} value={settings.checkpointStep} disabled={disabled} onChange={(e) => numeric("checkpointStep", e.target.value)} /></Field><Field label="Stagnant seed limit"><Input type="number" min={1} max={100} value={settings.patience} disabled={disabled} onChange={(e) => numeric("patience", e.target.value)} /></Field><Field label="Quick probe seeds (skipped stages)"><Input type="number" min={0} max={100} value={settings.quickProbeSeeds} disabled={disabled} onChange={(e) => numeric("quickProbeSeeds", e.target.value)} /></Field><Field label="Starting temperature"><Input type="number" min={1} max={500} value={settings.initialTemperature} disabled={disabled} onChange={(e) => numeric("initialTemperature", e.target.value)} /></Field></div></Card>;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <div className="space-y-1"><Label className="text-xs text-muted-foreground">{label}</Label>{children}</div>; }
 
-function Results({ candidate, rows, tournamentNum, selectedRound, onRoundChange }: { candidate: MatchmakerCandidate; rows: MatchmakerRegistration[]; tournamentNum: number; selectedRound: string; onRoundChange: (v: string) => void }) {
+function tableQuality(table: MatchmakerCandidate["tables"][number]) {
+  const near = table.slots.filter((slot) => slot.type === "near").length;
+  return (table.broken ? -1000 : 0) + table.slots.length * 20 - near * 15 + table.averageSharedHours;
+}
+
+function Results({ candidate, rows, tournamentNum, selectedRound, onRoundChange, onPublish, canPublish }: { candidate: MatchmakerCandidate; rows: MatchmakerRegistration[]; tournamentNum: number; selectedRound: string; onRoundChange: (v: string) => void; onPublish: () => void; canPublish: boolean }) {
+  const [view, setView] = useState<"all" | "worst" | "issues">("all");
   const round = Number(selectedRound);
-  const tables = candidate.tables.filter((table) => table.round === round);
-  return <section className="border-y border-sand/50 py-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-teal"><CheckCircle2 className="size-5" /><span className="text-xs font-semibold uppercase">Review-ready browser draft</span></div><h2 className="mt-1 font-display text-2xl">Best schedule found</h2><p className="text-xs text-muted-foreground">Nothing has been saved to Supabase. Download and review before importing.</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => downloadText(`t${tournamentNum}_balanced_live_tournament_matchups.csv`, matchupsCsv(candidate, tournamentNum, rows))}><Download className="size-4" /> Matchups CSV</Button><Button variant="outline" size="sm" onClick={() => downloadText(`t${tournamentNum}_round_${round}_live_bot_ready.csv`, discordCsv(candidate, rows, round))}><Bot className="size-4" /> Discord round {round}</Button></div></div><Tabs value={selectedRound} onValueChange={onRoundChange} className="mt-5"><TabsList>{[1, 2, 3].map((item) => <TabsTrigger key={item} value={String(item)}>Game {item}</TabsTrigger>)}</TabsList>{[1, 2, 3].map((item) => <TabsContent key={item} value={String(item)}><div className="space-y-4">{tables.map((table) => <TablePreview key={table.table} table={table} timeline={candidate.timeline} rows={rows} />)}</div></TabsContent>)}</Tabs></section>;
+  const filterTables = (items: MatchmakerCandidate["tables"]) => {
+    if (view === "worst") return [...items].sort((a, b) => tableQuality(a) - tableQuality(b));
+    if (view === "issues") return items.filter((t) => t.broken || t.slots.some((s) => s.type === "near") || t.slots.length < 3).sort((a, b) => tableQuality(a) - tableQuality(b));
+    return items;
+  };
+  const roundTables = view === "all" ? candidate.tables.filter((t) => t.round === round) : filterTables(candidate.tables);
+  const tables = view === "all" ? roundTables : roundTables;
+  return <section className="border-y border-sand/50 py-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-teal"><CheckCircle2 className="size-5" /><span className="text-xs font-semibold uppercase">Review-ready browser draft</span></div><h2 className="mt-1 font-display text-2xl">Best schedule found</h2><p className="text-xs text-muted-foreground">Not published yet. Review, export, or publish to the tournament page.</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => downloadText(`t${tournamentNum}_balanced_live_tournament_matchups.csv`, matchupsCsv(candidate, tournamentNum, rows))}><Download className="size-4" /> Matchups CSV</Button>{[1, 2, 3].map((r) => <Button key={r} variant="outline" size="sm" onClick={() => downloadText(`t${tournamentNum}_round_${r}_live_bot_ready.csv`, discordCsv(candidate, rows, r))}><Bot className="size-4" /> Bot G{r}</Button>)}<Button size="sm" className="bg-sand text-background hover:bg-sand/90" onClick={onPublish} disabled={!canPublish}><Upload className="size-4" /> Publish</Button></div></div>
+  <div className="mt-5 flex flex-wrap items-center gap-2"><span className="text-xs text-muted-foreground">Show:</span>{([["all", "By game"], ["worst", "Worst tables first"], ["issues", "Only weak tables"]] as const).map(([key, label]) => <Button key={key} size="sm" variant={view === key ? "default" : "outline"} className="h-7" onClick={() => setView(key)}>{label}</Button>)}</div>
+  {view === "all" ? <Tabs value={selectedRound} onValueChange={onRoundChange} className="mt-4"><TabsList>{[1, 2, 3].map((item) => <TabsTrigger key={item} value={String(item)}>Game {item}</TabsTrigger>)}</TabsList>{[1, 2, 3].map((item) => <TabsContent key={item} value={String(item)}><div className="space-y-4">{tables.map((table) => <TablePreview key={table.table} table={table} timeline={candidate.timeline} rows={rows} />)}</div></TabsContent>)}</Tabs> : <div className="mt-4 space-y-4">{tables.length ? tables.map((table) => <TablePreview key={`${table.round}-${table.table}`} table={table} timeline={candidate.timeline} rows={rows} />) : <p className="py-6 text-center text-sm text-muted-foreground">No weak tables — every table has three unanimous options.</p>}</div>}</section>;
 }
 
 function TablePreview({ table, timeline, rows }: { table: MatchmakerCandidate["tables"][number]; timeline: number[]; rows: MatchmakerRegistration[] }) {
@@ -402,7 +468,7 @@ function TablePreview({ table, timeline, rows }: { table: MatchmakerCandidate["t
   }));
   const suggestedSlots = table.slots.map((slot, index) => ({
     label: String.fromCharCode(65 + index),
-    time_text: `<t:${Math.floor(timeline[slot.index] / 1000)}:F>${slot.type === "near" ? ` · 3/4, check ${slot.missing}` : ""}`,
+    time_text: `<t:${Math.floor(timeline[slot.index] / 1000)}:F>${slot.type === "near" ? ` · 3/4, ${slot.missing} ${slot.gap ?? 0}h away` : ""}`,
   }));
-  return <div className="overflow-hidden rounded-md border border-border/70 bg-background/30"><div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-4 py-3"><div><div className="font-display text-lg text-sand">Game {table.round} · Table {table.table}</div><div className="text-xs text-muted-foreground">Draft table mapping · seats follow the list below</div></div><div className="text-xs text-muted-foreground">{table.averageSharedHours.toFixed(1)}h shared avg</div></div><div className="grid divide-y divide-border/40 sm:grid-cols-4 sm:divide-x sm:divide-y-0">{table.players.map((player, index) => <div key={player} className="flex items-center gap-2 px-3 py-2 text-sm"><span className="flex size-6 shrink-0 items-center justify-center rounded-sm bg-muted text-[10px] text-muted-foreground">{index + 1}</span><div className="min-w-0"><div className="truncate font-medium">{player}</div><div className="text-[10px] text-muted-foreground">{table.playerCompatibility[player].toFixed(1)}h compatibility</div></div></div>)}</div><div className="p-4"><HeatmapBody tableId={`Game ${table.round} · Table ${table.table}`} matchQuality={table.averageSharedHours} players={players} suggestedSlots={suggestedSlots} playMode="live" /></div></div>;
+  return <div className="overflow-hidden rounded-md border border-border/70 bg-background/30"><div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-4 py-3"><div><div className="font-display text-lg text-sand">Game {table.round} · Table {table.table}</div><div className="text-xs text-muted-foreground">Draft table mapping · seats follow the list below</div></div><div className="flex items-center gap-2 text-xs text-muted-foreground">{table.broken && <span className="rounded border border-destructive/50 px-1.5 py-0.5 text-destructive">Unresolved</span>}{table.slots.some((s) => s.type === "near") && <span className="rounded border border-coral/50 px-1.5 py-0.5 text-coral">3/4 backup</span>}{table.averageSharedHours.toFixed(1)}h shared avg</div></div><div className="grid divide-y divide-border/40 sm:grid-cols-4 sm:divide-x sm:divide-y-0">{table.players.map((player, index) => <div key={player} className="flex items-center gap-2 px-3 py-2 text-sm"><span className="flex size-6 shrink-0 items-center justify-center rounded-sm bg-muted text-[10px] text-muted-foreground">{index + 1}</span><div className="min-w-0"><div className="truncate font-medium">{player}</div><div className="text-[10px] text-muted-foreground">{table.playerCompatibility[player].toFixed(1)}h compatibility</div></div></div>)}</div><div className="p-4"><HeatmapBody tableId={`Game ${table.round} · Table ${table.table}`} matchQuality={table.averageSharedHours} players={players} suggestedSlots={suggestedSlots} playMode="live" /></div></div>;
 }
