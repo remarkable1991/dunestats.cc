@@ -398,8 +398,8 @@ export function publishRows(candidate: MatchmakerCandidate, tournamentNum: numbe
   const details = new Map(rows.map((row) => [row.direwolf_name, row]));
   return candidate.tables.flatMap((table) => table.players.map((player) => ({
     tournament_num: tournamentNum,
-    round_type: `Game_${table.round}`,
-    table_identifier: `Table_${table.table}`,
+    round_type: `Game ${table.round}`,
+    table_identifier: `Table ${table.table}`,
     player_name: player,
     discord_username: details.get(player)?.discord_username ?? null,
     table_score: table.averageSharedHours,

@@ -146,7 +146,7 @@ function MatchmakingPage() {
   useEffect(() => {
     if (!publishOpen || selectedNum == null) return;
     setExistingCount(null);
-    void supabase.from("tournament_matches").select("id", { count: "exact", head: true }).eq("tournament_num", selectedNum).in("round_type", ["Game_1", "Game_2", "Game_3"]).then(({ count }) => setExistingCount(count ?? 0));
+    void supabase.from("tournament_matches").select("id", { count: "exact", head: true }).eq("tournament_num", selectedNum).in("round_type", ["Game 1", "Game 2", "Game 3", "Game_1", "Game_2", "Game_3"]).then(({ count }) => setExistingCount(count ?? 0));
   }, [publishOpen, selectedNum]);
 
   const publish = async () => {
@@ -154,7 +154,7 @@ function MatchmakingPage() {
     setPublishing(true);
     try {
       if (existingCount) {
-        const { error } = await supabase.from("tournament_matches").delete().eq("tournament_num", selectedNum).in("round_type", ["Game_1", "Game_2", "Game_3"]).is("placement", null);
+        const { error } = await supabase.from("tournament_matches").delete().eq("tournament_num", selectedNum).in("round_type", ["Game 1", "Game 2", "Game 3", "Game_1", "Game_2", "Game_3"]).is("placement", null);
         if (error) throw error;
       }
       const { error } = await supabase.from("tournament_matches").insert(publishRows(best, selectedNum, audit.active));
