@@ -6,6 +6,8 @@ export type MatchmakerRegistration = {
   availability: unknown;
   created_at: string;
   has_checked_in: boolean | null;
+  check_in_method: string | null;
+  checked_in_at: string | null;
 };
 
 export type MatchmakerSettings = {
@@ -61,6 +63,7 @@ export const STRATEGIES: Strategy[] = [
   { minSlots: 2, spacing: 20, nearMode: "none", name: "Strict", detail: "2+ unanimous slots · 10h spacing" },
   { minSlots: 1, spacing: 20, nearMode: "none", name: "Wide spacing", detail: "1+ unanimous slot · 10h spacing" },
   { minSlots: 1, spacing: 4, nearMode: "none", name: "Tight spacing", detail: "1+ unanimous slot · 2h spacing" },
+  { minSlots: 1, spacing: 20, nearMode: "backup_only", name: "Wide backup", detail: "First unanimous · backups 3/4 · 10h spacing" },
   { minSlots: 1, spacing: 4, nearMode: "backup_only", name: "Hybrid", detail: "First unanimous · backups may be 3/4" },
   { minSlots: 2, spacing: 4, nearMode: "full", name: "Near match", detail: "2+ slots · true 3/4 options allowed" },
 ];
