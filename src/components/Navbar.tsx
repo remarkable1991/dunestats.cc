@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Trophy, Upload, LogOut, User as UserIcon, ListOrdered, BarChart3, Medal, Sparkles, Users, Menu, Bell } from "lucide-react";
+import { Trophy, Upload, LogOut, User as UserIcon, ListOrdered, BarChart3, Medal, Sparkles, Users, Menu } from "lucide-react";
 
 export function Navbar() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -56,104 +56,58 @@ export function Navbar() {
         <div className="shrink-0">
           <Logo />
         </div>
-        <nav className="flex min-w-0 flex-1 items-center justify-end gap-1 sm:gap-2">
+        <nav className="hidden min-w-0 flex-1 items-center justify-end gap-0.5 lg:flex">
           <Button asChild variant="ghost" size="sm">
             <Link to="/tournament">
               <Trophy className="size-4" />
-              <span className="hidden sm:inline">Tournament</span>
+              Tournament
             </Link>
           </Button>
-
+          <Button asChild variant="ghost" size="sm"><Link to="/leaderboard"><Medal className="size-4" />Leaderboard</Link></Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/lfg">
+              <Users className="size-4" />LFG
+              {lfgCount > 0 ? <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary/15 px-1 text-xs text-primary">{lfgCount}</span> : null}
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm"><Link to="/matches"><ListOrdered className="size-4" />Matches</Link></Button>
+          <Button asChild variant="ghost" size="sm"><Link to="/stats"><BarChart3 className="size-4" />Stats</Link></Button>
+          <Button asChild variant="ghost" size="sm"><Link to="/rewards"><Sparkles className="size-4" />Rewards</Link></Button>
           {userId ? (
             <>
               <NotificationCenter />
-              <Button asChild variant="ghost" size="sm">
-                <Link to="/upload">
-                  <Upload className="size-4" />
-                  <span className="hidden sm:inline">Upload</span>
-                </Link>
+              <Button asChild variant="ghost" size="sm"><Link to="/upload"><Upload className="size-4" />Upload</Link></Button>
+              <Button asChild variant="ghost" size="sm"><Link to="/profile"><UserIcon className="size-4" />Profile</Link></Button>
+              <Button variant="ghost" size="sm" onClick={handleLogout} className="text-destructive hover:text-destructive">
+                <LogOut className="size-4" />Sign out
               </Button>
             </>
-          ) : null}
+          ) : (
+            <Button asChild size="sm"><Link to="/auth"><UserIcon className="size-4" />Sign in</Link></Button>
+          )}
+        </nav>
 
+        <nav className="flex min-w-0 flex-1 items-center justify-end gap-1 lg:hidden">
+          <Button asChild variant="ghost" size="sm"><Link to="/tournament"><Trophy className="size-4" /><span className="hidden sm:inline">Tournament</span></Link></Button>
+          {userId ? <><NotificationCenter /><Button asChild variant="ghost" size="sm"><Link to="/upload"><Upload className="size-4" /><span className="hidden sm:inline">Upload</span></Link></Button></> : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1">
-                <Menu className="size-4" />
-                <span className="hidden sm:inline">More</span>
-                {lfgCount > 0 ? (
-                  <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[11px] font-medium text-emerald-400">
-                    <span className="relative flex size-1.5">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
-                      <span className="relative inline-flex size-1.5 rounded-full bg-emerald-400" />
-                    </span>
-                    {lfgCount}
-                  </span>
-                ) : null}
+                <Menu className="size-4" /><span className="hidden sm:inline">More</span>
+                {lfgCount > 0 ? <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary/15 px-1 text-xs text-primary">{lfgCount}</span> : null}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuLabel className="text-xs text-muted-foreground">Browse</DropdownMenuLabel>
-              <DropdownMenuItem asChild>
-                <Link to="/leaderboard" className="gap-2">
-                  <Medal className="size-4" /> Leaderboard
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/lfg" className="gap-2">
-                  <Users className="size-4" /> LFG
-                  {lfgCount > 0 ? (
-                    <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[11px] font-medium text-emerald-400">
-                      <span className="relative flex size-1.5">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
-                        <span className="relative inline-flex size-1.5 rounded-full bg-emerald-400" />
-                      </span>
-                      {lfgCount}
-                    </span>
-                  ) : null}
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/matches" className="gap-2">
-                  <ListOrdered className="size-4" /> Matches
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/stats" className="gap-2">
-                  <BarChart3 className="size-4" /> Stats
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/rewards" className="gap-2">
-                  <Sparkles className="size-4" /> Rewards
-                </Link>
-              </DropdownMenuItem>
-
-              {userId ? (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs text-muted-foreground">Account</DropdownMenuLabel>
-                  <DropdownMenuItem asChild>
-                    <Link to="/profile" className="gap-2">
-                      <UserIcon className="size-4" /> Profile
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleLogout} className="gap-2 text-destructive focus:text-destructive">
-                    <LogOut className="size-4" /> Sign out
-                  </DropdownMenuItem>
-                </>
-              ) : null}
+              <DropdownMenuItem asChild><Link to="/leaderboard" className="gap-2"><Medal className="size-4" />Leaderboard</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/lfg" className="gap-2"><Users className="size-4" />LFG{lfgCount > 0 ? <span className="ml-auto text-xs text-primary">{lfgCount} open</span> : null}</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/matches" className="gap-2"><ListOrdered className="size-4" />Matches</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/stats" className="gap-2"><BarChart3 className="size-4" />Stats</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/rewards" className="gap-2"><Sparkles className="size-4" />Rewards</Link></DropdownMenuItem>
+              {userId ? <><DropdownMenuSeparator /><DropdownMenuLabel className="text-xs text-muted-foreground">Account</DropdownMenuLabel><DropdownMenuItem asChild><Link to="/profile" className="gap-2"><UserIcon className="size-4" />Profile</Link></DropdownMenuItem><DropdownMenuItem onClick={handleLogout} className="gap-2 text-destructive focus:text-destructive"><LogOut className="size-4" />Sign out</DropdownMenuItem></> : null}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {!userId ? (
-            <Button asChild variant="default" size="sm">
-              <Link to="/auth">
-                <UserIcon className="size-4" />
-                Sign in
-              </Link>
-            </Button>
-          ) : null}
+          {!userId ? <Button asChild size="sm"><Link to="/auth"><UserIcon className="size-4" />Sign in</Link></Button> : null}
         </nav>
       </div>
     </header>
