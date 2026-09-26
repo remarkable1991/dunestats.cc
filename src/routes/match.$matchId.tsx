@@ -1622,6 +1622,7 @@ function useHasEndboard(id: string, reloadKey: unknown): boolean | null {
   const [has, setHas] = useState<boolean | null>(null);
   useEffect(() => {
     let cancelled = false;
+    if (!id) return;
     const probe = (url: string) =>
       new Promise<boolean>((res) => {
         const img = new Image();
@@ -1817,6 +1818,10 @@ function VerificationCard({
 
 
   const persist = async (next: TelemetryPlayer[], message: string) => {
+    if (broken) {
+      toast.error(NO_ENDBOARD_MSG);
+      return;
+    }
     setPlayers(next);
     setSaving(true);
     try {
