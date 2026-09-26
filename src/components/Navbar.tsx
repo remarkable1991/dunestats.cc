@@ -92,7 +92,7 @@ export function Navbar() {
           {userId ? <><NotificationCenter /><Button asChild variant="ghost" size="sm"><Link to="/upload"><Upload className="size-4" /><span className="hidden sm:inline">Upload</span></Link></Button></> : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1">
+              <Button variant="ghost" size="sm" className="gap-1" aria-label="More navigation">
                 <Menu className="size-4" /><span className="hidden sm:inline">More</span>
                 {lfgCount > 0 ? <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary/15 px-1 text-xs text-primary">{lfgCount}</span> : null}
               </Button>
