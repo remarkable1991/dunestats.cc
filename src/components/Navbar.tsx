@@ -89,6 +89,7 @@ export function Navbar() {
 
         <nav className="flex min-w-0 flex-1 items-center justify-end gap-1 lg:hidden">
           <Button asChild variant="ghost" size="sm"><Link to="/tournament"><Trophy className="size-4" /><span className="hidden sm:inline">Tournament</span></Link></Button>
+          <Button asChild variant="ghost" size="sm"><Link to="/stats" aria-label="Stats"><BarChart3 className="size-4" /><span className="hidden sm:inline">Stats</span></Link></Button>
           {userId ? <><NotificationCenter /><Button asChild variant="ghost" size="sm"><Link to="/upload"><Upload className="size-4" /><span className="hidden sm:inline">Upload</span></Link></Button></> : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
