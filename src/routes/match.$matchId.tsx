@@ -289,6 +289,8 @@ function MatchDetailsPage() {
     return () => { cancelled = true; };
   }, [game?.id, game?.tournament_num]);
 
+  const hasEndboard = useHasEndboard(game ? (game.public_match_id ?? game.id) : "", game);
+
   const copyLink = async () => {
     if (!game) return;
     const id = game.public_match_id ?? game.id;
@@ -330,7 +332,6 @@ function MatchDetailsPage() {
   }
 
   const displayId = game.public_match_id ?? game.id;
-  const hasEndboard = useHasEndboard(displayId, game);
   const slotSorted = [...game.game_results].sort(
     (a, b) => (a.player_slot ?? a.placement) - (b.player_slot ?? b.placement),
   );
