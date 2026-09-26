@@ -289,6 +289,8 @@ function MatchDetailsPage() {
     return () => { cancelled = true; };
   }, [game?.id, game?.tournament_num]);
 
+  const hasEndboard = useHasEndboard(game ? (game.public_match_id ?? game.id) : "", game);
+
   const copyLink = async () => {
     if (!game) return;
     const id = game.public_match_id ?? game.id;
@@ -382,6 +384,10 @@ function MatchDetailsPage() {
 
 
   const saveInfluence = async (next: TelemetryPlayer[], message: string) => {
+    if (hasEndboard === false) {
+      toast.error(NO_ENDBOARD_MSG);
+      return;
+    }
     try {
       await saveMatchDetails(
         {
@@ -417,19 +423,44 @@ function MatchDetailsPage() {
           p_has_base_leaders: game.has_base_leaders,
           p_conflict_title: game.conflict_title,
           p_ai_scan_status: status,
-          p_players: game.game_results.map((r) => ({
-            player_name: r.player_name,
-            spice: r.spice,
-            solaris: r.solaris,
-            water: r.water,
-            is_leaver: r.is_leaver ?? false,
-            player_color: r.player_color,
-            player_slot: r.player_slot,
-            turn_order: r.turn_order,
-            has_first_player: r.has_first_player,
-            has_high_council: r.has_high_council,
-            has_swordmaster: r.has_swordmaster,
-          })),
+          p_players: game.game_results.map((r) =>
+            status === "No"
+              ? {
+                  // "No scan" wipes all screenshot-derived telemetry.
+                  player_name: r.player_name,
+                  spice: null,
+                  solaris: null,
+                  water: null,
+                  is_leaver: r.is_leaver ?? false,
+                  player_color: null,
+                  player_slot: null,
+                  turn_order: null,
+                  has_first_player: false,
+                  has_high_council: false,
+                  has_swordmaster: false,
+                  emperor_level: null,
+                  emperor_alliance: null,
+                  spacing_guild_level: null,
+                  spacing_guild_alliance: null,
+                  bene_gesserit_level: null,
+                  bene_gesserit_alliance: null,
+                  fremen_level: null,
+                  fremen_alliance: null,
+                }
+              : {
+                  player_name: r.player_name,
+                  spice: r.spice,
+                  solaris: r.solaris,
+                  water: r.water,
+                  is_leaver: r.is_leaver ?? false,
+                  player_color: r.player_color,
+                  player_slot: r.player_slot,
+                  turn_order: r.turn_order,
+                  has_first_player: r.has_first_player,
+                  has_high_council: r.has_high_council,
+                  has_swordmaster: r.has_swordmaster,
+                },
+          ),
         },
         status === "No" ? "Status reset to no scan" : "Marked as manually verified",
       );
@@ -1584,6 +1615,32 @@ function ConflictCard({
 const R2_MATCH_BASE = "https://pub-6fb62f34a2e3491fa0c7c71cc9a969fd.r2.dev/matches";
 
 /** Public R2 URL for a match's processed content-area screenshot. */
+const NO_ENDBOARD_MSG = "No endboard screenshot yet — please upload the endboard screenshot first.";
+
+/** Probe whether an endboard screenshot exists (processed or raw). null = still checking. */
+function useHasEndboard(id: string, reloadKey: unknown): boolean | null {
+  const [has, setHas] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!id) return;
+    const probe = (url: string) =>
+      new Promise<boolean>((res) => {
+        const img = new Image();
+        img.onload = () => res(true);
+        img.onerror = () => res(false);
+        img.src = `${url}?t=${Date.now()}`;
+      });
+    void (async () => {
+      const ok = (await probe(r2ContentAreaUrl(id))) || (await probe(r2EndboardRawUrl(id)));
+      if (!cancelled) setHas(ok);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, reloadKey]);
+  return has;
+}
+
 function r2ContentAreaUrl(id: string): string {
   return `${R2_MATCH_BASE}/${id}/${id}-content-area.png`;
 }
@@ -1761,6 +1818,10 @@ function VerificationCard({
 
 
   const persist = async (next: TelemetryPlayer[], message: string) => {
+    if (broken) {
+      toast.error(NO_ENDBOARD_MSG);
+      return;
+    }
     setPlayers(next);
     setSaving(true);
     try {
