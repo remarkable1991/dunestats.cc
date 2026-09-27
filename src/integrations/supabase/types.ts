@@ -506,6 +506,38 @@ export type Database = {
         }
         Relationships: []
       }
+      player_season_sp: {
+        Row: {
+          created_at: string
+          player_key: string
+          season_id: number
+          seasonal_sp: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          player_key: string
+          season_id: number
+          seasonal_sp?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          player_key?: string
+          season_id?: number
+          seasonal_sp?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_season_sp_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "sp_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       player_sp: {
         Row: {
           claimed_by: string | null
@@ -1340,6 +1372,10 @@ export type Database = {
         }[]
       }
       get_player_achievements: { Args: { p_player_key: string }; Returns: Json }
+      get_player_achievements_season: {
+        Args: { p_player_key: string; p_season_id: number }
+        Returns: Json
+      }
       get_player_favorite_leaders_for_stats: {
         Args: { p_player_key: string }
         Returns: {
