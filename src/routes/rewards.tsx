@@ -50,6 +50,8 @@ function RewardsPage() {
   const [tab, setTab] = useState<"seasonal" | "lifetime" | "recruiters">("seasonal");
   const [unclaimedOnly, setUnclaimedOnly] = useState(false);
   const [q, setQ] = useState("");
+  const [seasonId, setSeasonId] = useState<number | null>(null);
+  const [seasonSp, setSeasonSp] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     (async () => {
@@ -106,9 +108,41 @@ function RewardsPage() {
     );
   }, [seasons]);
 
+  useEffect(() => {
+    if (seasonId == null && currentSeason) setSeasonId(currentSeason.id);
+  }, [currentSeason, seasonId]);
+
+  useEffect(() => {
+    if (seasonId == null) return;
+    (async () => {
+      const m = new Map<string, number>();
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data } = await supabase
+          .from("player_season_sp")
+          .select("player_key, seasonal_sp")
+          .eq("season_id", seasonId)
+          .range(from, from + 999);
+        if (!data || data.length === 0) break;
+        for (const r of data) m.set(r.player_key, r.seasonal_sp);
+        if (data.length < 1000) break;
+        from += 1000;
+      }
+      setSeasonSp(m);
+    })();
+  }, [seasonId]);
+
+  const startedSeasons = useMemo(
+    () => seasons.filter((s) => new Date(s.starts_at).getTime() <= Date.now()),
+    [seasons],
+  );
+  const viewedSeason = seasons.find((s) => s.id === seasonId) ?? currentSeason;
+  const viewedEnded = viewedSeason ? new Date(viewedSeason.ends_at).getTime() <= Date.now() : false;
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    let list = rows.filter((r) => {
+    let list = rows.map((r) => ({ ...r, seasonal_sp: seasonSp.get(r.player_key) ?? 0 })).filter((r) => {
       if (unclaimedOnly && r.is_claimed) return false;
       if (needle && !r.display_name.toLowerCase().includes(needle)) return false;
       return true;
@@ -116,7 +150,7 @@ function RewardsPage() {
     const key: keyof SpRow = tab === "lifetime" ? "lifetime_sp" : "seasonal_sp";
     list = [...list].sort((a, b) => (b[key] as number) - (a[key] as number));
     return list;
-  }, [rows, q, unclaimedOnly, tab]);
+  }, [rows, q, unclaimedOnly, tab, seasonSp]);
 
   return (
     <div className="min-h-screen">
@@ -136,7 +170,7 @@ function RewardsPage() {
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <TabsList className="bg-card/60 border border-border/60">
               <TabsTrigger value="seasonal" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground">
-                Seasonal {currentSeason ? `· ${currentSeason.name}` : ""}
+                Seasonal {viewedSeason ? `· ${viewedSeason.name}` : ""}
               </TabsTrigger>
               <TabsTrigger value="lifetime" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground">
                 Lifetime
@@ -165,9 +199,23 @@ function RewardsPage() {
           </div>
 
           <TabsContent value="seasonal">
-            <div className="mb-3">
+            <div className="mb-3 flex flex-wrap items-center gap-3">
+              {startedSeasons.length > 1 && (
+                <select
+                  aria-label="Season"
+                  value={seasonId ?? ""}
+                  onChange={(e) => setSeasonId(Number(e.target.value))}
+                  className="h-8 rounded-md border border-border/60 bg-card/60 px-2 text-xs"
+                >
+                  {startedSeasons.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} {new Date(s.ends_at).getTime() <= Date.now() ? "· Concluded" : "· Active"}
+                    </option>
+                  ))}
+                </select>
+              )}
               <Badge variant="outline" className="border-sand/60 text-sand bg-sand/10">
-                🏆 Seasonal Prizes: TBA Soon!
+                {viewedEnded ? `🏆 ${viewedSeason?.name} Concluded — Final Standings` : "🏆 Seasonal Prizes: TBA Soon!"}
               </Badge>
             </div>
             <LedgerTable rows={filtered} column="seasonal_sp" loading={loading} />
