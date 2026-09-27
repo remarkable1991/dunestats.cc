@@ -258,6 +258,8 @@ function ProfilePage() {
   const [achTab, setAchTab] = useState<"all" | "unlocked" | "progress">("all");
   const [achTag, setAchTag] = useState<string>("all");
   const [achScope, setAchScope] = useState<"lifetime" | "seasonal">("lifetime");
+  const [achSeasons, setAchSeasons] = useState<{ id: number; name: string }[]>([]);
+  const [achSeasonId, setAchSeasonId] = useState<number | null>(null);
   const [ranks, setRanks] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -310,9 +312,23 @@ function ProfilePage() {
   }, [playerKey]);
 
   useEffect(() => {
+    supabase
+      .from("sp_seasons")
+      .select("id, name, starts_at, ends_at")
+      .order("id")
+      .then(({ data }) => {
+        const now = Date.now();
+        const started = (data ?? []).filter((s) => new Date(s.starts_at).getTime() <= now);
+        setAchSeasons(started.map((s) => ({ id: s.id, name: s.name })));
+        const cur = started.find((s) => now < new Date(s.ends_at).getTime()) ?? started[started.length - 1];
+        if (cur) setAchSeasonId(cur.id);
+      });
+  }, []);
+
+  useEffect(() => {
     let mounted = true;
     supabase
-      .rpc("get_player_achievements", { p_player_key: playerKey })
+      .rpc("get_player_achievements_season", { p_player_key: playerKey, p_season_id: achSeasonId as number })
       .then(({ data }) => {
         if (!mounted) return;
         const list = (data as unknown as { achievements?: Achievement[] } | null)?.achievements ?? [];
@@ -321,7 +337,7 @@ function ProfilePage() {
     return () => {
       mounted = false;
     };
-  }, [playerKey]);
+  }, [playerKey, achSeasonId]);
 
   const closingIn = useMemo(
     () =>
@@ -633,6 +649,18 @@ function ProfilePage() {
                       </button>
                     ))}
                   </div>
+                  {achScope === "seasonal" && achSeasons.length > 1 && (
+                    <select
+                      aria-label="Season"
+                      value={achSeasonId ?? ""}
+                      onChange={(e) => setAchSeasonId(Number(e.target.value))}
+                      className="h-8 rounded-md border border-border/60 bg-card/60 px-2 text-xs"
+                    >
+                      {achSeasons.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  )}
                   <Tabs value={achTab} onValueChange={(v) => setAchTab(v as typeof achTab)}>
                     <TabsList className="bg-card/60 border border-border/60">
                       <TabsTrigger value="all" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground text-xs">All Statuses</TabsTrigger>
