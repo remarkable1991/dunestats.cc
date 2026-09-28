@@ -411,6 +411,7 @@ function CurrentTournament({
     type Agg = {
       player: string;
       discord: string;
+      isBackup: boolean;
       tp: number;
       wins: number;
       placements: number[];
@@ -448,6 +449,7 @@ function CurrentTournament({
         const agg = map.get(key) ?? {
           player: r.player_name,
           discord: r.discord_username ?? r.player_name,
+          isBackup: false,
           tp: 0,
           wins: 0,
           placements: [] as number[],
@@ -478,6 +480,7 @@ function CurrentTournament({
       map.set(row.player_name, {
         player: row.player_name,
         discord: row.discord_username ?? row.player_name,
+        isBackup: false,
         tp: 0,
         wins: 0,
         placements: [],
