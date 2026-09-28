@@ -309,6 +309,7 @@ function CurrentTournament({
     type Agg = {
       player: string;
       discord: string;
+      isBackup: boolean;
       tp: number;
       wins: number;
       placements: number[];
@@ -341,11 +342,13 @@ function CurrentTournament({
         Math.max(0, 5 - (vps[0] - vps[3])),
       ].map((v) => Math.max(0, v));
       ranked.forEach((r, i) => {
-        // Substitutes ("backup" seats) get their own ranking line: "Name (backup)".
+        // Substitutes ("backup" seats) get their own ranking line, keyed separately
+        // but displayed under their base name with a "Backup" badge.
         const key = r.is_backup ? `${r.player_name} (backup)` : r.player_name;
         const agg = map.get(key) ?? {
-          player: key,
-          discord: r.is_backup ? key : (r.discord_username ?? r.player_name),
+          player: r.player_name,
+          discord: r.discord_username ?? r.player_name,
+          isBackup: !!r.is_backup,
           tp: 0,
           wins: 0,
           placements: [],
