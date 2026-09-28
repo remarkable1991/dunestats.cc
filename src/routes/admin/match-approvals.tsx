@@ -146,7 +146,7 @@ function MatchApprovals() {
         p_single_game_fixes: single,
         p_match_code: f.matchCode.trim() || undefined,
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       toast.success("Approved — tournament table updated.");
       await load();
     } catch (e) {

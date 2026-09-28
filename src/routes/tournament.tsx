@@ -341,12 +341,11 @@ function CurrentTournament({
         Math.max(0, 5 - (vps[0] - vps[3])),
       ].map((v) => Math.max(0, v));
       ranked.forEach((r, i) => {
-        // Substitutes ("backup" seats) do not score for their own standings.
-        if (r.is_backup) return;
-        const key = r.player_name;
+        // Substitutes ("backup" seats) get their own ranking line: "Name (backup)".
+        const key = r.is_backup ? `${r.player_name} (backup)` : r.player_name;
         const agg = map.get(key) ?? {
-          player: r.player_name,
-          discord: r.discord_username ?? r.player_name,
+          player: key,
+          discord: r.is_backup ? key : (r.discord_username ?? r.player_name),
           tp: 0,
           wins: 0,
           placements: [],
@@ -364,7 +363,7 @@ function CurrentTournament({
           agg.daysSum += tDays;
           agg.daysCount += 1;
         }
-        if (r.discord_username) agg.discord = r.discord_username;
+        if (r.discord_username && !r.is_backup) agg.discord = r.discord_username;
         map.set(key, agg);
       });
     }
