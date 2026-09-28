@@ -309,6 +309,7 @@ function CurrentTournament({
     type Agg = {
       player: string;
       discord: string;
+      isBackup: boolean;
       tp: number;
       wins: number;
       placements: number[];
@@ -341,11 +342,13 @@ function CurrentTournament({
         Math.max(0, 5 - (vps[0] - vps[3])),
       ].map((v) => Math.max(0, v));
       ranked.forEach((r, i) => {
-        // Substitutes ("backup" seats) get their own ranking line: "Name (backup)".
+        // Substitutes ("backup" seats) get their own ranking line, keyed separately
+        // but displayed under their base name with a "Backup" badge.
         const key = r.is_backup ? `${r.player_name} (backup)` : r.player_name;
         const agg = map.get(key) ?? {
-          player: key,
-          discord: r.is_backup ? key : (r.discord_username ?? r.player_name),
+          player: r.player_name,
+          discord: r.discord_username ?? r.player_name,
+          isBackup: !!r.is_backup,
           tp: 0,
           wins: 0,
           placements: [],
@@ -374,6 +377,7 @@ function CurrentTournament({
         map.set(row.player_name, {
           player: row.player_name,
           discord: row.discord_username ?? row.player_name,
+          isBackup: false,
           tp: 0,
           wins: 0,
           placements: [],
@@ -407,6 +411,7 @@ function CurrentTournament({
     type Agg = {
       player: string;
       discord: string;
+      isBackup: boolean;
       tp: number;
       wins: number;
       placements: number[];
@@ -444,6 +449,7 @@ function CurrentTournament({
         const agg = map.get(key) ?? {
           player: r.player_name,
           discord: r.discord_username ?? r.player_name,
+          isBackup: false,
           tp: 0,
           wins: 0,
           placements: [] as number[],
@@ -474,6 +480,7 @@ function CurrentTournament({
       map.set(row.player_name, {
         player: row.player_name,
         discord: row.discord_username ?? row.player_name,
+        isBackup: false,
         tp: 0,
         wins: 0,
         placements: [],
@@ -1007,7 +1014,7 @@ function CurrentTournament({
                     const mine = isMine(s.player);
                     return (
                       <tr
-                        key={s.player}
+                        key={s.isBackup ? `${s.player} (backup)` : s.player}
                         className={`border-b border-border/20 ${mine ? "bg-sand/15 ring-2 ring-sand" : gold ? "bg-amber-500/10 ring-1 ring-amber-400/60" : silver ? "bg-slate-400/5 ring-1 ring-slate-400/40" : ""}`}
                       >
                         <td className="py-2 px-2 font-mono">{rank}</td>
@@ -1020,6 +1027,14 @@ function CurrentTournament({
                           >
                             {displayMode === "discord" ? s.discord : s.player}
                           </Link>
+                          {s.isBackup && (
+                            <span
+                              className="ml-2 inline-flex items-center rounded-full border border-sky-500/40 bg-sky-500/10 px-1.5 text-[10px] text-sky-300"
+                              title="Backup player — this result does not count toward their own standings"
+                            >
+                              🛡️ Backup
+                            </span>
+                          )}
                           {isChampion(champions, s.player) && (
                             <Trophy
                               className="inline size-4 text-sand ml-1 -mt-0.5"
