@@ -377,6 +377,7 @@ function CurrentTournament({
         map.set(row.player_name, {
           player: row.player_name,
           discord: row.discord_username ?? row.player_name,
+          isBackup: false,
           tp: 0,
           wins: 0,
           placements: [],
@@ -1023,6 +1024,14 @@ function CurrentTournament({
                           >
                             {displayMode === "discord" ? s.discord : s.player}
                           </Link>
+                          {s.isBackup && (
+                            <span
+                              className="ml-2 inline-flex items-center rounded-full border border-sky-500/40 bg-sky-500/10 px-1.5 text-[10px] text-sky-300"
+                              title="Backup player — this result does not count toward their own standings"
+                            >
+                              🛡️ Backup
+                            </span>
+                          )}
                           {isChampion(champions, s.player) && (
                             <Trophy
                               className="inline size-4 text-sand ml-1 -mt-0.5"
