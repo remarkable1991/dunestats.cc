@@ -1011,7 +1011,7 @@ function CurrentTournament({
                     const mine = isMine(s.player);
                     return (
                       <tr
-                        key={s.player}
+                        key={s.isBackup ? `${s.player} (backup)` : s.player}
                         className={`border-b border-border/20 ${mine ? "bg-sand/15 ring-2 ring-sand" : gold ? "bg-amber-500/10 ring-1 ring-amber-400/60" : silver ? "bg-slate-400/5 ring-1 ring-slate-400/40" : ""}`}
                       >
                         <td className="py-2 px-2 font-mono">{rank}</td>
