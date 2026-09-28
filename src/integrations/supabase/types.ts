@@ -1338,6 +1338,7 @@ export type Database = {
           p_match_code?: string
           p_name_fixes?: Json
           p_round?: string
+          p_single_game_fixes?: Json
           p_table?: string
         }
         Returns: Json
