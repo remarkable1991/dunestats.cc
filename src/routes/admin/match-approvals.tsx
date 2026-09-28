@@ -46,6 +46,8 @@ type FormState = {
   /** roster name (wrong) -> corrected name */
   fixes: Record<string, string>;
   matchCode: string;
+  /** detected name -> rename scope */
+  scopes?: Record<string, "tournament" | "game">;
 };
 
 function MatchApprovals() {
@@ -127,11 +129,21 @@ function MatchApprovals() {
     if (!f) return;
     setBusy(row.id);
     try {
-      const { error } = await supabase.rpc("approve_pending_tournament_match", {
+      const wide: Record<string, string> = {};
+      const single: Record<string, string> = {};
+      for (const [k, v] of Object.entries(f.fixes)) {
+        if (f.scopes?.[v] === "game") single[k] = v;
+        else wide[k] = v;
+      }
+      const { error } = await (supabase.rpc as unknown as (
+        fn: string,
+        args: Record<string, unknown>,
+      ) => Promise<{ error: { message: string } | null }>)("approve_pending_tournament_match", {
         p_id: row.id,
         p_round: f.round || undefined,
         p_table: f.table || undefined,
-        p_name_fixes: f.fixes,
+        p_name_fixes: wide,
+        p_single_game_fixes: single,
         p_match_code: f.matchCode.trim() || undefined,
       });
       if (error) throw error;
@@ -255,8 +267,8 @@ function MatchApprovals() {
               {row.unmatched.length > 0 && (
                 <div className="rounded-md border border-amber-500/50 bg-amber-500/5 p-3 space-y-3">
                   <p className="text-xs text-amber-300">
-                    These screenshot players are not on the table roster. Pick who they registered as —
-                    the roster name is replaced by the screenshot name everywhere in this tournament.
+                    These screenshot players are not on the table roster. Pick who they registered as, then
+                    choose to rename them for the whole tournament or only for this game (as a backup).
                   </p>
                   {row.unmatched.map((u) => {
                     const current =
@@ -304,6 +316,25 @@ function MatchApprovals() {
                         <div>
                           <Label className="text-xs">Rename to (from screenshot)</Label>
                           <Input value={u.detected} readOnly className="opacity-80" />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <Label className="text-xs">Apply rename to</Label>
+                          <Select
+                            value={f.scopes?.[u.detected] ?? "tournament"}
+                            onValueChange={(v) =>
+                              setForm(row.id, {
+                                scopes: { ...(f.scopes ?? {}), [u.detected]: v as "tournament" | "game" },
+                              })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="tournament">Entire tournament (full rename)</SelectItem>
+                              <SelectItem value="game">This game only (added to ranking as "{u.detected} (backup)")</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     );
