@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.approve_pending_tournament_match(uuid, text, text, jsonb, text, jsonb) FROM PUBLIC, anon;
