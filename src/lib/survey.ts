@@ -105,7 +105,7 @@ export const MODULES: ModuleDef[] = [
   { key: "ix", label: "Rise of Ix", hint: "Available with either board", image: ixIcon.url, boards: ["uprising", "base"] },
   {
     key: "immortality",
-    label: "Immortality",
+    label: "Immortality (To 11)",
     hint: "Available with either board",
     image: immoIcon.url,
     boards: ["uprising", "base"],
