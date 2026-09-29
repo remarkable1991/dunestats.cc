@@ -2,6 +2,8 @@ import uprisingIcon from "@/assets/uprising.png.asset.json";
 import ixIcon from "@/assets/ix.png.asset.json";
 import immoIcon from "@/assets/immo.png.asset.json";
 import epicIcon from "@/assets/epic.png.asset.json";
+import choamIcon from "@/assets/choam.png.asset.json";
+import baseLeadersIcon from "@/assets/base-leaders.png.asset.json";
 import liveIcon from "@/assets/live-mode.png.asset.json";
 import asyncIcon from "@/assets/async-mode.png.asset.json";
 
@@ -73,7 +75,6 @@ export type BoardKey = "uprising" | "base";
 export type FormatPick = {
   board: BoardKey;
   modules: string[];
-  players: string;
 };
 
 export const BOARDS: { key: BoardKey; label: string; hint: string; image?: string }[] = [
@@ -91,25 +92,30 @@ export type ModuleDef = {
 };
 
 export const MODULES: ModuleDef[] = [
-  { key: "choam", label: "CHOAM & Richese", hint: "Uprising only", boards: ["uprising"] },
-  { key: "base_leaders", label: "Base leaders", hint: "Base-game leaders on the Uprising board", boards: ["uprising"] },
-  { key: "ix", label: "Rise of Ix", hint: "Base game only", image: ixIcon.url, boards: ["base"] },
-  { key: "immortality", label: "Immortality", hint: "Base game only", image: immoIcon.url, boards: ["base"] },
+  { key: "choam", label: "CHOAM & Richese", hint: "Uprising only", image: choamIcon.url, boards: ["uprising"] },
+  {
+    key: "base_leaders",
+    label: "Base leaders",
+    hint: "Available with either board",
+    image: baseLeadersIcon.url,
+    boards: ["uprising", "base"],
+  },
+  { key: "ix", label: "Rise of Ix", hint: "Available with either board", image: ixIcon.url, boards: ["uprising", "base"] },
+  {
+    key: "immortality",
+    label: "Immortality",
+    hint: "Available with either board",
+    image: immoIcon.url,
+    boards: ["uprising", "base"],
+  },
   {
     key: "epic",
     label: "Epic mode",
     hint: "Needs Rise of Ix",
     image: epicIcon.url,
-    boards: ["base"],
+    boards: ["uprising", "base"],
     requires: "ix",
   },
-];
-
-export const PLAYER_COUNTS = [
-  { key: "2", label: "2 players", boards: ["uprising", "base"] as BoardKey[] },
-  { key: "3", label: "3 players", boards: ["uprising", "base"] as BoardKey[] },
-  { key: "4", label: "4 players", boards: ["uprising", "base"] as BoardKey[] },
-  { key: "6", label: "6 players (teams)", boards: ["uprising"] as BoardKey[], requires: "choam" },
 ];
 
 /** Why a module cannot be picked right now, or null when it is available. */
@@ -137,18 +143,15 @@ export function normalizeFormat(pick: FormatPick): FormatPick {
       return !def?.requires || modules.includes(def.requires);
     });
   }
-  const pc = PLAYER_COUNTS.find((p) => p.key === pick.players);
-  const playersOk =
-    pc && pc.boards.includes(pick.board) && (!pc.requires || modules.includes(pc.requires));
-  return { board: pick.board, modules, players: playersOk ? pick.players : "4" };
+  return { board: pick.board, modules };
 }
 
 export function emptyFormat(): FormatPick {
-  return { board: "uprising", modules: [], players: "4" };
+  return { board: "uprising", modules: [] };
 }
 
 export function formatLabel(pick: FormatPick): string {
   const board = BOARDS.find((b) => b.key === pick.board)?.label ?? pick.board;
   const mods = pick.modules.map((k) => MODULES.find((m) => m.key === k)?.label ?? k);
-  return [board, ...mods, `${pick.players}p`].join(" · ");
+  return [board, ...mods].join(" · ");
 }

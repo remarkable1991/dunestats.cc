@@ -4,7 +4,6 @@ import { Plus, Trash2, Lock } from "lucide-react";
 import {
   BOARDS,
   MODULES,
-  PLAYER_COUNTS,
   emptyFormat,
   formatLabel,
   moduleBlockedReason,
@@ -106,39 +105,6 @@ export function SurveyFormatBuilder({ value, max, onChange }: Props) {
                       <span className="block text-xs text-muted-foreground">{blocked ?? m.hint}</span>
                     </span>
                     {blocked && <Lock className="ml-auto size-3.5 shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Players</p>
-            <div className="flex flex-wrap gap-2">
-              {PLAYER_COUNTS.map((p) => {
-                const blocked =
-                  !p.boards.includes(pick.board)
-                    ? "Not on this board"
-                    : p.requires && !pick.modules.includes(p.requires)
-                      ? "Needs CHOAM & Richese"
-                      : null;
-                const on = pick.players === p.key;
-                return (
-                  <button
-                    key={p.key}
-                    type="button"
-                    disabled={!!blocked}
-                    title={blocked ?? undefined}
-                    onClick={() => update(i, { players: p.key })}
-                    className={`rounded-md border px-3 py-1.5 text-sm transition ${
-                      blocked
-                        ? "cursor-not-allowed border-border/40 bg-muted/20 text-muted-foreground/60"
-                        : on
-                          ? "border-primary bg-primary/15 text-foreground"
-                          : "border-border/60 bg-background/40 text-muted-foreground hover:border-primary/50"
-                    }`}
-                  >
-                    {p.label}
                   </button>
                 );
               })}
