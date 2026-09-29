@@ -92,7 +92,7 @@ export type ModuleDef = {
 };
 
 export const MODULES: ModuleDef[] = [
-  { key: "choam", label: "CHOAM & Richese", hint: "Uprising only", image: choamIcon.url, boards: ["uprising"] },
+  { key: "choam", label: "CHOAM Module", hint: "Uprising only", image: choamIcon.url, boards: ["uprising"] },
   {
     key: "base_leaders",
     label: "Base leaders",
