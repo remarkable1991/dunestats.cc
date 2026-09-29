@@ -80,8 +80,8 @@ export type FormatPick = {
 };
 
 export const BOARDS: { key: BoardKey; label: string; hint: string; image?: string }[] = [
-  { key: "uprising", label: "Uprising", hint: "The newer standalone board", image: uprisingIcon.url },
-  { key: "base", label: "Base game", hint: "The original Dune: Imperium board" },
+  { key: "uprising", label: "Uprising", hint: "\n", image: uprisingIcon.url },
+  { key: "base", label: "Base game", hint: "\n" },
 ];
 
 export type ModuleDef = {
