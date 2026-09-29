@@ -14,6 +14,7 @@ import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as TournamentRegisterRouteImport } from './routes/tournament-register'
 import { Route as TournamentRouteImport } from './routes/tournament'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as SurveyRouteImport } from './routes/survey'
 import { Route as StatsRouteImport } from './routes/stats'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as RewardsRouteImport } from './routes/rewards'
@@ -35,6 +36,7 @@ import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
 import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
 import { Route as AdminTournamentsRouteImport } from './routes/admin/tournaments'
 import { Route as AdminTournamentEmailsRouteImport } from './routes/admin/tournament-emails'
+import { Route as AdminSurveyRouteImport } from './routes/admin/survey'
 import { Route as AdminNotificationEmailsRouteImport } from './routes/admin/notification-emails'
 import { Route as AdminMatchmakingRouteImport } from './routes/admin/matchmaking'
 import { Route as AdminMatchApprovalsRouteImport } from './routes/admin/match-approvals'
@@ -64,6 +66,11 @@ const TournamentRoute = TournamentRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SurveyRoute = SurveyRouteImport.update({
+  id: '/survey',
+  path: '/survey',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StatsRoute = StatsRouteImport.update({
@@ -171,6 +178,11 @@ const AdminTournamentEmailsRoute = AdminTournamentEmailsRouteImport.update({
   path: '/admin/tournament-emails',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminSurveyRoute = AdminSurveyRouteImport.update({
+  id: '/admin/survey',
+  path: '/admin/survey',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminNotificationEmailsRoute = AdminNotificationEmailsRouteImport.update({
   id: '/admin/notification-emails',
   path: '/admin/notification-emails',
@@ -211,6 +223,7 @@ export interface FileRoutesByFullPath {
   '/rewards': typeof RewardsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
+  '/survey': typeof SurveyRoute
   '/terms': typeof TermsRoute
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
@@ -219,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/matchmaking': typeof AdminMatchmakingRoute
   '/admin/notification-emails': typeof AdminNotificationEmailsRoute
+  '/admin/survey': typeof AdminSurveyRoute
   '/admin/tournament-emails': typeof AdminTournamentEmailsRoute
   '/admin/tournaments': typeof AdminTournamentsRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -244,6 +258,7 @@ export interface FileRoutesByTo {
   '/rewards': typeof RewardsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
+  '/survey': typeof SurveyRoute
   '/terms': typeof TermsRoute
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
@@ -252,6 +267,7 @@ export interface FileRoutesByTo {
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/matchmaking': typeof AdminMatchmakingRoute
   '/admin/notification-emails': typeof AdminNotificationEmailsRoute
+  '/admin/survey': typeof AdminSurveyRoute
   '/admin/tournament-emails': typeof AdminTournamentEmailsRoute
   '/admin/tournaments': typeof AdminTournamentsRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -278,6 +294,7 @@ export interface FileRoutesById {
   '/rewards': typeof RewardsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
+  '/survey': typeof SurveyRoute
   '/terms': typeof TermsRoute
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
@@ -286,6 +303,7 @@ export interface FileRoutesById {
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/matchmaking': typeof AdminMatchmakingRoute
   '/admin/notification-emails': typeof AdminNotificationEmailsRoute
+  '/admin/survey': typeof AdminSurveyRoute
   '/admin/tournament-emails': typeof AdminTournamentEmailsRoute
   '/admin/tournaments': typeof AdminTournamentsRoute
   '/auth_/callback': typeof AuthCallbackRoute
@@ -313,6 +331,7 @@ export interface FileRouteTypes {
     | '/rewards'
     | '/sitemap.xml'
     | '/stats'
+    | '/survey'
     | '/terms'
     | '/tournament'
     | '/tournament-register'
@@ -321,6 +340,7 @@ export interface FileRouteTypes {
     | '/admin/match-approvals'
     | '/admin/matchmaking'
     | '/admin/notification-emails'
+    | '/admin/survey'
     | '/admin/tournament-emails'
     | '/admin/tournaments'
     | '/auth/callback'
@@ -346,6 +366,7 @@ export interface FileRouteTypes {
     | '/rewards'
     | '/sitemap.xml'
     | '/stats'
+    | '/survey'
     | '/terms'
     | '/tournament'
     | '/tournament-register'
@@ -354,6 +375,7 @@ export interface FileRouteTypes {
     | '/admin/match-approvals'
     | '/admin/matchmaking'
     | '/admin/notification-emails'
+    | '/admin/survey'
     | '/admin/tournament-emails'
     | '/admin/tournaments'
     | '/auth/callback'
@@ -379,6 +401,7 @@ export interface FileRouteTypes {
     | '/rewards'
     | '/sitemap.xml'
     | '/stats'
+    | '/survey'
     | '/terms'
     | '/tournament'
     | '/tournament-register'
@@ -387,6 +410,7 @@ export interface FileRouteTypes {
     | '/admin/match-approvals'
     | '/admin/matchmaking'
     | '/admin/notification-emails'
+    | '/admin/survey'
     | '/admin/tournament-emails'
     | '/admin/tournaments'
     | '/auth_/callback'
@@ -413,6 +437,7 @@ export interface RootRouteChildren {
   RewardsRoute: typeof RewardsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StatsRoute: typeof StatsRoute
+  SurveyRoute: typeof SurveyRoute
   TermsRoute: typeof TermsRoute
   TournamentRoute: typeof TournamentRoute
   TournamentRegisterRoute: typeof TournamentRegisterRoute
@@ -421,6 +446,7 @@ export interface RootRouteChildren {
   AdminMatchApprovalsRoute: typeof AdminMatchApprovalsRoute
   AdminMatchmakingRoute: typeof AdminMatchmakingRoute
   AdminNotificationEmailsRoute: typeof AdminNotificationEmailsRoute
+  AdminSurveyRoute: typeof AdminSurveyRoute
   AdminTournamentEmailsRoute: typeof AdminTournamentEmailsRoute
   AdminTournamentsRoute: typeof AdminTournamentsRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
@@ -468,6 +494,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/survey': {
+      id: '/survey'
+      path: '/survey'
+      fullPath: '/survey'
+      preLoaderRoute: typeof SurveyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/stats': {
@@ -617,6 +650,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTournamentEmailsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/survey': {
+      id: '/admin/survey'
+      path: '/admin/survey'
+      fullPath: '/admin/survey'
+      preLoaderRoute: typeof AdminSurveyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/notification-emails': {
       id: '/admin/notification-emails'
       path: '/admin/notification-emails'
@@ -669,6 +709,7 @@ const rootRouteChildren: RootRouteChildren = {
   RewardsRoute: RewardsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StatsRoute: StatsRoute,
+  SurveyRoute: SurveyRoute,
   TermsRoute: TermsRoute,
   TournamentRoute: TournamentRoute,
   TournamentRegisterRoute: TournamentRegisterRoute,
@@ -677,6 +718,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminMatchApprovalsRoute: AdminMatchApprovalsRoute,
   AdminMatchmakingRoute: AdminMatchmakingRoute,
   AdminNotificationEmailsRoute: AdminNotificationEmailsRoute,
+  AdminSurveyRoute: AdminSurveyRoute,
   AdminTournamentEmailsRoute: AdminTournamentEmailsRoute,
   AdminTournamentsRoute: AdminTournamentsRoute,
   AuthCallbackRoute: AuthCallbackRoute,
