@@ -394,6 +394,28 @@ function SurveyPage() {
                       </div>
                     )}
 
+                    {q.question_type === "single_choice" &&
+                      asOptions(q.options).some((o) => o.builder && o.value === value) &&
+                      (() => {
+                        const fmt = (drafts[current.id] ?? {})[`${q.id}__format`];
+                        return (
+                          <div className="rounded-md border border-border/60 bg-background/40 p-3">
+                            <p className="mb-2 text-sm text-muted-foreground">
+                              Put together the one format everyone would play:
+                            </p>
+                            <SurveyFormatBuilder
+                              max={1}
+                              value={
+                                Array.isArray(fmt) && typeof fmt[0] === "object"
+                                  ? (fmt as FormatPick[])
+                                  : [emptyFormat()]
+                              }
+                              onChange={(next) => setAnswer(current.id, `${q.id}__format`, next)}
+                            />
+                          </div>
+                        );
+                      })()}
+
                     {q.question_type === "format_builder" && (
                       <SurveyFormatBuilder
                         max={builderMax(q.options)}
