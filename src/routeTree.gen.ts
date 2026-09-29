@@ -14,6 +14,7 @@ import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as TournamentRegisterRouteImport } from './routes/tournament-register'
 import { Route as TournamentRouteImport } from './routes/tournament'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as SurveyRouteImport } from './routes/survey'
 import { Route as StatsRouteImport } from './routes/stats'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as RewardsRouteImport } from './routes/rewards'
@@ -64,6 +65,11 @@ const TournamentRoute = TournamentRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SurveyRoute = SurveyRouteImport.update({
+  id: '/survey',
+  path: '/survey',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StatsRoute = StatsRouteImport.update({
@@ -211,6 +217,7 @@ export interface FileRoutesByFullPath {
   '/rewards': typeof RewardsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
+  '/survey': typeof SurveyRoute
   '/terms': typeof TermsRoute
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
@@ -244,6 +251,7 @@ export interface FileRoutesByTo {
   '/rewards': typeof RewardsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
+  '/survey': typeof SurveyRoute
   '/terms': typeof TermsRoute
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
@@ -278,6 +286,7 @@ export interface FileRoutesById {
   '/rewards': typeof RewardsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
+  '/survey': typeof SurveyRoute
   '/terms': typeof TermsRoute
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
@@ -313,6 +322,7 @@ export interface FileRouteTypes {
     | '/rewards'
     | '/sitemap.xml'
     | '/stats'
+    | '/survey'
     | '/terms'
     | '/tournament'
     | '/tournament-register'
@@ -346,6 +356,7 @@ export interface FileRouteTypes {
     | '/rewards'
     | '/sitemap.xml'
     | '/stats'
+    | '/survey'
     | '/terms'
     | '/tournament'
     | '/tournament-register'
@@ -379,6 +390,7 @@ export interface FileRouteTypes {
     | '/rewards'
     | '/sitemap.xml'
     | '/stats'
+    | '/survey'
     | '/terms'
     | '/tournament'
     | '/tournament-register'
@@ -413,6 +425,7 @@ export interface RootRouteChildren {
   RewardsRoute: typeof RewardsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StatsRoute: typeof StatsRoute
+  SurveyRoute: typeof SurveyRoute
   TermsRoute: typeof TermsRoute
   TournamentRoute: typeof TournamentRoute
   TournamentRegisterRoute: typeof TournamentRegisterRoute
@@ -468,6 +481,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/survey': {
+      id: '/survey'
+      path: '/survey'
+      fullPath: '/survey'
+      preLoaderRoute: typeof SurveyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/stats': {
@@ -669,6 +689,7 @@ const rootRouteChildren: RootRouteChildren = {
   RewardsRoute: RewardsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StatsRoute: StatsRoute,
+  SurveyRoute: SurveyRoute,
   TermsRoute: TermsRoute,
   TournamentRoute: TournamentRoute,
   TournamentRegisterRoute: TournamentRegisterRoute,
