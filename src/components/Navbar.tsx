@@ -106,6 +106,7 @@ export function Navbar() {
               <DropdownMenuItem asChild><Link to="/matches" className="gap-2"><ListOrdered className="size-4" />Matches</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link to="/stats" className="gap-2"><BarChart3 className="size-4" />Stats</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link to="/rewards" className="gap-2"><Sparkles className="size-4" />Rewards</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/survey" className="gap-2"><ClipboardList className="size-4" />Survey</Link></DropdownMenuItem>
               {userId ? <><DropdownMenuSeparator /><DropdownMenuLabel className="text-xs text-muted-foreground">Account</DropdownMenuLabel><DropdownMenuItem asChild><Link to="/profile" className="gap-2"><UserIcon className="size-4" />Profile</Link></DropdownMenuItem><DropdownMenuItem onClick={handleLogout} className="gap-2 text-destructive focus:text-destructive"><LogOut className="size-4" />Sign out</DropdownMenuItem></> : null}
             </DropdownMenuContent>
           </DropdownMenu>
