@@ -73,6 +73,7 @@ export function Navbar() {
           <Button asChild variant="ghost" size="sm"><Link to="/matches"><ListOrdered className="size-4" />Matches</Link></Button>
           <Button asChild variant="ghost" size="sm"><Link to="/stats"><BarChart3 className="size-4" />Stats</Link></Button>
           <Button asChild variant="ghost" size="sm"><Link to="/rewards"><Sparkles className="size-4" />Rewards</Link></Button>
+          <Button asChild variant="ghost" size="sm"><Link to="/survey"><ClipboardList className="size-4" />Survey</Link></Button>
           {userId ? (
             <>
               <NotificationCenter />
