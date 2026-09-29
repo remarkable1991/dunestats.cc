@@ -22,6 +22,8 @@ export type SurveyOption = {
   label: string;
   hint?: string;
   icon?: string;
+  /** When this option is picked, a single game-format builder is shown. */
+  builder?: boolean;
 };
 
 export type SurveyQuestion = {
@@ -96,9 +98,9 @@ export const MODULES: ModuleDef[] = [
   {
     key: "base_leaders",
     label: "Base leaders",
-    hint: "Available with either board",
+    hint: "Uprising only",
     image: baseLeadersIcon.url,
-    boards: ["uprising", "base"],
+    boards: ["uprising"],
   },
   { key: "ix", label: "Rise of Ix", hint: "Available with either board", image: ixIcon.url, boards: ["uprising", "base"] },
   {
