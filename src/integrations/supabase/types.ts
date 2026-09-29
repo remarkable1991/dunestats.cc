@@ -870,6 +870,136 @@ export type Database = {
         }
         Relationships: []
       }
+      survey_categories: {
+        Row: {
+          created_at: string
+          description: string
+          icon: string
+          id: string
+          intro: string
+          is_active: boolean
+          slug: string
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          icon?: string
+          id?: string
+          intro?: string
+          is_active?: boolean
+          slug: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          icon?: string
+          id?: string
+          intro?: string
+          is_active?: boolean
+          slug?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      survey_questions: {
+        Row: {
+          category_id: string
+          created_at: string
+          help_text: string
+          id: string
+          is_active: boolean
+          is_required: boolean
+          options: Json
+          prompt: string
+          question_type: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          help_text?: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          options?: Json
+          prompt: string
+          question_type?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          help_text?: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          options?: Json
+          prompt?: string
+          question_type?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_questions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "survey_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      survey_responses: {
+        Row: {
+          answers: Json
+          category_id: string
+          created_at: string
+          id: string
+          player_key: string | null
+          session_token: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          answers?: Json
+          category_id: string
+          created_at?: string
+          id?: string
+          player_key?: string | null
+          session_token?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          answers?: Json
+          category_id?: string
+          created_at?: string
+          id?: string
+          player_key?: string | null
+          session_token?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_responses_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "survey_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tournament_checkins: {
         Row: {
           channel_id: string
