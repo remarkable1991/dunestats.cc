@@ -435,6 +435,7 @@ export type Database = {
           id: number
           player_key: string | null
           source: string
+          sp_alerts_opt_out: boolean | null
           updated_at: string
           username: string | null
         }
@@ -447,6 +448,7 @@ export type Database = {
           id?: number
           player_key?: string | null
           source?: string
+          sp_alerts_opt_out?: boolean | null
           updated_at?: string
           username?: string | null
         }
@@ -459,6 +461,7 @@ export type Database = {
           id?: number
           player_key?: string | null
           source?: string
+          sp_alerts_opt_out?: boolean | null
           updated_at?: string
           username?: string | null
         }
@@ -800,6 +803,7 @@ export type Database = {
         Row: {
           action_type: string
           amount: number
+          announced_to_discord: boolean | null
           created_at: string
           id: string
           is_legacy: boolean
@@ -813,6 +817,7 @@ export type Database = {
         Insert: {
           action_type: string
           amount: number
+          announced_to_discord?: boolean | null
           created_at?: string
           id?: string
           is_legacy?: boolean
@@ -826,6 +831,7 @@ export type Database = {
         Update: {
           action_type?: string
           amount?: number
+          announced_to_discord?: boolean | null
           created_at?: string
           id?: string
           is_legacy?: boolean
