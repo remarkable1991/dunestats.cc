@@ -48,6 +48,8 @@ import uprisingIcon from "@/assets/uprising.png.asset.json";
 import ixIcon from "@/assets/ix.png.asset.json";
 import immoIcon from "@/assets/immo.png.asset.json";
 import epicIcon from "@/assets/epic.png.asset.json";
+import choamIcon from "@/assets/choam.png.asset.json";
+import baseLeadersIcon from "@/assets/base-leaders.png.asset.json";
 
 export const Route = createFileRoute("/lfg")({
   head: () => ({
@@ -112,8 +114,36 @@ const EXPANSION_OPTIONS = [
   { key: "Rise of IX", label: "Rise of Ix", icon: ixIcon.url },
   { key: "Epic Mode", label: "Epic Mode", icon: epicIcon.url },
   { key: "Immortality", label: "Immortality", icon: immoIcon.url },
-  { key: "Base Leaders", label: "Base Leaders", icon: null },
+  { key: "Base Leaders", label: "Base Leaders", icon: baseLeadersIcon.url },
+  { key: "CHOAM", label: "CHOAM Module", icon: choamIcon.url },
 ] as const;
+
+type BoardType = "Uprising" | "Base Game";
+
+function expansionUnavailableReason(key: string, board: BoardType, exps: string[]) {
+  if ((key === "Base Leaders" || key === "CHOAM") && board !== "Uprising") {
+    return "Available with Uprising only";
+  }
+  if (key === "Epic Mode" && !exps.includes("Rise of IX")) {
+    return "Enable Rise of Ix first";
+  }
+  return null;
+}
+
+function validExpansions(board: BoardType, exps: string[]) {
+  return exps.filter((key) => {
+    if ((key === "Base Leaders" || key === "CHOAM") && board !== "Uprising") return false;
+    if (key === "Epic Mode" && !exps.includes("Rise of IX")) return false;
+    return true;
+  });
+}
+
+function toggleExpansion(board: BoardType, exps: string[], key: string) {
+  if (expansionUnavailableReason(key, board, exps)) return exps;
+  if (!exps.includes(key)) return [...exps, key];
+  const next = exps.filter((item) => item !== key);
+  return key === "Rise of IX" ? next.filter((item) => item !== "Epic Mode") : next;
+}
 
 function isLive(r: LfgRow) {
   return (r.mode ?? "async").toLowerCase() === "live";
@@ -503,6 +533,8 @@ function LfgCard({
           {hasExp(row, "ix") && <ExpansionBadge src={ixIcon.url} title="Rise of Ix" />}
           {hasExp(row, "immo") && <ExpansionBadge src={immoIcon.url} title="Immortality" />}
           {hasExp(row, "epic") && <ExpansionBadge src={epicIcon.url} title="Epic Mode" />}
+          {hasExp(row, "base leader") && <ExpansionBadge src={baseLeadersIcon.url} title="Base Leaders" />}
+          {hasExp(row, "choam") && <ExpansionBadge src={choamIcon.url} title="CHOAM Module" />}
           {canManage && (
             <Button
               variant="ghost"
@@ -718,7 +750,7 @@ function ManageLfgDialog({
   onSaved: () => void;
 }) {
   const [mode, setMode] = useState<"live" | "async">(isLive(row) ? "live" : "async");
-  const [board, setBoard] = useState<"Uprising" | "Base Game">(
+  const [board, setBoard] = useState<BoardType>(
     (row.board_type ?? "").toLowerCase().includes("base") ? "Base Game" : "Uprising",
   );
   const [exps, setExps] = useState<string[]>(row.expansions ?? []);
@@ -738,7 +770,8 @@ function ManageLfgDialog({
     if (!open) return;
     setMode(isLive(row) ? "live" : "async");
     setBoard((row.board_type ?? "").toLowerCase().includes("base") ? "Base Game" : "Uprising");
-    setExps(row.expansions ?? []);
+    const nextBoard = (row.board_type ?? "").toLowerCase().includes("base") ? "Base Game" : "Uprising";
+    setExps(validExpansions(nextBoard, row.expansions ?? []));
     setNotes(row.message_text?.replace(/<[^>]*>/g, "").trim() ?? "");
     setPassword(row.lobby_password ?? "");
     setGuests(row.guest_players ?? []);
@@ -746,8 +779,12 @@ function ManageLfgDialog({
     setRemovedDiscord([]);
   }, [open, row]);
 
-  const toggleExp = (key: string) =>
-    setExps((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  const toggleExp = (key: string) => setExps((prev) => toggleExpansion(board, prev, key));
+
+  const changeBoard = (next: BoardType) => {
+    setBoard(next);
+    setExps((prev) => validExpansions(next, prev));
+  };
 
   const webSeats = (row.web_player_ids ?? []).map((id, i) => ({
     id,
@@ -876,7 +913,7 @@ function ManageLfgDialog({
 
           <div className="space-y-2">
             <Label>Board</Label>
-            <RadioGroup value={board} onValueChange={(v) => setBoard(v as typeof board)} className="flex gap-4">
+            <RadioGroup value={board} onValueChange={(v) => changeBoard(v as BoardType)} className="flex gap-4">
               <label className="flex items-center gap-2 text-sm">
                 <RadioGroupItem value="Uprising" />
                 <img src={uprisingIcon.url} alt="" className="size-4" /> Uprising
@@ -890,13 +927,24 @@ function ManageLfgDialog({
           <div className="space-y-2">
             <Label>Expansions</Label>
             <div className="grid grid-cols-2 gap-2">
-              {EXPANSION_OPTIONS.map((e) => (
-                <label key={e.key} className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={exps.includes(e.key)} onCheckedChange={() => toggleExp(e.key)} />
-                  {e.icon && <img src={e.icon} alt="" className="size-4" />}
-                  {e.label}
-                </label>
-              ))}
+              {EXPANSION_OPTIONS.map((e) => {
+                const unavailable = expansionUnavailableReason(e.key, board, exps);
+                return (
+                  <label
+                    key={e.key}
+                    className={`flex items-center gap-2 text-sm ${unavailable ? "cursor-not-allowed opacity-45" : "cursor-pointer"}`}
+                    title={unavailable ?? undefined}
+                  >
+                    <Checkbox
+                      checked={exps.includes(e.key)}
+                      disabled={!!unavailable}
+                      onCheckedChange={() => toggleExp(e.key)}
+                    />
+                    <img src={e.icon} alt="" className="size-4 object-contain" />
+                    {e.label}
+                  </label>
+                );
+              })}
             </div>
           </div>
 
@@ -951,7 +999,7 @@ function CreateLfgDialog({
   onCreated: () => void;
 }) {
   const [mode, setMode] = useState<"live" | "async">("async");
-  const [board, setBoard] = useState<"Uprising" | "Base Game">("Uprising");
+  const [board, setBoard] = useState<BoardType>("Uprising");
   const [exps, setExps] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [password, setPassword] = useState("None");
@@ -960,8 +1008,12 @@ function CreateLfgDialog({
   const [asyncHours, setAsyncHours] = useState(15);
   const [busy, setBusy] = useState(false);
 
-  const toggleExp = (key: string) =>
-    setExps((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  const toggleExp = (key: string) => setExps((prev) => toggleExpansion(board, prev, key));
+
+  const changeBoard = (next: BoardType) => {
+    setBoard(next);
+    setExps((prev) => validExpansions(next, prev));
+  };
 
   const submit = async () => {
     const guestPlayers = guests
@@ -1032,7 +1084,7 @@ function CreateLfgDialog({
 
             <div className="space-y-2">
               <Label>Board</Label>
-              <RadioGroup value={board} onValueChange={(v) => setBoard(v as typeof board)} className="flex gap-4">
+              <RadioGroup value={board} onValueChange={(v) => changeBoard(v as BoardType)} className="flex gap-4">
                 <label className="flex items-center gap-2 text-sm">
                   <RadioGroupItem value="Uprising" />
                   <img src={uprisingIcon.url} alt="" className="size-4" /> Uprising
@@ -1046,13 +1098,24 @@ function CreateLfgDialog({
             <div className="space-y-2">
               <Label>Expansions</Label>
               <div className="grid grid-cols-2 gap-2">
-                {EXPANSION_OPTIONS.map((e) => (
-                  <label key={e.key} className="flex items-center gap-2 text-sm">
-                    <Checkbox checked={exps.includes(e.key)} onCheckedChange={() => toggleExp(e.key)} />
-                    {e.icon && <img src={e.icon} alt="" className="size-4" />}
-                    {e.label}
-                  </label>
-                ))}
+                {EXPANSION_OPTIONS.map((e) => {
+                  const unavailable = expansionUnavailableReason(e.key, board, exps);
+                  return (
+                    <label
+                      key={e.key}
+                      className={`flex items-center gap-2 text-sm ${unavailable ? "cursor-not-allowed opacity-45" : "cursor-pointer"}`}
+                      title={unavailable ?? undefined}
+                    >
+                      <Checkbox
+                        checked={exps.includes(e.key)}
+                        disabled={!!unavailable}
+                        onCheckedChange={() => toggleExp(e.key)}
+                      />
+                      <img src={e.icon} alt="" className="size-4 object-contain" />
+                      {e.label}
+                    </label>
+                  );
+                })}
               </div>
             </div>
 
