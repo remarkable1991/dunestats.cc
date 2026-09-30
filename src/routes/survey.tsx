@@ -303,13 +303,15 @@ function SurveyPage() {
               {(byCat[current.id] ?? []).map((q) => {
                 const value = (drafts[current.id] ?? {})[q.id];
                 return (
-                  <Card key={q.id} className="space-y-3 border-border/60 bg-card/60 p-5">
+                  <Card key={q.id} className="space-y-4 border-border/60 bg-card/60 p-5 sm:p-6">
                     <div>
-                      <p className="font-medium text-foreground">
+                      <p className="text-base font-semibold leading-snug text-foreground">
                         {q.prompt}
                         {q.is_required && <span className="ml-1 text-destructive">*</span>}
                       </p>
-                      {q.help_text && <p className="text-sm text-muted-foreground">{q.help_text}</p>}
+                      {q.help_text && (
+                        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{q.help_text}</p>
+                      )}
                     </div>
 
                     {q.question_type === "stars" && (
@@ -338,17 +340,19 @@ function SurveyPage() {
                               key={o.value}
                               type="button"
                               onClick={() => setAnswer(current.id, q.id, on ? null : o.value)}
-                              className={`flex items-start gap-2 rounded-md border px-3 py-2 text-left text-sm transition ${
+                              className={`flex items-start gap-3 rounded-md border px-4 py-3 text-left transition ${
                                 on
-                                  ? "border-primary bg-primary/15 text-foreground"
-                                  : "border-border/60 bg-background/40 text-muted-foreground hover:border-primary/50"
+                                  ? "border-primary bg-primary/15"
+                                  : "border-border/60 bg-background/40 hover:border-primary/50"
                               }`}
                             >
                               {img && <img src={img} alt="" className="mt-0.5 size-5 shrink-0" />}
                               <span className="min-w-0">
-                                <span className="block">{o.label}</span>
+                                <span className={`block text-sm font-medium ${on ? "text-primary" : "text-foreground"}`}>
+                                  {o.label}
+                                </span>
                                 {o.hint && (
-                                  <span className="block text-xs text-muted-foreground">{o.hint}</span>
+                                  <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{o.hint}</span>
                                 )}
                               </span>
                             </button>
@@ -374,17 +378,19 @@ function SurveyPage() {
                                   on ? arr.filter((x) => x !== o.value) : [...arr, o.value],
                                 )
                               }
-                              className={`flex items-start gap-2 rounded-md border px-3 py-2 text-left text-sm transition ${
+                              className={`flex items-start gap-3 rounded-md border px-4 py-3 text-left transition ${
                                 on
-                                  ? "border-primary bg-primary/15 text-foreground"
-                                  : "border-border/60 bg-background/40 text-muted-foreground hover:border-primary/50"
+                                  ? "border-primary bg-primary/15"
+                                  : "border-border/60 bg-background/40 hover:border-primary/50"
                               }`}
                             >
                               {img && <img src={img} alt="" className="mt-0.5 size-5 shrink-0" />}
                               <span className="min-w-0">
-                                <span className="block">{o.label}</span>
+                                <span className={`block text-sm font-medium ${on ? "text-primary" : "text-foreground"}`}>
+                                  {o.label}
+                                </span>
                                 {o.hint && (
-                                  <span className="block text-xs text-muted-foreground">{o.hint}</span>
+                                  <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{o.hint}</span>
                                 )}
                               </span>
                             </button>
