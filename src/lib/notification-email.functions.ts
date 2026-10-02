@@ -259,3 +259,65 @@ export const sendNotificationTest = createServerFn({ method: "POST" })
     if (!res.ok) throw new Error(`Send failed (${res.status})`);
     return { ok: true };
   });
+
+/** Publish a news post (site pop-up for 7 days) and queue the news email for opted-in players. */
+export const queueNewsBroadcast = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    tplSchema
+      .extend({
+        headline: z.string().trim().min(1).max(200),
+        body: z.string().trim().min(1).max(5000),
+        cta_label: z.string().trim().max(60),
+        cta_url: z.string().trim().max(500),
+        send_email: z.boolean(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertMainAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const ctaUrl = data.cta_url || SITE_URL;
+    const ctaLabel = data.cta_label || "Visit Strategy Arena";
+    const { error: newsErr } = await db.from("news_posts").insert({
+      headline: data.headline,
+      body: data.body,
+      cta_label: data.cta_label || null,
+      cta_url: data.cta_url || null,
+      created_by: (context as any).userId,
+    });
+    if (newsErr) throw new Error(newsErr.message);
+    if (!data.send_email) return { ok: true, queued: 0 };
+
+    const users: { id: string; email: string }[] = [];
+    for (let page = 1; page <= 20; page++) {
+      const { data: res, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+      if (error) throw new Error(error.message);
+      for (const u of res.users) if (u.email) users.push({ id: u.id, email: u.email });
+      if (res.users.length < 1000) break;
+    }
+    const { data: profs } = await db.from("profiles").select("id, news_emails_opt_in");
+    const optedIn = new Set((profs ?? []).filter((p: any) => p.news_emails_opt_in).map((p: any) => p.id));
+    const recipients = users.filter((u) => optedIn.has(u.id));
+
+    const { signUnsubscribe } = await import("./unsubscribe.server");
+    const extra = { headline: data.headline, body: data.body, cta_label: ctaLabel, cta_url: ctaUrl };
+    const rows = await Promise.all(
+      recipients.map(async (r) => {
+        const token = await signUnsubscribe(r.id);
+        const v = values("general_news", `${SITE_URL}/unsubscribe?uid=${r.id}&token=${token}`, extra);
+        return {
+          campaign: `news_${new Date().toISOString().slice(0, 10)}`,
+          user_id: r.id,
+          to_email: r.email,
+          subject: fill(data.subject, v, false),
+          text_body: fill(data.text, v, false),
+          html: withPreheader(fill(data.html, v, true), fill(data.previewText, v, false)),
+        };
+      }),
+    );
+    const { enqueueEmails } = await import("./email-outbox.server");
+    const queued = await enqueueEmails(rows);
+    return { ok: true, queued };
+  });
