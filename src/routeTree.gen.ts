@@ -42,6 +42,7 @@ import { Route as TournamentRegisterNumRouteImport } from './routes/tournament-r
 import { Route as TournamentNumRouteImport } from './routes/tournament_.$num'
 import { Route as LeadersOriginSlugRouteImport } from './routes/leaders.$origin.$slug'
 import { Route as TournamentNumTableRouteImport } from './routes/tournament_.$num_.$table'
+import { Route as ApiPublicEmailOutboxDispatchRouteImport } from './routes/api/public/email-outbox/dispatch'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -208,6 +209,12 @@ const TournamentNumTableRoute = TournamentNumTableRouteImport.update({
   path: '/tournament/$num/$table',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicEmailOutboxDispatchRoute =
+  ApiPublicEmailOutboxDispatchRouteImport.update({
+    id: '/api/public/email-outbox/dispatch',
+    path: '/api/public/email-outbox/dispatch',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -243,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/tournament/$num': typeof TournamentNumRoute
   '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
   '/tournament/$num/$table': typeof TournamentNumTableRoute
+  '/api/public/email-outbox/dispatch': typeof ApiPublicEmailOutboxDispatchRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -278,6 +286,7 @@ export interface FileRoutesByTo {
   '/tournament/$num': typeof TournamentNumRoute
   '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
   '/tournament/$num/$table': typeof TournamentNumTableRoute
+  '/api/public/email-outbox/dispatch': typeof ApiPublicEmailOutboxDispatchRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -314,6 +323,7 @@ export interface FileRoutesById {
   '/tournament_/$num': typeof TournamentNumRoute
   '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
   '/tournament_/$num_/$table': typeof TournamentNumTableRoute
+  '/api/public/email-outbox/dispatch': typeof ApiPublicEmailOutboxDispatchRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -351,6 +361,7 @@ export interface FileRouteTypes {
     | '/tournament/$num'
     | '/leaders/$origin/$slug'
     | '/tournament/$num/$table'
+    | '/api/public/email-outbox/dispatch'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -386,6 +397,7 @@ export interface FileRouteTypes {
     | '/tournament/$num'
     | '/leaders/$origin/$slug'
     | '/tournament/$num/$table'
+    | '/api/public/email-outbox/dispatch'
   id:
     | '__root__'
     | '/'
@@ -421,6 +433,7 @@ export interface FileRouteTypes {
     | '/tournament_/$num'
     | '/leaders/$origin/$slug'
     | '/tournament_/$num_/$table'
+    | '/api/public/email-outbox/dispatch'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -457,6 +470,7 @@ export interface RootRouteChildren {
   TournamentNumRoute: typeof TournamentNumRoute
   LeadersOriginSlugRoute: typeof LeadersOriginSlugRoute
   TournamentNumTableRoute: typeof TournamentNumTableRoute
+  ApiPublicEmailOutboxDispatchRoute: typeof ApiPublicEmailOutboxDispatchRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -692,6 +706,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TournamentNumTableRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/email-outbox/dispatch': {
+      id: '/api/public/email-outbox/dispatch'
+      path: '/api/public/email-outbox/dispatch'
+      fullPath: '/api/public/email-outbox/dispatch'
+      preLoaderRoute: typeof ApiPublicEmailOutboxDispatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -729,6 +750,7 @@ const rootRouteChildren: RootRouteChildren = {
   TournamentNumRoute: TournamentNumRoute,
   LeadersOriginSlugRoute: LeadersOriginSlugRoute,
   TournamentNumTableRoute: TournamentNumTableRoute,
+  ApiPublicEmailOutboxDispatchRoute: ApiPublicEmailOutboxDispatchRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

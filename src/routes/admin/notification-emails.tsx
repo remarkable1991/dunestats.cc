@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import { ArrowLeft, Eye, Loader2, RotateCcw, Save, Send } from "lucide-react";
 import { useRoles } from "@/hooks/use-roles";
+import { NewsBroadcastCard } from "@/components/NewsBroadcastCard";
 import {
   COMMON_PLACEHOLDERS,
   DEFAULTS,
@@ -154,6 +155,7 @@ function NotificationEmails() {
             </>
           )}
         </Card>
+        {!loading ? <NewsBroadcastCard template={all.general_news} /> : null}
       </div>
 
       <Dialog open={!!previewData} onOpenChange={(o) => !o && setPreviewData(null)}>

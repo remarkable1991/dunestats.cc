@@ -423,6 +423,27 @@ export const sendTournamentEmail = createServerFn({ method: "POST" })
     }
     if (recipients.length === 0) return { ok: true, sent: 0, failed: 0 };
 
+    if (data.audience !== "test") {
+      // Bulk sends go to the daily-limited queue (Resend free tier).
+      const rows = await Promise.all(
+        recipients.map(async (r) => {
+          const unsubscribeUrl = await unsubscribeUrlFor(r.id);
+          const previewText = fillTextTemplate(data.previewText || DEFAULT_PREVIEW_TEXT, t, unsubscribeUrl);
+          return {
+            campaign: `tournament_${t.tournament_num}`,
+            user_id: r.id,
+            to_email: r.email,
+            subject,
+            text_body: fillTextTemplate(data.text || DEFAULT_TEXT, t, unsubscribeUrl),
+            html: withPreheader(fillTemplate(data.html || DEFAULT_HTML, t, unsubscribeUrl), previewText),
+          };
+        }),
+      );
+      const { enqueueEmails } = await import("./email-outbox.server");
+      const queued = await enqueueEmails(rows);
+      return { ok: true, sent: 0, failed: 0, queued };
+    }
+
     let sent = 0;
     let failed = 0;
     let lastError = "";

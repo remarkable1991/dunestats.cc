@@ -181,6 +181,10 @@ function TournamentEmails() {
         },
       });
       if (res.failed > 0) toast.error(`Sent ${res.sent}, failed ${res.failed}. ${res.error ?? ""}`);
+      else if ((res as any).queued)
+        toast.success(`Queued ${(res as any).queued} emails`, {
+          description: "Sent automatically in batches of up to 80 per day at 12:00 UTC.",
+        });
       else toast.success(audience === "test" ? "Test email sent" : `Sent to ${res.sent} people`);
       setConfirm(null);
     } catch (e) {

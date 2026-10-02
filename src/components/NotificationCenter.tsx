@@ -22,6 +22,7 @@ import {
   type MediumReferral,
 } from "@/lib/notifications";
 import { titleName } from "@/lib/player-title";
+import { NewsPopup } from "@/components/NewsPopup";
 import { formatLongDate } from "@/lib/tournaments";
 import { DISCORD_INVITE_URL, tournamentModes } from "@/lib/tournament-config";
 import ixIcon from "@/assets/ix.png.asset.json";
@@ -344,6 +345,7 @@ export function NotificationCenter() {
           ) : null}
         </DialogContent>
       </Dialog>
+      <NewsPopup userId={userId} blocked={!!checkin || !!current} />
     </>
   );
 }
