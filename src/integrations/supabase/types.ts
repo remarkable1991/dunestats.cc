@@ -92,6 +92,48 @@ export type Database = {
         }
         Relationships: []
       }
+      email_outbox: {
+        Row: {
+          campaign: string
+          created_at: string
+          error: string | null
+          html: string
+          id: string
+          sent_at: string | null
+          status: string
+          subject: string
+          text_body: string | null
+          to_email: string
+          user_id: string | null
+        }
+        Insert: {
+          campaign: string
+          created_at?: string
+          error?: string | null
+          html: string
+          id?: string
+          sent_at?: string | null
+          status?: string
+          subject: string
+          text_body?: string | null
+          to_email: string
+          user_id?: string | null
+        }
+        Update: {
+          campaign?: string
+          created_at?: string
+          error?: string | null
+          html?: string
+          id?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          text_body?: string | null
+          to_email?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       email_templates: {
         Row: {
           created_at: string
@@ -373,6 +415,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      news_posts: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          cta_label: string | null
+          cta_url: string | null
+          headline: string
+          id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          cta_label?: string | null
+          cta_url?: string | null
+          headline: string
+          id?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          cta_label?: string | null
+          cta_url?: string | null
+          headline?: string
+          id?: string
+        }
+        Relationships: []
       }
       past_tournament_results: {
         Row: {
