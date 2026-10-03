@@ -140,12 +140,26 @@ function SurveyPage() {
     if (!userId) return;
     void supabase
       .from("survey_responses")
-      .select("category_id")
+      .select("category_id, answers")
       .eq("user_id", userId)
       .then(({ data }) => {
         const map: Record<string, boolean> = {};
-        (data ?? []).forEach((r: { category_id: string }) => (map[r.category_id] = true));
+        const saved: Record<string, Answers> = {};
+        (data ?? []).forEach((r: { category_id: string; answers: unknown }) => {
+          map[r.category_id] = true;
+          if (r.answers && typeof r.answers === "object" && !Array.isArray(r.answers)) {
+            saved[r.category_id] = r.answers as Answers;
+          }
+        });
         setDone(map);
+        setDrafts((local) => {
+          const merged = { ...saved };
+          Object.entries(local).forEach(([categoryId, answers]) => {
+            merged[categoryId] = { ...(saved[categoryId] ?? {}), ...answers };
+          });
+          window.localStorage.setItem(DRAFT_KEY, JSON.stringify(merged));
+          return merged;
+        });
       });
   }, [userId]);
 

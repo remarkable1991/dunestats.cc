@@ -21,7 +21,20 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowDown, ArrowUp, Loader2, Plus, Save, Trash2, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowDown,
+  ArrowUp,
+  BarChart3,
+  Loader2,
+  MessageSquareText,
+  Plus,
+  Save,
+  Star,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
 import { useRoles } from "@/hooks/use-roles";
 import {
   QUESTION_TYPES,
@@ -292,15 +305,36 @@ function AdminSurvey() {
             <TabsContent value="results" className="space-y-6 pt-4">
               {cats.map((c) => {
                 const rows = responses.filter((r) => r.category_id === c.id);
+                const answeredQuestions = (byCat[c.id] ?? []).reduce(
+                  (total, q) =>
+                    total +
+                    rows.filter((r) => {
+                      const value = r.answers?.[q.id];
+                      return value !== undefined && value !== null && value !== "";
+                    }).length,
+                  0,
+                );
                 return (
-                  <Card key={c.id} className="space-y-4 border-border/60 bg-card/60 p-5">
-                    <div className="flex items-baseline justify-between">
-                      <h2 className="font-display text-lg text-foreground">{c.title}</h2>
-                      <span className="text-sm text-muted-foreground">{rows.length} answers</span>
+                  <Card key={c.id} className="overflow-hidden border-border/60 bg-card/60 p-0">
+                    <div className="flex flex-col gap-3 border-b border-border/60 bg-muted/25 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h2 className="font-display text-xl text-foreground">{c.title}</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">{c.description}</p>
+                      </div>
+                      <div className="flex shrink-0 gap-4 text-sm">
+                        <span className="flex items-center gap-1.5 text-foreground">
+                          <Users className="size-4 text-primary" /> {rows.length} respondents
+                        </span>
+                        <span className="hidden items-center gap-1.5 text-muted-foreground sm:flex">
+                          <BarChart3 className="size-4" /> {answeredQuestions} answers
+                        </span>
+                      </div>
                     </div>
-                    {(byCat[c.id] ?? []).map((q) => (
-                      <QuestionResults key={q.id} q={q} rows={rows} />
-                    ))}
+                    <div className="divide-y divide-border/50 px-5">
+                      {(byCat[c.id] ?? []).map((q) => (
+                        <QuestionResults key={q.id} q={q} rows={rows} />
+                      ))}
+                    </div>
                   </Card>
                 );
               })}
@@ -448,56 +482,69 @@ function QuestionEditor({
 
 function QuestionResults({ q, rows }: { q: SurveyQuestion; rows: ResponseRow[] }) {
   const values = rows.map((r) => r.answers?.[q.id]).filter((v) => v !== undefined && v !== null && v !== "");
-  if (values.length === 0)
+  const builderOption = asOptions(q.options).find((option) => option.builder);
+  const linkedFormatValues = builderOption
+    ? rows
+        .filter((r) => r.answers?.[q.id] === builderOption.value)
+        .map((r) => r.answers?.[`${q.id}__format`])
+        .filter((value) => Array.isArray(value))
+    : [];
+  if (values.length === 0 && linkedFormatValues.length === 0)
     return (
-      <div className="border-t border-border/40 pt-3 text-sm">
-        <p className="text-foreground">{q.prompt}</p>
-        <p className="text-muted-foreground">No answers yet.</p>
-      </div>
+      <section className="py-5 text-sm">
+        <ResultHeading prompt={q.prompt} count={0} />
+        <p className="mt-2 text-muted-foreground">No answers yet.</p>
+      </section>
     );
 
   if (q.question_type === "stars") {
     const nums = values.filter((v): v is number => typeof v === "number" && v > 0);
     const avg = nums.reduce((a, b) => a + b, 0) / (nums.length || 1);
+    const distribution: Record<string, number> = {};
+    [5, 4, 3, 2, 1].forEach((rating) => {
+      distribution[`${rating} star${rating === 1 ? "" : "s"}`] = nums.filter((value) => value === rating).length;
+    });
     return (
-      <div className="border-t border-border/40 pt-3 text-sm">
-        <p className="text-foreground">{q.prompt}</p>
-        <p className="text-primary">
-          {avg.toFixed(2)} / 5 · {nums.length} ratings
-        </p>
-      </div>
+      <section className="py-5 text-sm">
+        <ResultHeading prompt={q.prompt} count={nums.length} />
+        <div className="mt-3 grid gap-5 sm:grid-cols-[9rem_1fr] sm:items-center">
+          <div>
+            <div className="flex items-center gap-2 text-3xl font-semibold text-foreground">
+              <Star className="size-6 fill-primary text-primary" /> {avg.toFixed(1)}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">Average out of 5</p>
+          </div>
+          <Bars counts={distribution} total={nums.length} compact />
+        </div>
+      </section>
     );
   }
 
   if (q.question_type === "open_text") {
     return (
-      <div className="border-t border-border/40 pt-3 text-sm">
-        <p className="mb-1 text-foreground">{q.prompt}</p>
-        <ul className="space-y-1">
+      <section className="py-5 text-sm">
+        <ResultHeading prompt={q.prompt} count={values.length} />
+        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
           {values.map((v, i) => (
-            <li key={i} className="rounded bg-background/50 px-2 py-1 text-muted-foreground">
-              {String(v)}
+            <li key={i} className="flex items-start gap-2 rounded-md border border-border/50 bg-background/50 p-3 text-muted-foreground">
+              <MessageSquareText className="mt-0.5 size-4 shrink-0 text-primary" />
+              <span className="whitespace-pre-wrap leading-relaxed">{String(v)}</span>
             </li>
           ))}
         </ul>
-      </div>
+      </section>
     );
   }
 
   if (q.question_type === "format_builder") {
-    const counts: Record<string, number> = {};
-    values.forEach((v) => {
-      (Array.isArray(v) ? (v as FormatPick[]) : []).forEach((p) => {
-        if (!p || typeof p !== "object") return;
-        const label = formatLabel(p);
-        counts[label] = (counts[label] ?? 0) + 1;
-      });
-    });
+    const counts = countFormats(values);
     return (
-      <div className="border-t border-border/40 pt-3 text-sm">
-        <p className="mb-1 text-foreground">{q.prompt}</p>
-        <Bars counts={counts} total={Object.values(counts).reduce((a, b) => a + b, 0)} />
-      </div>
+      <section className="py-5 text-sm">
+        <ResultHeading prompt={q.prompt} count={values.length} />
+        <div className="mt-3">
+          <Bars counts={counts} total={Object.values(counts).reduce((a, b) => a + b, 0)} />
+        </div>
+      </section>
     );
   }
 
@@ -511,30 +558,72 @@ function QuestionResults({ q, rows }: { q: SurveyQuestion; rows: ResponseRow[] }
   Object.entries(counts).forEach(([k, n]) => {
     labelled[opts.find((o) => o.value === k)?.label ?? k] = n;
   });
+  const linkedFormatCounts = countFormats(linkedFormatValues);
+  const linkedFormatTotal = Object.values(linkedFormatCounts).reduce((sum, count) => sum + count, 0);
   return (
-    <div className="border-t border-border/40 pt-3 text-sm">
-      <p className="mb-1 text-foreground">{q.prompt}</p>
-      <Bars counts={labelled} total={values.length} />
+    <section className="py-5 text-sm">
+      <ResultHeading prompt={q.prompt} count={values.length} />
+      <div className="mt-3">
+        <Bars counts={labelled} total={values.length} />
+      </div>
+      {builderOption && counts[builderOption.value] > 0 && (
+        <div className="mt-5 border-l-2 border-primary/60 pl-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="font-semibold text-foreground">Chosen fixed formats</p>
+            <span className="text-xs text-muted-foreground">
+              {linkedFormatTotal} of {counts[builderOption.value]} described
+            </span>
+          </div>
+          {linkedFormatTotal > 0 ? (
+            <div className="mt-3">
+              <Bars counts={linkedFormatCounts} total={linkedFormatTotal} />
+            </div>
+          ) : (
+            <p className="mt-2 text-muted-foreground">No format details were added.</p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ResultHeading({ prompt, count }: { prompt: string; count: number }) {
+  return (
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+      <h3 className="font-semibold leading-snug text-foreground">{prompt}</h3>
+      <span className="shrink-0 text-xs text-muted-foreground">{count} responses</span>
     </div>
   );
 }
 
-function Bars({ counts, total }: { counts: Record<string, number>; total: number }) {
+function countFormats(values: unknown[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  values.forEach((value) => {
+    (Array.isArray(value) ? (value as FormatPick[]) : []).forEach((pick) => {
+      if (!pick || typeof pick !== "object" || !("board" in pick) || !("modules" in pick)) return;
+      const label = formatLabel(pick);
+      counts[label] = (counts[label] ?? 0) + 1;
+    });
+  });
+  return counts;
+}
+
+function Bars({ counts, total, compact = false }: { counts: Record<string, number>; total: number; compact?: boolean }) {
   const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   return (
-    <div className="space-y-1">
+    <div className={compact ? "space-y-1.5" : "space-y-3"}>
       {entries.map(([label, n]) => (
-        <div key={label} className="flex items-center gap-2">
-          <span className="w-56 shrink-0 truncate text-muted-foreground">{label}</span>
-          <div className="h-2 flex-1 rounded bg-muted">
+        <div key={label} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 sm:grid-cols-[minmax(10rem,16rem)_minmax(8rem,1fr)_4.5rem] sm:items-center">
+          <span className="min-w-0 font-medium text-foreground">{label}</span>
+          <span className="text-right text-xs tabular-nums text-muted-foreground sm:order-3">
+            {n} · {total ? Math.round((n / total) * 100) : 0}%
+          </span>
+          <div className="col-span-2 h-2 overflow-hidden rounded bg-muted sm:col-span-1 sm:order-2">
             <div
               className="h-2 rounded bg-primary"
               style={{ width: `${total ? Math.round((n / total) * 100) : 0}%` }}
             />
           </div>
-          <span className="w-16 shrink-0 text-right text-muted-foreground">
-            {n} ({total ? Math.round((n / total) * 100) : 0}%)
-          </span>
         </div>
       ))}
     </div>
