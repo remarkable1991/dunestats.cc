@@ -26,10 +26,12 @@ import {
   ArrowDown,
   ArrowUp,
   BarChart3,
+  Download,
   Loader2,
   MessageSquareText,
   Plus,
   Save,
+  Search,
   Star,
   Trash2,
   Users,
@@ -46,6 +48,7 @@ import {
   type SurveyOption,
   type SurveyQuestion,
 } from "@/lib/survey";
+import { getSurveyParticipants, type SurveyParticipant } from "@/lib/survey-participants.functions";
 
 export const Route = createFileRoute("/admin/survey")({
   head: () => ({
