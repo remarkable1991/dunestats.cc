@@ -85,6 +85,11 @@ function AdminSurvey() {
   const [responses, setResponses] = useState<ResponseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [participants, setParticipants] = useState<SurveyParticipant[]>([]);
+  const [participantsLoading, setParticipantsLoading] = useState(true);
+  const [partSearch, setPartSearch] = useState("");
+  const [partCat, setPartCat] = useState("all");
+  const [partWho, setPartWho] = useState("all");
   const [confirmDelete, setConfirmDelete] = useState<{ kind: "question" | "category"; id: string; label: string } | null>(null);
 
   const load = useCallback(async () => {
@@ -103,6 +108,55 @@ function AdminSurvey() {
     if (roles.loading || !roles.isAdmin) return;
     void load();
   }, [roles.loading, roles.isAdmin, load]);
+
+  useEffect(() => {
+    if (roles.loading || !roles.isAdmin) return;
+    fetchParticipants()
+      .then((r) => setParticipants(r.participants))
+      .catch((e) => toast.error(e instanceof Error ? e.message : "Could not load participants"))
+      .finally(() => setParticipantsLoading(false));
+  }, [roles.loading, roles.isAdmin, fetchParticipants]);
+
+  const catTitle = (id: string) => cats.find((c) => c.id === id)?.title ?? "Unknown topic";
+
+  const filteredParticipants = useMemo(() => {
+    const q = partSearch.trim().toLowerCase();
+    return participants.filter((p) => {
+      if (partWho === "signed_in" && !p.signedIn) return false;
+      if (partWho === "anonymous" && p.signedIn) return false;
+      if (partCat !== "all" && !p.submissions.some((s) => s.category_id === partCat)) return false;
+      if (!q) return true;
+      return [p.playerName, p.username, p.discordUsername, p.email].some((v) => (v ?? "").toLowerCase().includes(q));
+    });
+  }, [participants, partSearch, partCat, partWho]);
+
+  const exportParticipantsCsv = () => {
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = filteredParticipants.map((p) =>
+      [
+        p.signedIn ? p.playerName ?? p.username ?? "" : "",
+        p.username ?? "",
+        p.discordUsername ?? "",
+        p.email ?? "",
+        p.signedIn ? "Signed in" : "Anonymous",
+        p.submissions.map((s) => catTitle(s.category_id)).join("; "),
+        p.submissions.length,
+        p.lastSubmittedAt,
+      ]
+        .map(esc)
+        .join(","),
+    );
+    const blob = new Blob(
+      ["Name,Site username,Discord,Email,Type,Topics completed,Topic count,Last submitted\n" + rows.join("\n")],
+      { type: "text/csv;charset=utf-8" },
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "survey-participants.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const byCat = useMemo(() => {
     const m: Record<string, SurveyQuestion[]> = {};
