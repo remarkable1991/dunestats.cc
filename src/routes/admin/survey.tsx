@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
@@ -78,6 +79,7 @@ function slugify(s: string) {
 
 function AdminSurvey() {
   const roles = useRoles();
+  const fetchParticipants = useServerFn(getSurveyParticipants);
   const [cats, setCats] = useState<SurveyCategory[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [responses, setResponses] = useState<ResponseRow[]>([]);
