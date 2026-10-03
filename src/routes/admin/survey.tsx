@@ -399,6 +399,119 @@ function AdminSurvey() {
                 );
               })}
             </TabsContent>
+
+            <TabsContent value="participants" className="space-y-4 pt-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                <div className="min-w-48 flex-1 space-y-1">
+                  <Label>Search</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      className="pl-9"
+                      placeholder="Name, Discord, email…"
+                      value={partSearch}
+                      onChange={(e) => setPartSearch(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1 sm:w-56">
+                  <Label>Topic</Label>
+                  <Select value={partCat} onValueChange={setPartCat}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Any topic</SelectItem>
+                      {cats.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 sm:w-44">
+                  <Label>Who</Label>
+                  <Select value={partWho} onValueChange={setPartWho}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Everyone</SelectItem>
+                      <SelectItem value="signed_in">Signed in only</SelectItem>
+                      <SelectItem value="anonymous">Anonymous only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button variant="outline" onClick={exportParticipantsCsv} disabled={filteredParticipants.length === 0}>
+                  <Download className="size-4" /> Export CSV
+                </Button>
+              </div>
+
+              {participantsLoading ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" /> Loading participants…
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Showing {filteredParticipants.length} of {participants.length} participants ·{" "}
+                    {participants.filter((p) => p.signedIn).length} signed in ·{" "}
+                    {participants.filter((p) => !p.signedIn).length} anonymous
+                  </p>
+                  <div className="space-y-2">
+                    {filteredParticipants.map((p) => (
+                      <Card key={p.key} className="border-border/60 bg-card/60 p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
+                              {p.playerKey ? (
+                                <Link to="/players/$key" params={{ key: p.playerKey }} className="hover:underline">
+                                  {p.playerName ?? p.username ?? "Player"}
+                                </Link>
+                              ) : (
+                                <span>
+                                  {p.signedIn ? p.playerName ?? p.username ?? "Unnamed player" : "Anonymous visitor"}
+                                </span>
+                              )}
+                              {!p.signedIn && (
+                                <span className="rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                                  Anonymous
+                                </span>
+                              )}
+                            </p>
+                            <p className="mt-0.5 break-all text-xs text-muted-foreground">
+                              {p.signedIn
+                                ? [
+                                    p.email,
+                                    p.discordUsername ? `Discord: ${p.discordUsername}` : null,
+                                    p.username && p.username !== p.playerName ? `Site: ${p.username}` : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ") || "No contact info"
+                                : `Browser session ${p.key.replace("anon:", "").slice(0, 8)}…`}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {p.submissions.map((s, i) => (
+                              <span
+                                key={`${s.category_id}-${i}`}
+                                className="rounded-full border border-border/60 bg-muted/40 px-2.5 py-0.5 text-xs text-foreground"
+                              >
+                                {catTitle(s.category_id)} · {fmtDate(s.submitted_at)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                    {filteredParticipants.length === 0 && (
+                      <p className="text-sm text-muted-foreground">No participants match these filters.</p>
+                    )}
+                  </div>
+                </>
+              )}
+            </TabsContent>
           </Tabs>
         )}
       </main>
