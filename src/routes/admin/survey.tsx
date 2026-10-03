@@ -294,6 +294,7 @@ function AdminSurvey() {
             <TabsList>
               <TabsTrigger value="questions">Questions</TabsTrigger>
               <TabsTrigger value="results">Answers ({responses.length})</TabsTrigger>
+              <TabsTrigger value="participants">Participants ({participants.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="questions" className="space-y-6 pt-4">
