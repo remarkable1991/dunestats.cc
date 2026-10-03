@@ -77,6 +77,10 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40) || "option";
 }
 
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
 function AdminSurvey() {
   const roles = useRoles();
   const fetchParticipants = useServerFn(getSurveyParticipants);
