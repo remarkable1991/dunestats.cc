@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
@@ -26,10 +27,12 @@ import {
   ArrowDown,
   ArrowUp,
   BarChart3,
+  Download,
   Loader2,
   MessageSquareText,
   Plus,
   Save,
+  Search,
   Star,
   Trash2,
   Users,
@@ -46,6 +49,7 @@ import {
   type SurveyOption,
   type SurveyQuestion,
 } from "@/lib/survey";
+import { getSurveyParticipants, type SurveyParticipant } from "@/lib/survey-participants.functions";
 
 export const Route = createFileRoute("/admin/survey")({
   head: () => ({
@@ -73,13 +77,23 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40) || "option";
 }
 
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
 function AdminSurvey() {
   const roles = useRoles();
+  const fetchParticipants = useServerFn(getSurveyParticipants);
   const [cats, setCats] = useState<SurveyCategory[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [responses, setResponses] = useState<ResponseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [participants, setParticipants] = useState<SurveyParticipant[]>([]);
+  const [participantsLoading, setParticipantsLoading] = useState(true);
+  const [partSearch, setPartSearch] = useState("");
+  const [partCat, setPartCat] = useState("all");
+  const [partWho, setPartWho] = useState("all");
   const [confirmDelete, setConfirmDelete] = useState<{ kind: "question" | "category"; id: string; label: string } | null>(null);
 
   const load = useCallback(async () => {
@@ -98,6 +112,55 @@ function AdminSurvey() {
     if (roles.loading || !roles.isAdmin) return;
     void load();
   }, [roles.loading, roles.isAdmin, load]);
+
+  useEffect(() => {
+    if (roles.loading || !roles.isAdmin) return;
+    fetchParticipants()
+      .then((r) => setParticipants(r.participants))
+      .catch((e) => toast.error(e instanceof Error ? e.message : "Could not load participants"))
+      .finally(() => setParticipantsLoading(false));
+  }, [roles.loading, roles.isAdmin, fetchParticipants]);
+
+  const catTitle = (id: string) => cats.find((c) => c.id === id)?.title ?? "Unknown topic";
+
+  const filteredParticipants = useMemo(() => {
+    const q = partSearch.trim().toLowerCase();
+    return participants.filter((p) => {
+      if (partWho === "signed_in" && !p.signedIn) return false;
+      if (partWho === "anonymous" && p.signedIn) return false;
+      if (partCat !== "all" && !p.submissions.some((s) => s.category_id === partCat)) return false;
+      if (!q) return true;
+      return [p.playerName, p.username, p.discordUsername, p.email].some((v) => (v ?? "").toLowerCase().includes(q));
+    });
+  }, [participants, partSearch, partCat, partWho]);
+
+  const exportParticipantsCsv = () => {
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = filteredParticipants.map((p) =>
+      [
+        p.signedIn ? p.playerName ?? p.username ?? "" : "",
+        p.username ?? "",
+        p.discordUsername ?? "",
+        p.email ?? "",
+        p.signedIn ? "Signed in" : "Anonymous",
+        p.submissions.map((s) => catTitle(s.category_id)).join("; "),
+        p.submissions.length,
+        p.lastSubmittedAt,
+      ]
+        .map(esc)
+        .join(","),
+    );
+    const blob = new Blob(
+      ["Name,Site username,Discord,Email,Type,Topics completed,Topic count,Last submitted\n" + rows.join("\n")],
+      { type: "text/csv;charset=utf-8" },
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "survey-participants.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const byCat = useMemo(() => {
     const m: Record<string, SurveyQuestion[]> = {};
@@ -235,6 +298,7 @@ function AdminSurvey() {
             <TabsList>
               <TabsTrigger value="questions">Questions</TabsTrigger>
               <TabsTrigger value="results">Answers ({responses.length})</TabsTrigger>
+              <TabsTrigger value="participants">Participants ({participants.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="questions" className="space-y-6 pt-4">
@@ -338,6 +402,119 @@ function AdminSurvey() {
                   </Card>
                 );
               })}
+            </TabsContent>
+
+            <TabsContent value="participants" className="space-y-4 pt-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                <div className="min-w-48 flex-1 space-y-1">
+                  <Label>Search</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      className="pl-9"
+                      placeholder="Name, Discord, email…"
+                      value={partSearch}
+                      onChange={(e) => setPartSearch(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1 sm:w-56">
+                  <Label>Topic</Label>
+                  <Select value={partCat} onValueChange={setPartCat}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Any topic</SelectItem>
+                      {cats.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 sm:w-44">
+                  <Label>Who</Label>
+                  <Select value={partWho} onValueChange={setPartWho}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Everyone</SelectItem>
+                      <SelectItem value="signed_in">Signed in only</SelectItem>
+                      <SelectItem value="anonymous">Anonymous only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button variant="outline" onClick={exportParticipantsCsv} disabled={filteredParticipants.length === 0}>
+                  <Download className="size-4" /> Export CSV
+                </Button>
+              </div>
+
+              {participantsLoading ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" /> Loading participants…
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Showing {filteredParticipants.length} of {participants.length} participants ·{" "}
+                    {participants.filter((p) => p.signedIn).length} signed in ·{" "}
+                    {participants.filter((p) => !p.signedIn).length} anonymous
+                  </p>
+                  <div className="space-y-2">
+                    {filteredParticipants.map((p) => (
+                      <Card key={p.key} className="border-border/60 bg-card/60 p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
+                              {p.playerKey ? (
+                                <Link to="/players/$key" params={{ key: p.playerKey }} className="hover:underline">
+                                  {p.playerName ?? p.username ?? "Player"}
+                                </Link>
+                              ) : (
+                                <span>
+                                  {p.signedIn ? p.playerName ?? p.username ?? "Unnamed player" : "Anonymous visitor"}
+                                </span>
+                              )}
+                              {!p.signedIn && (
+                                <span className="rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                                  Anonymous
+                                </span>
+                              )}
+                            </p>
+                            <p className="mt-0.5 break-all text-xs text-muted-foreground">
+                              {p.signedIn
+                                ? [
+                                    p.email,
+                                    p.discordUsername ? `Discord: ${p.discordUsername}` : null,
+                                    p.username && p.username !== p.playerName ? `Site: ${p.username}` : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ") || "No contact info"
+                                : `Browser session ${p.key.replace("anon:", "").slice(0, 8)}…`}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {p.submissions.map((s, i) => (
+                              <span
+                                key={`${s.category_id}-${i}`}
+                                className="rounded-full border border-border/60 bg-muted/40 px-2.5 py-0.5 text-xs text-foreground"
+                              >
+                                {catTitle(s.category_id)} · {fmtDate(s.submitted_at)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                    {filteredParticipants.length === 0 && (
+                      <p className="text-sm text-muted-foreground">No participants match these filters.</p>
+                    )}
+                  </div>
+                </>
+              )}
             </TabsContent>
           </Tabs>
         )}
