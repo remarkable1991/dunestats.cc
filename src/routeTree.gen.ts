@@ -9,124 +9,44 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as UploadRouteImport } from './routes/upload'
-import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
-import { Route as TournamentRegisterRouteImport } from './routes/tournament-register'
-import { Route as TournamentRouteImport } from './routes/tournament'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as SurveyRouteImport } from './routes/survey'
-import { Route as StatsRouteImport } from './routes/stats'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as RewardsRouteImport } from './routes/rewards'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as MatchesRouteImport } from './routes/matches'
-import { Route as LfgRouteImport } from './routes/lfg'
-import { Route as LeaderboardRouteImport } from './routes/leaderboard'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as ClaimRouteImport } from './routes/claim'
-import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as TournamentNumRouteImport } from './routes/tournament_.$num'
-import { Route as TournamentRegisterNumRouteImport } from './routes/tournament-register_.$num'
-import { Route as RUsernameRouteImport } from './routes/r.$username'
-import { Route as PlayersKeyRouteImport } from './routes/players.$key'
-import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
-import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
-import { Route as AdminTournamentsRouteImport } from './routes/admin/tournaments'
-import { Route as AdminTournamentEmailsRouteImport } from './routes/admin/tournament-emails'
-import { Route as AdminSurveyRouteImport } from './routes/admin/survey'
-import { Route as AdminNotificationEmailsRouteImport } from './routes/admin/notification-emails'
-import { Route as AdminMatchmakingRouteImport } from './routes/admin/matchmaking'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ClaimRouteImport } from './routes/claim'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as LfgRouteImport } from './routes/lfg'
+import { Route as MatchesRouteImport } from './routes/matches'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as RewardsRouteImport } from './routes/rewards'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as StatsRouteImport } from './routes/stats'
+import { Route as SurveyRouteImport } from './routes/survey'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as TournamentRouteImport } from './routes/tournament'
+import { Route as TournamentRegisterRouteImport } from './routes/tournament-register'
+import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
+import { Route as UploadRouteImport } from './routes/upload'
 import { Route as AdminMatchApprovalsRouteImport } from './routes/admin/match-approvals'
-import { Route as TournamentNumTableRouteImport } from './routes/tournament_.$num_.$table'
+import { Route as AdminMatchmakingRouteImport } from './routes/admin/matchmaking'
+import { Route as AdminNotificationEmailsRouteImport } from './routes/admin/notification-emails'
+import { Route as AdminSurveyRouteImport } from './routes/admin/survey'
+import { Route as AdminTournamentEmailsRouteImport } from './routes/admin/tournament-emails'
+import { Route as AdminTournamentsRouteImport } from './routes/admin/tournaments'
+import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
+import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
+import { Route as PlayersKeyRouteImport } from './routes/players.$key'
+import { Route as RUsernameRouteImport } from './routes/r.$username'
+import { Route as TournamentRegisterNumRouteImport } from './routes/tournament-register_.$num'
+import { Route as TournamentNumRouteImport } from './routes/tournament_.$num'
 import { Route as LeadersOriginSlugRouteImport } from './routes/leaders.$origin.$slug'
+import { Route as TournamentNumTableRouteImport } from './routes/tournament_.$num_.$table'
 import { Route as ApiPublicEmailOutboxDispatchRouteImport } from './routes/api/public/email-outbox/dispatch'
 
-const UploadRoute = UploadRouteImport.update({
-  id: '/upload',
-  path: '/upload',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const UnsubscribeRoute = UnsubscribeRouteImport.update({
-  id: '/unsubscribe',
-  path: '/unsubscribe',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TournamentRegisterRoute = TournamentRegisterRouteImport.update({
-  id: '/tournament-register',
-  path: '/tournament-register',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TournamentRoute = TournamentRouteImport.update({
-  id: '/tournament',
-  path: '/tournament',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SurveyRoute = SurveyRouteImport.update({
-  id: '/survey',
-  path: '/survey',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const StatsRoute = StatsRouteImport.update({
-  id: '/stats',
-  path: '/stats',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RewardsRoute = RewardsRouteImport.update({
-  id: '/rewards',
-  path: '/rewards',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MatchesRoute = MatchesRouteImport.update({
-  id: '/matches',
-  path: '/matches',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LfgRoute = LfgRouteImport.update({
-  id: '/lfg',
-  path: '/lfg',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LeaderboardRoute = LeaderboardRouteImport.update({
-  id: '/leaderboard',
-  path: '/leaderboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ClaimRoute = ClaimRouteImport.update({
-  id: '/claim',
-  path: '/claim',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -134,64 +54,89 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ClaimRoute = ClaimRouteImport.update({
+  id: '/claim',
+  path: '/claim',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TournamentNumRoute = TournamentNumRouteImport.update({
-  id: '/tournament_/$num',
-  path: '/tournament/$num',
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TournamentRegisterNumRoute = TournamentRegisterNumRouteImport.update({
-  id: '/tournament-register_/$num',
-  path: '/tournament-register/$num',
+const LeaderboardRoute = LeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RUsernameRoute = RUsernameRouteImport.update({
-  id: '/r/$username',
-  path: '/r/$username',
+const LfgRoute = LfgRouteImport.update({
+  id: '/lfg',
+  path: '/lfg',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PlayersKeyRoute = PlayersKeyRouteImport.update({
-  id: '/players/$key',
-  path: '/players/$key',
+const MatchesRoute = MatchesRouteImport.update({
+  id: '/matches',
+  path: '/matches',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MatchMatchIdRoute = MatchMatchIdRouteImport.update({
-  id: '/match/$matchId',
-  path: '/match/$matchId',
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/auth_/callback',
-  path: '/auth/callback',
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminTournamentsRoute = AdminTournamentsRouteImport.update({
-  id: '/admin/tournaments',
-  path: '/admin/tournaments',
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminTournamentEmailsRoute = AdminTournamentEmailsRouteImport.update({
-  id: '/admin/tournament-emails',
-  path: '/admin/tournament-emails',
+const RewardsRoute = RewardsRouteImport.update({
+  id: '/rewards',
+  path: '/rewards',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminSurveyRoute = AdminSurveyRouteImport.update({
-  id: '/admin/survey',
-  path: '/admin/survey',
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminNotificationEmailsRoute = AdminNotificationEmailsRouteImport.update({
-  id: '/admin/notification-emails',
-  path: '/admin/notification-emails',
+const StatsRoute = StatsRouteImport.update({
+  id: '/stats',
+  path: '/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminMatchmakingRoute = AdminMatchmakingRouteImport.update({
-  id: '/admin/matchmaking',
-  path: '/admin/matchmaking',
+const SurveyRoute = SurveyRouteImport.update({
+  id: '/survey',
+  path: '/survey',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TournamentRoute = TournamentRouteImport.update({
+  id: '/tournament',
+  path: '/tournament',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TournamentRegisterRoute = TournamentRegisterRouteImport.update({
+  id: '/tournament-register',
+  path: '/tournament-register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnsubscribeRoute = UnsubscribeRouteImport.update({
+  id: '/unsubscribe',
+  path: '/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UploadRoute = UploadRouteImport.update({
+  id: '/upload',
+  path: '/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminMatchApprovalsRoute = AdminMatchApprovalsRouteImport.update({
@@ -199,14 +144,69 @@ const AdminMatchApprovalsRoute = AdminMatchApprovalsRouteImport.update({
   path: '/admin/match-approvals',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TournamentNumTableRoute = TournamentNumTableRouteImport.update({
-  id: '/tournament_/$num_/$table',
-  path: '/tournament/$num/$table',
+const AdminMatchmakingRoute = AdminMatchmakingRouteImport.update({
+  id: '/admin/matchmaking',
+  path: '/admin/matchmaking',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminNotificationEmailsRoute = AdminNotificationEmailsRouteImport.update({
+  id: '/admin/notification-emails',
+  path: '/admin/notification-emails',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSurveyRoute = AdminSurveyRouteImport.update({
+  id: '/admin/survey',
+  path: '/admin/survey',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminTournamentEmailsRoute = AdminTournamentEmailsRouteImport.update({
+  id: '/admin/tournament-emails',
+  path: '/admin/tournament-emails',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminTournamentsRoute = AdminTournamentsRouteImport.update({
+  id: '/admin/tournaments',
+  path: '/admin/tournaments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth_/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MatchMatchIdRoute = MatchMatchIdRouteImport.update({
+  id: '/match/$matchId',
+  path: '/match/$matchId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlayersKeyRoute = PlayersKeyRouteImport.update({
+  id: '/players/$key',
+  path: '/players/$key',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RUsernameRoute = RUsernameRouteImport.update({
+  id: '/r/$username',
+  path: '/r/$username',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TournamentRegisterNumRoute = TournamentRegisterNumRouteImport.update({
+  id: '/tournament-register_/$num',
+  path: '/tournament-register/$num',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TournamentNumRoute = TournamentNumRouteImport.update({
+  id: '/tournament_/$num',
+  path: '/tournament/$num',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeadersOriginSlugRoute = LeadersOriginSlugRouteImport.update({
   id: '/leaders/$origin/$slug',
   path: '/leaders/$origin/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TournamentNumTableRoute = TournamentNumTableRouteImport.update({
+  id: '/tournament_/$num_/$table',
+  path: '/tournament/$num/$table',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicEmailOutboxDispatchRoute =
@@ -475,123 +475,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/upload': {
-      id: '/upload'
-      path: '/upload'
-      fullPath: '/upload'
-      preLoaderRoute: typeof UploadRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/unsubscribe': {
-      id: '/unsubscribe'
-      path: '/unsubscribe'
-      fullPath: '/unsubscribe'
-      preLoaderRoute: typeof UnsubscribeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tournament-register': {
-      id: '/tournament-register'
-      path: '/tournament-register'
-      fullPath: '/tournament-register'
-      preLoaderRoute: typeof TournamentRegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tournament': {
-      id: '/tournament'
-      path: '/tournament'
-      fullPath: '/tournament'
-      preLoaderRoute: typeof TournamentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/survey': {
-      id: '/survey'
-      path: '/survey'
-      fullPath: '/survey'
-      preLoaderRoute: typeof SurveyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/stats': {
-      id: '/stats'
-      path: '/stats'
-      fullPath: '/stats'
-      preLoaderRoute: typeof StatsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/rewards': {
-      id: '/rewards'
-      path: '/rewards'
-      fullPath: '/rewards'
-      preLoaderRoute: typeof RewardsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/matches': {
-      id: '/matches'
-      path: '/matches'
-      fullPath: '/matches'
-      preLoaderRoute: typeof MatchesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lfg': {
-      id: '/lfg'
-      path: '/lfg'
-      fullPath: '/lfg'
-      preLoaderRoute: typeof LfgRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/leaderboard': {
-      id: '/leaderboard'
-      path: '/leaderboard'
-      fullPath: '/leaderboard'
-      preLoaderRoute: typeof LeaderboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/claim': {
-      id: '/claim'
-      path: '/claim'
-      fullPath: '/claim'
-      preLoaderRoute: typeof ClaimRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -601,88 +489,123 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/claim': {
+      id: '/claim'
+      path: '/claim'
+      fullPath: '/claim'
+      preLoaderRoute: typeof ClaimRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/tournament_/$num': {
-      id: '/tournament_/$num'
-      path: '/tournament/$num'
-      fullPath: '/tournament/$num'
-      preLoaderRoute: typeof TournamentNumRouteImport
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/tournament-register_/$num': {
-      id: '/tournament-register_/$num'
-      path: '/tournament-register/$num'
-      fullPath: '/tournament-register/$num'
-      preLoaderRoute: typeof TournamentRegisterNumRouteImport
+    '/leaderboard': {
+      id: '/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof LeaderboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/r/$username': {
-      id: '/r/$username'
-      path: '/r/$username'
-      fullPath: '/r/$username'
-      preLoaderRoute: typeof RUsernameRouteImport
+    '/lfg': {
+      id: '/lfg'
+      path: '/lfg'
+      fullPath: '/lfg'
+      preLoaderRoute: typeof LfgRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/players/$key': {
-      id: '/players/$key'
-      path: '/players/$key'
-      fullPath: '/players/$key'
-      preLoaderRoute: typeof PlayersKeyRouteImport
+    '/matches': {
+      id: '/matches'
+      path: '/matches'
+      fullPath: '/matches'
+      preLoaderRoute: typeof MatchesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/match/$matchId': {
-      id: '/match/$matchId'
-      path: '/match/$matchId'
-      fullPath: '/match/$matchId'
-      preLoaderRoute: typeof MatchMatchIdRouteImport
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth_/callback': {
-      id: '/auth_/callback'
-      path: '/auth/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/tournaments': {
-      id: '/admin/tournaments'
-      path: '/admin/tournaments'
-      fullPath: '/admin/tournaments'
-      preLoaderRoute: typeof AdminTournamentsRouteImport
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/tournament-emails': {
-      id: '/admin/tournament-emails'
-      path: '/admin/tournament-emails'
-      fullPath: '/admin/tournament-emails'
-      preLoaderRoute: typeof AdminTournamentEmailsRouteImport
+    '/rewards': {
+      id: '/rewards'
+      path: '/rewards'
+      fullPath: '/rewards'
+      preLoaderRoute: typeof RewardsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/survey': {
-      id: '/admin/survey'
-      path: '/admin/survey'
-      fullPath: '/admin/survey'
-      preLoaderRoute: typeof AdminSurveyRouteImport
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/notification-emails': {
-      id: '/admin/notification-emails'
-      path: '/admin/notification-emails'
-      fullPath: '/admin/notification-emails'
-      preLoaderRoute: typeof AdminNotificationEmailsRouteImport
+    '/stats': {
+      id: '/stats'
+      path: '/stats'
+      fullPath: '/stats'
+      preLoaderRoute: typeof StatsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/matchmaking': {
-      id: '/admin/matchmaking'
-      path: '/admin/matchmaking'
-      fullPath: '/admin/matchmaking'
-      preLoaderRoute: typeof AdminMatchmakingRouteImport
+    '/survey': {
+      id: '/survey'
+      path: '/survey'
+      fullPath: '/survey'
+      preLoaderRoute: typeof SurveyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tournament': {
+      id: '/tournament'
+      path: '/tournament'
+      fullPath: '/tournament'
+      preLoaderRoute: typeof TournamentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tournament-register': {
+      id: '/tournament-register'
+      path: '/tournament-register'
+      fullPath: '/tournament-register'
+      preLoaderRoute: typeof TournamentRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/unsubscribe': {
+      id: '/unsubscribe'
+      path: '/unsubscribe'
+      fullPath: '/unsubscribe'
+      preLoaderRoute: typeof UnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/upload': {
+      id: '/upload'
+      path: '/upload'
+      fullPath: '/upload'
+      preLoaderRoute: typeof UploadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/match-approvals': {
@@ -692,11 +615,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminMatchApprovalsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/tournament_/$num_/$table': {
-      id: '/tournament_/$num_/$table'
-      path: '/tournament/$num/$table'
-      fullPath: '/tournament/$num/$table'
-      preLoaderRoute: typeof TournamentNumTableRouteImport
+    '/admin/matchmaking': {
+      id: '/admin/matchmaking'
+      path: '/admin/matchmaking'
+      fullPath: '/admin/matchmaking'
+      preLoaderRoute: typeof AdminMatchmakingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/notification-emails': {
+      id: '/admin/notification-emails'
+      path: '/admin/notification-emails'
+      fullPath: '/admin/notification-emails'
+      preLoaderRoute: typeof AdminNotificationEmailsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/survey': {
+      id: '/admin/survey'
+      path: '/admin/survey'
+      fullPath: '/admin/survey'
+      preLoaderRoute: typeof AdminSurveyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/tournament-emails': {
+      id: '/admin/tournament-emails'
+      path: '/admin/tournament-emails'
+      fullPath: '/admin/tournament-emails'
+      preLoaderRoute: typeof AdminTournamentEmailsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/tournaments': {
+      id: '/admin/tournaments'
+      path: '/admin/tournaments'
+      fullPath: '/admin/tournaments'
+      preLoaderRoute: typeof AdminTournamentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth_/callback': {
+      id: '/auth_/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/match/$matchId': {
+      id: '/match/$matchId'
+      path: '/match/$matchId'
+      fullPath: '/match/$matchId'
+      preLoaderRoute: typeof MatchMatchIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/players/$key': {
+      id: '/players/$key'
+      path: '/players/$key'
+      fullPath: '/players/$key'
+      preLoaderRoute: typeof PlayersKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/r/$username': {
+      id: '/r/$username'
+      path: '/r/$username'
+      fullPath: '/r/$username'
+      preLoaderRoute: typeof RUsernameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tournament-register_/$num': {
+      id: '/tournament-register_/$num'
+      path: '/tournament-register/$num'
+      fullPath: '/tournament-register/$num'
+      preLoaderRoute: typeof TournamentRegisterNumRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tournament_/$num': {
+      id: '/tournament_/$num'
+      path: '/tournament/$num'
+      fullPath: '/tournament/$num'
+      preLoaderRoute: typeof TournamentNumRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leaders/$origin/$slug': {
@@ -704,6 +697,13 @@ declare module '@tanstack/react-router' {
       path: '/leaders/$origin/$slug'
       fullPath: '/leaders/$origin/$slug'
       preLoaderRoute: typeof LeadersOriginSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tournament_/$num_/$table': {
+      id: '/tournament_/$num_/$table'
+      path: '/tournament/$num/$table'
+      fullPath: '/tournament/$num/$table'
+      preLoaderRoute: typeof TournamentNumTableRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/email-outbox/dispatch': {
