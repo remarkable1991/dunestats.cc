@@ -41,6 +41,7 @@ export type MatchmakerTable = {
   players: string[];
   slots: SuggestedSlot[];
   averageSharedHours: number;
+  weakestPairHours?: number;
   playerCompatibility: Record<string, number>;
   broken: boolean;
 };
@@ -406,4 +407,104 @@ export function publishRows(candidate: MatchmakerCandidate, tournamentNum: numbe
     player_compatibility_score: table.playerCompatibility[player],
     player_availability: availabilityOf(details.get(player)?.availability),
   })));
+}
+
+// ==========================================
+// ASync 3-qualifier mode (TFA.py): general availability overlap, no time slots.
+// ==========================================
+export const ASYNC_STRATEGY: Strategy = { minSlots: 0, spacing: 0, nearMode: "none", minPairHours: 0, proximityBlocks: 0, name: "ASync balance", detail: "Fuzzy overlap ±4h · weakest table weighted ×1000" };
+
+export function asyncSettingsDefaults(): Pick<MatchmakerSettings, "maxSeeds" | "stepsPerSeed" | "checkpointStep" | "initialTemperature" | "coolingRate" | "patience"> {
+  return { maxSeeds: 60, stepsPerSeed: 3000, checkpointStep: 1000, initialTemperature: 100, coolingRate: 0.998, patience: 25 };
+}
+
+function fuzzyVector(slots: Set<number>, timeline: number[]): Float64Array {
+  const len = timeline.length;
+  const dist = new Float64Array(len).fill(Infinity);
+  let last = -Infinity;
+  for (let i = 0; i < len; i++) { if (slots.has(timeline[i])) last = i; dist[i] = i - last; }
+  last = Infinity;
+  for (let i = len - 1; i >= 0; i--) { if (slots.has(timeline[i])) last = i; dist[i] = Math.min(dist[i], last - i); }
+  const vec = new Float64Array(len);
+  for (let i = 0; i < len; i++) {
+    const h = dist[i] * 0.5;
+    vec[i] = h === 0 ? 1 : h <= 2 ? 1 - h * 0.25 : h <= 4 ? 0.5 - (h - 2) * 0.25 : 0;
+  }
+  return vec;
+}
+
+export async function runAsyncMatchmaker(
+  rows: MatchmakerRegistration[],
+  settings: MatchmakerSettings,
+  onProgress: (progress: MatchmakerProgress, best: MatchmakerCandidate | null) => void,
+  isCancelled: () => boolean,
+): Promise<MatchmakerCandidate | null> {
+  const prepared = prepare(rows, settings);
+  const players = prepared.players;
+  const vectors = new Map(players.map((p) => [p, fuzzyVector(prepared.available.get(p) ?? new Set(), prepared.timeline)]));
+  const pair = new Map<string, number>();
+  pairsOf(players).forEach(([a, b]) => {
+    const va = vectors.get(a)!; const vb = vectors.get(b)!;
+    let s = 0; for (let i = 0; i < va.length; i++) s += Math.min(va[i], vb[i]);
+    pair.set(`${a}\u0001${b}`, s / 2); pair.set(`${b}\u0001${a}`, s / 2);
+  });
+  const ph = (a: string, b: string) => pair.get(`${a}\u0001${b}`) ?? 0;
+  const tableScore = (t: string[]) => {
+    const hours = pairsOf(t).map(([a, b]) => ph(a, b));
+    const min = Math.min(...hours);
+    return { score: hours.reduce((s, v) => s + v, 0) / 6 - Math.max(0, 4 - min) * 5, avg: hours.reduce((s, v) => s + v, 0) / 6, min };
+  };
+  const evalScore = (template: number[][][], mapping: string[]) => {
+    let min = Infinity; let sum = 0; let n = 0;
+    for (const round of template) for (const table of round) {
+      const s = tableScore(table.map((i) => mapping[i])).score;
+      if (s < min) min = s; sum += s; n++;
+    }
+    return { total: min * 1000 + sum / n, min };
+  };
+  const build = (template: number[][][], mapping: string[], seed: number, total: number): MatchmakerCandidate => {
+    const tables: MatchmakerTable[] = [];
+    template.forEach((round, r) => round.forEach((idx, t) => {
+      const tp = idx.map((i) => mapping[i]);
+      const s = tableScore(tp);
+      tables.push({
+        round: r + 1, table: t + 1, players: tp, slots: [],
+        averageSharedHours: Number(s.avg.toFixed(1)),
+        weakestPairHours: Number(s.min.toFixed(1)),
+        playerCompatibility: Object.fromEntries(tp.map((p) => [p, Number((tp.filter((o) => o !== p).reduce((sum, o) => sum + ph(p, o), 0) / 3).toFixed(1))])),
+        broken: false,
+      });
+    }));
+    return { strategyIndex: 0, strategy: ASYNC_STRATEGY, seed, score: total, brokenTables: 0, tables, timeline: prepared.timeline };
+  };
+  let best: MatchmakerCandidate | null = null;
+  let bestTotal = -Infinity; let bestMin = -Infinity; let stagnant = 0;
+  for (let seed = 1; seed <= settings.maxSeeds; seed++) {
+    if (isCancelled()) return best;
+    const template = socialGolfer(players.length);
+    if (!template) throw new Error("Could not generate three rounds without repeated opponents.");
+    const mapping = shuffle(players);
+    let current = evalScore(template, mapping).total;
+    let seedBest = current; let seedMap = [...mapping];
+    let temp = settings.initialTemperature;
+    for (let step = 0; step < settings.stepsPerSeed; step++) {
+      const i = Math.floor(Math.random() * mapping.length);
+      let j = Math.floor(Math.random() * mapping.length);
+      if (i === j) j = (j + 1) % mapping.length;
+      [mapping[i], mapping[j]] = [mapping[j], mapping[i]];
+      const next = evalScore(template, mapping).total;
+      if (next > current || Math.random() < Math.exp((next - current) / Math.max(0.01, temp))) {
+        current = next;
+        if (current > seedBest) { seedBest = current; seedMap = [...mapping]; }
+      } else [mapping[i], mapping[j]] = [mapping[j], mapping[i]];
+      temp *= settings.coolingRate;
+      if (step === settings.checkpointStep && best && evalScore(template, seedMap).min < bestMin - 1) break;
+    }
+    const isNew = seedBest > bestTotal;
+    if (isNew) { bestTotal = seedBest; bestMin = evalScore(template, seedMap).min; best = build(template, seedMap, seed, seedBest); stagnant = 0; } else stagnant++;
+    onProgress({ strategyIndex: 0, seed, maxSeeds: settings.maxSeeds, score: seedBest, brokenTables: 0, bestScore: bestTotal, bestBrokenTables: 0, newBest: isNew }, best);
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    if (stagnant >= settings.patience) break;
+  }
+  return best;
 }
