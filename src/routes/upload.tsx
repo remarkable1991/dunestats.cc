@@ -18,7 +18,7 @@ import { tournamentModes } from "@/lib/tournament-config";
 import { translateLeader, isCanonicalLeader, CANONICAL_LEADERS } from "@/lib/leader-translate";
 import { submitMatch, detectTournamentTable } from "@/lib/match-submit";
 import { toast } from "sonner";
-import { Upload as UploadIcon, Loader2, CheckCircle2, Maximize2, GripVertical, Trophy } from "lucide-react";
+import { Upload as UploadIcon, Loader2, CheckCircle2, Maximize2, GripVertical, Trophy, AlertTriangle } from "lucide-react";
 import exampleMatch from "@/assets/example-match.png.asset.json";
 import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 
@@ -512,14 +512,26 @@ function UploadPage() {
                   </div>
                 )}
                 {duplicateWarn && (
-                  <div className="mt-2 rounded-md border border-red-500/70 bg-red-500/10 text-red-300 text-xs px-3 py-2 space-y-2">
-                    <p className="font-medium">This game appears to have been recently uploaded. Are you sure you want to submit it again?</p>
-                    <label className="flex items-center gap-2 cursor-pointer">
+                  <div
+                    ref={(el) => el?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                    role="alert"
+                    className="mt-4 rounded-xl border-2 border-destructive bg-destructive/15 p-5 space-y-3 shadow-lg"
+                  >
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="size-8 shrink-0 text-destructive" />
+                      <div>
+                        <p className="text-lg font-bold text-destructive">Duplicate game detected</p>
+                        <p className="text-sm text-foreground mt-1">
+                          This exact match was already uploaded recently. Check the Matches page first — it was probably submitted by another player.
+                        </p>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer rounded-md bg-background/60 px-3 py-2 text-sm font-medium">
                       <Checkbox
                         checked={confirmDuplicate}
                         onCheckedChange={(c) => setConfirmDuplicate(!!c)}
                       />
-                      <span>Yes, submit anyway (override duplicate protection)</span>
+                      <span>Yes, this is a different game — submit anyway</span>
                     </label>
                   </div>
                 )}
