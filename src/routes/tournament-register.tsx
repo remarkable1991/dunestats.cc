@@ -533,7 +533,7 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
       };
       const { error: regErr } = userId
         ? await supabase.from("tournament_registrations").upsert(payload, { onConflict: "user_id,tournament_num" })
-        : await supabase.from("tournament_registrations").insert(payload);
+        : await supabase.rpc("register_tournament_guest" as never, { p: payload } as never);
       if (regErr) throw regErr;
 
       if (userId) {
