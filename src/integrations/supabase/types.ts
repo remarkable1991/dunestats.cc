@@ -1699,6 +1699,7 @@ export type Database = {
         Returns: Json
       }
       recalculate_sandbox_overall_vp_elo: { Args: never; Returns: undefined }
+      register_tournament_guest: { Args: { p: Json }; Returns: Json }
       reject_pending_tournament_match: {
         Args: { p_id: string; p_note?: string }
         Returns: Json
