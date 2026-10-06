@@ -793,6 +793,7 @@ function MatchDetailsPage() {
               game={game}
               displayId={displayId}
               canEdit={canEdit}
+              isMatchStaff={isMatchStaff}
               startRequest={verificationStart}
               onSaved={() => setReloadKey((k) => k + 1)}
             />
@@ -1736,12 +1737,14 @@ function VerificationCard({
   game,
   displayId,
   canEdit,
+  isMatchStaff,
   startRequest,
   onSaved,
 }: {
   game: GameRow;
   displayId: string;
   canEdit: boolean;
+  isMatchStaff: boolean;
   startRequest: number;
   onSaved: () => void;
 }) {
@@ -1757,6 +1760,7 @@ function VerificationCard({
   const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const awaitingScanResult = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setSrc(contentUrl);
@@ -1768,9 +1772,14 @@ function VerificationCard({
     setPlayers(game.game_results);
   }, [game.game_results]);
 
+  // "Start verification": open the check window, or the file picker when there is no screenshot yet.
   useEffect(() => {
-    if (startRequest > 0 && !broken) setDialogOpen(true);
-  }, [startRequest, broken]);
+    if (startRequest <= 0) return;
+    if (!broken) setDialogOpen(true);
+    else if (canEdit) fileInputRef.current?.click();
+    else toast.info(NO_ENDBOARD_MSG);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startRequest]);
 
   // Once refreshed data lands after a scan, jump straight into review when needed.
   useEffect(() => {
