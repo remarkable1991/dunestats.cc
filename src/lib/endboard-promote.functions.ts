@@ -23,54 +23,63 @@ function validId(id: string) {
   return /^[A-Za-z0-9_-]{3,80}$/.test(id);
 }
 
-export const promoteEndboard = createServerFn({ method: "POST" })
+async function helpers() {
+  const conn = await r2();
+  if (!conn) return null;
+  const { client, base } = conn;
+  const exists = async (key: string) => (await client.fetch(`${base}/${key}`, { method: "HEAD" })).ok;
+  const copy = async (from: string, to: string) => {
+    const res = await client.fetch(`${base}/${to}`, {
+      method: "PUT",
+      headers: { "x-amz-copy-source": `/${BUCKET}/${from}` },
+    });
+    if (!res.ok) throw new Error(`copy ${from} -> ${to} failed: ${res.status}`);
+  };
+  const del = (key: string) => client.fetch(`${base}/${key}`, { method: "DELETE" }).catch(() => null);
+  return { exists, copy, del };
+}
+
+/** Before uploading: if a raw endboard exists, copy it to the next free -raw-oldN. */
+export const backupEndboard = createServerFn({ method: "POST" })
   .inputValidator((data: { matchId: string }) => data)
   .handler(async ({ data }) => {
-    if (!validId(data.matchId)) return { ok: false as const, reason: "bad-id" };
-    const conn = await r2();
-    if (!conn) return { ok: false as const, reason: "not-configured" };
-    const { client, base } = conn;
-    const id = data.matchId;
-    const dir = `matches/${id}/${id}`;
-    const exists = async (key: string) => (await client.fetch(`${base}/${key}`, { method: "HEAD" })).ok;
-    const copy = async (from: string, to: string) => {
-      const res = await client.fetch(`${base}/${to}`, {
-        method: "PUT",
-        headers: { "x-amz-copy-source": `/${BUCKET}/${from}` },
-      });
-      if (!res.ok) throw new Error(`copy ${from} -> ${to} failed: ${res.status}`);
-    };
-
+    if (!validId(data.matchId)) return { ok: false as const, backup: null };
+    const h = await helpers();
+    if (!h) return { ok: false as const, backup: null };
+    const dir = `matches/${data.matchId}/${data.matchId}`;
+    const raw = `${dir}-endboard-raw.png`;
     try {
-      const staging = `${dir}-endboard-staging.png`;
-      const raw = `${dir}-endboard-raw.png`;
-      if (!(await exists(staging))) return { ok: false as const, reason: "no-staging" };
-
-      let archived: string | null = null;
-      if (await exists(raw)) {
-        let n = 1;
-        while (n < 100 && (await exists(`${dir}-endboard-raw-old${n}.png`))) n++;
-        archived = `${dir}-endboard-raw-old${n}.png`;
-        await copy(raw, archived);
-      }
-      await copy(staging, raw);
-      await client.fetch(`${base}/${staging}`, { method: "DELETE" });
-      return { ok: true as const, archived };
+      if (!(await h.exists(raw))) return { ok: true as const, backup: null };
+      let n = 1;
+      while (n < 100 && (await h.exists(`${dir}-endboard-raw-old${n}.png`))) n++;
+      const backup = `${dir}-endboard-raw-old${n}.png`;
+      await h.copy(raw, backup);
+      return { ok: true as const, backup };
     } catch (e) {
-      console.error("[endboard] promote failed", e);
-      return { ok: false as const, reason: "copy-failed" };
+      console.error("[endboard] backup failed", e);
+      return { ok: false as const, backup: null };
     }
   });
 
-export const discardEndboardStaging = createServerFn({ method: "POST" })
-  .inputValidator((data: { matchId: string }) => data)
+/** Scan rejected: delete the new raw and move the backup back to raw. */
+export const restoreEndboard = createServerFn({ method: "POST" })
+  .inputValidator((data: { matchId: string; backup: string | null }) => data)
   .handler(async ({ data }) => {
     if (!validId(data.matchId)) return { ok: false };
-    const conn = await r2();
-    if (!conn) return { ok: false };
-    const id = data.matchId;
-    await conn.client
-      .fetch(`${conn.base}/matches/${id}/${id}-endboard-staging.png`, { method: "DELETE" })
-      .catch(() => null);
-    return { ok: true };
+    const h = await helpers();
+    if (!h) return { ok: false };
+    const dir = `matches/${data.matchId}/${data.matchId}`;
+    const raw = `${dir}-endboard-raw.png`;
+    try {
+      if (data.backup && data.backup.startsWith(`${dir}-endboard-raw-old`)) {
+        await h.copy(data.backup, raw);
+        await h.del(data.backup);
+      } else {
+        await h.del(raw);
+      }
+      return { ok: true };
+    } catch (e) {
+      console.error("[endboard] restore failed", e);
+      return { ok: false };
+    }
   });
