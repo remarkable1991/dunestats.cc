@@ -6,7 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { GuidedZoomVerifier } from "@/components/GuidedZoomVerifier";
+import { GuidedZoomVerifier, type GuidedStepFocus } from "@/components/GuidedZoomVerifier";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -793,6 +793,7 @@ function MatchDetailsPage() {
               game={game}
               displayId={displayId}
               canEdit={canEdit}
+              isMatchStaff={isMatchStaff}
               startRequest={verificationStart}
               onSaved={() => setReloadKey((k) => k + 1)}
             />
@@ -1736,12 +1737,14 @@ function VerificationCard({
   game,
   displayId,
   canEdit,
+  isMatchStaff,
   startRequest,
   onSaved,
 }: {
   game: GameRow;
   displayId: string;
   canEdit: boolean;
+  isMatchStaff: boolean;
   startRequest: number;
   onSaved: () => void;
 }) {
@@ -1757,6 +1760,7 @@ function VerificationCard({
   const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const awaitingScanResult = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setSrc(contentUrl);
@@ -1768,9 +1772,14 @@ function VerificationCard({
     setPlayers(game.game_results);
   }, [game.game_results]);
 
+  // "Start verification": open the check window, or the file picker when there is no screenshot yet.
   useEffect(() => {
-    if (startRequest > 0 && !broken) setDialogOpen(true);
-  }, [startRequest, broken]);
+    if (startRequest <= 0) return;
+    if (!broken) setDialogOpen(true);
+    else if (canEdit) fileInputRef.current?.click();
+    else toast.info(NO_ENDBOARD_MSG);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startRequest]);
 
   // Once refreshed data lands after a scan, jump straight into review when needed.
   useEffect(() => {
@@ -1796,10 +1805,12 @@ function VerificationCard({
     if (!file || !canEdit || uploading || scanning) return;
     setUploading(true);
     setScanning(false);
+    const { promoteEndboard, discardEndboardStaging } = await import("@/lib/endboard-promote.functions");
     try {
-      const rawKey = endboardPathFor(displayId);
-      const publicRawUrl = r2EndboardRawUrl(displayId);
-      await uploadToR2("match-screenshots", rawKey, file.type || "image/png", file);
+      // 1. Upload to a staging file so the current screenshot stays untouched.
+      const stagingKey = `matches/${displayId}/${displayId}-endboard-staging.png`;
+      const stagingUrl = `${R2_MATCH_BASE}/${displayId}/${displayId}-endboard-staging.png`;
+      await uploadToR2("match-screenshots", stagingKey, file.type || "image/png", file);
       toast.success("Screenshot uploaded — analyzing…");
 
       setUploading(false);
@@ -1808,15 +1819,29 @@ function VerificationCard({
       // Short pause so the image is served by the CDN before analysis reads it.
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
+      // 2. Let the AI check the staging image.
       const scanResponse = await fetch(TELEMETRY_LAMBDA_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ match_id: displayId, image_url: publicRawUrl }),
+        body: JSON.stringify({ match_id: displayId, image_url: stagingUrl }),
       });
-      if (!scanResponse.ok) throw new Error("scan-failed");
-      await scanResponse.json().catch(() => null);
+      const result = (await scanResponse.json().catch(() => null)) as Record<string, unknown> | null;
+      const gateErrors = result?.["gate_errors"] ?? result?.["gateErrors"] ?? result?.["errors"];
+      const rejected =
+        !scanResponse.ok ||
+        !result ||
+        result["success"] === false ||
+        (Array.isArray(gateErrors) && gateErrors.length > 0);
+      if (rejected) {
+        await discardEndboardStaging({ data: { matchId: displayId } }).catch(() => null);
+        toast.error("This screenshot doesn't match this game — nothing was changed.");
+        return;
+      }
 
-      // Show the processed image and refresh the whole page data.
+      // 3. Accepted: keep the old screenshot as -raw-oldN and make the new one the default.
+      const promoted = await promoteEndboard({ data: { matchId: displayId } });
+      if (!promoted.ok) toast.warning("Analysis saved, but the screenshot file could not be renamed.");
+
       setBroken(false);
       setSrc(`${r2ContentAreaUrl(displayId)}?t=${Date.now()}`);
       setBust(Date.now());
@@ -1824,11 +1849,39 @@ function VerificationCard({
       onSaved();
     } catch {
       awaitingScanResult.current = false;
-      toast.error("Couldn't process the screenshot — please try again");
+      await discardEndboardStaging({ data: { matchId: displayId } }).catch(() => null);
+      toast.error("Couldn't process the screenshot — nothing was changed. Please try again.");
     } finally {
       setUploading(false);
       setScanning(false);
+    }
+  };
 
+  const finishReview = async () => {
+    const status = isMatchStaff ? "Manually verified" : manualReviewStatus(game.ai_scan_status);
+    setSaving(true);
+    try {
+      await saveMatchDetails(
+        {
+          p_game_id: game.id,
+          p_end_round: game.end_round,
+          p_board_version: game.board_version,
+          p_has_rise_of_ix: game.has_rise_of_ix,
+          p_has_epic_mode: game.has_epic_mode,
+          p_has_immortality: game.has_immortality,
+          p_has_base_leaders: game.has_base_leaders,
+          p_conflict_title: game.conflict_title,
+          p_ai_scan_status: status,
+          p_players: players.map(telemetryPayload),
+        },
+        isMatchStaff ? "Match marked as manually verified" : "Manual review finished",
+      );
+      setDialogOpen(false);
+      onSaved();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -1876,10 +1929,7 @@ function VerificationCard({
   >(null);
   const stickyRef = useRef<HTMLDivElement>(null);
   const leftPaneRef = useRef<HTMLDivElement>(null);
-  const onGuidedStep = (i: number) => {
-    const faction = FACTIONS[i - 4]?.key;
-    setFocus(i < 4 ? { kind: "slot", slot: i + 1 } : faction ? { kind: "faction", faction } : { kind: "hc" });
-  };
+  const onGuidedStep = (step: GuidedStepFocus) => setFocus(step);
   useEffect(() => {
     if (!focus) return;
     const pane = leftPaneRef.current;
@@ -1962,7 +2012,7 @@ function VerificationCard({
     const dupSlot = new Set(slots.filter(Boolean)).size !== slots.filter(Boolean).length;
     return missing || dupColor || dupSlot;
   })();
-  const [showAssign, setShowAssign] = useState(false);
+  const [showAssign, setShowAssign] = useState(true);
   const assignOpen = canEdit && (showAssign || seatingIssue);
 
 
@@ -2013,7 +2063,15 @@ function VerificationCard({
             {/* Guided step-by-step zoom of the screenshot on every screen size. */}
             {!broken && (
               <div ref={stickyRef} className="lg:col-span-2 sticky top-0 z-10 -mx-1 px-1 pb-2 bg-background/95 backdrop-blur-md border-b border-border/40">
-                <GuidedZoomVerifier key={startRequest} src={`${src}${suffix}`} players={players} onStepChange={onGuidedStep} />
+                <GuidedZoomVerifier
+                  key={startRequest}
+                  src={`${src}${suffix}`}
+                  players={players}
+                  onStepChange={onGuidedStep}
+                  finishLabel={canEdit ? (isMatchStaff ? "Mark as manually verified" : "Finish manual review") : undefined}
+                  finishing={saving}
+                  onFinish={canEdit ? () => void finishReview() : undefined}
+                />
               </div>
             )}
             {/* Left pane — interactive board telemetry */}
@@ -2254,6 +2312,7 @@ function VerificationCard({
                 ? "Upload endboard screenshot"
                 : "Replace endboard"}
           <input
+            ref={fileInputRef}
             type="file"
             accept="image/*"
             className="hidden"

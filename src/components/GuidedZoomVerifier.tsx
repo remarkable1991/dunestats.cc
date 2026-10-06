@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Maximize2, Minimize2, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Maximize2, Minimize2, AlertTriangle, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { colorHex, type TelemetryPlayer } from "@/lib/match-telemetry";
 import {
   FACTIONS,
+  type FactionKey,
   ZOOM_BOXES,
   factionBox,
   layoutForAspect,
@@ -37,17 +38,34 @@ function ZoomCrop({ src, box, aspect, className = "" }: { src: string; box: Box;
   );
 }
 
-type Step = { title: string; hint: string; box: Box; tie?: { level: number; players: TelemetryPlayer[] } };
+export type GuidedStepFocus =
+  | { kind: "slot"; slot: number }
+  | { kind: "faction"; faction: FactionKey }
+  | { kind: "hc" };
+
+type Step = {
+  title: string;
+  hint: string;
+  box: Box;
+  focus: GuidedStepFocus;
+  tie?: { level: number; players: TelemetryPlayer[] };
+};
 
 export function GuidedZoomVerifier({
   src,
   players,
   onStepChange,
+  finishLabel,
+  finishing,
+  onFinish,
 }: {
   src: string;
   players: TelemetryPlayer[];
-  /** Called with the step index (0-3 slots, 4-7 factions, 8 council/swordmaster). */
-  onStepChange?: (index: number) => void;
+  onStepChange?: (focus: GuidedStepFocus) => void;
+  /** Button shown on the last step (e.g. "Mark as manually verified"). */
+  finishLabel?: string;
+  finishing?: boolean;
+  onFinish?: () => void;
 }) {
   const [aspect, setAspect] = useState<number | null>(null);
   const [override, setOverride] = useState<ZoomLayout | null>(null);
@@ -58,12 +76,16 @@ export function GuidedZoomVerifier({
 
   const steps = useMemo<Step[]>(() => {
     const bySlot = (s: number) => players.find((p) => p.player_slot === s);
-    const list: Step[] = [1, 2, 3, 4].map((s) => {
+    // Only the slots actually used (3-player games use slots 1, 2 and 4).
+    const used = [...new Set(players.map((p) => p.player_slot).filter((s): s is number => !!s && s >= 1 && s <= 4))].sort();
+    const slots = used.length ? used : players.length === 3 ? [1, 2, 4] : [1, 2, 3, 4];
+    const list: Step[] = slots.map((s) => {
       const p = bySlot(s);
       return {
         title: `Slot ${s}${p ? ` — ${p.player_name}` : ""}`,
         hint: "Check colour, points, resources and alliance badges.",
         box: ZOOM_BOXES[layout].slots[s as 1 | 2 | 3 | 4],
+        focus: { kind: "slot", slot: s },
       };
     });
     FACTIONS.forEach((f, i) => {
@@ -75,6 +97,7 @@ export function GuidedZoomVerifier({
         title: `${f.label} track`,
         hint: "Columns left → right: slot 4, 1, 2, 3.",
         box: factionBox(layout, i),
+        focus: { kind: "faction", faction: f.key },
         tie: tied.length >= 2 ? { level: max, players: tied } : undefined,
       });
     });
@@ -82,16 +105,20 @@ export function GuidedZoomVerifier({
       title: "High Council & Swordmasters",
       hint: "Check who holds a council seat and who recruited a swordmaster.",
       box: ZOOM_BOXES[layout].councilSwordmaster,
+      focus: { kind: "hc" },
     });
     return list;
   }, [players, layout]);
 
-  useEffect(() => {
-    onStepChange?.(index);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index]);
+  const safeIndex = Math.min(index, steps.length - 1);
+  const isLast = safeIndex === steps.length - 1;
 
-  const step = steps[Math.min(index, steps.length - 1)];
+  useEffect(() => {
+    onStepChange?.(steps[safeIndex].focus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [safeIndex, steps.length]);
+
+  const step = steps[safeIndex];
 
   return (
     <div className="space-y-2">
@@ -168,17 +195,23 @@ export function GuidedZoomVerifier({
               type="button"
               aria-label={`Go to step ${i + 1}`}
               onClick={() => { setIndex(i); setFull(false); }}
-              className={`size-2 rounded-full ${i === index ? "bg-sand" : "bg-muted"}`}
+              className={`size-2 rounded-full ${i === safeIndex ? "bg-sand" : "bg-muted"}`}
             />
           ))}
         </div>
-        <Button
-          size="sm"
-          disabled={index === steps.length - 1}
-          onClick={() => { setIndex((i) => i + 1); setFull(false); }}
-        >
-          Next <ChevronRight className="size-4" />
-        </Button>
+        {isLast && onFinish && finishLabel ? (
+          <Button size="sm" disabled={finishing} onClick={onFinish}>
+            <Check className="size-4" /> {finishLabel}
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            disabled={isLast}
+            onClick={() => { setIndex((i) => i + 1); setFull(false); }}
+          >
+            Next <ChevronRight className="size-4" />
+          </Button>
+        )}
       </div>
     </div>
   );
