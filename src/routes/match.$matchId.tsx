@@ -1929,10 +1929,7 @@ function VerificationCard({
   >(null);
   const stickyRef = useRef<HTMLDivElement>(null);
   const leftPaneRef = useRef<HTMLDivElement>(null);
-  const onGuidedStep = (i: number) => {
-    const faction = FACTIONS[i - 4]?.key;
-    setFocus(i < 4 ? { kind: "slot", slot: i + 1 } : faction ? { kind: "faction", faction } : { kind: "hc" });
-  };
+  const onGuidedStep = (step: GuidedStepFocus) => setFocus(step);
   useEffect(() => {
     if (!focus) return;
     const pane = leftPaneRef.current;
@@ -2015,7 +2012,7 @@ function VerificationCard({
     const dupSlot = new Set(slots.filter(Boolean)).size !== slots.filter(Boolean).length;
     return missing || dupColor || dupSlot;
   })();
-  const [showAssign, setShowAssign] = useState(false);
+  const [showAssign, setShowAssign] = useState(true);
   const assignOpen = canEdit && (showAssign || seatingIssue);
 
 
@@ -2066,7 +2063,15 @@ function VerificationCard({
             {/* Guided step-by-step zoom of the screenshot on every screen size. */}
             {!broken && (
               <div ref={stickyRef} className="lg:col-span-2 sticky top-0 z-10 -mx-1 px-1 pb-2 bg-background/95 backdrop-blur-md border-b border-border/40">
-                <GuidedZoomVerifier key={startRequest} src={`${src}${suffix}`} players={players} onStepChange={onGuidedStep} />
+                <GuidedZoomVerifier
+                  key={startRequest}
+                  src={`${src}${suffix}`}
+                  players={players}
+                  onStepChange={onGuidedStep}
+                  finishLabel={canEdit ? (isMatchStaff ? "Mark as manually verified" : "Finish manual review") : undefined}
+                  finishing={saving}
+                  onFinish={canEdit ? () => void finishReview() : undefined}
+                />
               </div>
             )}
             {/* Left pane — interactive board telemetry */}
@@ -2307,6 +2312,7 @@ function VerificationCard({
                 ? "Upload endboard screenshot"
                 : "Replace endboard"}
           <input
+            ref={fileInputRef}
             type="file"
             accept="image/*"
             className="hidden"
