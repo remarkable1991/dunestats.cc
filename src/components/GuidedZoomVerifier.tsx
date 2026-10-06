@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Maximize2, Minimize2, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Maximize2, Minimize2, AlertTriangle, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { colorHex, type TelemetryPlayer } from "@/lib/match-telemetry";
 import {
   FACTIONS,
+  type FactionKey,
   ZOOM_BOXES,
   factionBox,
   layoutForAspect,
@@ -117,7 +118,7 @@ export function GuidedZoomVerifier({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [safeIndex, steps.length]);
 
-  const step = steps[Math.min(index, steps.length - 1)];
+  const step = steps[safeIndex];
 
   return (
     <div className="space-y-2">
@@ -194,17 +195,23 @@ export function GuidedZoomVerifier({
               type="button"
               aria-label={`Go to step ${i + 1}`}
               onClick={() => { setIndex(i); setFull(false); }}
-              className={`size-2 rounded-full ${i === index ? "bg-sand" : "bg-muted"}`}
+              className={`size-2 rounded-full ${i === safeIndex ? "bg-sand" : "bg-muted"}`}
             />
           ))}
         </div>
-        <Button
-          size="sm"
-          disabled={index === steps.length - 1}
-          onClick={() => { setIndex((i) => i + 1); setFull(false); }}
-        >
-          Next <ChevronRight className="size-4" />
-        </Button>
+        {isLast && onFinish && finishLabel ? (
+          <Button size="sm" disabled={finishing} onClick={onFinish}>
+            <Check className="size-4" /> {finishLabel}
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            disabled={isLast}
+            onClick={() => { setIndex((i) => i + 1); setFull(false); }}
+          >
+            Next <ChevronRight className="size-4" />
+          </Button>
+        )}
       </div>
     </div>
   );
