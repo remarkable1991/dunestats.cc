@@ -17,14 +17,13 @@ import { TournamentTag } from "@/components/EloDelta";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useLeaderPortraits } from "@/lib/leader-portraits";
-import { applyFirstPlayer, telemetryPayload, influenceEfficiency, type TelemetryPlayer } from "@/lib/match-telemetry";
+import { applyFirstPlayer, telemetryPayload, influenceEfficiency, type FactionKey, type TelemetryPlayer } from "@/lib/match-telemetry";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Info } from "lucide-react";
 import {
   FACTIONS,
   FactionInfluenceTrackBoard,
   alliancesHeldBy,
-  type FactionKey,
 } from "@/components/FactionInfluenceTrackBoard";
 import {
   AgentRow,
