@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { colorHex, type TelemetryPlayer } from "@/lib/match-telemetry";
@@ -39,7 +39,16 @@ function ZoomCrop({ src, box, aspect, className = "" }: { src: string; box: Box;
 
 type Step = { title: string; hint: string; box: Box; tie?: { level: number; players: TelemetryPlayer[] } };
 
-export function GuidedZoomVerifier({ src, players }: { src: string; players: TelemetryPlayer[] }) {
+export function GuidedZoomVerifier({
+  src,
+  players,
+  onStepChange,
+}: {
+  src: string;
+  players: TelemetryPlayer[];
+  /** Called with the step index (0-3 slots, 4-7 factions, 8 council/swordmaster). */
+  onStepChange?: (index: number) => void;
+}) {
   const [aspect, setAspect] = useState<number | null>(null);
   const [override, setOverride] = useState<ZoomLayout | null>(null);
   const [index, setIndex] = useState(0);
@@ -76,6 +85,11 @@ export function GuidedZoomVerifier({ src, players }: { src: string; players: Tel
     });
     return list;
   }, [players, layout]);
+
+  useEffect(() => {
+    onStepChange?.(index);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
 
   const step = steps[Math.min(index, steps.length - 1)];
 
