@@ -6,6 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { GuidedZoomVerifier } from "@/components/GuidedZoomVerifier";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -1976,6 +1977,12 @@ function VerificationCard({
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 lg:grid-cols-2">
+            {/* Phone / iPad — guided step-by-step zoom of the screenshot */}
+            {!broken && (
+              <div className="lg:hidden sticky top-0 z-10 -mx-1 px-1 pb-2 bg-background/95 backdrop-blur-md border-b border-border/40">
+                <GuidedZoomVerifier src={`${src}${suffix}`} players={players} />
+              </div>
+            )}
             {/* Left pane — interactive board telemetry */}
             <div className="space-y-4">
               {!wurmAssigned && (
@@ -2161,8 +2168,8 @@ function VerificationCard({
               )}
             </div>
 
-            {/* Right pane — full resolution screenshot */}
-            <div className="rounded border border-border/50 bg-background/40 flex items-center justify-center overflow-hidden">
+            {/* Right pane — full resolution screenshot (desktop only) */}
+            <div className="hidden lg:flex rounded border border-border/50 bg-background/40 items-center justify-center overflow-hidden">
               {broken ? (
                 <span className="text-xs text-muted-foreground p-8">Screenshot unavailable</span>
               ) : (
