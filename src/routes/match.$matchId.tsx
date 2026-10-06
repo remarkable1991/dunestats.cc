@@ -1805,25 +1805,29 @@ function VerificationCard({
     if (!file || !canEdit || uploading || scanning) return;
     setUploading(true);
     setScanning(false);
-    const { promoteEndboard, discardEndboardStaging } = await import("@/lib/endboard-promote.functions");
+    const { backupEndboard, restoreEndboard } = await import("@/lib/endboard-promote.functions");
+    let backup: string | null = null;
+    let uploaded = false;
     try {
-      // 1. Upload to a staging file so the current screenshot stays untouched.
-      const stagingKey = `matches/${displayId}/${displayId}-endboard-staging.png`;
-      const stagingUrl = `${R2_MATCH_BASE}/${displayId}/${displayId}-endboard-staging.png`;
-      await uploadToR2("match-screenshots", stagingKey, file.type || "image/png", file);
+      // 1. Keep the current screenshot (if any) as -raw-oldN.
+      const b = await backupEndboard({ data: { matchId: displayId } }).catch(() => null);
+      backup = b?.backup ?? null;
+      // 2. Upload the new screenshot to the normal raw file the bot reads.
+      const rawKey = `matches/${displayId}/${displayId}-endboard-raw.png`;
+      const rawUrl = `${R2_MATCH_BASE}/${displayId}/${displayId}-endboard-raw.png`;
+      await uploadToR2("match-screenshots", rawKey, file.type || "image/png", file);
+      uploaded = true;
       toast.success("Screenshot uploaded — analyzing…");
 
       setUploading(false);
       setScanning(true);
 
-      // Short pause so the image is served by the CDN before analysis reads it.
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      // 2. Let the AI check the staging image.
       const scanResponse = await fetch(TELEMETRY_LAMBDA_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ match_id: displayId, image_url: stagingUrl }),
+        body: JSON.stringify({ match_id: displayId, image_url: rawUrl }),
       });
       const result = (await scanResponse.json().catch(() => null)) as Record<string, unknown> | null;
       const gateErrors = result?.["gate_errors"] ?? result?.["gateErrors"] ?? result?.["errors"];
@@ -1833,14 +1837,11 @@ function VerificationCard({
         result["success"] === false ||
         (Array.isArray(gateErrors) && gateErrors.length > 0);
       if (rejected) {
-        await discardEndboardStaging({ data: { matchId: displayId } }).catch(() => null);
+        // 3. Rejected: remove the new file and put the old one back.
+        await restoreEndboard({ data: { matchId: displayId, backup } }).catch(() => null);
         toast.error("This screenshot doesn't match this game — nothing was changed.");
         return;
       }
-
-      // 3. Accepted: keep the old screenshot as -raw-oldN and make the new one the default.
-      const promoted = await promoteEndboard({ data: { matchId: displayId } });
-      if (!promoted.ok) toast.warning("Analysis saved, but the screenshot file could not be renamed.");
 
       setBroken(false);
       setSrc(`${r2ContentAreaUrl(displayId)}?t=${Date.now()}`);
@@ -1849,7 +1850,7 @@ function VerificationCard({
       onSaved();
     } catch {
       awaitingScanResult.current = false;
-      await discardEndboardStaging({ data: { matchId: displayId } }).catch(() => null);
+      if (uploaded || backup) await restoreEndboard({ data: { matchId: displayId, backup } }).catch(() => null);
       toast.error("Couldn't process the screenshot — nothing was changed. Please try again.");
     } finally {
       setUploading(false);
