@@ -70,11 +70,13 @@ export function FactionInfluenceTrackBoard({
   canEdit = false,
   onUpdateInfluence,
   compact = false,
+  focusedFaction = null,
 }: {
   players: TelemetryPlayer[];
   canEdit?: boolean;
   onUpdateInfluence?: (next: TelemetryPlayer[], message: string) => void;
   compact?: boolean;
+  focusedFaction?: FactionKey | null;
 }) {
   const [conflict, setConflict] = useState<{
     faction: FactionMeta;
@@ -95,6 +97,9 @@ export function FactionInfluenceTrackBoard({
 
   const cellH = compact ? 13 : 16;
   const gap = 2;
+  const visibleFactions = focusedFaction
+    ? [...FACTIONS].sort((a, b) => Number(b.key === focusedFaction) - Number(a.key === focusedFaction))
+    : FACTIONS;
 
   const applyAlliance = (next: TelemetryPlayer[], f: FactionMeta, holder?: string) => {
     const key = FACTION_ALLIANCE_KEYS[f.key];
@@ -145,14 +150,16 @@ export function FactionInfluenceTrackBoard({
   return (
     <Card className="p-2 border-border/60 bg-card/70 w-full sm:w-[180px] shrink-0">
       <div className="space-y-2">
-        {FACTIONS.map((f) => {
+        {visibleFactions.map((f) => {
           const claimed = resolved.some((p) => p && allianceOf(p, f.key));
           // Small round marker token shown next to box 4.
           const tokenSize = cellH + 6;
           return (
             <div
               key={f.key}
-              className="relative rounded-md border px-1 pb-1 pt-0.5"
+              className={`relative rounded-md border px-1 pb-1 pt-0.5 transition-all duration-300 ${
+                focusedFaction === f.key ? "ring-2 ring-sand/70" : focusedFaction ? "opacity-55" : ""
+              }`}
               style={{ borderColor: `${f.accent}55`, background: f.tint }}
             >
               <div

@@ -12,15 +12,19 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Copy, Link as LinkIcon, Trophy, Medal, Award, Maximize2, Loader2, ArrowLeft, Pencil, Swords, ShieldCheck, MonitorOff, History } from "lucide-react";
+import { Copy, Link as LinkIcon, Trophy, Medal, Award, Maximize2, Loader2, ArrowLeft, Pencil, Swords, ShieldCheck, MonitorOff, History, ScanSearch } from "lucide-react";
 import { TournamentTag } from "@/components/EloDelta";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useLeaderPortraits } from "@/lib/leader-portraits";
-import { applyFirstPlayer, telemetryPayload, influenceEfficiency, type TelemetryPlayer } from "@/lib/match-telemetry";
+import { applyFirstPlayer, telemetryPayload, influenceEfficiency, type FactionKey, type TelemetryPlayer } from "@/lib/match-telemetry";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Info } from "lucide-react";
-import { FactionInfluenceTrackBoard, alliancesHeldBy } from "@/components/FactionInfluenceTrackBoard";
+import {
+  FACTIONS,
+  FactionInfluenceTrackBoard,
+  alliancesHeldBy,
+} from "@/components/FactionInfluenceTrackBoard";
 import {
   AgentRow,
   HighCouncilSeats,
@@ -121,6 +125,7 @@ function MatchDetailsPage() {
   const [canEdit, setCanEdit] = useState(false);
   const [isMatchStaff, setIsMatchStaff] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [verificationStart, setVerificationStart] = useState(0);
   const [playerOrder, setPlayerOrder] = useState<"placement" | "slot" | "turn">("placement");
   const [leaverBusy, setLeaverBusy] = useState<string | null>(null);
 
@@ -507,6 +512,9 @@ function MatchDetailsPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button onClick={() => setVerificationStart((value) => value + 1)}>
+              <ScanSearch className="size-4" /> Start verification
+            </Button>
             <Button variant="outline" onClick={copyLink}>
               <Copy className="size-4" /> Copy link
             </Button>
@@ -785,6 +793,7 @@ function MatchDetailsPage() {
               game={game}
               displayId={displayId}
               canEdit={canEdit}
+              startRequest={verificationStart}
               onSaved={() => setReloadKey((k) => k + 1)}
             />
           </div>
@@ -1727,11 +1736,13 @@ function VerificationCard({
   game,
   displayId,
   canEdit,
+  startRequest,
   onSaved,
 }: {
   game: GameRow;
   displayId: string;
   canEdit: boolean;
+  startRequest: number;
   onSaved: () => void;
 }) {
   const contentUrl = r2ContentAreaUrl(displayId);
@@ -1756,6 +1767,10 @@ function VerificationCard({
   useEffect(() => {
     setPlayers(game.game_results);
   }, [game.game_results]);
+
+  useEffect(() => {
+    if (startRequest > 0 && !broken) setDialogOpen(true);
+  }, [startRequest, broken]);
 
   // Once refreshed data lands after a scan, jump straight into review when needed.
   useEffect(() => {
@@ -1855,17 +1870,18 @@ function VerificationCard({
   );
   const wurmAssigned = players.some((p) => p.has_first_player);
 
-  // Guided zoom (phone/iPad): bring the matching editor section to the top.
+  // Guided zoom: bring the matching editor section, including the exact faction, to the top.
   const [focus, setFocus] = useState<
-    { kind: "slot"; slot: number } | { kind: "faction" } | { kind: "hc" } | null
+    { kind: "slot"; slot: number } | { kind: "faction"; faction: FactionKey } | { kind: "hc" } | null
   >(null);
   const stickyRef = useRef<HTMLDivElement>(null);
   const leftPaneRef = useRef<HTMLDivElement>(null);
   const onGuidedStep = (i: number) => {
-    setFocus(i < 4 ? { kind: "slot", slot: i + 1 } : i < 8 ? { kind: "faction" } : { kind: "hc" });
+    const faction = FACTIONS[i - 4]?.key;
+    setFocus(i < 4 ? { kind: "slot", slot: i + 1 } : faction ? { kind: "faction", faction } : { kind: "hc" });
   };
   useEffect(() => {
-    if (!focus || window.innerWidth >= 1024) return;
+    if (!focus) return;
     const pane = leftPaneRef.current;
     if (!pane) return;
     pane.style.scrollMarginTop = `${(stickyRef.current?.offsetHeight ?? 0) + 8}px`;
@@ -1994,10 +2010,10 @@ function VerificationCard({
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 lg:grid-cols-2">
-            {/* Phone / iPad — guided step-by-step zoom of the screenshot */}
+            {/* Guided step-by-step zoom of the screenshot on every screen size. */}
             {!broken && (
-              <div ref={stickyRef} className="lg:hidden sticky top-0 z-10 -mx-1 px-1 pb-2 bg-background/95 backdrop-blur-md border-b border-border/40">
-                <GuidedZoomVerifier src={`${src}${suffix}`} players={players} onStepChange={onGuidedStep} />
+              <div ref={stickyRef} className="lg:col-span-2 sticky top-0 z-10 -mx-1 px-1 pb-2 bg-background/95 backdrop-blur-md border-b border-border/40">
+                <GuidedZoomVerifier key={startRequest} src={`${src}${suffix}`} players={players} onStepChange={onGuidedStep} />
               </div>
             )}
             {/* Left pane — interactive board telemetry */}
@@ -2032,7 +2048,7 @@ function VerificationCard({
 
 
 
-              <div className={`flex flex-col sm:flex-row items-start gap-3 ${focus?.kind === "slot" ? "order-first lg:order-none" : ""}`}>
+              <div className={`flex flex-col sm:flex-row items-start gap-3 ${focus?.kind === "slot" || focus?.kind === "faction" ? "order-first" : ""}`}>
               <div className="flex-1 min-w-0 w-full flex flex-col gap-2">
                 {slotOrdered.map((p) => {
                   const hex = colorHex(p.player_color);
@@ -2041,7 +2057,7 @@ function VerificationCard({
                     <div
                       key={p.player_name}
                       className={`rounded-md border-2 bg-background/40 px-3 py-2 transition-all duration-300 ${
-                        focused ? "order-first lg:order-none ring-2 ring-sand/70 lg:ring-0" : focus?.kind === "slot" ? "opacity-60 lg:opacity-100" : ""
+                        focused ? "order-first ring-2 ring-sand/70" : focus?.kind === "slot" ? "opacity-60" : ""
                       }`}
                       style={{ borderColor: hex, boxShadow: `inset 3px 0 0 ${hex}` }}
                     >
@@ -2159,7 +2175,7 @@ function VerificationCard({
 
               <div
                 className={`w-full sm:w-auto rounded-md transition-all ${
-                  focus?.kind === "faction" ? "order-first lg:order-none ring-2 ring-sand/70 lg:ring-0" : ""
+                  focus?.kind === "faction" ? "order-first" : ""
                 }`}
               >
                 <FactionInfluenceTrackBoard
@@ -2167,13 +2183,14 @@ function VerificationCard({
                   canEdit={canEdit}
                   onUpdateInfluence={(next, msg) => void persist(next, msg)}
                   compact
+                  focusedFaction={focus?.kind === "faction" ? focus.faction : null}
                 />
               </div>
               </div>
 
               <Card
                 className={`p-3 border-border/60 bg-card/60 space-y-3 ${
-                  focus?.kind === "hc" ? "order-first lg:order-none ring-2 ring-sand/70 lg:ring-0" : ""
+                  focus?.kind === "hc" ? "order-first ring-2 ring-sand/70" : ""
                 }`}
               >
                 <HighCouncilSeats players={players} canEdit={canEdit} onToggleSeat={toggleSeat} />
