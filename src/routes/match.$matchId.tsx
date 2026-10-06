@@ -1855,6 +1855,23 @@ function VerificationCard({
   );
   const wurmAssigned = players.some((p) => p.has_first_player);
 
+  // Guided zoom (phone/iPad): bring the matching editor section to the top.
+  const [focus, setFocus] = useState<
+    { kind: "slot"; slot: number } | { kind: "faction" } | { kind: "hc" } | null
+  >(null);
+  const stickyRef = useRef<HTMLDivElement>(null);
+  const leftPaneRef = useRef<HTMLDivElement>(null);
+  const onGuidedStep = (i: number) => {
+    setFocus(i < 4 ? { kind: "slot", slot: i + 1 } : i < 8 ? { kind: "faction" } : { kind: "hc" });
+  };
+  useEffect(() => {
+    if (!focus || window.innerWidth >= 1024) return;
+    const pane = leftPaneRef.current;
+    if (!pane) return;
+    pane.style.scrollMarginTop = `${(stickyRef.current?.offsetHeight ?? 0) + 8}px`;
+    pane.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [focus]);
+
   const setFirstPlayer = (slot: number | null) => {
     if (!canEdit || !slot) return;
     void persist(applyFirstPlayer(players, slot, game.end_round), "First player updated");
@@ -1979,12 +1996,12 @@ function VerificationCard({
           <div className="grid gap-4 lg:grid-cols-2">
             {/* Phone / iPad — guided step-by-step zoom of the screenshot */}
             {!broken && (
-              <div className="lg:hidden sticky top-0 z-10 -mx-1 px-1 pb-2 bg-background/95 backdrop-blur-md border-b border-border/40">
-                <GuidedZoomVerifier src={`${src}${suffix}`} players={players} />
+              <div ref={stickyRef} className="lg:hidden sticky top-0 z-10 -mx-1 px-1 pb-2 bg-background/95 backdrop-blur-md border-b border-border/40">
+                <GuidedZoomVerifier src={`${src}${suffix}`} players={players} onStepChange={onGuidedStep} />
               </div>
             )}
             {/* Left pane — interactive board telemetry */}
-            <div className="space-y-4">
+            <div ref={leftPaneRef} className="flex flex-col gap-4">
               {!wurmAssigned && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <WurmToken unknown muted={false} />
@@ -2015,14 +2032,17 @@ function VerificationCard({
 
 
 
-              <div className="flex flex-col sm:flex-row items-start gap-3">
-              <div className="flex-1 min-w-0 w-full space-y-2">
+              <div className={`flex flex-col sm:flex-row items-start gap-3 ${focus?.kind === "slot" ? "order-first lg:order-none" : ""}`}>
+              <div className="flex-1 min-w-0 w-full flex flex-col gap-2">
                 {slotOrdered.map((p) => {
                   const hex = colorHex(p.player_color);
+                  const focused = focus?.kind === "slot" && p.player_slot === focus.slot;
                   return (
                     <div
                       key={p.player_name}
-                      className="rounded-md border-2 bg-background/40 px-3 py-2 transition-all duration-300"
+                      className={`rounded-md border-2 bg-background/40 px-3 py-2 transition-all duration-300 ${
+                        focused ? "order-first lg:order-none ring-2 ring-sand/70 lg:ring-0" : focus?.kind === "slot" ? "opacity-60 lg:opacity-100" : ""
+                      }`}
                       style={{ borderColor: hex, boxShadow: `inset 3px 0 0 ${hex}` }}
                     >
                       <div className="flex items-center gap-2">
@@ -2137,15 +2157,25 @@ function VerificationCard({
                 })}
               </div>
 
-              <FactionInfluenceTrackBoard
-                players={players}
-                canEdit={canEdit}
-                onUpdateInfluence={(next, msg) => void persist(next, msg)}
-                compact
-              />
+              <div
+                className={`w-full sm:w-auto rounded-md transition-all ${
+                  focus?.kind === "faction" ? "order-first lg:order-none ring-2 ring-sand/70 lg:ring-0" : ""
+                }`}
+              >
+                <FactionInfluenceTrackBoard
+                  players={players}
+                  canEdit={canEdit}
+                  onUpdateInfluence={(next, msg) => void persist(next, msg)}
+                  compact
+                />
+              </div>
               </div>
 
-              <Card className="p-3 border-border/60 bg-card/60 space-y-3">
+              <Card
+                className={`p-3 border-border/60 bg-card/60 space-y-3 ${
+                  focus?.kind === "hc" ? "order-first lg:order-none ring-2 ring-sand/70 lg:ring-0" : ""
+                }`}
+              >
                 <HighCouncilSeats players={players} canEdit={canEdit} onToggleSeat={toggleSeat} />
                 <SwordmasterSpace
                   players={players}
