@@ -564,23 +564,32 @@ export type Database = {
         Row: {
           created_at: string | null
           elo: number
+          games_played: number
           id: number
           player_key: string
           season: number
+          updated_at: string | null
+          wins: number
         }
         Insert: {
           created_at?: string | null
           elo?: number
+          games_played?: number
           id?: number
           player_key: string
           season: number
+          updated_at?: string | null
+          wins?: number
         }
         Update: {
           created_at?: string | null
           elo?: number
+          games_played?: number
           id?: number
           player_key?: string
           season?: number
+          updated_at?: string | null
+          wins?: number
         }
         Relationships: []
       }
