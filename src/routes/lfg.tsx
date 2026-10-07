@@ -27,7 +27,6 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
-import { Trophy } from "lucide-react";
 import {
   Users,
   Gamepad2,
@@ -43,6 +42,7 @@ import {
   UserPlus,
   Settings,
   X,
+  Trophy,
 } from "lucide-react";
 import asyncIcon from "@/assets/async-mode.png.asset.json";
 import liveIcon from "@/assets/live-mode.png.asset.json";
