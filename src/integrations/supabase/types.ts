@@ -20,13 +20,18 @@ export type Database = {
           board_type: string | null
           channel_id: string
           created_at: string
+          discord_usernames: string[] | null
           expansions: string[] | null
+          expected_player_keys: string[] | null
           expires_at: string | null
           guest_players: string[] | null
           guild_id: string
           host_id: string
           id: number
+          is_league: boolean
           last_prompted_at: string | null
+          league_status: string | null
+          linked_game_id: string | null
           lobby_password: string | null
           match_id: string | null
           message_id: string
@@ -35,6 +40,8 @@ export type Database = {
           modules: string[] | null
           notify_user_ids: string[] | null
           player_ids: string[] | null
+          season_id: number | null
+          season_num: number | null
           status: string
           web_host_id: string | null
           web_player_ids: string[] | null
@@ -45,13 +52,18 @@ export type Database = {
           board_type?: string | null
           channel_id: string
           created_at?: string
+          discord_usernames?: string[] | null
           expansions?: string[] | null
+          expected_player_keys?: string[] | null
           expires_at?: string | null
           guest_players?: string[] | null
           guild_id: string
           host_id: string
           id?: number
+          is_league?: boolean
           last_prompted_at?: string | null
+          league_status?: string | null
+          linked_game_id?: string | null
           lobby_password?: string | null
           match_id?: string | null
           message_id: string
@@ -60,6 +72,8 @@ export type Database = {
           modules?: string[] | null
           notify_user_ids?: string[] | null
           player_ids?: string[] | null
+          season_id?: number | null
+          season_num?: number | null
           status?: string
           web_host_id?: string | null
           web_player_ids?: string[] | null
@@ -70,13 +84,18 @@ export type Database = {
           board_type?: string | null
           channel_id?: string
           created_at?: string
+          discord_usernames?: string[] | null
           expansions?: string[] | null
+          expected_player_keys?: string[] | null
           expires_at?: string | null
           guest_players?: string[] | null
           guild_id?: string
           host_id?: string
           id?: number
+          is_league?: boolean
           last_prompted_at?: string | null
+          league_status?: string | null
+          linked_game_id?: string | null
           lobby_password?: string | null
           match_id?: string | null
           message_id?: string
@@ -85,6 +104,8 @@ export type Database = {
           modules?: string[] | null
           notify_user_ids?: string[] | null
           player_ids?: string[] | null
+          season_id?: number | null
+          season_num?: number | null
           status?: string
           web_host_id?: string | null
           web_player_ids?: string[] | null
