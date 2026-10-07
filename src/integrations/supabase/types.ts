@@ -1706,6 +1706,7 @@ export type Database = {
               p_expansions: string[]
               p_expires_minutes: number
               p_guest_players?: string[]
+              p_is_league?: boolean
               p_mode: string
               p_notes: string
               p_password: string

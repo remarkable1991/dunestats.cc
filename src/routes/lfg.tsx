@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 import {
   Users,
   Gamepad2,
@@ -41,6 +42,7 @@ import {
   UserPlus,
   Settings,
   X,
+  Trophy,
 } from "lucide-react";
 import asyncIcon from "@/assets/async-mode.png.asset.json";
 import liveIcon from "@/assets/live-mode.png.asset.json";
@@ -95,10 +97,11 @@ export type LfgRow = {
   web_host_id: string | null;
   web_player_ids: string[] | null;
   web_player_names: string[] | null;
+  is_league: boolean | null;
 };
 
 const SELECT_COLS =
-  "id,match_id,message_id,channel_id,guild_id,host_id,status,message_text,lobby_password,board_type,expansions,modules,created_at,last_prompted_at,expires_at,auto_start_at,mode,player_ids,guest_players,web_host_id,web_player_ids,web_player_names";
+  "id,match_id,message_id,channel_id,guild_id,host_id,status,message_text,lobby_password,board_type,expansions,modules,created_at,last_prompted_at,expires_at,auto_start_at,mode,player_ids,guest_players,web_host_id,web_player_ids,web_player_names,is_league";
 
 const QUICK_CHATS = [
   { code: "room_up", emoji: "🎮", label: "Room is up!" },
@@ -389,6 +392,7 @@ function LfgPage() {
         onOpenChange={setCreateOpen}
         userId={userId}
         myIgn={myIgn}
+        isLfgAdmin={isLfgAdmin}
         onCreated={load}
       />
     </div>
@@ -527,6 +531,11 @@ function LfgCard({
           </div>
         </div>
         <div className="flex flex-wrap justify-end gap-1">
+          {row.is_league && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-primary/50 bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
+              <Trophy className="size-3" /> League
+            </span>
+          )}
           {(row.board_type ?? "").toLowerCase().includes("uprising") && (
             <ExpansionBadge src={uprisingIcon.url} title="Uprising" />
           )}
@@ -990,12 +999,14 @@ function CreateLfgDialog({
   onOpenChange,
   userId,
   myIgn,
+  isLfgAdmin,
   onCreated,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   userId: string | null;
   myIgn: string | null;
+  isLfgAdmin: boolean;
   onCreated: () => void;
 }) {
   const [mode, setMode] = useState<"live" | "async">("async");
@@ -1004,6 +1015,7 @@ function CreateLfgDialog({
   const [notes, setNotes] = useState("");
   const [password, setPassword] = useState("None");
   const [guests, setGuests] = useState("");
+  const [isLeague, setIsLeague] = useState(false);
   const [liveMinutes, setLiveMinutes] = useState(180);
   const [asyncHours, setAsyncHours] = useState(15);
   const [busy, setBusy] = useState(false);
@@ -1033,6 +1045,7 @@ function CreateLfgDialog({
       p_password: password.trim().toLowerCase() === "none" ? "" : password,
       p_expires_minutes: mode === "live" ? liveMinutes : asyncHours * 60,
       p_guest_players: guestPlayers,
+      p_is_league: isAdminLeague(isLfgAdmin, isLeague),
     });
     setBusy(false);
     const res = data as { ok?: boolean; error?: string } | null;
@@ -1062,6 +1075,19 @@ function CreateLfgDialog({
             <div className="rounded-md border border-primary/40 bg-primary/10 px-4 py-3 text-center">
               <p className="font-display text-lg text-foreground">Lobby Name: {myIgn}'s Game</p>
             </div>
+
+            {isLfgAdmin && (
+              <label className="flex items-center justify-between gap-3 rounded-md border border-primary/40 bg-primary/5 px-3 py-2">
+                <span className="flex items-center gap-2 text-sm">
+                  <Trophy className="size-4 text-primary" />
+                  <span>
+                    <span className="font-medium">League match</span>
+                    <span className="block text-xs text-muted-foreground">Pilot: only LFG admins can see and join this lobby.</span>
+                  </span>
+                </span>
+                <Switch checked={isLeague} onCheckedChange={setIsLeague} aria-label="League match" />
+              </label>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="lfg-ign">In-Game Name</Label>
@@ -1173,4 +1199,8 @@ function CreateLfgDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function isAdminLeague(admin: boolean, on: boolean) {
+  return admin && on;
 }
