@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -100,10 +101,12 @@ export type LfgRow = {
   is_league: boolean | null;
   season_id: number | null;
   season_num: number | null;
+  discord_usernames: string[] | null;
+  expected_player_keys: string[] | null;
 };
 
 const SELECT_COLS =
-  "id,match_id,message_id,channel_id,guild_id,host_id,status,message_text,lobby_password,board_type,expansions,modules,created_at,last_prompted_at,expires_at,auto_start_at,mode,player_ids,guest_players,web_host_id,web_player_ids,web_player_names,is_league,season_id,season_num";
+  "id,match_id,message_id,channel_id,guild_id,host_id,status,message_text,lobby_password,board_type,expansions,modules,created_at,last_prompted_at,expires_at,auto_start_at,mode,player_ids,guest_players,web_host_id,web_player_ids,web_player_names,is_league,season_id,season_num,discord_usernames,expected_player_keys";
 
 const QUICK_CHATS = [
   { code: "room_up", emoji: "🎮", label: "Room is up!" },
@@ -175,13 +178,19 @@ function seatsOf(r: LfgRow, discordNames: Record<string, string>, discordKeys: R
     discord: false,
     host: !!r.web_host_id && webIds[i] === r.web_host_id,
   }));
-  const discord = (r.player_ids ?? []).map((id) => ({
-    name: discordNames[id] ?? UNKNOWN_NAME,
-    playerKey: discordKeys[id] || (discordNames[id] && discordNames[id] !== UNKNOWN_NAME ? leagueKey(discordNames[id]) : null),
-    web: false,
-    discord: true,
-    host: !r.web_host_id && id === r.host_id,
-  }));
+  const discord = (r.player_ids ?? []).map((id, i) => {
+    const mapped = discordNames[id] && discordNames[id] !== UNKNOWN_NAME ? discordNames[id] : null;
+    const expected = r.expected_player_keys?.[i]?.trim() || null;
+    const handle = r.discord_usernames?.[i]?.trim() || null;
+    const name = mapped ?? expected ?? handle ?? UNKNOWN_NAME;
+    return {
+      name,
+      playerKey: mapped ? leagueKey(mapped) : discordKeys[id] || (expected ? leagueKey(expected) : null),
+      web: false,
+      discord: true,
+      host: !r.web_host_id && id === r.host_id,
+    };
+  });
   const guests = (r.guest_players ?? []).map((n) => ({
     name: n?.trim() ? n : UNKNOWN_NAME,
     playerKey: n?.trim() ? leagueKey(n) : null,
@@ -507,6 +516,7 @@ function LfgCard({
   const [addBusy, setAddBusy] = useState(false);
   const live = isLive(row);
   const seats = seatsOf(row, discordNames, discordKeys);
+  const titles = usePlayerTitles();
   const open = Math.max(0, 4 - seats.length);
   const countdown = useCountdown(row.auto_start_at);
   const seated = !!userId && (row.web_player_ids ?? []).includes(userId);
@@ -646,9 +656,20 @@ function LfgCard({
               {seat ? (
                  <span className="flex min-w-0 items-center gap-2 truncate">
                   {seat.web && <Globe className="size-3.5 text-teal" />}
-                  <span className={`truncate ${seat.name === UNKNOWN_NAME ? "text-muted-foreground italic" : ""}`}>
-                    {seat.name}
-                  </span>
+                  {seat.playerKey && seat.name !== UNKNOWN_NAME ? (
+                    <Link
+                      to="/players/$key"
+                      params={{ key: seat.playerKey }}
+                      className="truncate hover:underline underline-offset-2"
+                      style={{ color: colorForKey(titles, seat.playerKey) }}
+                    >
+                      {seat.name}
+                    </Link>
+                  ) : (
+                    <span className={`truncate ${seat.name === UNKNOWN_NAME ? "text-muted-foreground italic" : ""}`}>
+                      {seat.name}
+                    </span>
+                  )}
                   {seat.host && (
                     <span className="shrink-0 rounded-full border border-border/60 px-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                       Host
