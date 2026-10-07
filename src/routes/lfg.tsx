@@ -98,10 +98,12 @@ export type LfgRow = {
   web_player_ids: string[] | null;
   web_player_names: string[] | null;
   is_league: boolean | null;
+  season_id: number | null;
+  season_num: number | null;
 };
 
 const SELECT_COLS =
-  "id,match_id,message_id,channel_id,guild_id,host_id,status,message_text,lobby_password,board_type,expansions,modules,created_at,last_prompted_at,expires_at,auto_start_at,mode,player_ids,guest_players,web_host_id,web_player_ids,web_player_names,is_league";
+  "id,match_id,message_id,channel_id,guild_id,host_id,status,message_text,lobby_password,board_type,expansions,modules,created_at,last_prompted_at,expires_at,auto_start_at,mode,player_ids,guest_players,web_host_id,web_player_ids,web_player_names,is_league,season_id,season_num";
 
 const QUICK_CHATS = [
   { code: "room_up", emoji: "🎮", label: "Room is up!" },
@@ -157,26 +159,32 @@ function hasExp(r: LfgRow, needle: string) {
   return all.includes(needle);
 }
 
-type Seat = { name: string; web: boolean; discord: boolean; host: boolean };
+type Seat = { name: string; playerKey: string | null; web: boolean; discord: boolean; host: boolean };
+
+const leagueKey = (name: string) => name.trim().toLowerCase();
+type LeagueDisplay = { season: number | null; ratings: Record<string, number>; status: "loading" | "ready" | "error" };
 
 const UNKNOWN_NAME = "Unknown player name";
 
-function seatsOf(r: LfgRow, discordNames: Record<string, string>): Seat[] {
+function seatsOf(r: LfgRow, discordNames: Record<string, string>, discordKeys: Record<string, string> = {}): Seat[] {
   const webIds = r.web_player_ids ?? [];
   const web = (r.web_player_names ?? []).map((n, i) => ({
     name: n?.trim() ? n : UNKNOWN_NAME,
+    playerKey: n?.trim() ? leagueKey(n) : null,
     web: true,
     discord: false,
     host: !!r.web_host_id && webIds[i] === r.web_host_id,
   }));
   const discord = (r.player_ids ?? []).map((id) => ({
     name: discordNames[id] ?? UNKNOWN_NAME,
+    playerKey: discordKeys[id] || (discordNames[id] && discordNames[id] !== UNKNOWN_NAME ? leagueKey(discordNames[id]) : null),
     web: false,
     discord: true,
     host: !r.web_host_id && id === r.host_id,
   }));
   const guests = (r.guest_players ?? []).map((n) => ({
     name: n?.trim() ? n : UNKNOWN_NAME,
+    playerKey: n?.trim() ? leagueKey(n) : null,
     web: false,
     discord: false,
     host: false,
@@ -230,6 +238,8 @@ function LfgPage() {
   const [myIgn, setMyIgn] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [discordNames, setDiscordNames] = useState<Record<string, string>>({});
+  const [discordKeys, setDiscordKeys] = useState<Record<string, string>>({});
+  const [leagueDisplays, setLeagueDisplays] = useState<Record<number, LeagueDisplay>>({});
   const [isLfgAdmin, setIsLfgAdmin] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
@@ -306,6 +316,13 @@ function LfgPage() {
       .in("discord_user_id", missing)
       .then(({ data }) => {
         if (!active || !data) return;
+        setDiscordKeys((prev) => {
+          const next = { ...prev };
+          for (const row of data) {
+            if (row.discord_user_id && row.player_key) next[row.discord_user_id] = leagueKey(row.player_key);
+          }
+          return next;
+        });
         setDiscordNames((prev) => {
           const next = { ...prev };
           for (const id of missing) next[id] = UNKNOWN_NAME;
@@ -322,6 +339,55 @@ function LfgPage() {
       active = false;
     };
   }, [rows, discordNames]);
+
+  // Batch only visible pilot lobby participants; do not load the whole League ladder.
+  useEffect(() => {
+    const lobbies = rows.filter((row) => row.is_league);
+    if (!isLfgAdmin || !lobbies.length) {
+      setLeagueDisplays({});
+      return;
+    }
+    let active = true;
+    const refresh = async () => {
+      const pending: Record<number, LeagueDisplay> = {};
+      for (const row of lobbies) pending[row.id] = { season: row.season_num ?? row.season_id, ratings: {}, status: "loading" };
+      setLeagueDisplays(pending);
+      try {
+        if (lobbies.some((row) => pending[row.id].season === null)) {
+          const { data, error } = await supabase.from("sp_seasons").select("id,starts_at,ends_at");
+          if (error) throw error;
+          for (const row of lobbies) {
+            if (pending[row.id].season !== null) continue;
+            const created = new Date(row.created_at).getTime();
+            pending[row.id].season = data?.find((season) => created >= new Date(season.starts_at).getTime() && created < new Date(season.ends_at).getTime())?.id ?? null;
+          }
+        }
+        const seasons = [...new Set(Object.values(pending).flatMap((entry) => entry.season === null ? [] : [entry.season]))];
+        const keys = [...new Set(lobbies.flatMap((row) => seatsOf(row, discordNames, discordKeys).flatMap((seat) => seat.playerKey ? [seat.playerKey] : [])))];
+        const ratings: { player_key: string; season: number; elo: number }[] = [];
+        if (keys.length && seasons.length) {
+          for (let offset = 0; ; offset += 1000) {
+            const { data, error } = await supabase.from("player_league_ratings").select("player_key,season,elo").in("season", seasons).in("player_key", keys).range(offset, offset + 999);
+            if (error) throw error;
+            ratings.push(...(data ?? []));
+            if (!data || data.length < 1000) break;
+          }
+        }
+        for (const entry of Object.values(pending)) {
+          entry.status = entry.season === null ? "error" : "ready";
+          for (const rating of ratings) {
+            if (rating.season === entry.season && Number.isFinite(Number(rating.elo))) entry.ratings[leagueKey(rating.player_key)] = Number(rating.elo);
+          }
+        }
+      } catch {
+        for (const entry of Object.values(pending)) entry.status = "error";
+      }
+      if (active) setLeagueDisplays({ ...pending });
+    };
+    void refresh();
+    const timer = setInterval(refresh, 60000);
+    return () => { active = false; clearInterval(timer); };
+  }, [rows, discordNames, discordKeys, isLfgAdmin]);
 
   const filtered = useMemo(
     () =>
@@ -377,6 +443,8 @@ function LfgPage() {
                 userId={userId}
                 myIgn={myIgn}
                 discordNames={discordNames}
+                discordKeys={discordKeys}
+                leagueDisplay={leagueDisplays[r.id]}
                 canManage={
                   isLfgAdmin || (!!userId && (r.web_host_id === userId || r.host_id === userId))
                 }
@@ -415,6 +483,8 @@ function LfgCard({
   userId,
   myIgn,
   discordNames,
+  discordKeys,
+  leagueDisplay,
   canManage,
   onChanged,
 }: {
@@ -422,6 +492,8 @@ function LfgCard({
   userId: string | null;
   myIgn: string | null;
   discordNames: Record<string, string>;
+  discordKeys: Record<string, string>;
+  leagueDisplay?: LeagueDisplay;
   canManage: boolean;
   onChanged: () => void;
 }) {
@@ -434,7 +506,7 @@ function LfgCard({
   const [addName, setAddName] = useState("");
   const [addBusy, setAddBusy] = useState(false);
   const live = isLive(row);
-  const seats = seatsOf(row, discordNames);
+  const seats = seatsOf(row, discordNames, discordKeys);
   const open = Math.max(0, 4 - seats.length);
   const countdown = useCountdown(row.auto_start_at);
   const seated = !!userId && (row.web_player_ids ?? []).includes(userId);
@@ -533,7 +605,7 @@ function LfgCard({
         <div className="flex flex-wrap justify-end gap-1">
           {row.is_league && (
             <span className="inline-flex items-center gap-1 rounded-full border border-primary/50 bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
-              <Trophy className="size-3" /> League
+              <Trophy className="size-3" /> League{leagueDisplay?.season != null ? ` · S${leagueDisplay.season}` : ""}
             </span>
           )}
           {(row.board_type ?? "").toLowerCase().includes("uprising") && (
@@ -572,7 +644,7 @@ function LfgCard({
               className="flex items-center justify-between rounded-full border border-border/50 bg-card/60 px-3 py-1.5 text-sm"
             >
               {seat ? (
-                <span className="flex items-center gap-2 truncate">
+                 <span className="flex min-w-0 items-center gap-2 truncate">
                   {seat.web && <Globe className="size-3.5 text-teal" />}
                   <span className={`truncate ${seat.name === UNKNOWN_NAME ? "text-muted-foreground italic" : ""}`}>
                     {seat.name}
@@ -582,6 +654,14 @@ function LfgCard({
                       Host
                     </span>
                   )}
+               {seat && row.is_league && (
+                 <span
+                   className="ml-2 shrink-0 whitespace-nowrap text-xs tabular-nums text-primary"
+                   title={!seat.playerKey ? "Link an in-game name to show League Elo" : leagueDisplay?.status === "error" ? "League Elo unavailable" : leagueDisplay?.status !== "ready" ? "Loading League Elo" : `Season ${leagueDisplay.season} League Elo${leagueDisplay.ratings[seat.playerKey] === undefined ? " · Starting rating" : ""}`}
+                 >
+                   {!seat.playerKey || leagueDisplay?.status === "error" ? "— Elo" : leagueDisplay?.status !== "ready" ? "… Elo" : `${Math.round(leagueDisplay.ratings[seat.playerKey] ?? 1000)} Elo`}
+                 </span>
+               )}
                 </span>
               ) : (
                 <span className="text-muted-foreground text-xs">Empty seat</span>
