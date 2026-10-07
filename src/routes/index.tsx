@@ -12,6 +12,10 @@ export const Route = createFileRoute("/")({
     meta: [
       { title: "Strategy Arena — Dune Imperium ELO" },
       { name: "description", content: "Where great minds compete. Dune Imperium tournaments, stats and leaderboards all in one place!" },
+      { property: "og:title", content: "Strategy Arena — Dune Imperium ELO" },
+      { property: "og:description", content: "Dune Imperium tournaments, player stats and competitive leaderboards." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Index,
