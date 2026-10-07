@@ -560,6 +560,30 @@ export type Database = {
         }
         Relationships: []
       }
+      player_league_ratings: {
+        Row: {
+          created_at: string | null
+          elo: number
+          id: number
+          player_key: string
+          season: number
+        }
+        Insert: {
+          created_at?: string | null
+          elo?: number
+          id?: number
+          player_key: string
+          season: number
+        }
+        Update: {
+          created_at?: string | null
+          elo?: number
+          id?: number
+          player_key?: string
+          season?: number
+        }
+        Relationships: []
+      }
       player_ratings: {
         Row: {
           claimed_by: string | null
