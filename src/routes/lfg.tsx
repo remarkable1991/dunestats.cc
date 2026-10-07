@@ -515,6 +515,7 @@ function LfgCard({
   const [addBusy, setAddBusy] = useState(false);
   const live = isLive(row);
   const seats = seatsOf(row, discordNames, discordKeys);
+  const titles = usePlayerTitles();
   const open = Math.max(0, 4 - seats.length);
   const countdown = useCountdown(row.auto_start_at);
   const seated = !!userId && (row.web_player_ids ?? []).includes(userId);
@@ -654,9 +655,20 @@ function LfgCard({
               {seat ? (
                  <span className="flex min-w-0 items-center gap-2 truncate">
                   {seat.web && <Globe className="size-3.5 text-teal" />}
-                  <span className={`truncate ${seat.name === UNKNOWN_NAME ? "text-muted-foreground italic" : ""}`}>
-                    {seat.name}
-                  </span>
+                  {seat.playerKey && seat.name !== UNKNOWN_NAME ? (
+                    <Link
+                      to="/players/$key"
+                      params={{ key: seat.playerKey }}
+                      className="truncate hover:underline underline-offset-2"
+                      style={{ color: colorForKey(titles, seat.playerKey) }}
+                    >
+                      {seat.name}
+                    </Link>
+                  ) : (
+                    <span className={`truncate ${seat.name === UNKNOWN_NAME ? "text-muted-foreground italic" : ""}`}>
+                      {seat.name}
+                    </span>
+                  )}
                   {seat.host && (
                     <span className="shrink-0 rounded-full border border-border/60 px-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                       Host
