@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
+import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isHost } from "@/lib/lfg-seats";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -75,38 +76,7 @@ export const Route = createFileRoute("/lfg")({
   component: LfgPage,
 });
 
-export type LfgRow = {
-  id: number;
-  match_id: string | null;
-  message_id: string;
-  channel_id: string;
-  guild_id: string;
-  host_id: string;
-  status: string;
-  message_text: string;
-  lobby_password: string | null;
-  board_type: string | null;
-  expansions: string[] | null;
-  modules: string[] | null;
-  created_at: string;
-  last_prompted_at: string | null;
-  expires_at: string | null;
-  auto_start_at: string | null;
-  mode: string | null;
-  player_ids: string[] | null;
-  guest_players: string[] | null;
-  web_host_id: string | null;
-  web_player_ids: string[] | null;
-  web_player_names: string[] | null;
-  is_league: boolean | null;
-  season_id: number | null;
-  season_num: number | null;
-  discord_usernames: string[] | null;
-  expected_player_keys: string[] | null;
-};
-
-const SELECT_COLS =
-  "id,match_id,message_id,channel_id,guild_id,host_id,status,message_text,lobby_password,board_type,expansions,modules,created_at,last_prompted_at,expires_at,auto_start_at,mode,player_ids,guest_players,web_host_id,web_player_ids,web_player_names,is_league,season_id,season_num,discord_usernames,expected_player_keys";
+export type { LfgRow };
 
 const QUICK_CHATS = [
   { code: "room_up", emoji: "🎮", label: "Room is up!" },
@@ -162,48 +132,7 @@ function hasExp(r: LfgRow, needle: string) {
   return all.includes(needle);
 }
 
-type Seat = { name: string; playerKey: string | null; web: boolean; discord: boolean; host: boolean };
-
-const leagueKey = (name: string) => name.trim().toLowerCase();
 type LeagueDisplay = { season: number | null; ratings: Record<string, number>; status: "loading" | "ready" | "error" };
-
-const UNKNOWN_NAME = "Unknown player name";
-
-function seatsOf(r: LfgRow, discordNames: Record<string, string>, discordKeys: Record<string, string> = {}): Seat[] {
-  const webIds = r.web_player_ids ?? [];
-  const web = (r.web_player_names ?? []).map((n, i) => ({
-    name: n?.trim() ? n : UNKNOWN_NAME,
-    playerKey: n?.trim() ? leagueKey(n) : null,
-    web: true,
-    discord: false,
-    host: !!r.web_host_id && webIds[i] === r.web_host_id,
-  }));
-  const discord = (r.player_ids ?? []).map((id, i) => {
-    const mapped = discordNames[id] && discordNames[id] !== UNKNOWN_NAME ? discordNames[id] : null;
-    const expected = r.expected_player_keys?.[i]?.trim() || null;
-    const handle = r.discord_usernames?.[i]?.trim() || null;
-    const name = mapped ?? expected ?? handle ?? UNKNOWN_NAME;
-    return {
-      name,
-      playerKey: mapped ? leagueKey(mapped) : discordKeys[id] || (expected ? leagueKey(expected) : null),
-      web: false,
-      discord: true,
-      host: !r.web_host_id && id === r.host_id,
-    };
-  });
-  const guests = (r.guest_players ?? []).map((n) => ({
-    name: n?.trim() ? n : UNKNOWN_NAME,
-    playerKey: n?.trim() ? leagueKey(n) : null,
-    web: false,
-    discord: false,
-    host: false,
-  }));
-  const all = [...web, ...discord, ...guests];
-  // Host always sits at the top of the roster
-  const hostIndex = all.findIndex((s) => s.host);
-  if (hostIndex > 0) all.unshift(...all.splice(hostIndex, 1));
-  return all.slice(0, 4);
-}
 
 function isExpired(r: LfgRow, now: number) {
   return !r.expires_at || new Date(r.expires_at).getTime() <= now;
@@ -250,6 +179,7 @@ function LfgPage() {
   const [discordKeys, setDiscordKeys] = useState<Record<string, string>>({});
   const [leagueDisplays, setLeagueDisplays] = useState<Record<number, LeagueDisplay>>({});
   const [isLfgAdmin, setIsLfgAdmin] = useState(false);
+  const [myDiscordId, setMyDiscordId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -292,6 +222,14 @@ function LfgPage() {
       }
       const { data } = await supabase.rpc("lfg_my_ign");
       if (active) setMyIgn((data as string | null) ?? null);
+      const { data: link } = await supabase
+        .from("player_discord_map")
+        .select("discord_user_id")
+        .eq("claimed_by", uid)
+        .not("discord_user_id", "is", null)
+        .limit(1)
+        .maybeSingle();
+      if (active) setMyDiscordId(link?.discord_user_id ?? null);
       const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", uid);
       if (active) {
         setIsLfgAdmin(
@@ -455,7 +393,12 @@ function LfgPage() {
                 discordKeys={discordKeys}
                 leagueDisplay={leagueDisplays[r.id]}
                 canManage={
-                  isLfgAdmin || (!!userId && (r.web_host_id === userId || r.host_id === userId))
+                  isLfgAdmin ||
+                  isHost(r, seatsOf(r, discordNames, discordKeys), {
+                    userId,
+                    discordId: myDiscordId,
+                    ign: myIgn,
+                  })
                 }
                 onChanged={load}
               />
@@ -749,6 +692,9 @@ function LfgCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        <Button asChild variant="outline" size="sm">
+          <Link to="/lfg/$id" params={{ id: String(row.id) }}>Open lobby page</Link>
+        </Button>
         {discordUrl && (
           <Button asChild variant="outline" size="sm" title="Open in Discord">
             <a href={discordUrl} target="_blank" rel="noreferrer" aria-label="Open in Discord">

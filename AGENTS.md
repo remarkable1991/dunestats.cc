@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 
 - Lobby League Elo reads are batched by seated player keys and lobby season under pilot RLS; this keeps seasonal ratings separate and inaccessible to non-pilot users.
+- LFG roster merging and lobby membership/host checks live in `src/lib/lfg-seats.ts`, shared by `/lfg` and `/lfg/$id`; one source of truth avoids the list and detail pages disagreeing on who is seated.
