@@ -100,6 +100,7 @@ function LobbyPage() {
       .channel(`lfg-lobby-${id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "active_async_matches", filter: `id=eq.${id}` }, () => void load())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "lobby_quick_chats", filter: `lobby_id=eq.${id}` }, () => void load())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "lfg_lobby_events", filter: `lobby_id=eq.${id}` }, () => void load())
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -227,6 +228,7 @@ function LobbyPage() {
   const timeline = [
     { at: row.created_at, text: "Lobby created" },
     ...chats.map((c) => ({ at: c.created_at ?? row.created_at, text: `${c.sender_name}: ${CHAT_LABEL[c.message_code] ?? c.message_code}` })),
+    ...events.map((e) => ({ at: e.created_at, text: e.kind === "join" || e.kind === "leave" || !e.actor_name ? e.detail : `${e.detail} (by ${e.actor_name})` })),
     ...(row.auto_start_at ? [{ at: row.auto_start_at, text: "Auto-start time" }] : []),
     ...(row.expires_at ? [{ at: row.expires_at, text: "Lobby expires" }] : []),
   ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
@@ -300,7 +302,7 @@ function LobbyPage() {
               </li>
             ))}
           </ol>
-          <p className="text-xs text-muted-foreground">Join and leave moments aren't recorded yet — only messages and lobby times.</p>
+          <p className="text-xs text-muted-foreground">Joins, leaves and setting changes are recorded from 8 Oct 2026 onwards.</p>
         </Card>
       </div>
 
