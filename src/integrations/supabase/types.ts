@@ -1688,6 +1688,15 @@ export type Database = {
       is_tournament_host: { Args: { _uid: string }; Returns: boolean }
       is_tournament_moderator: { Args: { _uid: string }; Returns: boolean }
       lfg_add_guest: { Args: { p_id: number; p_name: string }; Returns: Json }
+      lfg_admin_map_discord: {
+        Args: {
+          p_discord_user_id: string
+          p_discord_username: string
+          p_display_name: string
+          p_player_key: string
+        }
+        Returns: Json
+      }
       lfg_create_lobby:
         | {
             Args: {
@@ -1713,7 +1722,18 @@ export type Database = {
             }
             Returns: Json
           }
+      lfg_is_member: {
+        Args: {
+          p_row: Database["public"]["Tables"]["active_async_matches"]["Row"]
+          p_uid: string
+        }
+        Returns: boolean
+      }
       lfg_join_seat: { Args: { p_id: number }; Returns: Json }
+      lfg_link_game: {
+        Args: { p_id: number; p_public_match_id: string }
+        Returns: Json
+      }
       lfg_my_ign: { Args: never; Returns: string }
       lfg_start_game: { Args: { p_id: number }; Returns: Json }
       lfg_update_lobby: {
