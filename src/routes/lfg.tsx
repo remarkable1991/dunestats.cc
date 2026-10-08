@@ -179,6 +179,7 @@ function LfgPage() {
   const [discordKeys, setDiscordKeys] = useState<Record<string, string>>({});
   const [leagueDisplays, setLeagueDisplays] = useState<Record<number, LeagueDisplay>>({});
   const [isLfgAdmin, setIsLfgAdmin] = useState(false);
+  const [myDiscordId, setMyDiscordId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -221,6 +222,14 @@ function LfgPage() {
       }
       const { data } = await supabase.rpc("lfg_my_ign");
       if (active) setMyIgn((data as string | null) ?? null);
+      const { data: link } = await supabase
+        .from("player_discord_map")
+        .select("discord_user_id")
+        .eq("claimed_by", uid)
+        .not("discord_user_id", "is", null)
+        .limit(1)
+        .maybeSingle();
+      if (active) setMyDiscordId(link?.discord_user_id ?? null);
       const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", uid);
       if (active) {
         setIsLfgAdmin(
@@ -384,7 +393,12 @@ function LfgPage() {
                 discordKeys={discordKeys}
                 leagueDisplay={leagueDisplays[r.id]}
                 canManage={
-                  isLfgAdmin || (!!userId && (r.web_host_id === userId || r.host_id === userId))
+                  isLfgAdmin ||
+                  isHost(r, seatsOf(r, discordNames, discordKeys), {
+                    userId,
+                    discordId: myDiscordId,
+                    ign: myIgn,
+                  })
                 }
                 onChanged={load}
               />
