@@ -113,6 +113,42 @@ export type Database = {
         }
         Relationships: []
       }
+      discord_guild_members: {
+        Row: {
+          discord_user_id: string
+          discord_username: string
+          display_name: string
+          global_name: string | null
+          has_verified_map: boolean | null
+          joined_at: string | null
+          similarity_score: number | null
+          suggested_player_key: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          discord_user_id: string
+          discord_username: string
+          display_name: string
+          global_name?: string | null
+          has_verified_map?: boolean | null
+          joined_at?: string | null
+          similarity_score?: number | null
+          suggested_player_key?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          discord_user_id?: string
+          discord_username?: string
+          display_name?: string
+          global_name?: string | null
+          has_verified_map?: boolean | null
+          joined_at?: string | null
+          similarity_score?: number | null
+          suggested_player_key?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       email_outbox: {
         Row: {
           campaign: string
