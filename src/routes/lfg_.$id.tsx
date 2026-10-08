@@ -55,6 +55,8 @@ function LobbyPage() {
   const [linkCode, setLinkCode] = useState("");
   const [linkBusy, setLinkBusy] = useState(false);
   const [linkedCode, setLinkedCode] = useState<string | null>(null);
+  const [addName, setAddName] = useState("");
+  const [addBusy, setAddBusy] = useState(false);
 
   const load = useCallback(async () => {
     const lobbyId = Number(id);
@@ -176,6 +178,18 @@ function LobbyPage() {
       });
   }, [row, seats, isAdmin]);
 
+  const addPlayer = async () => {
+    if (!row || !addName.trim()) return;
+    setAddBusy(true);
+    const { data, error } = await supabase.rpc("lfg_add_guest", { p_id: row.id, p_name: addName.trim() });
+    setAddBusy(false);
+    const res = data as { ok?: boolean; error?: string } | null;
+    if (error || !res?.ok) return toast.error(res?.error ?? error?.message ?? "Could not add that player");
+    toast.success(`${addName.trim()} added to the lobby`);
+    setAddName("");
+    void load();
+  };
+
   const linkGame = async () => {
     if (!row || !linkCode.trim()) return;
     setLinkBusy(true);
@@ -261,6 +275,14 @@ function LobbyPage() {
               );
             })}
           </div>
+          {(canManage || member) && !full && !started && (
+            <div className="flex gap-2 max-w-md">
+              <Input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Add player (in-game name)" className="h-9" />
+              <Button size="sm" onClick={addPlayer} disabled={addBusy || !addName.trim()}>
+                {addBusy ? <Loader2 className="size-4 animate-spin" /> : "Add player"}
+              </Button>
+            </div>
+          )}
           {member && <p className="text-xs text-teal">You're recognised as a player in this lobby.</p>}
         </Card>
 
