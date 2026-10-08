@@ -26,6 +26,7 @@ export const Route = createFileRoute("/lfg_/$id")({
 });
 
 type Chat = { id: string; sender_name: string; message_code: string; created_at: string | null };
+type LobbyEvent = { id: string; actor_name: string | null; kind: string; detail: string; created_at: string };
 const CHAT_LABEL: Record<string, string> = {
   room_up: "🎮 Room is up!",
   password_ask: "🔑 What's the password?",
@@ -57,16 +58,19 @@ function LobbyPage() {
   const [linkedCode, setLinkedCode] = useState<string | null>(null);
   const [addName, setAddName] = useState("");
   const [addBusy, setAddBusy] = useState(false);
+  const [events, setEvents] = useState<LobbyEvent[]>([]);
 
   const load = useCallback(async () => {
     const lobbyId = Number(id);
-    const [{ data }, { data: chatRows }] = await Promise.all([
+    const [{ data }, { data: chatRows }, { data: eventRows }] = await Promise.all([
       supabase.from("active_async_matches").select(SELECT_COLS).eq("id", lobbyId).maybeSingle(),
       supabase.from("lobby_quick_chats").select("id,sender_name,message_code,created_at").eq("lobby_id", lobbyId).order("created_at", { ascending: true }),
+      supabase.from("lfg_lobby_events" as never).select("id,actor_name,kind,detail,created_at").eq("lobby_id", lobbyId).order("created_at", { ascending: true }),
     ]);
     const r = (data as unknown as LfgRow) ?? null;
     setRow(r);
     setChats((chatRows as Chat[]) ?? []);
+    setEvents((eventRows as unknown as LobbyEvent[]) ?? []);
     setLoading(false);
     if (r) {
       const ids = [...new Set([...(r.player_ids ?? []), r.host_id].filter(Boolean))];
@@ -96,6 +100,7 @@ function LobbyPage() {
       .channel(`lfg-lobby-${id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "active_async_matches", filter: `id=eq.${id}` }, () => void load())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "lobby_quick_chats", filter: `lobby_id=eq.${id}` }, () => void load())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "lfg_lobby_events", filter: `lobby_id=eq.${id}` }, () => void load())
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -223,6 +228,7 @@ function LobbyPage() {
   const timeline = [
     { at: row.created_at, text: "Lobby created" },
     ...chats.map((c) => ({ at: c.created_at ?? row.created_at, text: `${c.sender_name}: ${CHAT_LABEL[c.message_code] ?? c.message_code}` })),
+    ...events.map((e) => ({ at: e.created_at, text: e.kind === "join" || e.kind === "leave" || !e.actor_name ? e.detail : `${e.detail} (by ${e.actor_name})` })),
     ...(row.auto_start_at ? [{ at: row.auto_start_at, text: "Auto-start time" }] : []),
     ...(row.expires_at ? [{ at: row.expires_at, text: "Lobby expires" }] : []),
   ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
@@ -296,7 +302,7 @@ function LobbyPage() {
               </li>
             ))}
           </ol>
-          <p className="text-xs text-muted-foreground">Join and leave moments aren't recorded yet — only messages and lobby times.</p>
+          <p className="text-xs text-muted-foreground">Joins, leaves and setting changes are recorded from 8 Oct 2026 onwards.</p>
         </Card>
       </div>
 

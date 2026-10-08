@@ -358,6 +358,41 @@ export type Database = {
         }
         Relationships: []
       }
+      lfg_lobby_events: {
+        Row: {
+          actor_name: string | null
+          created_at: string
+          detail: string
+          id: string
+          kind: string
+          lobby_id: number
+        }
+        Insert: {
+          actor_name?: string | null
+          created_at?: string
+          detail: string
+          id?: string
+          kind: string
+          lobby_id: number
+        }
+        Update: {
+          actor_name?: string | null
+          created_at?: string
+          detail?: string
+          id?: string
+          kind?: string
+          lobby_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lfg_lobby_events_lobby_id_fkey"
+            columns: ["lobby_id"]
+            isOneToOne: false
+            referencedRelation: "active_async_matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lobby_quick_chats: {
         Row: {
           created_at: string | null
