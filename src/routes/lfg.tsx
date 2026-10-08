@@ -397,6 +397,7 @@ function LfgPage() {
                 myIgn={myIgn}
                 discordNames={discordNames}
                 discordKeys={discordKeys}
+                discordHandles={discordHandles}
                 leagueDisplay={leagueDisplays[r.id]}
                 canManage={
                   isLfgAdmin ||
@@ -442,6 +443,7 @@ function LfgCard({
   myIgn,
   discordNames,
   discordKeys,
+  discordHandles,
   leagueDisplay,
   canManage,
   onChanged,
@@ -451,6 +453,7 @@ function LfgCard({
   myIgn: string | null;
   discordNames: Record<string, string>;
   discordKeys: Record<string, string>;
+  discordHandles: Record<string, string>;
   leagueDisplay?: LeagueDisplay;
   canManage: boolean;
   onChanged: () => void;
