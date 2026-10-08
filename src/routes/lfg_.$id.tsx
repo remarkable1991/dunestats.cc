@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Globe, Link2, Loader2, Upload, Users, Trophy, Clock } from "lucide-react";
+import { ArrowLeft, Globe, UserMinus, Link2, Loader2, Upload, Users, Trophy, Clock } from "lucide-react";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
-import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isMember, type Seat } from "@/lib/lfg-seats";
+import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isMember, isHost, type Seat } from "@/lib/lfg-seats";
 
 export const Route = createFileRoute("/lfg_/$id")({
   head: ({ params }) => ({
@@ -132,6 +132,32 @@ function LobbyPage() {
   const me = { userId, discordId: myDiscordId, ign: myIgn };
   const member = row ? isMember(row, seats, me) : false;
   const canReport = member || isAdmin;
+  const canManage = row ? isHost(row, seats, me) || isAdmin : false;
+
+  const removeSeat = async (seat: Seat) => {
+    if (!row || seat.host) return;
+    if (!confirm(`Remove ${seat.name} from this lobby?`)) return;
+    const removedWeb = seat.webUserId ? [seat.webUserId] : [];
+    const removedDiscord = seat.discordId ? [seat.discordId] : [];
+    const k = seat.name.trim().toLowerCase();
+    const guests = (row.guest_players ?? []).filter((g) => g.trim().toLowerCase() !== k && leagueKey(g) !== seat.playerKey);
+    const { data, error } = await supabase.rpc("lfg_update_lobby", {
+      p_id: row.id,
+      p_mode: row.mode ?? "",
+      p_board: row.board_type ?? "",
+      p_expansions: row.expansions ?? [],
+      p_notes: row.message_text ?? "",
+      p_password: row.lobby_password ?? "",
+      p_expires_minutes: 0,
+      p_guest_players: guests,
+      p_remove_web_ids: removedWeb,
+      p_remove_discord_ids: removedDiscord,
+    });
+    const res = data as { ok?: boolean; error?: string } | null;
+    if (error || !res?.ok) return toast.error(res?.error ?? error?.message ?? "Could not remove that player");
+    toast.success(`${seat.name} removed from the lobby`);
+    void load();
+  };
 
   useEffect(() => {
     if (!row?.is_league || !isAdmin) return;
@@ -228,6 +254,7 @@ function LobbyPage() {
                   elo={row.is_league && isAdmin ? (seat.playerKey ? ratings[seat.playerKey] ?? 1000 : null) : null}
                   isAdmin={isAdmin}
                   onMapped={load}
+                  onRemove={canManage && !seat.host ? () => removeSeat(seat) : undefined}
                 />
               ) : (
                 <div key={i} className="rounded-lg border border-dashed border-border/60 p-4 text-sm text-muted-foreground">Open seat</div>
@@ -284,7 +311,7 @@ function LobbyPage() {
   );
 }
 
-function SeatCard({ seat, color, elo, isAdmin, onMapped }: { seat: Seat; color?: string; elo: number | null; isAdmin: boolean; onMapped: () => void }) {
+function SeatCard({ seat, color, elo, isAdmin, onMapped, onRemove }: { seat: Seat; color?: string; elo: number | null; isAdmin: boolean; onMapped: () => void; onRemove?: () => void }) {
   const [open, setOpen] = useState(false);
   const [ign, setIgn] = useState("");
   const [busy, setBusy] = useState(false);
@@ -316,7 +343,14 @@ function SeatCard({ seat, color, elo, isAdmin, onMapped }: { seat: Seat; color?:
           )}
           {seat.host && <span className="rounded-full border border-border/60 px-1.5 text-[10px] uppercase text-muted-foreground">Host</span>}
         </div>
-        {elo !== null && <span className="text-xs tabular-nums text-primary">{Math.round(elo)} Elo</span>}
+        <div className="flex items-center gap-1">
+          {elo !== null && <span className="text-xs tabular-nums text-primary">{Math.round(elo)} Elo</span>}
+          {onRemove && (
+            <Button size="icon" variant="ghost" className="size-7 text-muted-foreground hover:text-destructive" onClick={onRemove} aria-label={`Remove ${seat.name}`} title="Remove from lobby">
+              <UserMinus className="size-3.5" />
+            </Button>
+          )}
+        </div>
       </div>
       <div className="flex flex-wrap gap-1 text-[11px] text-muted-foreground">
         {seat.discord && <span className="rounded border border-border/60 px-1.5">Discord{seat.discordHandle ? ` @${seat.discordHandle}` : ""}</span>}
