@@ -58,9 +58,13 @@ export function seatsOf(
   r: LfgRow,
   discordNames: Record<string, string>,
   discordKeys: Record<string, string> = {},
+  discordHandles: Record<string, string> = {},
 ): Seat[] {
   const webIds = r.web_player_ids ?? [];
   const seats: Seat[] = [];
+  // Lobby handle arrays are only trusted when they line up 1:1 with player_ids
+  const handlesAligned = (r.discord_usernames ?? []).length === (r.player_ids ?? []).length;
+  const keysAligned = (r.expected_player_keys ?? []).length === (r.player_ids ?? []).length;
 
   const sameSeat = (a: Seat, b: Seat) => {
     if (a.playerKey && b.playerKey && looseKey(a.playerKey) === looseKey(b.playerKey)) return true;
@@ -90,8 +94,9 @@ export function seatsOf(
   // Discord seats first: the mapped IGN is the most reliable name
   (r.player_ids ?? []).forEach((id, i) => {
     const mapped = discordNames[id] && discordNames[id] !== UNKNOWN_NAME ? discordNames[id] : null;
-    const expected = r.expected_player_keys?.[i]?.trim() || null;
-    const handle = r.discord_usernames?.[i]?.trim() || null;
+    const expected = keysAligned ? r.expected_player_keys?.[i]?.trim() || null : null;
+    const handle = discordHandles[id]?.trim() || (handlesAligned ? r.discord_usernames?.[i]?.trim() || null : null);
+
     add(
       {
         name: mapped ?? expected ?? handle ?? UNKNOWN_NAME,

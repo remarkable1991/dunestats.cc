@@ -177,6 +177,7 @@ function LfgPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [discordNames, setDiscordNames] = useState<Record<string, string>>({});
   const [discordKeys, setDiscordKeys] = useState<Record<string, string>>({});
+  const [discordHandles, setDiscordHandles] = useState<Record<string, string>>({});
   const [leagueDisplays, setLeagueDisplays] = useState<Record<number, LeagueDisplay>>({});
   const [isLfgAdmin, setIsLfgAdmin] = useState(false);
   const [myDiscordId, setMyDiscordId] = useState<string | null>(null);
@@ -259,10 +260,15 @@ function LfgPage() {
     let active = true;
     supabase
       .from("player_discord_map")
-      .select("discord_user_id,player_key,display_name")
+      .select("discord_user_id,player_key,display_name,discord_username")
       .in("discord_user_id", missing)
       .then(({ data }) => {
         if (!active || !data) return;
+        setDiscordHandles((prev) => {
+          const next = { ...prev };
+          for (const row of data) if (row.discord_user_id && row.discord_username?.trim()) next[row.discord_user_id] = row.discord_username.trim();
+          return next;
+        });
         setDiscordKeys((prev) => {
           const next = { ...prev };
           for (const row of data) {
@@ -310,7 +316,7 @@ function LfgPage() {
           }
         }
         const seasons = [...new Set(Object.values(pending).flatMap((entry) => entry.season === null ? [] : [entry.season]))];
-        const keys = [...new Set(lobbies.flatMap((row) => seatsOf(row, discordNames, discordKeys).flatMap((seat) => seat.playerKey ? [seat.playerKey] : [])))];
+        const keys = [...new Set(lobbies.flatMap((row) => seatsOf(row, discordNames, discordKeys, discordHandles).flatMap((seat) => seat.playerKey ? [seat.playerKey] : [])))];
         const ratings: { player_key: string; season: number; elo: number }[] = [];
         if (keys.length && seasons.length) {
           for (let offset = 0; ; offset += 1000) {
@@ -391,10 +397,11 @@ function LfgPage() {
                 myIgn={myIgn}
                 discordNames={discordNames}
                 discordKeys={discordKeys}
+                discordHandles={discordHandles}
                 leagueDisplay={leagueDisplays[r.id]}
                 canManage={
                   isLfgAdmin ||
-                  isHost(r, seatsOf(r, discordNames, discordKeys), {
+                  isHost(r, seatsOf(r, discordNames, discordKeys, discordHandles), {
                     userId,
                     discordId: myDiscordId,
                     ign: myIgn,
@@ -436,6 +443,7 @@ function LfgCard({
   myIgn,
   discordNames,
   discordKeys,
+  discordHandles,
   leagueDisplay,
   canManage,
   onChanged,
@@ -445,6 +453,7 @@ function LfgCard({
   myIgn: string | null;
   discordNames: Record<string, string>;
   discordKeys: Record<string, string>;
+  discordHandles: Record<string, string>;
   leagueDisplay?: LeagueDisplay;
   canManage: boolean;
   onChanged: () => void;
@@ -458,7 +467,7 @@ function LfgCard({
   const [addName, setAddName] = useState("");
   const [addBusy, setAddBusy] = useState(false);
   const live = isLive(row);
-  const seats = seatsOf(row, discordNames, discordKeys);
+  const seats = seatsOf(row, discordNames, discordKeys, discordHandles);
   const titles = usePlayerTitles();
   const open = Math.max(0, 4 - seats.length);
   const countdown = useCountdown(row.auto_start_at);

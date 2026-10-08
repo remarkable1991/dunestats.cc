@@ -48,6 +48,7 @@ function LobbyPage() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [discordNames, setDiscordNames] = useState<Record<string, string>>({});
   const [discordKeys, setDiscordKeys] = useState<Record<string, string>>({});
+  const [discordHandles, setDiscordHandles] = useState<Record<string, string>>({});
   const [userId, setUserId] = useState<string | null>(null);
   const [myIgn, setMyIgn] = useState<string | null>(null);
   const [myDiscordId, setMyDiscordId] = useState<string | null>(null);
@@ -75,17 +76,20 @@ function LobbyPage() {
     if (r) {
       const ids = [...new Set([...(r.player_ids ?? []), r.host_id].filter(Boolean))];
       if (ids.length) {
-        const { data: maps } = await supabase.from("player_discord_map").select("discord_user_id,player_key,display_name").in("discord_user_id", ids);
+        const { data: maps } = await supabase.from("player_discord_map").select("discord_user_id,player_key,display_name,discord_username").in("discord_user_id", ids);
         const names: Record<string, string> = {};
         const keys: Record<string, string> = {};
+        const handles: Record<string, string> = {};
         for (const i of ids) names[i] = UNKNOWN_NAME;
         for (const m of maps ?? []) {
           if (!m.discord_user_id) continue;
           names[m.discord_user_id] = m.display_name?.trim() || m.player_key?.trim() || UNKNOWN_NAME;
           if (m.player_key) keys[m.discord_user_id] = leagueKey(m.player_key);
+          if (m.discord_username?.trim()) handles[m.discord_user_id] = m.discord_username.trim();
         }
         setDiscordNames(names);
         setDiscordKeys(keys);
+        setDiscordHandles(handles);
       }
       if (r.linked_game_id) {
         const { data: g } = await supabase.from("games").select("public_match_id").eq("id", r.linked_game_id).maybeSingle();
@@ -135,7 +139,7 @@ function LobbyPage() {
     };
   }, []);
 
-  const seats = useMemo(() => (row ? seatsOf(row, discordNames, discordKeys) : []), [row, discordNames, discordKeys]);
+  const seats = useMemo(() => (row ? seatsOf(row, discordNames, discordKeys, discordHandles) : []), [row, discordNames, discordKeys, discordHandles]);
   const me = { userId, discordId: myDiscordId, ign: myIgn };
   const member = row ? isMember(row, seats, me) : false;
   const canReport = member || isAdmin;
@@ -342,13 +346,14 @@ function LobbyPage() {
 function SeatCard({ seat, color, elo, isAdmin, onMapped, onRemove }: { seat: Seat; color?: string; elo: number | null; isAdmin: boolean; onMapped: () => void; onRemove?: () => void }) {
   const [open, setOpen] = useState(false);
   const [ign, setIgn] = useState("");
+  const [handle, setHandle] = useState("");
   const [busy, setBusy] = useState(false);
   const save = async () => {
     if (!seat.discordId || !ign.trim()) return;
     setBusy(true);
     const { data, error } = await supabase.rpc("lfg_admin_map_discord" as never, {
       p_discord_user_id: seat.discordId,
-      p_discord_username: seat.discordHandle ?? "",
+      p_discord_username: handle.trim().replace(/^@/, ""),
       p_player_key: ign.trim(),
       p_display_name: ign.trim(),
     } as never);
@@ -359,6 +364,7 @@ function SeatCard({ seat, color, elo, isAdmin, onMapped, onRemove }: { seat: Sea
     setOpen(false);
     onMapped();
   };
+
   return (
     <div className="rounded-lg border border-border/60 bg-background/40 p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
@@ -389,10 +395,11 @@ function SeatCard({ seat, color, elo, isAdmin, onMapped, onRemove }: { seat: Sea
         open ? (
           <div className="flex gap-2">
             <Input value={ign} onChange={(e) => setIgn(e.target.value)} placeholder="Correct in-game name" className="h-8" />
+            <Input value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="Discord name (optional)" className="h-8" />
             <Button size="sm" onClick={save} disabled={busy || !ign.trim()}>{busy ? <Loader2 className="size-3.5 animate-spin" /> : "Save"}</Button>
           </div>
         ) : (
-          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setIgn(seat.playerKey ?? ""); setOpen(true); }}>
+          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setIgn(seat.playerKey ?? ""); setHandle(seat.discordHandle ?? ""); setOpen(true); }}>
             Fix in-game name link
           </Button>
         )
