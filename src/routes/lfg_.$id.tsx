@@ -395,10 +395,11 @@ function SeatCard({ seat, color, elo, isAdmin, onMapped, onRemove }: { seat: Sea
         open ? (
           <div className="flex gap-2">
             <Input value={ign} onChange={(e) => setIgn(e.target.value)} placeholder="Correct in-game name" className="h-8" />
+            <Input value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="Discord name (optional)" className="h-8" />
             <Button size="sm" onClick={save} disabled={busy || !ign.trim()}>{busy ? <Loader2 className="size-3.5 animate-spin" /> : "Save"}</Button>
           </div>
         ) : (
-          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setIgn(seat.playerKey ?? ""); setOpen(true); }}>
+          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setIgn(seat.playerKey ?? ""); setHandle(seat.discordHandle ?? ""); setOpen(true); }}>
             Fix in-game name link
           </Button>
         )

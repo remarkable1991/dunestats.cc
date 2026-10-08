@@ -177,6 +177,7 @@ function LfgPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [discordNames, setDiscordNames] = useState<Record<string, string>>({});
   const [discordKeys, setDiscordKeys] = useState<Record<string, string>>({});
+  const [discordHandles, setDiscordHandles] = useState<Record<string, string>>({});
   const [leagueDisplays, setLeagueDisplays] = useState<Record<number, LeagueDisplay>>({});
   const [isLfgAdmin, setIsLfgAdmin] = useState(false);
   const [myDiscordId, setMyDiscordId] = useState<string | null>(null);
@@ -259,10 +260,15 @@ function LfgPage() {
     let active = true;
     supabase
       .from("player_discord_map")
-      .select("discord_user_id,player_key,display_name")
+      .select("discord_user_id,player_key,display_name,discord_username")
       .in("discord_user_id", missing)
       .then(({ data }) => {
         if (!active || !data) return;
+        setDiscordHandles((prev) => {
+          const next = { ...prev };
+          for (const row of data) if (row.discord_user_id && row.discord_username?.trim()) next[row.discord_user_id] = row.discord_username.trim();
+          return next;
+        });
         setDiscordKeys((prev) => {
           const next = { ...prev };
           for (const row of data) {
