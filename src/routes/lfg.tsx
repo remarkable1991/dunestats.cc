@@ -316,7 +316,7 @@ function LfgPage() {
           }
         }
         const seasons = [...new Set(Object.values(pending).flatMap((entry) => entry.season === null ? [] : [entry.season]))];
-        const keys = [...new Set(lobbies.flatMap((row) => seatsOf(row, discordNames, discordKeys).flatMap((seat) => seat.playerKey ? [seat.playerKey] : [])))];
+        const keys = [...new Set(lobbies.flatMap((row) => seatsOf(row, discordNames, discordKeys, discordHandles).flatMap((seat) => seat.playerKey ? [seat.playerKey] : [])))];
         const ratings: { player_key: string; season: number; elo: number }[] = [];
         if (keys.length && seasons.length) {
           for (let offset = 0; ; offset += 1000) {
@@ -400,7 +400,7 @@ function LfgPage() {
                 leagueDisplay={leagueDisplays[r.id]}
                 canManage={
                   isLfgAdmin ||
-                  isHost(r, seatsOf(r, discordNames, discordKeys), {
+                  isHost(r, seatsOf(r, discordNames, discordKeys, discordHandles), {
                     userId,
                     discordId: myDiscordId,
                     ign: myIgn,
@@ -464,7 +464,7 @@ function LfgCard({
   const [addName, setAddName] = useState("");
   const [addBusy, setAddBusy] = useState(false);
   const live = isLive(row);
-  const seats = seatsOf(row, discordNames, discordKeys);
+  const seats = seatsOf(row, discordNames, discordKeys, discordHandles);
   const titles = usePlayerTitles();
   const open = Math.max(0, 4 - seats.length);
   const countdown = useCountdown(row.auto_start_at);
