@@ -692,6 +692,9 @@ function LfgCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        <Button asChild variant="outline" size="sm">
+          <Link to="/lfg/$id" params={{ id: String(row.id) }}>Open lobby page</Link>
+        </Button>
         {discordUrl && (
           <Button asChild variant="outline" size="sm" title="Open in Discord">
             <a href={discordUrl} target="_blank" rel="noreferrer" aria-label="Open in Discord">
