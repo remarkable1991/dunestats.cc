@@ -541,6 +541,24 @@ export type Database = {
           },
         ]
       }
+      matchmaking_queue: {
+        Row: {
+          discord_user_id: string
+          joined_at: string | null
+          mode: string
+        }
+        Insert: {
+          discord_user_id: string
+          joined_at?: string | null
+          mode: string
+        }
+        Update: {
+          discord_user_id?: string
+          joined_at?: string | null
+          mode?: string
+        }
+        Relationships: []
+      }
       news_posts: {
         Row: {
           body: string
