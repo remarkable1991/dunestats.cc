@@ -39,6 +39,7 @@ import {
   X,
 } from "lucide-react";
 import { useRoles } from "@/hooks/use-roles";
+import { FormatAnalyzer } from "@/components/SurveyFormatAnalyzer";
 import {
   QUESTION_TYPES,
   asOptions,
@@ -367,6 +368,7 @@ function AdminSurvey() {
             </TabsContent>
 
             <TabsContent value="results" className="space-y-6 pt-4">
+              <FormatAnalyzer cats={cats} byCat={byCat} responses={responses} />
               {cats.map((c) => {
                 const rows = responses.filter((r) => r.category_id === c.id);
                 const answeredQuestions = (byCat[c.id] ?? []).reduce(
