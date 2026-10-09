@@ -39,6 +39,7 @@ import {
   X,
 } from "lucide-react";
 import { useRoles } from "@/hooks/use-roles";
+import { FormatAnalyzer } from "@/components/SurveyFormatAnalyzer";
 import {
   QUESTION_TYPES,
   asOptions,
