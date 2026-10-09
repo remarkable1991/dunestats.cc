@@ -394,6 +394,39 @@ export type Database = {
         }
         Relationships: []
       }
+      league_presets: {
+        Row: {
+          board_type: string
+          created_at: string | null
+          end_date: string
+          expansions: string[] | null
+          id: number
+          mode: string | null
+          name: string
+          start_date: string
+        }
+        Insert: {
+          board_type: string
+          created_at?: string | null
+          end_date: string
+          expansions?: string[] | null
+          id?: number
+          mode?: string | null
+          name: string
+          start_date: string
+        }
+        Update: {
+          board_type?: string
+          created_at?: string | null
+          end_date?: string
+          expansions?: string[] | null
+          id?: number
+          mode?: string | null
+          name?: string
+          start_date?: string
+        }
+        Relationships: []
+      }
       lfg_lobby_events: {
         Row: {
           actor_name: string | null
