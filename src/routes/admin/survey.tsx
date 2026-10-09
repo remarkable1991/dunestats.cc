@@ -367,6 +367,7 @@ function AdminSurvey() {
             </TabsContent>
 
             <TabsContent value="results" className="space-y-6 pt-4">
+              <FormatAnalyzer cats={cats} byCat={byCat} responses={responses} />
               {cats.map((c) => {
                 const rows = responses.filter((r) => r.category_id === c.id);
                 const answeredQuestions = (byCat[c.id] ?? []).reduce(
