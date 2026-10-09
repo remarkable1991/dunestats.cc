@@ -420,7 +420,9 @@ function SurveyPage() {
                         return (
                           <div className="rounded-md border border-border/60 bg-background/40 p-3">
                             <p className="mb-2 text-sm text-muted-foreground">
-                              Put together the one format everyone would play:
+                              {value === "fixed"
+                                ? "Put together the one format everyone would play:"
+                                : "Put together your favorite format:"}
                             </p>
                             <SurveyFormatBuilder
                               max={1}

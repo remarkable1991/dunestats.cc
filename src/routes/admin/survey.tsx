@@ -626,6 +626,12 @@ function QuestionEditor({
                 placeholder="Extra explanation (optional)"
                 onChange={(e) => setOpt(i, { hint: e.target.value })}
               />
+              {q.question_type === "single_choice" && (
+                <label className="flex items-center gap-2 text-xs text-muted-foreground" title="Show the game format builder when this option is picked">
+                  <Switch checked={!!o.builder} onCheckedChange={(v) => setOpt(i, { builder: v || undefined })} />
+                  Format builder
+                </label>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
