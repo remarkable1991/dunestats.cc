@@ -626,6 +626,12 @@ function QuestionEditor({
                 placeholder="Extra explanation (optional)"
                 onChange={(e) => setOpt(i, { hint: e.target.value })}
               />
+              {q.question_type === "single_choice" && (
+                <label className="flex items-center gap-2 text-xs text-muted-foreground" title="Show the game format builder when this option is picked">
+                  <Switch checked={!!o.builder} onCheckedChange={(v) => setOpt(i, { builder: v || undefined })} />
+                  Format builder
+                </label>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -659,13 +665,13 @@ function QuestionEditor({
 
 function QuestionResults({ q, rows }: { q: SurveyQuestion; rows: ResponseRow[] }) {
   const values = rows.map((r) => r.answers?.[q.id]).filter((v) => v !== undefined && v !== null && v !== "");
-  const builderOption = asOptions(q.options).find((option) => option.builder);
-  const linkedFormatValues = builderOption
-    ? rows
-        .filter((r) => r.answers?.[q.id] === builderOption.value)
-        .map((r) => r.answers?.[`${q.id}__format`])
-        .filter((value) => Array.isArray(value))
-    : [];
+  const builderOptions = asOptions(q.options).filter((option) => option.builder);
+  const formatsFor = (val: string) =>
+    rows
+      .filter((r) => r.answers?.[q.id] === val)
+      .map((r) => r.answers?.[`${q.id}__format`])
+      .filter((value) => Array.isArray(value));
+  const linkedFormatValues = builderOptions.flatMap((o) => formatsFor(o.value));
   if (values.length === 0 && linkedFormatValues.length === 0)
     return (
       <section className="py-5 text-sm">
@@ -735,31 +741,35 @@ function QuestionResults({ q, rows }: { q: SurveyQuestion; rows: ResponseRow[] }
   Object.entries(counts).forEach(([k, n]) => {
     labelled[opts.find((o) => o.value === k)?.label ?? k] = n;
   });
-  const linkedFormatCounts = countFormats(linkedFormatValues);
-  const linkedFormatTotal = Object.values(linkedFormatCounts).reduce((sum, count) => sum + count, 0);
   return (
     <section className="py-5 text-sm">
       <ResultHeading prompt={q.prompt} count={values.length} />
       <div className="mt-3">
         <Bars counts={labelled} total={values.length} />
       </div>
-      {builderOption && counts[builderOption.value] > 0 && (
-        <div className="mt-5 border-l-2 border-primary/60 pl-4">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="font-semibold text-foreground">Chosen fixed formats</p>
-            <span className="text-xs text-muted-foreground">
-              {linkedFormatTotal} of {counts[builderOption.value]} described
-            </span>
-          </div>
-          {linkedFormatTotal > 0 ? (
-            <div className="mt-3">
-              <Bars counts={linkedFormatCounts} total={linkedFormatTotal} />
+      {builderOptions
+        .filter((o) => counts[o.value] > 0)
+        .map((o) => {
+          const fc = countFormats(formatsFor(o.value));
+          const total = Object.values(fc).reduce((sum, c) => sum + c, 0);
+          return (
+            <div key={o.value} className="mt-5 border-l-2 border-primary/60 pl-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="font-semibold text-foreground">Formats from “{o.label}”</p>
+                <span className="text-xs text-muted-foreground">
+                  {total} of {counts[o.value]} described
+                </span>
+              </div>
+              {total > 0 ? (
+                <div className="mt-3">
+                  <Bars counts={fc} total={total} />
+                </div>
+              ) : (
+                <p className="mt-2 text-muted-foreground">No format details were added.</p>
+              )}
             </div>
-          ) : (
-            <p className="mt-2 text-muted-foreground">No format details were added.</p>
-          )}
-        </div>
-      )}
+          );
+        })}
     </section>
   );
 }
