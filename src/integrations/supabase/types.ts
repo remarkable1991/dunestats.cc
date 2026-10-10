@@ -402,6 +402,7 @@ export type Database = {
           expansions: string[] | null
           id: number
           mode: string | null
+          modules: string[]
           name: string
           start_date: string
         }
@@ -412,6 +413,7 @@ export type Database = {
           expansions?: string[] | null
           id?: number
           mode?: string | null
+          modules?: string[]
           name: string
           start_date: string
         }
@@ -422,6 +424,7 @@ export type Database = {
           expansions?: string[] | null
           id?: number
           mode?: string | null
+          modules?: string[]
           name?: string
           start_date?: string
         }
