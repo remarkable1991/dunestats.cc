@@ -543,7 +543,7 @@ export type Database = {
       }
       matchmaking_queue: {
         Row: {
-          discord_user_id: string
+          discord_user_id: string | null
           display_name: string | null
           duration_minutes: number
           expires_at: string | null
@@ -554,7 +554,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
-          discord_user_id: string
+          discord_user_id?: string | null
           display_name?: string | null
           duration_minutes?: number
           expires_at?: string | null
@@ -565,7 +565,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
-          discord_user_id?: string
+          discord_user_id?: string | null
           display_name?: string | null
           duration_minutes?: number
           expires_at?: string | null
@@ -1900,6 +1900,11 @@ export type Database = {
         Returns: Json
       }
       match_actor_name: { Args: { _uid: string }; Returns: string }
+      mm_join_queue: {
+        Args: { p_duration_minutes: number; p_mode: string }
+        Returns: Json
+      }
+      mm_leave_queue: { Args: { p_mode: string }; Returns: Json }
       my_roles: { Args: never; Returns: string[] }
       promote_to_grandfinal: {
         Args: { p_players: string[]; p_tournament_num: number }
