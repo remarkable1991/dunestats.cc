@@ -24,8 +24,13 @@ function iconFor(name: string): string | null {
   if (n.includes("epic")) return epicIcon.url;
   return null;
 }
+function presetExtras(p: Preset): string[] {
+  const out = [...(p.expansions ?? []), ...(p.modules ?? [])];
+  if (p.mode?.toLowerCase().includes("choam")) out.push("CHOAM");
+  return out.map((x) => (x.toLowerCase().includes("choam") ? "CHOAM" : x)).filter((x, i, a) => a.indexOf(x) === i);
+}
 function FormatLine({ label, p }: { label: string; p: Preset }) {
-  const parts = [p.board_type, ...(p.expansions ?? [])];
+  const parts = [p.board_type, ...presetExtras(p).map((x) => (x === "CHOAM" ? "CHOAM Module" : x))];
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs">
       <span className="text-muted-foreground w-14">{label}</span>
@@ -55,7 +60,7 @@ type QueueRow = {
   discord_user_id: string | null;
   expires_at: string | null;
 };
-type Preset = { id: number; name: string; board_type: string; expansions: string[] | null; start_date: string; end_date: string };
+type Preset = { id: number; name: string; board_type: string; expansions: string[] | null; modules: string[] | null; mode: string | null; start_date: string; end_date: string };
 
 const DURATIONS = {
   live: [5, 15, 30, 45, 60].map((m) => ({ m, label: `${m} min` })),
@@ -92,7 +97,7 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
     const iso = new Date().toISOString();
     void supabase
       .from("league_presets")
-      .select("id,name,board_type,expansions,start_date,end_date")
+      .select("id,name,board_type,expansions,modules,mode,start_date,end_date")
       .gt("end_date", iso)
       .order("start_date", { ascending: true })
       .order("id", { ascending: false })
@@ -134,6 +139,26 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
       return;
     }
     toast.success(`Joined the ${mode === "live" ? "Live" : "ASync"} queue${linked ? "" : " (no linked Discord yet)"}`);
+    void load();
+  };
+  const host = async (mode: "live" | "async") => {
+    if (!preset) return toast.error("No active league format");
+    setBusy(`host-${mode}`);
+    const { data, error } = await supabase.rpc("lfg_create_lobby", {
+      p_mode: mode,
+      p_board: preset.board_type,
+      p_expansions: presetExtras(preset),
+      p_notes: "",
+      p_password: "",
+      p_expires_minutes: dur[mode],
+      p_guest_players: [],
+      p_is_league: true,
+    });
+    setBusy(null);
+    const res = data as { ok?: boolean; error?: string; id?: number } | null;
+    if (error || !res?.ok) return toast.error(res?.error ?? error?.message ?? "Could not host");
+    toast.success("League table created — waiting players were added");
+    if (res.id) void navigate({ to: "/lfg/$id", params: { id: String(res.id) } });
     void load();
   };
   const leave = async (mode: string) => {
@@ -191,6 +216,10 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
                 <Button size="sm" disabled={!myIgn || busy === mode} onClick={() => void join(mode)}>
                   {busy === mode && <Loader2 className="size-4 animate-spin" />}
                   {mine ? "Restart timer" : "Join queue"}
+                </Button>
+                <Button size="sm" variant="secondary" disabled={!myIgn || !preset || busy === `host-${mode}`} onClick={() => void host(mode)}>
+                  {busy === `host-${mode}` && <Loader2 className="size-4 animate-spin" />}
+                  Host now
                 </Button>
                 {mine && <Button size="sm" variant="outline" disabled={busy === mode} onClick={() => void leave(mode)}>Leave</Button>}
               </div>
