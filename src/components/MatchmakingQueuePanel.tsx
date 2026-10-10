@@ -5,6 +5,46 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Users } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import liveIcon from "@/assets/live-mode.png.asset.json";
+import asyncIcon from "@/assets/async-mode.png.asset.json";
+import uprisingIcon from "@/assets/uprising.png.asset.json";
+import ixIcon from "@/assets/ix.png.asset.json";
+import immoIcon from "@/assets/immo.png.asset.json";
+import choamIcon from "@/assets/choam.png.asset.json";
+import epicIcon from "@/assets/epic.png.asset.json";
+
+const MODE_ICON = { live: liveIcon.url, async: asyncIcon.url } as const;
+function iconFor(name: string): string | null {
+  const n = name.toLowerCase();
+  if (n.includes("uprising")) return uprisingIcon.url;
+  if (n.includes("ix")) return ixIcon.url;
+  if (n.includes("immortal")) return immoIcon.url;
+  if (n.includes("choam")) return choamIcon.url;
+  if (n.includes("epic")) return epicIcon.url;
+  return null;
+}
+function FormatLine({ label, p }: { label: string; p: Preset }) {
+  const parts = [p.board_type, ...(p.expansions ?? [])];
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <span className="text-muted-foreground w-14">{label}</span>
+      <span className="font-medium text-foreground">{p.name}</span>
+      {parts.map((x) => {
+        const ic = iconFor(x);
+        return (
+          <Badge key={x} variant="secondary" className="gap-1">
+            {ic && <img src={ic} alt="" className="size-4 object-contain" />}
+            {x}
+          </Badge>
+        );
+      })}
+      <span className="text-muted-foreground">
+        {label === "Now" ? `until ${new Date(p.end_date).toLocaleDateString()}` : `from ${new Date(p.start_date).toLocaleDateString()}`}
+      </span>
+    </div>
+  );
+}
 
 type QueueRow = {
   id: string;
@@ -33,6 +73,8 @@ function left(iso: string | null, now: number) {
 export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null; myIgn: string | null }) {
   const [rows, setRows] = useState<QueueRow[]>([]);
   const [preset, setPreset] = useState<Preset | null>(null);
+  const [nextPreset, setNextPreset] = useState<Preset | null>(null);
+  const navigate = useNavigate();
   const [busy, setBusy] = useState<string | null>(null);
   const [dur, setDur] = useState<{ live: number; async: number }>({ live: 45, async: 360 });
   const [now, setNow] = useState(() => Date.now());
@@ -51,12 +93,19 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
     void supabase
       .from("league_presets")
       .select("id,name,board_type,expansions,start_date,end_date")
-      .lte("start_date", iso)
       .gt("end_date", iso)
-      .order("start_date", { ascending: false })
+      .order("start_date", { ascending: true })
       .order("id", { ascending: false })
-      .limit(1)
-      .then(({ data }) => setPreset((data?.[0] as Preset) ?? null));
+      .limit(10)
+      .then(({ data }) => {
+        const list = (data ?? []) as Preset[];
+        const now = Date.now();
+        const cur = list
+          .filter((p) => new Date(p.start_date).getTime() <= now)
+          .sort((a, b) => b.start_date.localeCompare(a.start_date) || b.id - a.id)[0] ?? null;
+        setPreset(cur);
+        setNextPreset(list.find((p) => new Date(p.start_date).getTime() > now) ?? null);
+      });
     const ch = supabase
       .channel("mm-queue")
       .on("postgres_changes", { event: "*", schema: "public", table: "matchmaking_queue" }, () => void load())
@@ -77,7 +126,13 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
     const { data, error } = await supabase.rpc("mm_join_queue" as never, { p_mode: mode, p_duration_minutes: dur[mode] } as never);
     setBusy(null);
     if (error) return toast.error(error.message);
-    const linked = (data as { linked_discord?: boolean } | null)?.linked_discord;
+    const res = data as { linked_discord?: boolean; seated?: boolean; lobby_id?: number; created?: boolean } | null;
+    const linked = res?.linked_discord;
+    if (res?.seated && res.lobby_id) {
+      toast.success(res.created ? `4/4 reached — League table #${res.lobby_id} created` : `Seat taken in League table #${res.lobby_id}`);
+      void navigate({ to: "/lfg/$id", params: { id: String(res.lobby_id) } });
+      return;
+    }
     toast.success(`Joined the ${mode === "live" ? "Live" : "ASync"} queue${linked ? "" : " (no linked Discord yet)"}`);
     void load();
   };
@@ -97,13 +152,12 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
           <h2 className="font-display text-lg">League queue</h2>
           <Badge variant="outline">Admin pilot</Badge>
         </div>
-        <div className="text-xs text-muted-foreground">
-          {preset ? (
-            <>Current format: <span className="text-foreground font-medium">{preset.name}</span> · {preset.board_type}
-              {preset.expansions?.length ? ` + ${preset.expansions.join(", ")}` : ""} · until {new Date(preset.end_date).toLocaleDateString()}</>
-          ) : "No active league format"}
-        </div>
       </div>
+      <div className="space-y-1.5">
+        {preset ? <FormatLine label="Now" p={preset} /> : <p className="text-xs text-muted-foreground">No active league format</p>}
+        {nextPreset && <FormatLine label="Next" p={nextPreset} />}
+      </div>
+      <p className="text-xs text-muted-foreground">If an open League table for your mode has a seat, joining puts you straight in it.</p>
       {!myIgn && <p className="text-sm text-destructive">Claim your in-game name first to join a queue.</p>}
       <div className="grid gap-4 md:grid-cols-2">
         {(["live", "async"] as const).map((mode) => {
@@ -112,7 +166,7 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
           return (
             <div key={mode} className="rounded-md border border-border p-3 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="font-medium">{mode === "live" ? "⚔️ Live" : "🎲 ASync"}</span>
+                <span className="flex items-center gap-2 font-medium"><img src={MODE_ICON[mode]} alt="" className="size-5 object-contain" />{mode === "live" ? "Live" : "ASync"}</span>
                 <span className="flex items-center gap-1 text-sm text-muted-foreground"><Users className="size-4" />{list.length}/4</span>
               </div>
               <ul className="space-y-1 text-sm min-h-6">
