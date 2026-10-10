@@ -544,21 +544,36 @@ export type Database = {
       matchmaking_queue: {
         Row: {
           discord_user_id: string
+          display_name: string | null
+          duration_minutes: number
           expires_at: string | null
+          id: string
           joined_at: string | null
           mode: string
+          player_key: string | null
+          user_id: string | null
         }
         Insert: {
           discord_user_id: string
+          display_name?: string | null
+          duration_minutes?: number
           expires_at?: string | null
+          id?: string
           joined_at?: string | null
           mode: string
+          player_key?: string | null
+          user_id?: string | null
         }
         Update: {
           discord_user_id?: string
+          display_name?: string | null
+          duration_minutes?: number
           expires_at?: string | null
+          id?: string
           joined_at?: string | null
           mode?: string
+          player_key?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
