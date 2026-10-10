@@ -1900,6 +1900,7 @@ export type Database = {
         Returns: Json
       }
       match_actor_name: { Args: { _uid: string }; Returns: string }
+      mm_fill_lobby: { Args: { p_id: number }; Returns: number }
       mm_join_queue: {
         Args: { p_duration_minutes: number; p_mode: string }
         Returns: Json
