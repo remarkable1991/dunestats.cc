@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isHost } from "@/lib/lfg-seats";
+import { LobbyPasswordRow } from "@/components/LobbyPasswordRow";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -656,30 +657,7 @@ function LfgCard({
         })}
       </div>
 
-      <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-background/40 px-3 py-2">
-        <span className="text-xs text-muted-foreground">Password</span>
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-sm">
-            {row.lobby_password ? (reveal ? row.lobby_password : "••••••") : "None"}
-          </span>
-          {row.lobby_password && (
-            <>
-              <button onClick={() => setReveal((v) => !v)} aria-label="Reveal password">
-                {reveal ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
-              <button
-                aria-label="Copy password"
-                onClick={() => {
-                  navigator.clipboard.writeText(row.lobby_password ?? "");
-                  toast.success("Password copied");
-                }}
-              >
-                <Copy className="size-4" />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+      <LobbyPasswordRow row={row} canEdit={canManage} onSaved={onChanged} />
 
       <div className="flex items-center gap-2 text-sm">
         {expired ? (
