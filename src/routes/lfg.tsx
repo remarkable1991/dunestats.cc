@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { MatchmakingQueuePanel } from "@/components/MatchmakingQueuePanel";
 import { Switch } from "@/components/ui/switch";
 import {
   Users,
@@ -369,6 +370,8 @@ function LfgPage() {
             Create LFG
           </Button>
         </div>
+
+        {isLfgAdmin && <MatchmakingQueuePanel userId={userId} myIgn={myIgn} />}
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList>
