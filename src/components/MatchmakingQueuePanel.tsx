@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Users } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
+import { applyDefaultPassword } from "@/components/LobbyPasswordRow";
 import liveIcon from "@/assets/live-mode.png.asset.json";
 import asyncIcon from "@/assets/async-mode.png.asset.json";
 import uprisingIcon from "@/assets/uprising.png.asset.json";
@@ -157,7 +158,8 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
     setBusy(null);
     const res = data as { ok?: boolean; error?: string; id?: number } | null;
     if (error || !res?.ok) return toast.error(res?.error ?? error?.message ?? "Could not host");
-    toast.success("League table created — waiting players were added");
+    if (res.id) await applyDefaultPassword(res.id).catch(() => toast.error("Table created, but the password could not be set"));
+    toast.success(`League table created — password sa${res.id}`);
     if (res.id) void navigate({ to: "/lfg/$id", params: { id: String(res.id) } });
     void load();
   };

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Globe, UserMinus, Link2, Loader2, Upload, Users, Trophy, Clock } from "lucide-react";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isMember, isHost, type Seat } from "@/lib/lfg-seats";
+import { LobbyPasswordRow } from "@/components/LobbyPasswordRow";
 
 export const Route = createFileRoute("/lfg_/$id")({
   head: ({ params }) => ({
@@ -258,6 +259,13 @@ function LobbyPage() {
             <Button asChild size="sm" variant="outline"><a href={discordUrl} target="_blank" rel="noreferrer">Open in Discord</a></Button>
           )}
         </div>
+      </div>
+      <div className="max-w-md">
+        {(member || canManage) ? (
+          <LobbyPasswordRow row={row} canEdit={canManage} onSaved={() => void load()} />
+        ) : (
+          <p className="text-xs text-muted-foreground">Join this lobby to see its password.</p>
+        )}
       </div>
 
       {row.message_text?.trim() && (
