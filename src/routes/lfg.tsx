@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isHost } from "@/lib/lfg-seats";
 import { LobbyPasswordRow } from "@/components/LobbyPasswordRow";
+import { LobbyFormatIcons } from "@/components/LobbyFormatIcons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -574,14 +575,7 @@ function LfgCard({
               <Trophy className="size-3" /> League{leagueDisplay?.season != null ? ` · S${leagueDisplay.season}` : ""}
             </span>
           )}
-          {(row.board_type ?? "").toLowerCase().includes("uprising") && (
-            <ExpansionBadge src={uprisingIcon.url} title="Uprising" />
-          )}
-          {hasExp(row, "ix") && <ExpansionBadge src={ixIcon.url} title="Rise of Ix" />}
-          {hasExp(row, "immo") && <ExpansionBadge src={immoIcon.url} title="Immortality" />}
-          {hasExp(row, "epic") && <ExpansionBadge src={epicIcon.url} title="Epic Mode" />}
-          {hasExp(row, "base leader") && <ExpansionBadge src={baseLeadersIcon.url} title="Base Leaders" />}
-          {hasExp(row, "choam") && <ExpansionBadge src={choamIcon.url} title="CHOAM Module" />}
+          <LobbyFormatIcons row={row} />
           {canManage && (
             <Button
               variant="ghost"

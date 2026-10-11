@@ -11,6 +11,9 @@ import { ArrowLeft, Globe, UserMinus, Link2, Loader2, Upload, Users, Trophy, Clo
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isMember, isHost, type Seat } from "@/lib/lfg-seats";
 import { LobbyPasswordRow } from "@/components/LobbyPasswordRow";
+import { LobbyFormatIcons } from "@/components/LobbyFormatIcons";
+import liveIcon from "@/assets/live-mode.png.asset.json";
+import asyncIcon from "@/assets/async-mode.png.asset.json";
 
 export const Route = createFileRoute("/lfg_/$id")({
   head: ({ params }) => ({
@@ -228,6 +231,9 @@ function LobbyPage() {
   }
 
   const full = seats.length >= 4;
+  const hostName = seats.find((seat) => seat.host)?.name;
+  const lobbyName = hostName && hostName !== UNKNOWN_NAME ? `${hostName}'s Game` : "New Match Open!";
+  const live = (row.mode ?? "async").toLowerCase() === "live";
   const started = row.status === "started";
   const discordUrl = row.guild_id && row.channel_id && row.message_id ? `https://discord.com/channels/${row.guild_id}/${row.channel_id}/${row.message_id}` : null;
   const timeline = [
@@ -241,12 +247,17 @@ function LobbyPage() {
   return (
     <Shell>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-display text-3xl">Lobby {row.match_id ?? `#${row.id}`}</h1>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-3">
+            <img src={live ? liveIcon.url : asyncIcon.url} alt={live ? "Live" : "ASync"} className="size-8 shrink-0 object-contain" />
+            <h1 className="font-display text-3xl break-words">{lobbyName}</h1>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">Lobby {row.match_id ?? `#${row.id}`}</p>
           <p className="text-sm text-muted-foreground mt-1">
             {(row.mode ?? "async").toUpperCase()} · {row.board_type ?? "Board not set"}
             {[...(row.expansions ?? []), ...(row.modules ?? [])].length ? ` · ${[...(row.expansions ?? []), ...(row.modules ?? [])].join(", ")}` : ""}
           </p>
+          <div className="mt-2"><LobbyFormatIcons row={row} /></div>
         </div>
         <div className="flex flex-wrap gap-2">
           {row.is_league && (
