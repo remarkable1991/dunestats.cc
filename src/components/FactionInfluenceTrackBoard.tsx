@@ -71,12 +71,15 @@ export function FactionInfluenceTrackBoard({
   onUpdateInfluence,
   compact = false,
   focusedFaction = null,
+  onlyFaction = null,
 }: {
   players: TelemetryPlayer[];
   canEdit?: boolean;
   onUpdateInfluence?: (next: TelemetryPlayer[], message: string) => void;
   compact?: boolean;
   focusedFaction?: FactionKey | null;
+  /** Render just this one faction track (used inside the guided zoom). */
+  onlyFaction?: FactionKey | null;
 }) {
   const [conflict, setConflict] = useState<{
     faction: FactionMeta;
@@ -97,7 +100,9 @@ export function FactionInfluenceTrackBoard({
 
   const cellH = compact ? 13 : 16;
   const gap = 2;
-  const visibleFactions = focusedFaction
+  const visibleFactions = onlyFaction
+    ? FACTIONS.filter((f) => f.key === onlyFaction)
+    : focusedFaction
     ? [...FACTIONS].sort((a, b) => Number(b.key === focusedFaction) - Number(a.key === focusedFaction))
     : FACTIONS;
 

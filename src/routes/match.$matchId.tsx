@@ -2072,6 +2072,8 @@ function VerificationCard({
                   finishLabel={canEdit ? (isMatchStaff ? "Mark as manually verified" : "Finish manual review") : undefined}
                   finishing={saving}
                   onFinish={canEdit ? () => void finishReview() : undefined}
+                  canEdit={canEdit}
+                  onUpdateInfluence={(next, msg) => void persist(next, msg)}
                 />
               </div>
             )}
