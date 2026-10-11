@@ -12,6 +12,7 @@ import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isMember, isHost, type Seat } from "@/lib/lfg-seats";
 import { LobbyPasswordRow } from "@/components/LobbyPasswordRow";
 import { LobbyFormatIcons } from "@/components/LobbyFormatIcons";
+import { CancelLobbyButton } from "@/components/CancelLobbyButton";
 import liveIcon from "@/assets/live-mode.png.asset.json";
 import asyncIcon from "@/assets/async-mode.png.asset.json";
 
@@ -235,6 +236,7 @@ function LobbyPage() {
   const lobbyName = hostName && hostName !== UNKNOWN_NAME ? `${hostName}'s Game` : "New Match Open!";
   const live = (row.mode ?? "async").toLowerCase() === "live";
   const started = row.status === "started";
+  const openLobby = ["pending_creation", "posting", "searching"].includes(row.status);
   const discordUrl = row.guild_id && row.channel_id && row.message_id ? `https://discord.com/channels/${row.guild_id}/${row.channel_id}/${row.message_id}` : null;
   const timeline = [
     { at: row.created_at, text: "Lobby created" },
@@ -266,6 +268,7 @@ function LobbyPage() {
             </span>
           )}
           <span className="inline-flex items-center rounded-full border border-border/60 px-2.5 py-1 text-xs capitalize">{row.status}</span>
+          {canManage && <CancelLobbyButton id={row.id} status={row.status} onCancelled={() => void load()} />}
           {discordUrl && (
             <Button asChild size="sm" variant="outline"><a href={discordUrl} target="_blank" rel="noreferrer">Open in Discord</a></Button>
           )}
@@ -297,14 +300,14 @@ function LobbyPage() {
                   elo={row.is_league && isAdmin ? (seat.playerKey ? ratings[seat.playerKey] ?? 1000 : null) : null}
                   isAdmin={isAdmin}
                   onMapped={load}
-                  onRemove={canManage && !seat.host ? () => removeSeat(seat) : undefined}
+                  onRemove={canManage && openLobby && !seat.host ? () => removeSeat(seat) : undefined}
                 />
               ) : (
                 <div key={i} className="rounded-lg border border-dashed border-border/60 p-4 text-sm text-muted-foreground">Open seat</div>
               );
             })}
           </div>
-          {(canManage || member) && !full && !started && (
+          {(canManage || member) && !full && openLobby && (
             <div className="flex gap-2 max-w-md">
               <Input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Add player (in-game name)" className="h-9" />
               <Button size="sm" onClick={addPlayer} disabled={addBusy || !addName.trim()}>

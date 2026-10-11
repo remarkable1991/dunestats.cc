@@ -3,6 +3,7 @@ import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isHost } from "@/lib/lfg-seats";
 import { LobbyPasswordRow } from "@/components/LobbyPasswordRow";
 import { LobbyFormatIcons } from "@/components/LobbyFormatIcons";
+import { CancelLobbyButton } from "@/components/CancelLobbyButton";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -676,6 +677,7 @@ function LfgCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        {canManage && <CancelLobbyButton id={row.id} status={row.status} onCancelled={onChanged} />}
         <Button asChild variant="outline" size="sm">
           <Link to="/lfg/$id" params={{ id: String(row.id) }}>Open lobby page</Link>
         </Button>
