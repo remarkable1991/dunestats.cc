@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2, AlertTriangle, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { colorHex, type TelemetryPlayer } from "@/lib/match-telemetry";
+import { colorHex, FACTION_ALLIANCE_KEYS, type TelemetryPlayer } from "@/lib/match-telemetry";
+import { FactionInfluenceTrackBoard } from "@/components/FactionInfluenceTrackBoard";
 import {
   FACTIONS,
   type FactionKey,
@@ -58,6 +59,8 @@ export function GuidedZoomVerifier({
   finishLabel,
   finishing,
   onFinish,
+  canEdit = false,
+  onUpdateInfluence,
 }: {
   src: string;
   players: TelemetryPlayer[];
@@ -66,6 +69,8 @@ export function GuidedZoomVerifier({
   finishLabel?: string;
   finishing?: boolean;
   onFinish?: () => void;
+  canEdit?: boolean;
+  onUpdateInfluence?: (next: TelemetryPlayer[], message: string) => void;
 }) {
   const [aspect, setAspect] = useState<number | null>(null);
   const [override, setOverride] = useState<ZoomLayout | null>(null);
@@ -163,6 +168,18 @@ export function GuidedZoomVerifier({
 
       {!full && <p className="text-[11px] text-muted-foreground">{step.hint}</p>}
 
+      {!full && step.focus.kind === "faction" && (
+        <div className="flex justify-center">
+          <FactionInfluenceTrackBoard
+            players={players}
+            canEdit={canEdit}
+            onUpdateInfluence={onUpdateInfluence}
+            compact
+            onlyFaction={step.focus.faction}
+          />
+        </div>
+      )}
+
       {!full && step.tie && aspect && (
         <div className="rounded border border-amber-500/50 bg-amber-500/10 p-2 space-y-2">
           <div className="flex items-center gap-1.5 text-xs text-amber-500">
@@ -177,6 +194,27 @@ export function GuidedZoomVerifier({
                     {p.player_name}
                   </div>
                   <ZoomCrop src={src} box={ZOOM_BOXES[layout].slots[p.player_slot as 1 | 2 | 3 | 4]} aspect={aspect} />
+                  {(() => {
+                    if (step.focus.kind !== "faction") return null;
+                    const key = FACTION_ALLIANCE_KEYS[step.focus.faction as keyof typeof FACTION_ALLIANCE_KEYS];
+                    const holds = (p as unknown as Record<string, unknown>)[key] === true;
+                    return (
+                      <Button
+                        size="sm"
+                        variant={holds ? "default" : "outline"}
+                        className="w-full h-7 text-[11px]"
+                        disabled={!canEdit || !onUpdateInfluence || holds}
+                        onClick={() =>
+                          onUpdateInfluence?.(
+                            players.map((q) => ({ ...q, [key]: q.player_name === p.player_name })),
+                            `${step.title.replace(" track", "")} alliance assigned to ${p.player_name}`,
+                          )
+                        }
+                      >
+                        {holds ? <><Check className="size-3.5" /> Holds alliance</> : "Award alliance"}
+                      </Button>
+                    );
+                  })()}
                 </div>
               ) : null,
             )}
