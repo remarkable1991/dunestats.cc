@@ -1,8 +1,8 @@
 # Roadmap
 
-- [ ] Show lobby icons and the host's game name on lobby details.
-- [ ] Add host/admin cancellation on the LFG list and lobby details without schema changes.
-- [ ] Verify lobby display and cancellation controls.
+- [x] Show lobby icons and the host's game name on lobby details.
+- [x] Add host/admin cancellation on the LFG list and lobby details without schema changes.
+- [x] Verify lobby display and cancellation controls with browser fixtures; real authenticated cancellation remains untested on external Supabase.
 
 - [x] Show linked League fixed-format selections in survey results.
 - [x] Restore saved responses for returning signed-in players.
