@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { HeatmapBody, type HeatmapPlayer } from "@/components/AvailabilityHeatmap";
 import { Navbar } from "@/components/Navbar";
+import { SemiFinalsStudio } from "@/components/SemiFinalsStudio";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -145,6 +146,7 @@ function MatchmakingPage() {
   const [best, setBest] = useState<MatchmakerCandidate | null>(null);
   const [selectedRound, setSelectedRound] = useState("1");
   const [mode, setMode] = useState<MatchMode>("live");
+  const [stage, setStage] = useState<"qualifiers" | "semis">("qualifiers");
   const [pendingCheckIn, setPendingCheckIn] = useState<{ row: MatchmakerRegistration; checked: boolean } | null>(null);
   const [checkInBusy, setCheckInBusy] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
@@ -319,6 +321,8 @@ function MatchmakingPage() {
             </div>
           </Card>
 
+          <div className="flex gap-2"><Button variant={stage === "qualifiers" ? "default" : "outline"} size="sm" onClick={() => setStage("qualifiers")}>Qualifiers</Button><Button variant={stage === "semis" ? "default" : "outline"} size="sm" onClick={() => setStage("semis")} disabled={running}>Semi-finals</Button></div>
+          {stage === "semis" ? (tournament && <SemiFinalsStudio key={tournament.tournament_num} tournament={tournament} />) : <>
           <Card className="border-sand/40 p-5">
             <h2 className="font-display text-xl">Qualifier mode</h2>
             <p className="text-xs text-muted-foreground">Chosen automatically from the tournament, switch anytime. This decides the controls and exports below.</p>
@@ -358,6 +362,7 @@ function MatchmakingPage() {
           </Card>
 
           {best && <Results mode={mode} candidate={best} rows={audit.active} tournamentNum={selectedNum ?? 0} selectedRound={selectedRound} onRoundChange={setSelectedRound} onPublish={() => setPublishOpen(true)} canPublish={!running} />}
+          </>}
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
