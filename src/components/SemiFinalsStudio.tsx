@@ -180,7 +180,7 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
             <div>
               <div className="flex items-center gap-2 text-teal"><CheckCircle2 className="size-5" /><span className="text-xs font-semibold uppercase">Trial seed — not published</span></div>
               <h2 className="mt-1 font-display text-2xl">Best semi-final split</h2>
-              <p className="text-xs text-muted-foreground">{draft.partitionsTested} splits tested. Review, export, then publish.</p>
+              <p className="text-xs text-muted-foreground">{draft.partitionsTested} splits × {draft.slotsScanned} half-hour slots checked. Review, export, then publish.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={async () => { await navigator.clipboard.writeText(announcement(num, draft, grandFinal)); toast.success("Announcement copied"); }}><Clipboard className="size-4" /> Discord text</Button>
@@ -188,6 +188,16 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
               <Button size="sm" onClick={openPublish}><Upload className="size-4" /> Publish</Button>
             </div>
           </div>
+          {(() => {
+            const perfect = draft.tables.reduce((n, t) => n + t.slots.filter((s) => s.type === "perfect").length, 0);
+            const closest = draft.tables.map((t) => t.closest[0]);
+            return (
+              <p className={`mt-3 rounded-md border p-2 text-sm ${perfect ? "border-teal/40" : "border-coral/40"}`}>
+                {perfect ? `${perfect} full 4/4 window${perfect > 1 ? "s" : ""} found.` : "No 4/4 windows in this period."}{" "}
+                {draft.tables.map((t, i) => <span key={t.name} className="mr-2">{t.name}: closest {closest[i] ? `${closest[i].filled}/${closest[i].total}` : "0"} player-slots.</span>)}
+              </p>
+            );
+          })()}
           {grandFinal.length > 0 && <p className="mt-3 flex items-center gap-2 text-sm"><Trophy className="size-4 text-sand" /> Direct to Grand Final: <strong>{grandFinal.map((s) => s.player).join(", ")}</strong></p>}
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             {draft.tables.map((t) => (
@@ -202,9 +212,42 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
                     <p key={i}><Badge variant={s.type === "perfect" ? "default" : "outline"} className="mr-2 text-[10px]">{s.type === "perfect" ? "4/4" : "3/4"}</Badge>{new Date(s.start).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}{s.missing.length > 0 && <span className="text-coral"> · check {s.missing.join(", ")}</span>}</p>
                   ))}
                 </div>
+                {t.noAvailability.length > 0 && <p className="mt-2 text-xs text-coral">No availability in this period: {t.noAvailability.join(", ")}</p>}
+                <div className="mt-3 border-t border-border/40 pt-2">
+                  <p className="text-xs font-semibold uppercase text-muted-foreground">Closest windows</p>
+                  {t.closest.length === 0 && <p className="text-xs text-muted-foreground">Nobody at this table has availability in the window.</p>}
+                  {t.closest.map((c, ci) => (
+                    <div key={ci} className="mt-2 text-xs">
+                      <p className="font-medium">{new Date(c.start).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} · <span className={c.filled === c.total ? "text-teal" : "text-sand"}>{(c.filled / 4).toFixed(2)}/4 avg ({c.filled}/{c.total})</span></p>
+                      <div className="mt-1 space-y-0.5">
+                        {c.perPlayer.map((pp) => {
+                          const missing = pp.blocks.filter((b) => !b).length;
+                          return (
+                            <div key={pp.player} className="flex items-center gap-2">
+                              <span className="w-28 truncate">{pp.player}</span>
+                              <span className="flex gap-0.5">{pp.blocks.map((b, bi) => <span key={bi} title={new Date(c.start + bi * 1_800_000).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })} className={`h-3 w-5 rounded-sm ${b ? "bg-teal" : "bg-coral/60"}`} />)}</span>
+                              {missing > 0 && <span className="text-muted-foreground">missing {missing * 30} min</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  <p className="mt-2 text-[11px] text-muted-foreground">Hours free in period: {t.players.map((p) => `${p} ${t.availableHours[p]}h`).join(" · ")}</p>
+                </div>
               </Card>
             ))}
           </div>
+          {draft.alternatives.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">Runner-up splits</p>
+              <ul className="mt-1 space-y-1 text-xs">
+                {draft.alternatives.map((a, i) => (
+                  <li key={i} className="text-muted-foreground"><span className="text-foreground">{a.tables.map((t) => t.join(", ")).join("  |  ")}</span> · {a.perfect} × 4/4, {a.near} × 3/4, worst table closest {a.bestFilled}/16</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
       )}
 

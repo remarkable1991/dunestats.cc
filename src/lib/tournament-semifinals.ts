@@ -31,8 +31,10 @@ export type SemiRegistration = {
 };
 
 export type SemiSlot = { start: number; type: "perfect" | "near"; missing: string[] };
-export type SemiTable = { name: string; players: string[]; slots: SemiSlot[]; avgTp: number; avgRank: number };
-export type SemiDraft = { tables: SemiTable[]; score: number; partitionsTested: number };
+export type ClosestWindow = { start: number; filled: number; total: number; perPlayer: { player: string; blocks: boolean[] }[] };
+export type SemiTable = { name: string; players: string[]; slots: SemiSlot[]; avgTp: number; avgRank: number; closest: ClosestWindow[]; noAvailability: string[]; availableHours: Record<string, number> };
+export type SemiAlternative = { score: number; tables: string[][]; perfect: number; near: number; bestFilled: number };
+export type SemiDraft = { tables: SemiTable[]; score: number; partitionsTested: number; slotsScanned: number; alternatives: SemiAlternative[] };
 
 const SWISS = new Set(["Game 1", "Game 2", "Game 3", "Game_1", "Game_2", "Game_3"]);
 const SLOT_MS = 30 * 60_000;
@@ -132,6 +134,28 @@ function tableSlots(players: string[], maps: Map<string, Uint8Array>, count: num
   return out.sort((a, b) => a.start - b.start);
 }
 
+/** Best 2-hour windows by player-slots filled (out of 16), even when nobody lines up fully. */
+function closestWindows(players: string[], maps: Map<string, Uint8Array>, count: number, take = 3): { start: number; filled: number; perPlayer: { player: string; blocks: boolean[] }[] }[] {
+  const bms = players.map((p) => maps.get(p)!);
+  const cands: { i: number; tot: number }[] = [];
+  for (let i = 0; i + WINDOW <= count; i++) {
+    let tot = 0;
+    for (const b of bms) for (let k = 0; k < WINDOW; k++) tot += b[i + k];
+    if (tot > 0) cands.push({ i, tot });
+  }
+  cands.sort((a, b) => b.tot - a.tot || a.i - b.i);
+  const out: { i: number; tot: number }[] = [];
+  for (const c of cands) {
+    if (out.length >= take) break;
+    if (out.every((o) => Math.abs(o.i - c.i) >= SPACING)) out.push(c);
+  }
+  return out.map((c) => ({
+    start: c.i,
+    filled: c.tot,
+    perPlayer: players.map((p, pi) => ({ player: p, blocks: Array.from({ length: WINDOW }, (_, k) => !!bms[pi][c.i + k]) })),
+  }));
+}
+
 const mean = (xs: number[]) => xs.reduce((s, n) => s + n, 0) / (xs.length || 1);
 const std = (xs: number[]) => { const m = mean(xs); return Math.sqrt(mean(xs.map((x) => (x - m) ** 2))); };
 
@@ -175,6 +199,7 @@ export function runSemiSearch(opts: {
   const names = pool.map((s) => s.player);
   const parts = names.length <= 12 ? partitions(names) : [snake(names, names.length / 4)];
   let best: SemiDraft | null = null;
+  const alts: SemiAlternative[] = [];
   for (const tables of parts) {
     const slots = tables.map((t) => tableSlots(t, maps, count, targetSlots));
     const perfect = slots.map((s) => s.filter((x) => x.type === "perfect").length);
@@ -185,17 +210,36 @@ export function runSemiSearch(opts: {
     let score = Math.min(...perfect) * 20000 + Math.min(...totals) * 5000 + totals.reduce((a, b) => a + b, 0) * 500;
     score += compat.reduce((a, b) => a + b, 0) * 10;
     score -= std(tps) * 2 + std(ranks) * 1.5;
+    const bestFilled = Math.min(...tables.map((t) => closestWindows(t, maps, count, 1)[0]?.filled ?? 0));
+    score += bestFilled * 50; // reward splits whose closest window is nearer to 16/16
+    alts.push({ score, tables: tables.map((t) => [...t].sort((a, b) => meta.get(a)!.rank - meta.get(b)!.rank)), perfect: perfect.reduce((a, b) => a + b, 0), near: totals.reduce((a, b) => a + b, 0) - perfect.reduce((a, b) => a + b, 0), bestFilled });
     if (!best || score > best.score) {
       best = {
         score,
         partitionsTested: parts.length,
+        slotsScanned: count,
+        alternatives: [],
         tables: tables
-          .map((t, i) => ({ players: [...t].sort((a, b) => meta.get(a)!.rank - meta.get(b)!.rank), slots: slots[i], avgTp: tps[i], avgRank: ranks[i] }))
+          .map((t, i) => {
+            const players = [...t].sort((a, b) => meta.get(a)!.rank - meta.get(b)!.rank);
+            const hours: Record<string, number> = {};
+            for (const p of players) hours[p] = maps.get(p)!.reduce((s, n) => s + n, 0) / 2;
+            return {
+              players,
+              slots: slots[i],
+              avgTp: tps[i],
+              avgRank: ranks[i],
+              closest: closestWindows(players, maps, count, 3).map((c) => ({ ...c, start: start + c.start * SLOT_MS, total: players.length * WINDOW })),
+              noAvailability: players.filter((p) => hours[p] === 0),
+              availableHours: hours,
+            };
+          })
           .sort((a, b) => a.avgRank - b.avgRank)
           .map((t, i) => ({ ...t, name: `Semi Final ${i + 1}`, slots: t.slots.map((s) => ({ ...s, start: start + s.start * SLOT_MS })) })),
       };
     }
   }
+  if (best) best.alternatives = alts.sort((a, b) => b.score - a.score).slice(1, 4);
   return best;
 }
 
