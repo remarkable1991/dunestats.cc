@@ -232,7 +232,7 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
             const closest = draft.tables.map((t) => t.closest[0]);
             return (
               <p className={`mt-3 rounded-md border p-2 text-sm ${perfect ? "border-teal/40" : "border-coral/40"}`}>
-                {perfect ? `${perfect} full 4/4 window${perfect > 1 ? "s" : ""} found.` : "No 4/4 windows in this period."}{" "}
+                {perfect ? `${perfect} selected full 4/4 window${perfect > 1 ? "s" : ""}.` : "No full 4/4 suggestion selected; see counts below."}{" "}
                 {draft.tables.map((t, i) => <span key={t.name} className="mr-2">{t.name}: closest {closest[i] ? `${closest[i].filled}/${closest[i].total} (${closest[i].blocks * 30} min)` : "0"} player-slots.</span>)}
               </p>
             );
@@ -284,7 +284,7 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
               <p className="text-xs font-semibold uppercase text-muted-foreground">Runner-up splits</p>
               <ul className="mt-1 space-y-1 text-xs">
                 {draft.alternatives.map((a, i) => (
-                  <li key={i} className="text-muted-foreground"><span className="text-foreground">{a.tables.map((t) => t.join(", ")).join("  |  ")}</span> · {a.perfect} × 4/4, {a.near} × 3/4, worst table closest {a.bestFilled}/{a.bestTotal}</li>
+                  <li key={i} className="text-muted-foreground"><span className="text-foreground">{a.tables.map((t) => t.join(", ")).join("  |  ")}</span> · {a.perfect} × 4/4, {a.near} partial, worst table closest {a.bestFilled}/{a.bestTotal}</li>
                 ))}
               </ul>
             </div>
