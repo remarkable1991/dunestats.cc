@@ -1,5 +1,9 @@
 # Roadmap
 
+- [ ] Add semi-finals roster inclusion, registration linking, timezones and last-update visibility.
+- [ ] Add configurable window lengths and no-zero availability ranking with window counts.
+- [ ] Verify semi-finals search and review flow without changing qualifiers or database.
+
 - [x] Show lobby icons and the host's game name on lobby details.
 - [x] Add host/admin cancellation on the LFG list and lobby details without schema changes.
 - [x] Verify lobby display and cancellation controls with browser fixtures; real authenticated cancellation remains untested on external Supabase.
