@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { TournamentConfig } from "@/lib/tournaments";
 import {
   announcement,
+  availabilityHours,
   botCsv,
   computeStandings,
   findRegistration,
@@ -17,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -40,6 +43,11 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
   const [start, setStart] = useState(() => dayValue(new Date()));
   const [end, setEnd] = useState(() => dayValue(new Date(Date.now() + 21 * 86_400_000)));
   const [target, setTarget] = useState(2);
+  const [minBlocks, setMinBlocks] = useState(2);
+  const [maxBlocks, setMaxBlocks] = useState(4);
+  const [minPlayerBlocks, setMinPlayerBlocks] = useState(1);
+  const [registrationOverrides, setRegistrationOverrides] = useState<Record<string, string>>({});
+  const [refresh, setRefresh] = useState(0);
   const [draft, setDraft] = useState<SemiDraft | null>(null);
   const [running, setRunning] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
@@ -47,17 +55,17 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
   const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
-    setRows(null); setDraft(null); setSkipped(new Set());
+    setRows(null); setDraft(null); setSkipped(new Set()); setRegistrationOverrides({});
     void Promise.all([
       supabase.from("tournament_matches").select("round_type, table_identifier, player_name, discord_username, placement, points, is_backup").eq("tournament_num", num),
-      supabase.from("tournament_registrations").select("direwolf_name, discord_username, availability, updated_at").eq("tournament_num", num),
+      supabase.from("tournament_registrations").select("id, user_id, direwolf_name, discord_username, availability, updated_at, timezone").eq("tournament_num", num),
     ]).then(([m, r]) => {
       if (m.error) toast.error(m.error.message);
       if (r.error) toast.error(r.error.message);
       setRows((m.data ?? []) as QualifierRow[]);
       setRegs((r.data ?? []) as SemiRegistration[]);
     });
-  }, [num]);
+  }, [num, refresh]);
 
   const standings = useMemo(() => computeStandings(rows ?? []), [rows]);
   const eligible = standings.filter((s) => !skipped.has(s.player));
@@ -67,21 +75,28 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
   const gfSet = new Set(grandFinal.map((s) => s.player));
   const maxGames = Math.max(0, ...standings.map((s) => s.games));
 
-  useEffect(() => setDraft(null), [skipped, start, end, target]);
+  useEffect(() => setDraft(null), [skipped, start, end, target, minBlocks, maxBlocks, minPlayerBlocks, registrationOverrides]);
+
+  const registrationOf = (player: string, discord: string | null) => {
+    const override = registrationOverrides[player];
+    return override ? regs.find((r) => r.id === override) : findRegistration(player, discord, regs);
+  };
+  const validDates = Number.isFinite(Date.parse(start)) && Number.isFinite(Date.parse(end)) && Date.parse(end) > Date.parse(start);
+  const unresolved = pool.filter((p) => !registrationOf(p.player, p.discord));
 
   const toggleSkip = (p: string) => setSkipped((prev) => { const n = new Set(prev); if (n.has(p)) n.delete(p); else n.add(p); return n; });
 
   const run = () => {
     setRunning(true);
     setTimeout(() => {
-      const result = runSemiSearch({ pool, regs, windowStart: new Date(start), windowEnd: new Date(end), targetSlots: target });
+      const result = runSemiSearch({ pool, regs, windowStart: new Date(start), windowEnd: new Date(end), targetSlots: target, minBlocks, maxBlocks, minPlayerBlocks, registrationOverrides });
       setDraft(result);
       setRunning(false);
       if (!result) toast.error(`Need a multiple of 4 semi-finalists (have ${pool.length}).`);
     }, 20);
   };
 
-  const discordOf = (p: string) => standings.find((s) => s.player === p)?.discord ?? findRegistration(p, null, regs)?.discord_username ?? null;
+  const discordOf = (p: string) => standings.find((s) => s.player === p)?.discord ?? registrationOf(p, null)?.discord_username ?? null;
 
   const openPublish = async () => {
     setExisting(null); setPublishOpen(true);
@@ -130,20 +145,22 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
             <h2 className="font-display text-xl">Qualifier standings</h2>
             <p className="text-xs text-muted-foreground">Order: TP → wins → avg placement → VP → VP share %. Top {direct} go straight to the Grand Final, next {semiCount} play the semi-finals. Skip anyone to pull in the next player.</p>
           </div>
-          <Badge variant="outline">{standings.length} players</Badge>
+          <div className="flex items-center gap-2"><Badge variant="outline">{eligible.length}/{standings.length} included</Badge><Button size="sm" variant="outline" onClick={() => setRefresh((n) => n + 1)}>Refresh registrations</Button></div>
         </div>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-muted-foreground"><tr>
-              <th className="py-1 pr-2">#</th><th className="pr-2">Player</th><th className="pr-2">TP</th><th className="pr-2">Wins</th><th className="pr-2">Avg</th><th className="pr-2">VP</th><th className="pr-2">VP %</th><th className="pr-2">Games</th><th className="pr-2">Registration edited</th><th className="pr-2">Status</th><th />
+              <th className="py-1 pr-2">Include</th><th className="pr-2">#</th><th className="pr-2">Player</th><th className="pr-2">TP</th><th className="pr-2">Wins</th><th className="pr-2">Avg</th><th className="pr-2">VP</th><th className="pr-2">VP %</th><th className="pr-2">Games</th><th className="pr-2">Registration & availability</th><th className="pr-2">Timezone</th><th className="pr-2">Registration last updated</th><th className="pr-2">Status</th><th />
             </tr></thead>
             <tbody>
               {standings.map((s) => {
-                const reg = findRegistration(s.player, s.discord, regs);
+                const reg = registrationOf(s.player, s.discord);
+                const hours = validDates && reg ? availabilityHours(reg.availability, new Date(start), new Date(end)) : 0;
                 const isSkip = skipped.has(s.player);
                 const status = isSkip ? "Skipped" : gfSet.has(s.player) ? "Grand Final" : poolSet.has(s.player) ? "Semi-final" : "Standby";
                 return (
                   <tr key={s.player} className={`border-t border-border/40 ${isSkip ? "opacity-50" : ""}`}>
+                    <td className="pr-2"><Checkbox aria-label={`Include ${s.player}`} checked={!isSkip} onCheckedChange={() => toggleSkip(s.player)} /></td>
                     <td className="py-1.5 pr-2 text-muted-foreground">{s.rank}</td>
                     <td className="pr-2 font-medium">{s.player}</td>
                     <td className="pr-2">{s.tp}</td>
@@ -152,7 +169,15 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
                     <td className="pr-2">{s.vp}</td>
                     <td className="pr-2">{s.vpPct.toFixed(1)}%</td>
                     <td className={`pr-2 ${s.games < maxGames ? "font-semibold text-coral" : ""}`}>{s.games}/{maxGames}</td>
-                    <td className="pr-2 text-xs">{reg ? <>{fmt(reg.updated_at)} · <span className="text-muted-foreground">{ago(reg.updated_at)}</span></> : <span className="text-coral">No registration</span>}</td>
+                    <td className="min-w-52 pr-3 text-xs">
+                      <Select value={registrationOverrides[s.player] ?? "auto"} onValueChange={(value) => setRegistrationOverrides((prev) => { const next = { ...prev }; if (value === "auto") delete next[s.player]; else next[s.player] = value; return next; })}>
+                        <SelectTrigger className="h-8" aria-label={`Registration for ${s.player}`}><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="auto">{reg && !registrationOverrides[s.player] ? `Auto: ${reg.direwolf_name}` : "Automatic match"}</SelectItem>{regs.map((r) => r.id ? <SelectItem key={r.id} value={r.id}>{r.direwolf_name}{r.discord_username ? ` · ${r.discord_username}` : ""}</SelectItem> : null)}</SelectContent>
+                      </Select>
+                      {reg ? <details className="mt-1"><summary className={hours ? "cursor-pointer text-muted-foreground" : "cursor-pointer text-coral"}>{hours}h free in period · {registrationOverrides[s.player] ? "Trial link" : "Matched"}</summary><div className="max-h-40 overflow-y-auto py-1">{(Array.isArray(reg.availability) ? reg.availability : []).filter((v): v is string => typeof v === "string" && Date.parse(v) >= Date.parse(start) && Date.parse(v) < Date.parse(end)).sort().map((v) => <p key={v}>{new Date(v).toLocaleString(undefined, { timeZone: (() => { try { new Intl.DateTimeFormat(undefined, { timeZone: reg.timezone ?? "UTC" }); return reg.timezone ?? "UTC"; } catch { return "UTC"; } })(), month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} · 30 min</p>)}</div></details> : <p className="mt-1 text-coral">Unmatched registration</p>}
+                    </td>
+                    <td className="min-w-36 pr-2 text-xs">{reg?.timezone ?? "Not provided"}</td>
+                    <td className="min-w-40 pr-2 text-xs">{reg ? <>{fmt(reg.updated_at)} · <span className="text-muted-foreground">{ago(reg.updated_at)}</span></> : <span className="text-coral">No registration</span>}</td>
                     <td className="pr-2"><Badge variant={status === "Semi-final" || status === "Grand Final" ? "default" : "outline"} className="text-[10px]">{status}</Badge></td>
                     <td><Button size="sm" variant="ghost" className="h-7" onClick={() => toggleSkip(s.player)}>{isSkip ? <><UserPlus className="size-3" /> Restore</> : <><UserMinus className="size-3" /> Skip</>}</Button></td>
                   </tr>
@@ -163,15 +188,22 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
         </div>
       </Card>
 
+      <p className="text-xs text-muted-foreground">Registration links affect this trial only; claimed names and Discord mappings stay unchanged. Times in availability lists use the player’s timezone; suggestions use your timezone.</p>
+      {unresolved.length > 0 && <p className="text-sm text-coral">Match a registration or exclude: {unresolved.map((p) => p.player).join(", ")}.</p>}
       <Card className="border-sand/40 p-5">
         <h2 className="font-display text-xl">Search window</h2>
         <div className="mt-3 grid gap-4 sm:grid-cols-4 sm:items-end">
           <div><Label>From</Label><Input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} /></div>
           <div><Label>Until</Label><Input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
           <div><Label>Suggestions per table</Label><Input type="number" min={1} max={3} value={target} onChange={(e) => setTarget(Math.min(3, Math.max(1, Number(e.target.value) || 1)))} /></div>
-          <Button onClick={run} disabled={running || pool.length < 4}>{running ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />} Find trial seed</Button>
+          <Button onClick={run} disabled={running || pool.length < 4 || pool.length % 4 !== 0 || !validDates || unresolved.length > 0}>{running ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />} Find trial seed</Button>
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">Tests every split of the {pool.length} semi-finalists into tables of 4, looking for 2-hour windows at least 10 hours apart (3/4 fallback) and balancing TP and rank between tables.</p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <div><Label>Minimum consecutive blocks</Label><Select value={String(minBlocks)} onValueChange={(v) => { const n = Number(v); setMinBlocks(n); setMaxBlocks((m) => Math.max(m, n)); setMinPlayerBlocks((m) => Math.min(m, n)); }}><SelectTrigger aria-label="Minimum match duration"><SelectValue /></SelectTrigger><SelectContent>{[2, 3, 4].map((n) => <SelectItem key={n} value={String(n)}>{n} × 30 min ({n * 30} min)</SelectItem>)}</SelectContent></Select></div>
+          <div><Label>Preferred consecutive blocks</Label><Select value={String(maxBlocks)} onValueChange={(v) => setMaxBlocks(Number(v))}><SelectTrigger aria-label="Preferred match duration"><SelectValue /></SelectTrigger><SelectContent>{[2, 3, 4].filter((n) => n >= minBlocks).map((n) => <SelectItem key={n} value={String(n)}>{n} × 30 min ({n * 30} min)</SelectItem>)}</SelectContent></Select></div>
+          <div><Label>Minimum availability per player</Label><Select value={String(minPlayerBlocks)} onValueChange={(v) => setMinPlayerBlocks(Number(v))}><SelectTrigger aria-label="Minimum player availability"><SelectValue /></SelectTrigger><SelectContent>{[1, 2, 3, 4].filter((n) => n <= minBlocks).map((n) => <SelectItem key={n} value={String(n)}>{n * 30} min</SelectItem>)}</SelectContent></Select></div>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">Tests every split of the {pool.length} semi-finalists into tables of 4, comparing {minBlocks * 30}–{maxBlocks * 30} minute windows at least 10 hours apart. Nobody can have zero availability; partial windows require confirmation and balancing TP and rank between tables.</p>
       </Card>
 
       {draft && (
@@ -194,7 +226,7 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
             return (
               <p className={`mt-3 rounded-md border p-2 text-sm ${perfect ? "border-teal/40" : "border-coral/40"}`}>
                 {perfect ? `${perfect} full 4/4 window${perfect > 1 ? "s" : ""} found.` : "No 4/4 windows in this period."}{" "}
-                {draft.tables.map((t, i) => <span key={t.name} className="mr-2">{t.name}: closest {closest[i] ? `${closest[i].filled}/${closest[i].total}` : "0"} player-slots.</span>)}
+                {draft.tables.map((t, i) => <span key={t.name} className="mr-2">{t.name}: closest {closest[i] ? `${closest[i].filled}/${closest[i].total} (${closest[i].blocks * 30} min)` : "0"} player-slots.</span>)}
               </p>
             );
           })()}
@@ -207,18 +239,18 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
                   {t.players.map((p) => { const s = standings.find((x) => x.player === p); return <li key={p} className="flex justify-between"><span>#{s?.rank} {p}</span><span className="text-muted-foreground">{s?.tp} TP</span></li>; })}
                 </ul>
                 <div className="mt-3 space-y-1 text-xs">
-                  {t.slots.length === 0 && <p className="text-coral">No shared 2-hour window found in this period.</p>}
+                  {t.slots.length === 0 && <p className="text-coral">No viable window with all four players partly available in this period.</p>}
                   {t.slots.map((s, i) => (
-                    <p key={i}><Badge variant={s.type === "perfect" ? "default" : "outline"} className="mr-2 text-[10px]">{s.type === "perfect" ? "4/4" : "3/4"}</Badge>{new Date(s.start).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}{s.missing.length > 0 && <span className="text-coral"> · check {s.missing.join(", ")}</span>}</p>
+                    <p key={i}><Badge variant={s.type === "perfect" ? "default" : "outline"} className="mr-2 text-[10px]">{s.type === "perfect" ? "4/4" : `${(s.filled / s.blocks).toFixed(2)}/4 avg`}</Badge>{new Date(s.start).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} · {s.blocks * 30} min{s.missing.length > 0 && <span className="text-coral"> · check {s.missing.join(", ")}</span>}</p>
                   ))}
                 </div>
                 {t.noAvailability.length > 0 && <p className="mt-2 text-xs text-coral">No availability in this period: {t.noAvailability.join(", ")}</p>}
                 <div className="mt-3 border-t border-border/40 pt-2">
                   <p className="text-xs font-semibold uppercase text-muted-foreground">Closest windows</p>
-                  {t.closest.length === 0 && <p className="text-xs text-muted-foreground">Nobody at this table has availability in the window.</p>}
+                  {t.closest.length === 0 && <p className="text-xs text-muted-foreground">No window meets the minimum availability for every player.</p>}
                   {t.closest.map((c, ci) => (
                     <div key={ci} className="mt-2 text-xs">
-                      <p className="font-medium">{new Date(c.start).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} · <span className={c.filled === c.total ? "text-teal" : "text-sand"}>{(c.filled / 4).toFixed(2)}/4 avg ({c.filled}/{c.total})</span></p>
+                      <p className="font-medium">{new Date(c.start).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} · <span className={c.filled === c.total ? "text-teal" : "text-sand"}>{(c.filled / c.blocks).toFixed(2)}/4 avg ({c.filled}/{c.total}) · {c.blocks * 30} min</span></p>
                       <div className="mt-1 space-y-0.5">
                         {c.perPlayer.map((pp) => {
                           const missing = pp.blocks.filter((b) => !b).length;
@@ -233,6 +265,8 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
                       </div>
                     </div>
                   ))}
+                  <p className="mt-2 text-xs">Full 4/4 start times: {[60, 90, 120].map((m) => `${m} min: ${t.windowCounts[m] ?? 0}`).join(" · ")}</p>
+                  <p className="text-[11px] text-muted-foreground">Counts include overlapping starts, before 10-hour spacing.</p>
                   <p className="mt-2 text-[11px] text-muted-foreground">Hours free in period: {t.players.map((p) => `${p} ${t.availableHours[p]}h`).join(" · ")}</p>
                 </div>
               </Card>
@@ -243,7 +277,7 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
               <p className="text-xs font-semibold uppercase text-muted-foreground">Runner-up splits</p>
               <ul className="mt-1 space-y-1 text-xs">
                 {draft.alternatives.map((a, i) => (
-                  <li key={i} className="text-muted-foreground"><span className="text-foreground">{a.tables.map((t) => t.join(", ")).join("  |  ")}</span> · {a.perfect} × 4/4, {a.near} × 3/4, worst table closest {a.bestFilled}/16</li>
+                  <li key={i} className="text-muted-foreground"><span className="text-foreground">{a.tables.map((t) => t.join(", ")).join("  |  ")}</span> · {a.perfect} × 4/4, {a.near} × 3/4, worst table closest {a.bestFilled}/{a.bestTotal}</li>
                 ))}
               </ul>
             </div>
