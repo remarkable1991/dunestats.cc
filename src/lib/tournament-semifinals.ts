@@ -24,21 +24,23 @@ export type Standing = {
 };
 
 export type SemiRegistration = {
+  id?: string;
+  user_id?: string | null;
+  timezone?: string | null;
   direwolf_name: string;
   discord_username: string | null;
   availability: unknown;
   updated_at: string;
 };
 
-export type SemiSlot = { start: number; type: "perfect" | "near"; missing: string[] };
-export type ClosestWindow = { start: number; filled: number; total: number; perPlayer: { player: string; blocks: boolean[] }[] };
-export type SemiTable = { name: string; players: string[]; slots: SemiSlot[]; avgTp: number; avgRank: number; closest: ClosestWindow[]; noAvailability: string[]; availableHours: Record<string, number> };
-export type SemiAlternative = { score: number; tables: string[][]; perfect: number; near: number; bestFilled: number };
+export type SemiSlot = { start: number; blocks: number; filled: number; type: "perfect" | "near"; missing: string[] };
+export type ClosestWindow = { start: number; blocks: number; filled: number; total: number; perPlayer: { player: string; blocks: boolean[] }[] };
+export type SemiTable = { name: string; players: string[]; slots: SemiSlot[]; avgTp: number; avgRank: number; closest: ClosestWindow[]; noAvailability: string[]; availableHours: Record<string, number>; windowCounts: Record<number, number> };
+export type SemiAlternative = { score: number; tables: string[][]; perfect: number; near: number; bestFilled: number; bestTotal: number };
 export type SemiDraft = { tables: SemiTable[]; score: number; partitionsTested: number; slotsScanned: number; alternatives: SemiAlternative[] };
 
 const SWISS = new Set(["Game 1", "Game 2", "Game 3", "Game_1", "Game_2", "Game_3"]);
 const SLOT_MS = 30 * 60_000;
-const WINDOW = 4; // 2 hours
 const SPACING = 20; // 10 hours
 
 /** Official order: TP → wins → avg placement (low) → VP → VP share % → name. */
@@ -92,8 +94,23 @@ export function computeStandings(rows: QualifierRow[]): Standing[] {
 
 const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
 
+/** Only unique exact, verified-handle or punctuation-normalized matches are accepted. */
 export function findRegistration(player: string, discord: string | null, regs: SemiRegistration[]) {
-  return regs.find((r) => norm(r.direwolf_name) === norm(player)) ?? (discord ? regs.find((r) => norm(r.discord_username) === norm(discord)) : undefined);
+  const unique = (matches: SemiRegistration[]) => matches.length === 1 ? matches[0] : undefined;
+  const exact = regs.filter((r) => norm(r.direwolf_name) === norm(player));
+  if (exact.length) return unique(exact);
+  if (discord) {
+    const linked = regs.filter((r) => norm(r.discord_username) === norm(discord));
+    if (linked.length) return unique(linked);
+  }
+  const compact = (s: string) => norm(s).normalize("NFKC").replace(/[^\p{L}\p{N}]/gu, "");
+  return unique(regs.filter((r) => compact(r.direwolf_name) === compact(player)));
+}
+
+export function availabilityHours(value: unknown, windowStart: Date, windowEnd: Date) {
+  return bitmap(value, Math.ceil(windowStart.getTime() / SLOT_MS) * SLOT_MS,
+    Math.max(0, Math.floor((windowEnd.getTime() - Math.ceil(windowStart.getTime() / SLOT_MS) * SLOT_MS) / SLOT_MS)))
+    .reduce((sum, n) => sum + n, 0) / 2;
 }
 
 function slotsOf(value: unknown): string[] {
@@ -113,47 +130,37 @@ function bitmap(avail: unknown, start: number, count: number): Uint8Array {
   return b;
 }
 
-function tableSlots(players: string[], maps: Map<string, Uint8Array>, count: number, target: number): SemiSlot[] {
-  const bms = players.map((p) => maps.get(p)!);
-  const sum = new Uint8Array(count);
-  for (const b of bms) for (let i = 0; i < count; i++) sum[i] += b[i];
-  const out: SemiSlot[] = [];
-  const far = (i: number) => out.every((s) => Math.abs(s.start - i) >= SPACING);
-  for (let i = 0; i + WINDOW <= count && out.length < target; i++) {
-    let ok = true;
-    for (let k = 0; k < WINDOW; k++) if (sum[i + k] !== 4) { ok = false; break; }
-    if (ok && far(i)) out.push({ start: i, type: "perfect", missing: [] });
+type Candidate = { start: number; blocks: number; filled: number; perPlayer: { player: string; blocks: boolean[] }[] };
+
+function candidates(players: string[], maps: Map<string, Uint8Array>, count: number, minBlocks: number, maxBlocks: number, minPlayerBlocks: number): Candidate[] {
+  const out: Candidate[] = [];
+  for (let blocks = maxBlocks; blocks >= minBlocks; blocks--) {
+    for (let i = 0; i + blocks <= count; i++) {
+      const perPlayer = players.map((player) => ({ player, blocks: Array.from({ length: blocks }, (_, k) => Boolean(maps.get(player)?.[i + k])) }));
+      const totals = perPlayer.map((p) => p.blocks.filter(Boolean).length);
+      // Zero-availability players are never treated as a scheduling fallback.
+      if (totals.some((n) => n < minPlayerBlocks)) continue;
+      const filled = totals.reduce((a, b) => a + b, 0);
+      if (filled / blocks < 3) continue;
+      out.push({ start: i, blocks, filled, perPlayer });
+    }
   }
-  for (let i = 0; i + WINDOW <= count && out.length < target; i++) {
-    let tot = 0, min = 4;
-    for (let k = 0; k < WINDOW; k++) { tot += sum[i + k]; min = Math.min(min, sum[i + k]); }
-    if (tot / WINDOW < 3 || min < 2 || !far(i)) continue;
-    const missing = players.filter((_, pi) => { for (let k = 0; k < WINDOW; k++) if (!bms[pi][i + k]) return true; return false; });
-    out.push({ start: i, type: "near", missing });
-  }
-  return out.sort((a, b) => a.start - b.start);
+  // More shared minutes beats shorter windows; equal coverage favors full attendance.
+  return out.sort((a, b) => b.filled - a.filled || b.filled / b.blocks - a.filled / a.blocks || a.start - b.start);
 }
 
-/** Best 2-hour windows by player-slots filled (out of 16), even when nobody lines up fully. */
-function closestWindows(players: string[], maps: Map<string, Uint8Array>, count: number, take = 3): { start: number; filled: number; perPlayer: { player: string; blocks: boolean[] }[] }[] {
-  const bms = players.map((p) => maps.get(p)!);
-  const cands: { i: number; tot: number }[] = [];
-  for (let i = 0; i + WINDOW <= count; i++) {
-    let tot = 0;
-    for (const b of bms) for (let k = 0; k < WINDOW; k++) tot += b[i + k];
-    if (tot > 0) cands.push({ i, tot });
-  }
-  cands.sort((a, b) => b.tot - a.tot || a.i - b.i);
-  const out: { i: number; tot: number }[] = [];
+function spaced(cands: Candidate[], take: number): Candidate[] {
+  const out: Candidate[] = [];
   for (const c of cands) {
     if (out.length >= take) break;
-    if (out.every((o) => Math.abs(o.i - c.i) >= SPACING)) out.push(c);
+    if (out.every((o) => Math.abs(o.start - c.start) >= SPACING)) out.push(c);
   }
-  return out.map((c) => ({
-    start: c.i,
-    filled: c.tot,
-    perPlayer: players.map((p, pi) => ({ player: p, blocks: Array.from({ length: WINDOW }, (_, k) => !!bms[pi][c.i + k]) })),
-  }));
+  return out;
+}
+
+function asSlot(c: Candidate): SemiSlot {
+  const missing = c.perPlayer.filter((p) => p.blocks.some((b) => !b)).map((p) => p.player);
+  return { start: c.start, blocks: c.blocks, filled: c.filled, type: missing.length ? "near" : "perfect", missing };
 }
 
 const mean = (xs: number[]) => xs.reduce((s, n) => s + n, 0) / (xs.length || 1);
@@ -186,14 +193,35 @@ export function runSemiSearch(opts: {
   windowStart: Date;
   windowEnd: Date;
   targetSlots: number;
+  minBlocks?: number;
+  maxBlocks?: number;
+  minPlayerBlocks?: number;
+  registrationOverrides?: Record<string, string>;
 }): SemiDraft | null {
   const { pool, regs, targetSlots } = opts;
   if (pool.length < 4 || pool.length % 4 !== 0) return null;
+  const minBlocks = Math.min(4, Math.max(2, opts.minBlocks ?? 2));
+  const maxBlocks = Math.min(4, Math.max(minBlocks, opts.maxBlocks ?? 4));
+  const minPlayerBlocks = Math.min(minBlocks, Math.max(1, opts.minPlayerBlocks ?? 1));
+  if (!Number.isFinite(opts.windowStart.getTime()) || !Number.isFinite(opts.windowEnd.getTime()) || opts.windowEnd <= opts.windowStart) return null;
   const start = Math.ceil(opts.windowStart.getTime() / SLOT_MS) * SLOT_MS;
   const count = Math.max(0, Math.floor((opts.windowEnd.getTime() - start) / SLOT_MS));
   const maps = new Map<string, Uint8Array>();
   const meta = new Map(pool.map((s) => [s.player, s]));
-  for (const s of pool) maps.set(s.player, bitmap(findRegistration(s.player, s.discord, regs)?.availability, start, count));
+  for (const s of pool) {
+    const override = opts.registrationOverrides?.[s.player];
+    const registration = override ? regs.find((r) => r.id === override) : findRegistration(s.player, s.discord, regs);
+    maps.set(s.player, bitmap(registration?.availability, start, count));
+  }
+  const cache = new Map<string, Candidate[]>();
+  const getCandidates = (players: string[]) => {
+    const key = [...players].sort().join("\u0001");
+    const cached = cache.get(key);
+    if (cached) return cached;
+    const result = candidates(players, maps, count, minBlocks, maxBlocks, minPlayerBlocks);
+    cache.set(key, result);
+    return result;
+  };
 
   // Exhaustive up to 12 players (5,775 splits); beyond that seed by snake order only.
   const names = pool.map((s) => s.player);
@@ -201,18 +229,21 @@ export function runSemiSearch(opts: {
   let best: SemiDraft | null = null;
   const alts: SemiAlternative[] = [];
   for (const tables of parts) {
-    const slots = tables.map((t) => tableSlots(t, maps, count, targetSlots));
+    const candidateLists = tables.map(getCandidates);
+    const slots = candidateLists.map((cs) => spaced(cs, targetSlots).map(asSlot));
     const perfect = slots.map((s) => s.filter((x) => x.type === "perfect").length);
     const totals = slots.map((s) => s.length);
-    const compat = tables.map((t) => { const h: number[] = []; for (let i = 0; i < t.length; i++) for (let j = i + 1; j < t.length; j++) h.push(overlapHours(maps.get(t[i])!, maps.get(t[j])!)); return mean(h); });
-    const tps = tables.map((t) => mean(t.map((p) => meta.get(p)!.tp)));
-    const ranks = tables.map((t) => mean(t.map((p) => meta.get(p)!.rank)));
-    let score = Math.min(...perfect) * 20000 + Math.min(...totals) * 5000 + totals.reduce((a, b) => a + b, 0) * 500;
+    const compat = tables.map((t) => { const h: number[] = []; for (let i = 0; i < t.length; i++) for (let j = i + 1; j < t.length; j++) h.push(overlapHours(maps.get(t[i]) ?? new Uint8Array(count), maps.get(t[j]) ?? new Uint8Array(count))); return mean(h); });
+    const tps = tables.map((t) => mean(t.map((p) => meta.get(p)?.tp ?? 0)));
+    const ranks = tables.map((t) => mean(t.map((p) => meta.get(p)?.rank ?? 0)));
+    const bestFilled = Math.min(...candidateLists.map((cs) => cs[0]?.filled ?? 0));
+    const bestTotal = Math.min(...candidateLists.map((cs) => (cs[0]?.blocks ?? maxBlocks) * 4));
+    // Prioritize the weakest table's viable shared minutes before balance.
+    let score = bestFilled * 20000 + candidateLists.reduce((n, cs) => n + (cs[0]?.filled ?? 0), 0) * 500;
+    score += Math.min(...totals) * 100 + Math.min(...perfect) * 50;
     score += compat.reduce((a, b) => a + b, 0) * 10;
     score -= std(tps) * 2 + std(ranks) * 1.5;
-    const bestFilled = Math.min(...tables.map((t) => closestWindows(t, maps, count, 1)[0]?.filled ?? 0));
-    score += bestFilled * 50; // reward splits whose closest window is nearer to 16/16
-    alts.push({ score, tables: tables.map((t) => [...t].sort((a, b) => meta.get(a)!.rank - meta.get(b)!.rank)), perfect: perfect.reduce((a, b) => a + b, 0), near: totals.reduce((a, b) => a + b, 0) - perfect.reduce((a, b) => a + b, 0), bestFilled });
+    alts.push({ score, tables: tables.map((t) => [...t].sort((a, b) => (meta.get(a)?.rank ?? 0) - (meta.get(b)?.rank ?? 0))), perfect: perfect.reduce((a, b) => a + b, 0), near: totals.reduce((a, b) => a + b, 0) - perfect.reduce((a, b) => a + b, 0), bestFilled, bestTotal });
     if (!best || score > best.score) {
       best = {
         score,
@@ -221,15 +252,16 @@ export function runSemiSearch(opts: {
         alternatives: [],
         tables: tables
           .map((t, i) => {
-            const players = [...t].sort((a, b) => meta.get(a)!.rank - meta.get(b)!.rank);
+            const players = [...t].sort((a, b) => (meta.get(a)?.rank ?? 0) - (meta.get(b)?.rank ?? 0));
             const hours: Record<string, number> = {};
-            for (const p of players) hours[p] = maps.get(p)!.reduce((s, n) => s + n, 0) / 2;
+            for (const p of players) hours[p] = (maps.get(p) ?? new Uint8Array(count)).reduce((s, n) => s + n, 0) / 2;
             return {
               players,
               slots: slots[i],
               avgTp: tps[i],
               avgRank: ranks[i],
-              closest: closestWindows(players, maps, count, 3).map((c) => ({ ...c, start: start + c.start * SLOT_MS, total: players.length * WINDOW })),
+              closest: spaced(getCandidates(players), 3).map((c) => ({ ...c, start: start + c.start * SLOT_MS, total: players.length * c.blocks })),
+              windowCounts: Object.fromEntries([2, 3, 4].map((blocks) => [blocks * 30, candidates(players, maps, count, blocks, blocks, blocks).length])),
               noAvailability: players.filter((p) => hours[p] === 0),
               availableHours: hours,
             };
@@ -256,7 +288,7 @@ export function announcement(num: number, draft: SemiDraft, gf: Standing[]) {
   if (gf.length) lines.push(`Direct to Grand Final: ${gf.map((s) => s.player).join(", ")}`, "");
   for (const t of draft.tables) {
     lines.push(`__${t.name}__: ${t.players.join(", ")}`);
-    t.slots.forEach((s, i) => lines.push(`Option ${i + 1}: <t:${slotUnix(s)}:F>${s.missing.length ? ` (3/4 — check ${s.missing.join(", ")})` : ""}`));
+    t.slots.forEach((s, i) => lines.push(`Option ${i + 1}: <t:${slotUnix(s)}:F> · ${s.blocks * 30} min${s.missing.length ? ` (${(s.filled / s.blocks).toFixed(2)}/4 average — check ${s.missing.join(", ")})` : ""}`));
     lines.push("");
   }
   return lines.join("\n");

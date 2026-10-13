@@ -313,7 +313,7 @@ function MatchmakingPage() {
       </header>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <Card className="border-sand/40 p-5">
             <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
               <div><Label>Tournament</Label><Select value={selectedNum == null ? undefined : String(selectedNum)} onValueChange={chooseTournament}><SelectTrigger className="mt-1"><SelectValue placeholder="Choose a tournament" /></SelectTrigger><SelectContent>{tournaments.map((item) => <SelectItem key={item.tournament_num} value={String(item.tournament_num)}>#{item.tournament_num} — {item.name}</SelectItem>)}</SelectContent></Select></div>
