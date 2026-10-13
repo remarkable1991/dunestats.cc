@@ -28,6 +28,10 @@ import {
 
 const dayValue = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 const fmt = (iso: string) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+function registrationTimezone(label: string | null | undefined) {
+  const zone = label?.split(" (")[0] ?? "UTC";
+  try { new Intl.DateTimeFormat(undefined, { timeZone: zone }); return zone; } catch { return "UTC"; }
+}
 function ago(iso: string) {
   const d = Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
   return d <= 0 ? "today" : d === 1 ? "1d ago" : `${d}d ago`;
@@ -83,6 +87,8 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
   };
   const validDates = Number.isFinite(Date.parse(start)) && Number.isFinite(Date.parse(end)) && Date.parse(end) > Date.parse(start);
   const unresolved = pool.filter((p) => !registrationOf(p.player, p.discord));
+  const selectedIds = pool.map((p) => registrationOf(p.player, p.discord)?.id).filter(Boolean);
+  const duplicateLinks = new Set(selectedIds).size !== selectedIds.length;
 
   const toggleSkip = (p: string) => setSkipped((prev) => { const n = new Set(prev); if (n.has(p)) n.delete(p); else n.add(p); return n; });
 
@@ -174,7 +180,7 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
                         <SelectTrigger className="h-8" aria-label={`Registration for ${s.player}`}><SelectValue /></SelectTrigger>
                         <SelectContent><SelectItem value="auto">{reg && !registrationOverrides[s.player] ? `Auto: ${reg.direwolf_name}` : "Automatic match"}</SelectItem>{regs.map((r) => r.id ? <SelectItem key={r.id} value={r.id}>{r.direwolf_name}{r.discord_username ? ` · ${r.discord_username}` : ""}</SelectItem> : null)}</SelectContent>
                       </Select>
-                      {reg ? <details className="mt-1"><summary className={hours ? "cursor-pointer text-muted-foreground" : "cursor-pointer text-coral"}>{hours}h free in period · {registrationOverrides[s.player] ? "Trial link" : "Matched"}</summary><div className="max-h-40 overflow-y-auto py-1">{(Array.isArray(reg.availability) ? reg.availability : []).filter((v): v is string => typeof v === "string" && Date.parse(v) >= Date.parse(start) && Date.parse(v) < Date.parse(end)).sort().map((v) => <p key={v}>{new Date(v).toLocaleString(undefined, { timeZone: (() => { try { new Intl.DateTimeFormat(undefined, { timeZone: reg.timezone ?? "UTC" }); return reg.timezone ?? "UTC"; } catch { return "UTC"; } })(), month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} · 30 min</p>)}</div></details> : <p className="mt-1 text-coral">Unmatched registration</p>}
+                      {reg ? <details className="mt-1"><summary className={hours ? "cursor-pointer text-muted-foreground" : "cursor-pointer text-coral"}>{hours}h free in period · {registrationOverrides[s.player] ? "Trial link" : "Matched"}</summary><div className="max-h-40 overflow-y-auto py-1">{(Array.isArray(reg.availability) ? reg.availability : []).filter((v): v is string => typeof v === "string" && Date.parse(v) >= Date.parse(start) && Date.parse(v) < Date.parse(end)).sort().map((v) => <p key={v}>{new Date(v).toLocaleString(undefined, { timeZone: registrationTimezone(reg.timezone), month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} · 30 min</p>)}</div></details> : <p className="mt-1 text-coral">Unmatched registration</p>}
                     </td>
                     <td className="min-w-36 pr-2 text-xs">{reg?.timezone ?? "Not provided"}</td>
                     <td className="min-w-40 pr-2 text-xs">{reg ? <>{fmt(reg.updated_at)} · <span className="text-muted-foreground">{ago(reg.updated_at)}</span></> : <span className="text-coral">No registration</span>}</td>
@@ -190,13 +196,14 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
 
       <p className="text-xs text-muted-foreground">Registration links affect this trial only; claimed names and Discord mappings stay unchanged. Times in availability lists use the player’s timezone; suggestions use your timezone.</p>
       {unresolved.length > 0 && <p className="text-sm text-coral">Match a registration or exclude: {unresolved.map((p) => p.player).join(", ")}.</p>}
+      {duplicateLinks && <p className="text-sm text-coral">One registration is linked to multiple semi-finalists. Choose a different registration before searching.</p>}
       <Card className="border-sand/40 p-5">
         <h2 className="font-display text-xl">Search window</h2>
         <div className="mt-3 grid gap-4 sm:grid-cols-4 sm:items-end">
           <div><Label>From</Label><Input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} /></div>
           <div><Label>Until</Label><Input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
           <div><Label>Suggestions per table</Label><Input type="number" min={1} max={3} value={target} onChange={(e) => setTarget(Math.min(3, Math.max(1, Number(e.target.value) || 1)))} /></div>
-          <Button onClick={run} disabled={running || pool.length < 4 || pool.length % 4 !== 0 || !validDates || unresolved.length > 0}>{running ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />} Find trial seed</Button>
+          <Button onClick={run} disabled={running || pool.length < 4 || pool.length % 4 !== 0 || !validDates || unresolved.length > 0 || duplicateLinks}>{running ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />} Find trial seed</Button>
         </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <div><Label>Minimum consecutive blocks</Label><Select value={String(minBlocks)} onValueChange={(v) => { const n = Number(v); setMinBlocks(n); setMaxBlocks((m) => Math.max(m, n)); setMinPlayerBlocks((m) => Math.min(m, n)); }}><SelectTrigger aria-label="Minimum match duration"><SelectValue /></SelectTrigger><SelectContent>{[2, 3, 4].map((n) => <SelectItem key={n} value={String(n)}>{n} × 30 min ({n * 30} min)</SelectItem>)}</SelectContent></Select></div>
