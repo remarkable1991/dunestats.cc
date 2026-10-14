@@ -742,6 +742,29 @@ function CurrentTournament({
 
 
 
+  // Ctrl+V paste support for the results screenshot
+  const onFileRef = useRef<(f: File | null) => unknown>(() => {});
+  useEffect(() => {
+    if (!userId) return;
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const it of items) {
+        if (it.kind === "file" && it.type.startsWith("image/")) {
+          const f = it.getAsFile();
+          if (f) {
+            e.preventDefault();
+            void onFileRef.current(f);
+            uploadRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+            return;
+          }
+        }
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [userId]);
+
   // ===== Upload handlers =====
   const onFile = async (f: File | null) => {
     setFile(f);
