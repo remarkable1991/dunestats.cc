@@ -825,6 +825,7 @@ function CurrentTournament({
       setParsing(false);
     }
   };
+  onFileRef.current = onFile;
 
   const openSubmitFor = (rt: string, ti: string) => {
     setRound(rt);
