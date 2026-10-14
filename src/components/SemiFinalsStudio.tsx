@@ -223,7 +223,7 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={async () => { await navigator.clipboard.writeText(announcement(num, draft, grandFinal)); toast.success("Announcement copied"); }}><Clipboard className="size-4" /> Discord text</Button>
-              <Button variant="outline" size="sm" onClick={() => download(`t${num}_semifinals_bot_ready.csv`, botCsv(num, draft, discordOf))}><Download className="size-4" /> Bot CSV</Button>
+              <Button variant="outline" size="sm" onClick={() => download(`t${num}_semifinals_${tournament.play_mode === "live" ? "live" : "async"}_bot_ready.csv`, botCsv(num, draft, discordOf))}><Download className="size-4" /> Bot CSV</Button>
               <Button size="sm" onClick={openPublish}><Upload className="size-4" /> Publish</Button>
             </div>
           </div>
