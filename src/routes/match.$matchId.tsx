@@ -1761,6 +1761,8 @@ function VerificationCard({
   const [dialogOpen, setDialogOpen] = useState(false);
   const awaitingScanResult = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const dragDepth = useRef(0);
 
   useEffect(() => {
     setSrc(contentUrl);
@@ -2020,7 +2022,26 @@ function VerificationCard({
 
 
   return (
-    <Card className="p-3 border-border/60 bg-card/70 w-full">
+    <Card
+      className={`relative p-3 bg-card/70 w-full transition-colors ${dragActive ? "border-2 border-dashed border-sand" : "border-border/60"}`}
+      onDragEnter={(e) => { if (!canEdit || !e.dataTransfer.types.includes("Files")) return; e.preventDefault(); dragDepth.current += 1; setDragActive(true); }}
+      onDragOver={(e) => { if (canEdit && e.dataTransfer.types.includes("Files")) e.preventDefault(); }}
+      onDragLeave={() => { if (!canEdit) return; dragDepth.current = Math.max(0, dragDepth.current - 1); if (!dragDepth.current) setDragActive(false); }}
+      onDrop={(e) => {
+        if (!canEdit) return;
+        e.preventDefault();
+        dragDepth.current = 0;
+        setDragActive(false);
+        const file = Array.from(e.dataTransfer.files ?? []).find((f) => f.type.startsWith("image/"));
+        if (file) void handleUpload(file);
+        else toast.error("Please drop an image file");
+      }}
+    >
+      {dragActive && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-background/80 text-sm font-medium text-sand">
+          Drop endboard screenshot to upload
+        </div>
+      )}
       <h2 className="font-display text-sm mb-2 text-muted-foreground">Endboard state</h2>
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogTrigger asChild>
