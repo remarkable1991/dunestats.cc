@@ -1860,6 +1860,28 @@ function VerificationCard({
     }
   };
 
+  // Paste-from-clipboard support, same as the match results upload page.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (!canEdit) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const it of items) {
+        if (it.kind === "file" && it.type.startsWith("image/")) {
+          const f = it.getAsFile();
+          if (f) {
+            e.preventDefault();
+            void handleUpload(f);
+            return;
+          }
+        }
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canEdit, game.id]);
+
   const finishReview = async () => {
     const status = isMatchStaff ? "Manually verified" : manualReviewStatus(game.ai_scan_status);
     setSaving(true);
