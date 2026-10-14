@@ -294,9 +294,24 @@ export function announcement(num: number, draft: SemiDraft, gf: Standing[]) {
   return lines.join("\n");
 }
 
+/** Bot-ready CSV matching the qualifier discordCsv format: thread_title, pings, slot_1..3. */
 export function botCsv(num: number, draft: SemiDraft, discord: (p: string) => string | null) {
   const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
-  const head = ["tournament_num", "round_type", "table_identifier", "players", "discord_usernames", "slot_1", "slot_2", "slot_3"];
-  const rows = draft.tables.map((t) => [String(num), "Finals", t.name, t.players.join(";"), t.players.map((p) => discord(p) ?? p).join(";"), ...[0, 1, 2].map((i) => (t.slots[i] ? new Date(t.slots[i].start).toISOString() : ""))]);
+  const head = ["thread_title", "pings", "slot_1", "slot_2", "slot_3"];
+  const rows = draft.tables.map((t) => {
+    const warnings = new Map<string, string[]>();
+    t.slots.forEach((s, i) => {
+      if (s.type !== "near") return;
+      for (const p of s.missing) warnings.set(p, [...(warnings.get(p) ?? []), String.fromCharCode(65 + i)]);
+    });
+    const pings = t.players.map((p) => {
+      const disc = discord(p)?.trim();
+      const w = warnings.get(p);
+      const warn = w ? ` - ⚠️ Near-Match: Not available for Slot ${w.join("/")}` : "";
+      return disc ? `@${disc} (${p}${warn})` : `**${p}**${warn}`;
+    }).join(", ");
+    const slots = [0, 1, 2].map((i) => (t.slots[i] ? `<t:${slotUnix(t.slots[i])}:F>` : ""));
+    return [`T${num} ${t.name}`, pings, ...slots];
+  });
   return [head, ...rows].map((r) => r.map(esc).join(",")).join("\n");
 }
