@@ -2316,11 +2316,6 @@ function VerificationCard({
 
       {canEdit && (
         <label
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            void handleUpload(e.dataTransfer.files?.[0]);
-          }}
           className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded border border-dashed border-sand/50 bg-sand/5 px-2 py-2 text-[11px] text-sand hover:bg-sand/10 transition-colors"
         >
           {uploading || scanning ? (
@@ -2333,8 +2328,8 @@ function VerificationCard({
             : scanning
               ? "Scanning endboard…"
               : broken
-                ? "Upload endboard screenshot"
-                : "Replace endboard"}
+                ? "Upload or drop endboard screenshot"
+                : "Replace endboard (or drop image)"}
           <input
             ref={fileInputRef}
             type="file"
