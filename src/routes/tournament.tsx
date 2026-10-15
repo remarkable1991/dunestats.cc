@@ -2635,6 +2635,8 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
                     <TpBreakdownButton
                       player={s.player}
                       total={s.tp}
+                      tournamentNum={num}
+                      matchIds={matchIdsByTable}
                       entries={rows
                         .filter((r) => r.player_name === s.player && (standingsView === "total" || r.round_type !== "Finals"))
                         .map((r) => pastTps.get(r.id))
