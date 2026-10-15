@@ -1,3 +1,4 @@
+import { computeSeatTps } from "@/lib/tournament-tp";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
@@ -170,6 +171,7 @@ function TableDetailPage() {
 
   const isMine = (name: string) => myKeys.has(name.toLowerCase().trim());
   const seats = useMemo(() => [...rows].sort((a, b) => (a.placement ?? 9) - (b.placement ?? 9)), [rows]);
+  const seatTps = computeSeatTps(seats);
   const finished = seats.filter((r) => r.placement != null && r.points != null).length >= 4;
   const heading = rows[0] ? `${rows[0].round_type} · ${rows[0].table_identifier}` : table;
   const voters = useMemo(() => voterStates(schedule), [schedule]);
@@ -222,6 +224,7 @@ function TableDetailPage() {
                 <TableHead>Player</TableHead>
                 <TableHead>Leader</TableHead>
                 <TableHead className="text-right">VP</TableHead>
+                <TableHead className="text-right">TP</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -240,6 +243,7 @@ function TableDetailPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{r.leader_name ?? "—"}</TableCell>
                   <TableCell className="text-right font-mono">{r.points ?? "—"}</TableCell>
+                  <TableCell className="text-right font-mono text-sand">{seatTps.get(r.id)?.tp ?? "—"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

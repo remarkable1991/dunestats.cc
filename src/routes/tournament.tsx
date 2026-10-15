@@ -75,6 +75,8 @@ import { TournamentCheckin } from "@/components/TournamentCheckin";
 import { AvailabilityHeatmap, type HeatmapPlayer } from "@/components/AvailabilityHeatmap";
 import { TableScheduleControls } from "@/components/TableScheduleControls";
 import { RosterEditDialog } from "@/components/RosterEditDialog";
+import { TpBreakdownButton } from "@/components/TpBreakdownDialog";
+import { computeSeatTps } from "@/lib/tournament-tp";
 import { type MatchSchedule, SCHEDULE_SELECT, parseScheduleTime } from "@/lib/match-schedules";
 import { tableSlug } from "@/lib/tournament-slug";
 import { TournamentPlayModeBadge, tournamentPlayMode, playModeDescription } from "@/components/TournamentPlayModeBadge";
@@ -673,6 +675,14 @@ function CurrentTournament({
   }, [standings, leagueStandings, plan.gf]);
 
   const displayStandings = semisPublished ? (standingsView === "total" ? totalStandings : leagueStandings) : standings;
+  const seatTps = useMemo(() => computeSeatTps(rows), [rows]);
+  const byeSet = useMemo(() => new Set(leagueStandings.slice(0, plan.gf).map((p) => p.player)), [leagueStandings, plan.gf]);
+  const tpEntriesFor = (player: string, isBackup: boolean) =>
+    rows
+      .filter((r) => r.player_name === player && !!r.is_backup === isBackup)
+      .filter((r) => !(semisPublished && standingsView === "league") || (SWISS_ROUNDS as readonly string[]).includes(r.round_type))
+      .map((r) => seatTps.get(r.id))
+      .filter((e): e is NonNullable<typeof e> => !!e);
 
   // Helper: get screenshot URL for a table
   const shotFor = (rt: string, ti: string) => shots.find((s) => s.round_type === rt && s.table_identifier === ti);
@@ -1066,7 +1076,14 @@ function CurrentTournament({
                             />
                           )}
                         </td>
-                        <td className="py-2 px-2 text-right font-mono text-sand">{s.tp}</td>
+                        <td className="py-2 px-2 text-right">
+                          <TpBreakdownButton
+                            player={s.player}
+                            total={s.tp}
+                            entries={tpEntriesFor(s.player, s.isBackup)}
+                            bonus={semisPublished && standingsView === "total" && !s.isBackup && byeSet.has(s.player) ? 25 : 0}
+                          />
+                        </td>
                         <td className="py-2 px-2 text-right font-mono">{s.wins}</td>
                         <td className="py-2 px-2 text-right font-mono">
                           {s.placements.length ? s.avgPlacement.toFixed(2) : "—"}
@@ -1325,7 +1342,12 @@ function CurrentTournament({
                                           </span>
                                         )}
                                       </span>
-                                      <span className="font-mono text-sand">{p.points ?? "—"} VP</span>
+                                      <span className="font-mono text-sand">
+                                        {p.points ?? "—"} VP
+                                        {seatTps.get(p.id) && (
+                                          <span className="ml-2 text-xs text-muted-foreground">· {seatTps.get(p.id)!.tp} TP</span>
+                                        )}
+                                      </span>
                                     </li>
                                   ))}
                                 </ul>
@@ -2491,6 +2513,7 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
   }, [rows, leagueStandings, gfDirect]);
 
   const standings = standingsView === "total" ? totalStandings : leagueStandings;
+  const pastTps = useMemo(() => computeSeatTps(rows), [rows]);
 
   /** Look up the /match link for a finished table by its player-name set. */
   const matchLinkFor = (tableRows: PastRow[]): string | null => {
@@ -2590,7 +2613,17 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
                   <TableCell className="font-medium">
                     <PlayerLink name={s.player} />
                   </TableCell>
-                  <TableCell className="text-right font-display text-sand tabular-nums">{s.tp}</TableCell>
+                  <TableCell className="text-right font-display tabular-nums">
+                    <TpBreakdownButton
+                      player={s.player}
+                      total={s.tp}
+                      entries={rows
+                        .filter((r) => r.player_name === s.player && (standingsView === "total" || r.round_type !== "Finals"))
+                        .map((r) => pastTps.get(r.id))
+                        .filter((e): e is NonNullable<typeof e> => !!e)}
+                      bonus={standingsView === "total" && leagueStandings.slice(0, gfDirect).some((p) => p.player === s.player) ? 25 : 0}
+                    />
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{s.wins}</TableCell>
                   <TableCell className="text-right tabular-nums">{s.avg.toFixed(2)}</TableCell>
                   <TableCell className="text-right tabular-nums">{s.vp}</TableCell>
@@ -2641,6 +2674,7 @@ function BracketTable({
   compact?: boolean;
   matchId?: string | null;
 }) {
+  const tps = computeSeatTps(rows);
   return (
     <Card className={`p-3 ${accent ? "border-sand/60 bg-gradient-to-br from-sand/5 to-card" : "bg-background/40"}`}>
       <div className="flex items-center justify-between mb-2 gap-2">
@@ -2669,6 +2703,7 @@ function BracketTable({
             <TableHead className={compact ? "h-7" : ""}>Player</TableHead>
             <TableHead className={compact ? "h-7" : ""}>Leader</TableHead>
             <TableHead className={`text-right ${compact ? "h-7 w-12" : "w-16"}`}>VP</TableHead>
+            <TableHead className={`text-right ${compact ? "h-7 w-12" : "w-16"}`}>TP</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -2682,6 +2717,9 @@ function BracketTable({
                 {r.leader_name ?? "—"}
               </TableCell>
               <TableCell className={`text-right tabular-nums ${compact ? "py-1" : ""}`}>{r.points}</TableCell>
+              <TableCell className={`text-right tabular-nums text-sand ${compact ? "py-1" : ""}`}>
+                {tps.get(r.id)?.tp ?? "—"}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
