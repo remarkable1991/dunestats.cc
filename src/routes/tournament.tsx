@@ -1080,6 +1080,7 @@ function CurrentTournament({
                           <TpBreakdownButton
                             player={s.player}
                             total={s.tp}
+                            tournamentNum={tournamentNum}
                             entries={tpEntriesFor(s.player, s.isBackup)}
                             bonus={semisPublished && standingsView === "total" && !s.isBackup && byeSet.has(s.player) ? 25 : 0}
                           />
@@ -2520,6 +2521,23 @@ function TournamentDeepDive({ tournament, onBack }: { tournament: TournamentSumm
     const key = tableRows.map((r) => r.player_name.toLowerCase().trim()).sort().join("|");
     return matchLinks.get(key) ?? null;
   };
+
+  /** Verified /match report ids keyed by `${round_type}__${table_identifier}` for the TP breakdown dialog. */
+  const matchIdsByTable = useMemo(() => {
+    const byTable = new Map<string, PastRow[]>();
+    for (const r of rows) {
+      const k = `${r.round_type}__${r.table_identifier}`;
+      if (!byTable.has(k)) byTable.set(k, []);
+      byTable.get(k)!.push(r);
+    }
+    const out = new Map<string, string>();
+    for (const [k, tableRows] of byTable) {
+      const id = matchLinkFor(tableRows);
+      if (id) out.set(k, id);
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, matchLinks]);
 
   return (
     <div className="space-y-6">
