@@ -116,3 +116,28 @@ export async function normalizeNames<T extends { player_name: string }>(rows: T[
     return hits.length && unique.length === 1 ? { ...row, player_name: hits[0] } : row;
   });
 }
+
+export type NameSuggestion = { kind: "alias" | "fuzzy"; name: string };
+
+/**
+ * Suggest the canonical spelling for a typed IGN: first known admin corrections
+ * (e.g. theo-viennot → Arkachacal), then a single safe typo edit away from a
+ * known player (e.g. Duncraacer → duncracer).
+ */
+export async function suggestCanonicalName(raw: string): Promise<NameSuggestion | null> {
+  const name = raw.trim();
+  if (name.length < 3) return null;
+  const { data: aliases } = await supabase
+    .from("player_name_aliases" as never)
+    .select("old_name, canonical_name")
+    .ilike("old_name", name)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const alias = (aliases as { canonical_name: string }[] | null)?.[0];
+  if (alias && alias.canonical_name.toLowerCase() !== name.toLowerCase()) return { kind: "alias", name: alias.canonical_name };
+  const master = await loadMasterNames();
+  if (master.some((m) => m.toLowerCase() === name.toLowerCase())) return null;
+  const [fixed] = await normalizeNames([{ player_name: name }]);
+  if (fixed && fixed.player_name.toLowerCase() !== name.toLowerCase()) return { kind: "fuzzy", name: fixed.player_name };
+  return null;
+}
