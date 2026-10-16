@@ -37,6 +37,8 @@ export type SubmitMatchInput = {
   } | null;
   /** Skip duplicate check (user confirmed the duplicate warning). */
   confirmDuplicate?: boolean;
+  /** Optional Live / Async report. */
+  playMode?: "live" | "async" | null;
 };
 
 export type SaveGameResult = Awaited<ReturnType<typeof saveGame>>;
@@ -100,6 +102,14 @@ export async function submitMatch(input: SubmitMatchInput): Promise<SubmitMatchR
       results: rows,
     },
   });
+
+  if (input.playMode) {
+    const { error } = await supabase.rpc("set_game_play_mode" as never, {
+      p_game_id: saveResult.game_id,
+      p_mode: input.playMode,
+    } as never);
+    if (error) console.error("Play mode save failed:", error);
+  }
 
   // 3. Fire-and-forget sandbox sync
   void supabase
