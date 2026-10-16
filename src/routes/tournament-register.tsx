@@ -28,6 +28,7 @@ import discordHint from "@/assets/discord-hint.png.asset.json";
 import ixIcon from "@/assets/ix.png.asset.json";
 import uprisingIcon from "@/assets/uprising.png.asset.json";
 import immoIcon from "@/assets/immo.png.asset.json";
+import { suggestCanonicalName, type NameSuggestion } from "@/lib/name-normalize";
 import epicIcon from "@/assets/epic.png.asset.json";
 import { formatLongDate } from "@/lib/tournaments";
 
@@ -242,6 +243,17 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
   const [saveBaseline, setSaveBaseline] = useState(false);
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [discordLinked, setDiscordLinked] = useState(false);
+  const [nameHint, setNameHint] = useState<NameSuggestion | null>(null);
+  const [dismissedHint, setDismissedHint] = useState("");
+  useEffect(() => {
+    const typed = direwolf.trim();
+    if (!typed || typed.toLowerCase() === dismissedHint) { setNameHint(null); return; }
+    let cancelled = false;
+    const t = setTimeout(() => {
+      void suggestCanonicalName(typed).then((s) => { if (!cancelled) setNameHint(s); }).catch(() => {});
+    }, 500);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [direwolf, dismissedHint]);
 
   // Load session + prefill
   useEffect(() => {
@@ -602,8 +614,9 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
           <Card className="p-4 border-sand/40 bg-card/70">
             <p className="text-sm text-muted-foreground">
               Registering as a guest.{" "}
-              <Link to="/auth" className="text-sand underline">Sign in</Link>{" "}
-              to auto-fill your Direwolf name, Discord handle, and saved availability baseline and be allowed to adjust your registration.
+              <Link to="/auth" className="text-sand underline">Sign in or create an account</Link>{" "}
+              to make things easier: your Direwolf name, Discord handle and saved availability are filled in for you, and
+              nobody else can change your availability.
             </p>
           </Card>
         )}
@@ -645,6 +658,23 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
                   <p className="text-[11px] text-destructive mt-1">
                     Your Direwolf name can't contain a "+". Enter the name without the + and anything after it.
                   </p>
+                )}
+                {nameHint && (
+                  <div className="mt-2 rounded-md border border-sand/50 bg-sand/10 p-2 text-xs">
+                    {nameHint.kind === "alias" ? (
+                      <>Hey, this name was corrected to <strong>{nameHint.name}</strong> by an admin. Is this you?</>
+                    ) : (
+                      <>Did you mean <strong>{nameHint.name}</strong>?</>
+                    )}
+                    <div className="mt-1 flex gap-2">
+                      <Button type="button" size="sm" variant="outline" className="h-7" onClick={() => { setDirewolf(nameHint.name); setNameHint(null); }}>
+                        Yes, use {nameHint.name}
+                      </Button>
+                      <Button type="button" size="sm" variant="ghost" className="h-7" onClick={() => { setDismissedHint(direwolf.trim().toLowerCase()); setNameHint(null); }}>
+                        No, keep mine
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
 
