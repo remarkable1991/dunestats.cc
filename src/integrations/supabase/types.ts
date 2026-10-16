@@ -736,6 +736,33 @@ export type Database = {
         }
         Relationships: []
       }
+      player_name_aliases: {
+        Row: {
+          canonical_name: string
+          created_at: string
+          created_by: string | null
+          id: string
+          old_name: string
+          tournament_num: number | null
+        }
+        Insert: {
+          canonical_name: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          old_name: string
+          tournament_num?: number | null
+        }
+        Update: {
+          canonical_name?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          old_name?: string
+          tournament_num?: number | null
+        }
+        Relationships: []
+      }
       player_ratings: {
         Row: {
           claimed_by: string | null
@@ -1724,6 +1751,16 @@ export type Database = {
     }
     Functions: {
       admin_list_user_roles: { Args: { p_user_id: string }; Returns: string[] }
+      admin_rename_tournament_player: {
+        Args: {
+          p_new_name: string
+          p_old_name: string
+          p_tournament_num: number
+          p_update_account?: boolean
+          p_update_registration?: boolean
+        }
+        Returns: Json
+      }
       admin_set_table_roster: {
         Args: {
           p_players: Json
