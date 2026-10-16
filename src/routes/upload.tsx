@@ -15,6 +15,8 @@ import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
 import { detectTournamentFromPlayers, detectTournamentCandidate, type TournamentCandidate } from "@/lib/tournament-detect";
 import { tournamentModes } from "@/lib/tournament-config";
+import { PlayModePicker } from "@/components/PlayModePicker";
+import { tournamentPlayMode, type PlayMode } from "@/components/TournamentPlayModeBadge";
 import { translateLeader, isCanonicalLeader, CANONICAL_LEADERS } from "@/lib/leader-translate";
 import { submitMatch, detectTournamentTable } from "@/lib/match-submit";
 import { toast } from "sonner";
@@ -61,6 +63,7 @@ function UploadPage() {
   const [hasEpic, setHasEpic] = useState(false);
   const [hasImmortality, setHasImmortality] = useState(false);
   const [hasBaseLeaders, setHasBaseLeaders] = useState(false);
+  const [playMode, setPlayMode] = useState<PlayMode | null>(null);
   const [scanned, setScanned] = useState(false);
   const [adjusted, setAdjusted] = useState(false);
   const [duplicateWarn, setDuplicateWarn] = useState(false);
@@ -157,6 +160,7 @@ function UploadPage() {
       const cand = await detectTournamentCandidate(detected.map((d) => d.player_name));
       const tNum = exactNum ?? cand?.num ?? null;
       setDetectedTournamentNum(tNum);
+      setPlayMode(tNum != null ? tournamentPlayMode(tNum) : null);
       const profile = tournamentModes(tNum);
       if (profile) {
         setBoard(profile.board_version);
@@ -243,6 +247,7 @@ function UploadPage() {
         tournament,
         pendingTournament,
         confirmDuplicate,
+        playMode,
       });
       if (result.status === "duplicate") {
         setDuplicateWarn(true);
@@ -405,6 +410,10 @@ function UploadPage() {
                         <Checkbox checked={hasBaseLeaders} onCheckedChange={(c) => setHasBaseLeaders(!!c)} />
                         Base Leaders
                       </label>
+                    </div>
+                    <div className="mt-3 flex items-center gap-3 flex-wrap">
+                      <span className="text-xs text-muted-foreground">Format (optional)</span>
+                      <PlayModePicker value={playMode} onChange={setPlayMode} />
                     </div>
                   </div>
               </div>
