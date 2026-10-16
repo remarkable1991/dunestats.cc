@@ -1,4 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { PlayModePicker } from "@/components/PlayModePicker";
+import { TournamentPlayModeBadge, type PlayMode } from "@/components/TournamentPlayModeBadge";
 import { SupabaseImage } from "@/components/SupabaseImage";
 import { signedUrlOrR2, unsignedSignUrl, uploadToR2 } from "@/lib/storage-r2";
 import { useRef, useCallback, useEffect, useState } from "react";
