@@ -93,6 +93,7 @@ type GameRow = {
   image_url: string | null;
   tournament_num: number | null;
   conflict_title: string | null;
+  play_mode?: string | null;
   ai_scan_status: "Yes" | "No" | "Issue detected" | string | null;
   ai_scan_summary: string | null;
   game_results: ResultRow[];
@@ -577,6 +578,21 @@ function MatchDetailsPage() {
               {t}
             </span>
           ))}
+          {canEdit ? (
+            <PlayModePicker
+              value={(game.play_mode as PlayMode | null) ?? null}
+              onChange={async (m) => {
+                const { error } = await supabase.rpc("set_game_play_mode" as never, {
+                  p_game_id: game.id,
+                  p_mode: m,
+                } as never);
+                if (error) toast.error(error.message);
+                else setReloadKey((k) => k + 1);
+              }}
+            />
+          ) : game.play_mode === "live" || game.play_mode === "async" ? (
+            <TournamentPlayModeBadge num={null} mode={game.play_mode} />
+          ) : null}
         </div>
 
         <LandsraadBar players={slotSorted} />
