@@ -41,9 +41,10 @@ export function RosterEditDialog({
 }) {
   const [draft, setDraft] = useState<RosterSeat[]>(seats);
   const [saving, setSaving] = useState(false);
+  const [samePerson, setSamePerson] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (open) setDraft(seats);
+    if (open) { setDraft(seats); setSamePerson({}); }
   }, [open, seats]);
 
   const isBackupFor = (seat: RosterSeat, original: RosterSeat | undefined) => {
@@ -75,7 +76,21 @@ export function RosterEditDialog({
         p_players: payload,
       });
       if (error) throw error;
-      toast.success("Roster updated");
+      let renamed = 0;
+      for (const d of draft) {
+        const original = seats.find((s) => s.id === d.id);
+        if (!original || !samePerson[d.id] || d.player_name.trim().toLowerCase() === original.player_name.trim().toLowerCase()) continue;
+        const { error: rErr } = await supabase.rpc("admin_rename_tournament_player" as never, {
+          p_tournament_num: tournamentNum,
+          p_old_name: original.player_name,
+          p_new_name: d.player_name.trim(),
+          p_update_registration: true,
+          p_update_account: true,
+        } as never);
+        if (rErr) toast.error(`Rename of ${original.player_name} failed: ${rErr.message}`);
+        else renamed++;
+      }
+      toast.success(renamed ? `Roster updated · ${renamed} renamed across the tournament` : "Roster updated");
       onOpenChange(false);
       await onSaved();
     } catch (e) {
@@ -128,6 +143,17 @@ export function RosterEditDialog({
                     }
                   />
                 </div>
+                {original && seat.player_name.trim() && seat.player_name.trim().toLowerCase() !== original.player_name.trim().toLowerCase() && (
+                  <label className="col-span-2 flex items-start gap-2 rounded-md border border-border bg-muted/30 p-2 text-xs">
+                    <input type="checkbox" className="mt-0.5" checked={!!samePerson[seat.id]}
+                      onChange={(e) => setSamePerson((p) => ({ ...p, [seat.id]: e.target.checked }))} />
+                    <span>
+                      Is <strong>{seat.player_name.trim()}</strong> the same person as <strong>{original.player_name}</strong>?
+                      If so, rename them in every game of this tournament, update their registration and account name, and
+                      remember the old name as a correction.
+                    </span>
+                  </label>
+                )}
               </div>
             );
           })}

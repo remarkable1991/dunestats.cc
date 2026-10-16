@@ -129,7 +129,17 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
       })));
       const { error } = await supabase.from("tournament_matches").insert(insert);
       if (error) throw error;
-      toast.success(`Published ${draft.tables.length} semi-final tables`);
+      // Keep registrations in sync with the seated names (e.g. typo or old-name registrations).
+      let synced = 0;
+      for (const t of draft.tables) for (const p of t.players) {
+        const reg = registrationOf(p, discordOf(p));
+        if (!reg || reg.direwolf_name.trim().toLowerCase() === p.trim().toLowerCase()) continue;
+        const { error: rErr } = await supabase.rpc("admin_rename_tournament_player" as never, {
+          p_tournament_num: num, p_old_name: reg.direwolf_name, p_new_name: p, p_update_registration: true, p_update_account: true,
+        } as never);
+        if (!rErr) synced++;
+      }
+      toast.success(`Published ${draft.tables.length} semi-final tables${synced ? ` · ${synced} registration name${synced === 1 ? "" : "s"} updated` : ""}`);
       setPublishOpen(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Publishing failed");
