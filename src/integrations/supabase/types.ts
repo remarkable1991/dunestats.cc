@@ -346,6 +346,7 @@ export type Database = {
           has_rise_of_ix: boolean
           id: string
           image_url: string | null
+          play_mode: string | null
           public_match_id: string | null
           source: string
           tournament_num: number | null
@@ -367,6 +368,7 @@ export type Database = {
           has_rise_of_ix?: boolean
           id?: string
           image_url?: string | null
+          play_mode?: string | null
           public_match_id?: string | null
           source?: string
           tournament_num?: number | null
@@ -388,6 +390,7 @@ export type Database = {
           has_rise_of_ix?: boolean
           id?: string
           image_url?: string | null
+          play_mode?: string | null
           public_match_id?: string | null
           source?: string
           tournament_num?: number | null
@@ -1977,6 +1980,10 @@ export type Database = {
           p_tournament_num: number
         }
         Returns: Json
+      }
+      set_game_play_mode: {
+        Args: { p_game_id: string; p_mode: string }
+        Returns: undefined
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
