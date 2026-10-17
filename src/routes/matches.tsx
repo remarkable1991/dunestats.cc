@@ -347,7 +347,7 @@ function MatchesPage() {
           </div>
           <button
             onClick={() => setVideoOnly((v) => !v)}
-            className={`px-3 py-1.5 text-sm rounded border inline-flex items-center gap-1 ${videoOnly ? "bg-coral text-coral-foreground border-coral" : "text-muted-foreground border-border/60 bg-card/60 hover:text-foreground"}`}
+            className={`px-3 py-1.5 text-sm rounded border inline-flex items-center gap-1 ${videoOnly ? "bg-coral/20 text-coral border-coral" : "text-muted-foreground border-border/60 bg-card/60 hover:text-foreground"}`}
           >
             <Youtube className="size-4" /> With video
           </button>
