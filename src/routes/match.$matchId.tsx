@@ -1,5 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { PlayModePicker } from "@/components/PlayModePicker";
+import { MatchVideo, SpoilerToggle, youtubeId } from "@/components/MatchVideo";
+import { useRoles } from "@/hooks/use-roles";
 import { TournamentPlayModeBadge, type PlayMode } from "@/components/TournamentPlayModeBadge";
 import { SupabaseImage } from "@/components/SupabaseImage";
 import { signedUrlOrR2, unsignedSignUrl, uploadToR2 } from "@/lib/storage-r2";
@@ -96,6 +98,7 @@ type GameRow = {
   tournament_num: number | null;
   conflict_title: string | null;
   play_mode?: string | null;
+  youtube_url?: string | null;
   ai_scan_status: "Yes" | "No" | "Issue detected" | string | null;
   ai_scan_summary: string | null;
   game_results: ResultRow[];
@@ -133,6 +136,8 @@ function MatchDetailsPage() {
   const [leaverBusy, setLeaverBusy] = useState<string | null>(null);
 
   const titles = usePlayerTitles();
+  const { isContentCreator } = useRoles();
+  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -140,7 +145,7 @@ function MatchDetailsPage() {
       // Note: no setLoading(true) here — background refreshes must not unmount
       // the page (that would close the verification dialog mid-review).
       const select =
-        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, end_round, image_url, tournament_num, conflict_title, ai_scan_status, ai_scan_summary, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, spice, solaris, water, is_leaver, player_slot, turn_order, player_color, has_first_player, has_high_council, has_swordmaster, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance)";
+        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, end_round, image_url, tournament_num, conflict_title, play_mode, youtube_url, ai_scan_status, ai_scan_summary, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, spice, solaris, water, is_leaver, player_slot, turn_order, player_color, has_first_player, has_high_council, has_swordmaster, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance)";
       let q = supabase.from("games").select(select).limit(1);
       q = UUID_RE.test(matchId)
         ? q.or(`public_match_id.eq.${matchId},id.eq.${matchId}`)
@@ -597,6 +602,12 @@ function MatchDetailsPage() {
           ) : null}
         </div>
 
+        <MatchVideo gameId={game.id} url={game.youtube_url ?? null} canEdit={isContentCreator} onSaved={() => setReloadKey((k) => k + 1)} />
+        {youtubeId(game.youtube_url) && <SpoilerToggle hidden={!revealed} onToggle={() => setRevealed((v) => !v)} />}
+
+        {youtubeId(game.youtube_url) && !revealed ? (
+          <SpoilerRoster players={slotSorted} />
+        ) : (<>
         <LandsraadBar players={slotSorted} />
 
         <div className="grid gap-6 md:grid-cols-[1fr_auto]">
@@ -824,9 +835,27 @@ function MatchDetailsPage() {
         </div>
 
         <MatchHistoryLog gameId={game.id} reloadKey={reloadKey} />
+        </>)}
 
       </div>
     </div>
+  );
+}
+
+function SpoilerRoster({ players }: { players: ResultRow[] }) {
+  return (
+    <Card className="p-4 border-border/60 bg-card/70">
+      <h2 className="font-display text-lg mb-3">Players</h2>
+      <ul className="grid gap-2 sm:grid-cols-2">
+        {players.map((p, i) => (
+          <li key={i} className="flex items-center gap-2 rounded border border-border/60 px-3 py-2">
+            <span className="size-2.5 rounded-full" style={{ backgroundColor: colorHex(p.player_color) }} />
+            <span className="font-medium">{p.player_name}</span>
+            <span className="text-muted-foreground text-sm truncate">{p.leader_name ?? "Unknown leader"}</span>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 

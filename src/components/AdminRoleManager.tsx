@@ -12,6 +12,7 @@ const ASSIGNABLE = [
   { key: "tournament_moderator", label: "Tournament moderator", hint: "Approve or reject tournament match submissions" },
   { key: "match_moderator", label: "Match moderator", hint: "Edit any match and mark matches as manually verified" },
   { key: "lfg_admin", label: "LFG admin", hint: "Manage any matchmaking lobby" },
+  { key: "content_creator", label: "Content creator", hint: "Add YouTube videos to match pages" },
 ] as const;
 
 /** Main-admin-only panel to grant or remove roles for a player's account. */

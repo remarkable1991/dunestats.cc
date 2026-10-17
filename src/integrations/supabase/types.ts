@@ -346,10 +346,12 @@ export type Database = {
           has_rise_of_ix: boolean
           id: string
           image_url: string | null
+          is_league: boolean
           play_mode: string | null
           public_match_id: string | null
           source: string
           tournament_num: number | null
+          youtube_url: string | null
         }
         Insert: {
           ai_scan_discord_message_id?: string | null
@@ -368,10 +370,12 @@ export type Database = {
           has_rise_of_ix?: boolean
           id?: string
           image_url?: string | null
+          is_league?: boolean
           play_mode?: string | null
           public_match_id?: string | null
           source?: string
           tournament_num?: number | null
+          youtube_url?: string | null
         }
         Update: {
           ai_scan_discord_message_id?: string | null
@@ -390,10 +394,12 @@ export type Database = {
           has_rise_of_ix?: boolean
           id?: string
           image_url?: string | null
+          is_league?: boolean
           play_mode?: string | null
           public_match_id?: string | null
           source?: string
           tournament_num?: number | null
+          youtube_url?: string | null
         }
         Relationships: []
       }
@@ -1985,6 +1991,10 @@ export type Database = {
         Args: { p_game_id: string; p_mode: string }
         Returns: undefined
       }
+      set_game_youtube_url: {
+        Args: { p_game_id: string; p_url: string }
+        Returns: undefined
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       sp_award: {
@@ -2059,6 +2069,7 @@ export type Database = {
         | "tournament_host"
         | "tournament_moderator"
         | "match_moderator"
+        | "content_creator"
       game_version: "base" | "ix" | "uprising" | "overall"
     }
     CompositeTypes: {
@@ -2195,6 +2206,7 @@ export const Constants = {
         "tournament_host",
         "tournament_moderator",
         "match_moderator",
+        "content_creator",
       ],
       game_version: ["base", "ix", "uprising", "overall"],
     },

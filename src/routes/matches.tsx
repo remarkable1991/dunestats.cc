@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteGame } from "@/lib/games.functions";
 import { toast } from "sonner";
-import { ListOrdered, Search, Trash2, Loader2, Shield, ChevronLeft, ChevronRight } from "lucide-react";
+import { Youtube, ListOrdered, Search, Trash2, Loader2, Shield, ChevronLeft, ChevronRight } from "lucide-react";
 import { ScreenshotButton } from "@/components/ScreenshotButton";
 import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
@@ -28,6 +28,7 @@ type ResultRow = {
   points: number;
   elo_delta: number | null;
   elo_delta_overall: number | null;
+  player_slot?: number | null;
 };
 type GameRow = {
   id: string;
@@ -43,6 +44,9 @@ type GameRow = {
   image_url: string | null;
   tournament_num: number | null;
   ai_scan_status: string | null;
+  play_mode: string | null;
+  youtube_url: string | null;
+  is_league: boolean;
   game_results: ResultRow[];
 };
 
@@ -107,6 +111,14 @@ function MatchesPage() {
   const [q, setQ] = useState("");
   const [onlyMine, setOnlyMine] = useState(false);
   const [page, setPage] = useState(0);
+  const [videoOnly, setVideoOnly] = useState(false);
+  const [mode, setMode] = useState<"all" | "live" | "async">("all");
+  const [kind, setKind] = useState<"all" | "tournament" | "league">("all");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q.trim()), 300);
+    return () => clearTimeout(t);
+  }, [q]);
   const titles = usePlayerTitles();
 
 
@@ -126,14 +138,15 @@ function MatchesPage() {
 
   useEffect(() => {
     setPage(0);
-  }, [version, q, onlyMine, scanStatuses, pageSize]);
+  }, [version, debouncedQ, onlyMine, scanStatuses, pageSize, videoOnly, mode, kind]);
 
   const load = async () => {
     setLoading(true);
+    const needle = debouncedQ.replace(/[%,()*]/g, " ").trim();
     let query = supabase
       .from("games")
       .select(
-        "id, public_match_id, created_at, created_by, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, image_url, tournament_num, ai_scan_status, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall)",
+        `id, public_match_id, created_at, created_by, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, image_url, tournament_num, ai_scan_status, play_mode, youtube_url, is_league, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, player_slot)${needle ? ", hit:game_results!inner(player_name)" : ""}`,
         { count: "exact" },
       )
       .order("created_at", { ascending: false });
@@ -146,19 +159,14 @@ function MatchesPage() {
       query = arr.length === 1 ? query.eq("ai_scan_status", arr[0]) : query.in("ai_scan_status", arr);
     }
     if (onlyMine && userId) query = query.eq("created_by", userId);
+    if (videoOnly) query = query.not("youtube_url", "is", null);
+    if (mode !== "all") query = query.eq("play_mode", mode);
+    if (kind === "tournament") query = query.not("tournament_num", "is", null);
+    if (kind === "league") query = query.eq("is_league", true);
+    if (needle) query = query.or(`player_name.ilike.%${needle}%,leader_name.ilike.%${needle}%`, { referencedTable: "hit" });
     query = query.range(page * pageSize, page * pageSize + pageSize - 1);
     const { data, count } = await query;
-    let rows = (data as GameRow[]) ?? [];
-    const needle = q.trim().toLowerCase();
-    if (needle) {
-      rows = rows.filter((g) =>
-        g.game_results.some(
-          (r) =>
-            r.player_name.toLowerCase().includes(needle) ||
-            (r.leader_name ?? "").toLowerCase().includes(needle),
-        ),
-      );
-    }
+    const rows = ((data ?? []) as unknown as GameRow[]);
     setGames(rows);
     setTotal(count ?? 0);
     const ids = Array.from(
@@ -238,7 +246,7 @@ function MatchesPage() {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version, q, onlyMine, page, userId, scanStatuses, pageSize]);
+  }, [version, debouncedQ, onlyMine, page, userId, scanStatuses, pageSize, videoOnly, mode, kind]);
 
   const filtered = games;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
@@ -323,6 +331,26 @@ function MatchesPage() {
               );
             })}
           </div>
+          <div className="flex bg-card/60 border border-border/60 rounded-md p-1">
+            {(["all", "live", "async"] as const).map((m) => (
+              <button key={m} onClick={() => setMode(m)} className={`px-3 py-1 text-sm rounded ${mode === m ? "bg-sand text-sand-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                {m === "all" ? "Any format" : m === "live" ? "Live" : "Async"}
+              </button>
+            ))}
+          </div>
+          <div className="flex bg-card/60 border border-border/60 rounded-md p-1">
+            {(["all", "tournament", "league"] as const).map((k) => (
+              <button key={k} onClick={() => setKind(k)} className={`px-3 py-1 text-sm rounded ${kind === k ? "bg-sand text-sand-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                {k === "all" ? "All games" : k === "tournament" ? "Tournament" : "League"}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setVideoOnly((v) => !v)}
+            className={`px-3 py-1.5 text-sm rounded border inline-flex items-center gap-1 ${videoOnly ? "bg-coral/20 text-coral border-coral" : "text-muted-foreground border-border/60 bg-card/60 hover:text-foreground"}`}
+          >
+            <Youtube className="size-4" /> With video
+          </button>
           <div className="relative">
             <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
             <Input
@@ -338,7 +366,7 @@ function MatchesPage() {
               Only my uploads
             </label>
           )}
-          <span className="text-xs text-muted-foreground ml-auto">{filtered.length} matches</span>
+          <span className="text-xs text-muted-foreground ml-auto">{total} matches</span>
           <select
             value={pageSize}
             onChange={(e) => setPageSize(Number(e.target.value) as (typeof PAGE_SIZES)[number])}
@@ -359,7 +387,10 @@ function MatchesPage() {
           <div className="grid gap-3">
             {filtered.map((g) => {
               const canDelete = isAdmin || (userId && g.created_by === userId);
-              const sorted = [...g.game_results].sort((a, b) => a.placement - b.placement);
+              const spoiler = videoOnly || !!g.youtube_url;
+              const sorted = [...g.game_results].sort((a, b) =>
+                spoiler ? (a.player_slot ?? 9) - (b.player_slot ?? 9) || a.player_name.localeCompare(b.player_name) : a.placement - b.placement,
+              );
               const tags: string[] = [];
               if (g.board_version) tags.push(g.board_version === "uprising" ? "Uprising" : "Base");
               if (g.has_rise_of_ix) tags.push("Rise of Ix");
@@ -371,6 +402,11 @@ function MatchesPage() {
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <TournamentTag num={g.tournament_num} round={tourneyTables[g.id]?.round} table={tourneyTables[g.id]?.table} />
+                      {g.youtube_url && (
+                        <span className="text-xs px-2 py-0.5 rounded border border-coral/40 text-coral inline-flex items-center gap-1"><Youtube className="size-3" /> Video</span>
+                      )}
+                      {g.is_league && <span className="text-xs px-2 py-0.5 rounded border border-sand/40 text-sand">League</span>}
+                      {g.play_mode && <span className="text-xs px-2 py-0.5 rounded bg-secondary/60 text-secondary-foreground">{g.play_mode === "live" ? "Live" : "Async"}</span>}
                       {tags.map((t) => (
                         <span key={t} className="text-xs px-2 py-0.5 rounded bg-secondary/60 text-secondary-foreground">
                           {t}
@@ -439,9 +475,11 @@ function MatchesPage() {
                         className="flex items-center justify-between border border-border/40 rounded px-3 py-2 bg-background/40"
                       >
                         <div className="flex items-center gap-2 min-w-0">
+                          {!spoiler && (
                           <span className="inline-flex size-6 items-center justify-center rounded bg-secondary/60 text-xs font-bold">
                             {r.placement}
                           </span>
+                          )}
                           {leaderRoute && (
                             <Link
                               to="/leaders/$origin/$slug"
@@ -478,12 +516,14 @@ function MatchesPage() {
                             ) : (
                               <div className="text-xs text-muted-foreground truncate">{r.leader_name}</div>
                             )}
+                            {!spoiler && (
                             <Link to="/leaderboard" className="hover:underline underline-offset-2">
                               <EloDeltaLine version={g.game_version} overall={r.elo_delta_overall} versionDelta={r.elo_delta} vpDelta={vpDeltas[`${g.id}::${r.player_name.toLowerCase().trim()}`]} />
                             </Link>
+                            )}
                           </div>
                         </div>
-                        <span className="font-display text-sand tabular-nums">{r.points}</span>
+                        {!spoiler && <span className="font-display text-sand tabular-nums">{r.points}</span>}
                       </div>
                       );
                     })}
