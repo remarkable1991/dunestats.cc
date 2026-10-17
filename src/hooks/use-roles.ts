@@ -8,7 +8,8 @@ export type AppRole =
   | "lfg_admin"
   | "tournament_host"
   | "tournament_moderator"
-  | "match_moderator";
+  | "match_moderator"
+  | "content_creator";
 
 export type RoleState = {
   loading: boolean;
@@ -22,6 +23,8 @@ export type RoleState = {
   /** Can edit any match and set the verified state. */
   isMatchModerator: boolean;
   isLfgAdmin: boolean;
+  /** Can attach YouTube videos to match pages. */
+  isContentCreator: boolean;
 };
 
 /** Loads the signed-in user's roles once and derives the access flags. */
@@ -35,6 +38,7 @@ export function useRoles(): RoleState {
     isTournamentModerator: false,
     isMatchModerator: false,
     isLfgAdmin: false,
+    isContentCreator: false,
   });
 
   useEffect(() => {
@@ -60,6 +64,7 @@ export function useRoles(): RoleState {
         isTournamentModerator: admin || has("tournament_moderator"),
         isMatchModerator: admin || has("match_moderator"),
         isLfgAdmin: admin || has("lfg_admin"),
+        isContentCreator: admin || has("content_creator"),
       });
     })();
     return () => {
