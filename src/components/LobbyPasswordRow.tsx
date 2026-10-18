@@ -13,7 +13,7 @@ type PwRow = {
   guest_players?: string[] | null;
 };
 
-/** Saves only the password; passes the current guests so the roster is never cleared. */
+/** NULL preserves the latest guest roster, including players added while this form was open. */
 export async function setLobbyPassword(row: PwRow, password: string) {
   const { data, error } = await supabase.rpc("lfg_update_lobby", {
     p_id: row.id,
@@ -23,7 +23,7 @@ export async function setLobbyPassword(row: PwRow, password: string) {
     p_notes: row.message_text ?? "",
     p_password: password,
     p_expires_minutes: 0,
-    p_guest_players: row.guest_players ?? [],
+    p_guest_players: null as unknown as string[], // SQL accepts NULL; generated optional-array types omit it.
     p_remove_web_ids: [],
     p_remove_discord_ids: [],
   });

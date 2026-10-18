@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { resolveLobbyIdentities, LEAGUE_QUEUE_MODES, LIVE_QUEUE_MINUTES } from "../src/lib/lfg-identities";
+import { isHost, isMember, type LfgRow, type Seat } from "../src/lib/lfg-seats";
 
 describe("Lobby identity display", () => {
   const member = { discord_user_id: "236215014019563520", display_name: "BLUDGEON", discord_username: "bludgeon_", global_name: null, suggested_player_key: "bludgeon" };
@@ -17,4 +18,11 @@ describe("Lobby identity display", () => {
   });
   test("League queue is live only", () => { expect([...LEAGUE_QUEUE_MODES]).toEqual(["live"]); });
   test("Live queue timer choices stay 5, 15, 30, 45 and 60 minutes", () => { expect([...LIVE_QUEUE_MINUTES]).toEqual([5,15,30,45,60]); });
+  test("suggested IGN never grants membership or host permissions", () => {
+    const row = { web_host_id: null, web_player_ids: [], host_id: "discord", player_ids: ["discord"] } as unknown as LfgRow;
+    const seats: Seat[] = [{ name: "BLUDGEON", playerKey: "bludgeon", web: false, discord: true, guest: false, host: true, discordId: "discord", discordHandle: "bludgeon_", webUserId: null, identityVerified: false }];
+    const me = { userId: "other-account", discordId: null, ign: "BLUDGEON" };
+    expect(isMember(row, seats, me)).toBe(false);
+    expect(isHost(row, seats, me)).toBe(false);
+  });
 });

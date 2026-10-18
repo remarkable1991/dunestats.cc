@@ -69,6 +69,7 @@ export function seatsOf(
   const keysAligned = (r.expected_player_keys ?? []).length === (r.player_ids ?? []).length;
 
   const sameSeat = (a: Seat, b: Seat) => {
+    if (a.identityVerified === false || b.identityVerified === false) return false;
     if (a.playerKey && b.playerKey && looseKey(a.playerKey) === looseKey(b.playerKey)) return true;
     if (a.name !== UNKNOWN_NAME && b.name !== UNKNOWN_NAME && looseKey(a.name) === looseKey(b.name)) return true;
     if (a.discordHandle && b.playerKey && looseKey(a.discordHandle) === looseKey(b.playerKey)) return true;
