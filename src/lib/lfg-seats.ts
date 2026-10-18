@@ -43,6 +43,7 @@ export type Seat = {
   discordId: string | null;
   discordHandle: string | null;
   webUserId: string | null;
+  identityVerified?: boolean;
 };
 
 export const UNKNOWN_NAME = "Unknown player name";
@@ -59,6 +60,7 @@ export function seatsOf(
   discordNames: Record<string, string>,
   discordKeys: Record<string, string> = {},
   discordHandles: Record<string, string> = {},
+  discordVerified: Record<string, boolean> = {},
 ): Seat[] {
   const webIds = r.web_player_ids ?? [];
   const seats: Seat[] = [];
@@ -87,6 +89,7 @@ export function seatsOf(
     existing.discordId ??= s.discordId;
     existing.discordHandle ??= s.discordHandle;
     existing.webUserId ??= s.webUserId;
+    existing.identityVerified ||= s.identityVerified;
     if ((preferName && s.name !== UNKNOWN_NAME) || existing.name === UNKNOWN_NAME) existing.name = s.name;
     if (s.playerKey && (preferName || !existing.playerKey)) existing.playerKey = s.playerKey;
   };
@@ -108,6 +111,7 @@ export function seatsOf(
         discordId: id,
         discordHandle: handle,
         webUserId: null,
+        identityVerified: discordVerified[id] !== false,
       },
       !!mapped,
     );
@@ -125,6 +129,7 @@ export function seatsOf(
         discordId: null,
         discordHandle: null,
         webUserId: webIds[i] ?? null,
+        identityVerified: true,
       },
       false,
     );
@@ -142,6 +147,7 @@ export function seatsOf(
         discordId: null,
         discordHandle: null,
         webUserId: null,
+        identityVerified: true,
       },
       false,
     );
@@ -169,7 +175,7 @@ export function isMember(
   if (me.discordId && (r.host_id === me.discordId || (r.player_ids ?? []).includes(me.discordId))) return true;
   if (me.ign) {
     const k = looseKey(me.ign);
-    if (seats.some((s) => (s.playerKey && looseKey(s.playerKey) === k) || looseKey(s.name) === k)) return true;
+    if (seats.some((s) => s.identityVerified !== false && ((s.playerKey && looseKey(s.playerKey) === k) || looseKey(s.name) === k))) return true;
   }
   return false;
 }
@@ -183,7 +189,7 @@ export function isHost(
   if (r.web_host_id === me.userId) return true;
   if (me.discordId && r.host_id === me.discordId) return true;
   const host = seats.find((s) => s.host);
-  if (host && me.ign) {
+  if (host && host.identityVerified !== false && me.ign) {
     const k = looseKey(me.ign);
     if ((host.playerKey && looseKey(host.playerKey) === k) || looseKey(host.name) === k) return true;
   }
