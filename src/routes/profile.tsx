@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { Bell, User as UserIcon, UserPlus, BadgeCheck, Trophy, KeyRound, Link2, Gift, Copy } from "lucide-react";
 import { loadChampions, type ChampionMap } from "@/lib/champions";
 import { toast } from "sonner";
@@ -17,7 +16,14 @@ import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 
 
 export const Route = createFileRoute("/profile")({
-  head: () => ({ meta: [{ title: "My profile · Strategy Arena" }] }),
+  head: () => ({ meta: [
+    { title: "My profile · Strategy Arena" },
+    { name: "description", content: "Manage claimed Dune player names, linked accounts and notification preferences." },
+    { property: "og:title", content: "My profile · Strategy Arena" },
+    { property: "og:description", content: "Your Strategy Arena player names and linked accounts." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: ProfileLanding,
 });
 
@@ -74,7 +80,8 @@ function ProfileLanding() {
       }
     } else {
       setDiscordIdentityId(null);
-      setDiscordUsername(null);
+      const { data: mapping } = await supabase.from("player_discord_map").select("discord_username").eq("claimed_by", uid).not("discord_user_id", "is", null).limit(1).maybeSingle();
+      setDiscordUsername(mapping?.discord_username ?? null);
     }
   };
 
@@ -115,11 +122,12 @@ function ProfileLanding() {
 
   const linkGoogle = async () => {
     setLinkingGoogle(true);
-    const res = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: typeof window !== "undefined" ? window.location.origin + "/profile" : undefined,
+    const { error } = await supabase.auth.linkIdentity({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=/profile` },
     });
     setLinkingGoogle(false);
-    if ("error" in res && res.error) toast.error(res.error.message);
+    if (error) toast.error(error.message);
   };
 
   const linkDiscord = async () => {
@@ -127,7 +135,7 @@ function ProfileLanding() {
     const { error } = await supabase.auth.linkIdentity({
       provider: "discord",
       options: {
-        redirectTo: typeof window !== "undefined" ? window.location.origin + "/profile" : undefined,
+        redirectTo: `${window.location.origin}/auth/callback?next=/profile`,
       },
     });
     setLinkingDiscord(false);
@@ -357,7 +365,7 @@ function ProfileLanding() {
                   ? discordUsername
                     ? `Linked as ${discordUsername}`
                     : "Linked"
-                  : "Not linked"}
+                  : discordUsername ? `Player linked as ${discordUsername} · Discord sign-in not connected` : "Not linked"}
               </div>
             </div>
             {discordIdentityId ? (

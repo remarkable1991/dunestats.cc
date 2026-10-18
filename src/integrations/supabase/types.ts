@@ -1761,6 +1761,7 @@ export type Database = {
     Functions: {
       admin_consolidate_player_records: {
         Args: {
+          p_actor: string
           p_confirm_same_person: boolean
           p_source: string
           p_target: string

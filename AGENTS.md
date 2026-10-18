@@ -13,3 +13,6 @@
 - Semi-finals scheduling stays isolated from qualifier methods; registration overrides are trial-only and candidate ranking uses shared player-block coverage with nonzero per-player availability to avoid impossible timezone fallbacks.
 - LFG roster merging and lobby membership/host checks live in `src/lib/lfg-seats.ts`, shared by `/lfg` and `/lfg/$id`; one source of truth avoids the list and detail pages disagreeing on who is seated.
 - Lobby format artwork and cancellation controls are shared between list and detail pages; cancellation verifies authenticated host ownership or LFG/admin roles server-side before changing the existing status, preserving roster and history without schema changes.
+- Lobby identity display uses a shared verified-map-first guild-directory resolver; directory suggestions may label/link players but must never grant host/member access or silently write authoritative mappings.
+- Main-admin player-record consolidation runs atomically through a service-only RPC after server-side role verification; it never moves Auth identities or grants permissions, and conflicting tournament registrations require separate review.
+- League settings writes preserve format fields in the database RPC; unedited guest lists use NULL to preserve the latest roster rather than replacing it from stale forms.

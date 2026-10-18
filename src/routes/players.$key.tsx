@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown, Target, History, TrendingUp, type LucideIcon } from "lucide-react";
 import { EloHistoryChart } from "@/components/EloHistoryChart";
+import { AccountConsolidation } from "@/components/AccountConsolidation";
 import { AdminRoleManager } from "@/components/AdminRoleManager";
 
 import { ScreenshotButton } from "@/components/ScreenshotButton";
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/players/$key")({
       { property: "og:title", content: `${params.key} · Player profile` },
       { property: "og:description", content: `Dune Imperium competitive profile for ${params.key}: ELO rating, win rate and match history.` },
       { property: "og:type", content: "profile" },
+      { name: "twitter:card", content: "summary" },
       { property: "og:url", content: `https://dunestats.cc/players/${encodeURIComponent(params.key)}` },
     ],
     links: [{ rel: "canonical", href: `https://dunestats.cc/players/${encodeURIComponent(params.key)}` }],
@@ -608,6 +610,8 @@ function ProfilePage() {
               userId={ratings.find((r) => r.claimed_by)?.claimed_by ?? null}
               displayName={displayName}
             />
+
+            <AccountConsolidation target={ratings.find((r) => r.claimed_by)?.claimed_by ?? null} name={displayName} />
 
             <EloHistoryChart playerKey={playerKey} />
 

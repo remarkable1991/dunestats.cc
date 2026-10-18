@@ -6,7 +6,7 @@ import { LobbyFormatIcons } from "@/components/LobbyFormatIcons";
 import { CancelLobbyButton } from "@/components/CancelLobbyButton";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
+import { loadLobbyIdentities } from "@/lib/lfg-identity-loader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -182,6 +182,7 @@ function LfgPage() {
   const [discordNames, setDiscordNames] = useState<Record<string, string>>({});
   const [discordKeys, setDiscordKeys] = useState<Record<string, string>>({});
   const [discordHandles, setDiscordHandles] = useState<Record<string, string>>({});
+  const [discordVerified, setDiscordVerified] = useState<Record<string, boolean>>({});
   const [leagueDisplays, setLeagueDisplays] = useState<Record<number, LeagueDisplay>>({});
   const [isLfgAdmin, setIsLfgAdmin] = useState(false);
   const [myDiscordId, setMyDiscordId] = useState<string | null>(null);
@@ -262,36 +263,13 @@ function LfgPage() {
     const missing = ids.filter((id) => !(id in discordNames));
     if (missing.length === 0) return;
     let active = true;
-    supabase
-      .from("player_discord_map")
-      .select("discord_user_id,player_key,display_name,discord_username")
-      .in("discord_user_id", missing)
-      .then(({ data }) => {
-        if (!active || !data) return;
-        setDiscordHandles((prev) => {
-          const next = { ...prev };
-          for (const row of data) if (row.discord_user_id && row.discord_username?.trim()) next[row.discord_user_id] = row.discord_username.trim();
-          return next;
-        });
-        setDiscordKeys((prev) => {
-          const next = { ...prev };
-          for (const row of data) {
-            if (row.discord_user_id && row.player_key) next[row.discord_user_id] = leagueKey(row.player_key);
-          }
-          return next;
-        });
-        setDiscordNames((prev) => {
-          const next = { ...prev };
-          for (const id of missing) next[id] = UNKNOWN_NAME;
-          for (const row of data) {
-            if (row.discord_user_id) {
-              const resolved = row.display_name?.trim() || row.player_key?.trim() || "";
-              next[row.discord_user_id] = resolved || UNKNOWN_NAME;
-            }
-          }
-          return next;
-        });
-      });
+    void loadLobbyIdentities(missing).then((result) => {
+      if (!active) return;
+      setDiscordNames((prev) => ({ ...prev, ...result.names }));
+      setDiscordKeys((prev) => ({ ...prev, ...result.keys }));
+      setDiscordHandles((prev) => ({ ...prev, ...result.handles }));
+      setDiscordVerified((prev) => ({ ...prev, ...result.verified }));
+    }).catch(() => { if (active) setDiscordNames((prev) => ({ ...prev, ...Object.fromEntries(missing.map((id) => [id, UNKNOWN_NAME])) })); });
     return () => {
       active = false;
     };
@@ -320,7 +298,7 @@ function LfgPage() {
           }
         }
         const seasons = [...new Set(Object.values(pending).flatMap((entry) => entry.season === null ? [] : [entry.season]))];
-        const keys = [...new Set(lobbies.flatMap((row) => seatsOf(row, discordNames, discordKeys, discordHandles).flatMap((seat) => seat.playerKey ? [seat.playerKey] : [])))];
+        const keys = [...new Set(lobbies.flatMap((row) => seatsOf(row, discordNames, discordKeys, discordHandles, discordVerified).flatMap((seat) => seat.playerKey ? [seat.playerKey] : [])))];
         const ratings: { player_key: string; season: number; elo: number }[] = [];
         if (keys.length && seasons.length) {
           for (let offset = 0; ; offset += 1000) {
@@ -350,9 +328,9 @@ function LfgPage() {
     () =>
       rows.filter(
         (r) =>
-          !isExpired(r, now) && (tab === "all" ? true : tab === "live" ? isLive(r) : !isLive(r)),
+          (!r.is_league || isLfgAdmin) && !isExpired(r, now) && (tab === "all" ? true : tab === "live" ? isLive(r) : !isLive(r)),
       ),
-    [rows, tab, now],
+    [rows, tab, now, isLfgAdmin],
   );
 
   return (
@@ -404,10 +382,11 @@ function LfgPage() {
                 discordNames={discordNames}
                 discordKeys={discordKeys}
                 discordHandles={discordHandles}
+                discordVerified={discordVerified}
                 leagueDisplay={leagueDisplays[r.id]}
                 canManage={
                   isLfgAdmin ||
-                  isHost(r, seatsOf(r, discordNames, discordKeys, discordHandles), {
+                  isHost(r, seatsOf(r, discordNames, discordKeys, discordHandles, discordVerified), {
                     userId,
                     discordId: myDiscordId,
                     ign: myIgn,
@@ -419,7 +398,6 @@ function LfgPage() {
           </div>
         )}
       </main>
-      <Footer />
       <CreateLfgDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
@@ -450,6 +428,7 @@ function LfgCard({
   discordNames,
   discordKeys,
   discordHandles,
+  discordVerified,
   leagueDisplay,
   canManage,
   onChanged,
@@ -460,6 +439,7 @@ function LfgCard({
   discordNames: Record<string, string>;
   discordKeys: Record<string, string>;
   discordHandles: Record<string, string>;
+  discordVerified: Record<string, boolean>;
   leagueDisplay?: LeagueDisplay;
   canManage: boolean;
   onChanged: () => void;
@@ -473,7 +453,7 @@ function LfgCard({
   const [addName, setAddName] = useState("");
   const [addBusy, setAddBusy] = useState(false);
   const live = isLive(row);
-  const seats = seatsOf(row, discordNames, discordKeys, discordHandles);
+  const seats = seatsOf(row, discordNames, discordKeys, discordHandles, discordVerified);
   const titles = usePlayerTitles();
   const open = Math.max(0, 4 - seats.length);
   const countdown = useCountdown(row.auto_start_at);
@@ -562,9 +542,9 @@ function LfgCard({
         <div className="flex items-center gap-2 min-w-0">
           <img src={live ? liveIcon.url : asyncIcon.url} alt={live ? "Live" : "Async"} className="size-6 shrink-0" />
           <div className="min-w-0">
-            <div className="font-display truncate">
+            <Link to="/lfg/$id" params={{ id: String(row.id) }} className="block font-display break-words text-primary hover:underline">
               {hostName ? `${hostName}'s Game [ID: ${displayId}]` : `New Match Open! [ID: ${displayId}]`}
-            </div>
+            </Link>
             <div className="text-xs uppercase tracking-wide" style={{ color: accent }}>
               {live ? "Live" : "ASync"} · {row.board_type?.replace(/<[^>]*>/g, "").trim() || "Not specified"}
             </div>
@@ -804,6 +784,7 @@ function ManageLfgDialog({
     return Math.min(1440, Math.max(5, left));
   });
   const [guests, setGuests] = useState<string[]>(row.guest_players ?? []);
+  const [guestsEdited, setGuestsEdited] = useState(false);
   const [removedWeb, setRemovedWeb] = useState<string[]>([]);
   const [removedDiscord, setRemovedDiscord] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -817,6 +798,7 @@ function ManageLfgDialog({
     setNotes(row.message_text?.replace(/<[^>]*>/g, "").trim() ?? "");
     setPassword(row.lobby_password ?? "");
     setGuests(row.guest_players ?? []);
+    setGuestsEdited(false);
     setRemovedWeb([]);
     setRemovedDiscord([]);
   }, [open, row]);
@@ -843,13 +825,13 @@ function ManageLfgDialog({
     setBusy(true);
     const { data, error } = await supabase.rpc("lfg_update_lobby", {
       p_id: row.id,
-      p_mode: mode,
-      p_board: board,
-      p_expansions: exps,
-      p_notes: notes,
+      p_mode: row.is_league ? row.mode ?? "live" : mode,
+      p_board: row.is_league ? row.board_type ?? "" : board,
+      p_expansions: row.is_league ? row.expansions ?? [] : exps,
+      p_notes: row.is_league ? row.message_text : notes,
       p_password: password,
-      p_expires_minutes: minutes,
-      p_guest_players: guests.map((g) => g.trim()).filter(Boolean),
+      p_expires_minutes: row.is_league ? 0 : minutes,
+      p_guest_players: guestsEdited ? guests.map((g) => g.trim()).filter(Boolean) : (null as unknown as string[]), // PostgREST accepts SQL NULL; generated optional array type omits it.
       p_remove_web_ids: removedWeb,
       p_remove_discord_ids: removedDiscord,
     });
@@ -917,21 +899,21 @@ function ManageLfgDialog({
                 <div key={`g-${i}`} className="flex items-center gap-2">
                   <Input
                     value={g}
-                    onChange={(e) => setGuests((p) => p.map((x, j) => (j === i ? e.target.value : x)))}
+                    onChange={(e) => { setGuestsEdited(true); setGuests((p) => p.map((x, j) => (j === i ? e.target.value : x))); }}
                     placeholder="Player name"
                   />
                   <Button
                     variant="ghost"
                     size="icon"
                     aria-label="Remove player"
-                    onClick={() => setGuests((p) => p.filter((_, j) => j !== i))}
+                    onClick={() => { setGuestsEdited(true); setGuests((p) => p.filter((_, j) => j !== i)); }}
                   >
                     <X className="size-4" />
                   </Button>
                 </div>
               ))}
               {webSeats.length + discordSeats.length + guests.length < 4 && (
-                <Button variant="outline" size="sm" onClick={() => setGuests((p) => [...p, ""])}>
+                <Button variant="outline" size="sm" onClick={() => { setGuestsEdited(true); setGuests((p) => [...p, ""]); }}>
                   <UserPlus className="size-4" />
                   Add player
                 </Button>
@@ -939,6 +921,7 @@ function ManageLfgDialog({
             </div>
           </div>
 
+          {row.is_league ? <div className="space-y-2"><p className="text-sm text-primary">League preset locked</p><LobbyFormatIcons row={row} /></div> : <>
           <div className="space-y-2">
             <Label>Mode</Label>
             <RadioGroup value={mode} onValueChange={(v) => setMode(v as typeof mode)} className="flex gap-4">
@@ -995,6 +978,7 @@ function ManageLfgDialog({
             <Input id={`edit-notes-${row.id}`} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
 
+          </>}
           <div className="space-y-2">
             <Label htmlFor={`edit-pass-${row.id}`}>Password</Label>
             <Input
@@ -1005,12 +989,12 @@ function ManageLfgDialog({
             />
           </div>
 
-          <div className="space-y-2">
+          {!row.is_league && <div className="space-y-2">
             <Label>
               Expires in {minutes >= 60 ? `${Math.round(minutes / 60)} hours` : `${minutes} minutes`}
             </Label>
             <Slider min={5} max={1440} step={5} value={[minutes]} onValueChange={(v) => setMinutes(v[0])} />
-          </div>
+          </div>}
         </div>
 
         <DialogFooter>
@@ -1078,7 +1062,7 @@ function CreateLfgDialog({
       p_password: password.trim().toLowerCase() === "none" ? "" : password,
       p_expires_minutes: mode === "live" ? liveMinutes : asyncHours * 60,
       p_guest_players: guestPlayers,
-      p_is_league: isAdminLeague(isLfgAdmin, isLeague),
+      p_is_league: false,
     });
     setBusy(false);
     const res = data as { ok?: boolean; error?: string } | null;
@@ -1108,19 +1092,6 @@ function CreateLfgDialog({
             <div className="rounded-md border border-primary/40 bg-primary/10 px-4 py-3 text-center">
               <p className="font-display text-lg text-foreground">Lobby Name: {myIgn}'s Game</p>
             </div>
-
-            {isLfgAdmin && (
-              <label className="flex items-center justify-between gap-3 rounded-md border border-primary/40 bg-primary/5 px-3 py-2">
-                <span className="flex items-center gap-2 text-sm">
-                  <Trophy className="size-4 text-primary" />
-                  <span>
-                    <span className="font-medium">League match</span>
-                    <span className="block text-xs text-muted-foreground">Pilot: only LFG admins can see and join this lobby.</span>
-                  </span>
-                </span>
-                <Switch checked={isLeague} onCheckedChange={setIsLeague} aria-label="League match" />
-              </label>
-            )}
 
             <div className="space-y-2">
               <Label htmlFor="lfg-ign">In-Game Name</Label>

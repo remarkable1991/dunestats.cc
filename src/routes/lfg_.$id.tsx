@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
+import { loadLobbyIdentities } from "@/lib/lfg-identity-loader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +54,7 @@ function LobbyPage() {
   const [discordNames, setDiscordNames] = useState<Record<string, string>>({});
   const [discordKeys, setDiscordKeys] = useState<Record<string, string>>({});
   const [discordHandles, setDiscordHandles] = useState<Record<string, string>>({});
+  const [discordVerified, setDiscordVerified] = useState<Record<string, boolean>>({});
   const [userId, setUserId] = useState<string | null>(null);
   const [myIgn, setMyIgn] = useState<string | null>(null);
   const [myDiscordId, setMyDiscordId] = useState<string | null>(null);
@@ -81,20 +82,11 @@ function LobbyPage() {
     if (r) {
       const ids = [...new Set([...(r.player_ids ?? []), r.host_id].filter(Boolean))];
       if (ids.length) {
-        const { data: maps } = await supabase.from("player_discord_map").select("discord_user_id,player_key,display_name,discord_username").in("discord_user_id", ids);
-        const names: Record<string, string> = {};
-        const keys: Record<string, string> = {};
-        const handles: Record<string, string> = {};
-        for (const i of ids) names[i] = UNKNOWN_NAME;
-        for (const m of maps ?? []) {
-          if (!m.discord_user_id) continue;
-          names[m.discord_user_id] = m.display_name?.trim() || m.player_key?.trim() || UNKNOWN_NAME;
-          if (m.player_key) keys[m.discord_user_id] = leagueKey(m.player_key);
-          if (m.discord_username?.trim()) handles[m.discord_user_id] = m.discord_username.trim();
-        }
-        setDiscordNames(names);
-        setDiscordKeys(keys);
-        setDiscordHandles(handles);
+        const identities = await loadLobbyIdentities(ids);
+        setDiscordNames(identities.names);
+        setDiscordKeys(identities.keys);
+        setDiscordHandles(identities.handles);
+        setDiscordVerified(identities.verified);
       }
       if (r.linked_game_id) {
         const { data: g } = await supabase.from("games").select("public_match_id").eq("id", r.linked_game_id).maybeSingle();
@@ -144,7 +136,7 @@ function LobbyPage() {
     };
   }, []);
 
-  const seats = useMemo(() => (row ? seatsOf(row, discordNames, discordKeys, discordHandles) : []), [row, discordNames, discordKeys, discordHandles]);
+  const seats = useMemo(() => (row ? seatsOf(row, discordNames, discordKeys, discordHandles, discordVerified) : []), [row, discordNames, discordKeys, discordHandles, discordVerified]);
   const me = { userId, discordId: myDiscordId, ign: myIgn };
   const member = row ? isMember(row, seats, me) : false;
   const canReport = member || isAdmin;
@@ -372,6 +364,7 @@ function SeatCard({ seat, color, elo, isAdmin, onMapped, onRemove }: { seat: Sea
   const [busy, setBusy] = useState(false);
   const save = async () => {
     if (!seat.discordId || !ign.trim()) return;
+    if (!confirm(`Have you verified this Discord account and ${ign.trim()} belong to the same person?`)) return;
     setBusy(true);
     const { data, error } = await supabase.rpc("lfg_admin_map_discord" as never, {
       p_discord_user_id: seat.discordId,
@@ -440,7 +433,6 @@ function Shell({ children }: { children: React.ReactNode }) {
         </Link>
         {children}
       </main>
-      <Footer />
     </div>
   );
 }
