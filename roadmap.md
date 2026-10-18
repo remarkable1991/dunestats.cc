@@ -1,5 +1,10 @@
 # Roadmap
 
+- [ ] Resolve Discord lobby names through the guild directory without silently verifying suggestions.
+- [ ] Link BLUDGEON to his claimed name and add safe duplicate-account player-data consolidation.
+- [ ] Make lobby titles clickable, lock League format settings, remove duplicate footers and make the League queue Live-only.
+- [ ] Test identity safeguards, lobby controls and public rendering; disclose authenticated/bot checks that remain unavailable.
+
 - [x] Add semi-finals roster inclusion, trial registration linking, timezones and last-update visibility.
 - [x] Add configurable window lengths and no-zero availability ranking with window counts.
 - [x] Verify six scheduling tests and browser-fixture review flow without changing qualifier methods or database.
