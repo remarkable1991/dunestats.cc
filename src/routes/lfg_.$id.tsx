@@ -54,6 +54,7 @@ function LobbyPage() {
   const [discordNames, setDiscordNames] = useState<Record<string, string>>({});
   const [discordKeys, setDiscordKeys] = useState<Record<string, string>>({});
   const [discordHandles, setDiscordHandles] = useState<Record<string, string>>({});
+  const [discordVerified, setDiscordVerified] = useState<Record<string, boolean>>({});
   const [userId, setUserId] = useState<string | null>(null);
   const [myIgn, setMyIgn] = useState<string | null>(null);
   const [myDiscordId, setMyDiscordId] = useState<string | null>(null);
@@ -85,6 +86,7 @@ function LobbyPage() {
         setDiscordNames(identities.names);
         setDiscordKeys(identities.keys);
         setDiscordHandles(identities.handles);
+        setDiscordVerified(identities.verified);
       }
       if (r.linked_game_id) {
         const { data: g } = await supabase.from("games").select("public_match_id").eq("id", r.linked_game_id).maybeSingle();
@@ -134,7 +136,7 @@ function LobbyPage() {
     };
   }, []);
 
-  const seats = useMemo(() => (row ? seatsOf(row, discordNames, discordKeys, discordHandles) : []), [row, discordNames, discordKeys, discordHandles]);
+  const seats = useMemo(() => (row ? seatsOf(row, discordNames, discordKeys, discordHandles, discordVerified) : []), [row, discordNames, discordKeys, discordHandles, discordVerified]);
   const me = { userId, discordId: myDiscordId, ign: myIgn };
   const member = row ? isMember(row, seats, me) : false;
   const canReport = member || isAdmin;

@@ -182,6 +182,7 @@ function LfgPage() {
   const [discordNames, setDiscordNames] = useState<Record<string, string>>({});
   const [discordKeys, setDiscordKeys] = useState<Record<string, string>>({});
   const [discordHandles, setDiscordHandles] = useState<Record<string, string>>({});
+  const [discordVerified, setDiscordVerified] = useState<Record<string, boolean>>({});
   const [leagueDisplays, setLeagueDisplays] = useState<Record<number, LeagueDisplay>>({});
   const [isLfgAdmin, setIsLfgAdmin] = useState(false);
   const [myDiscordId, setMyDiscordId] = useState<string | null>(null);
@@ -267,6 +268,7 @@ function LfgPage() {
       setDiscordNames((prev) => ({ ...prev, ...result.names }));
       setDiscordKeys((prev) => ({ ...prev, ...result.keys }));
       setDiscordHandles((prev) => ({ ...prev, ...result.handles }));
+      setDiscordVerified((prev) => ({ ...prev, ...result.verified }));
     }).catch(() => { if (active) setDiscordNames((prev) => ({ ...prev, ...Object.fromEntries(missing.map((id) => [id, UNKNOWN_NAME])) })); });
     return () => {
       active = false;
@@ -296,7 +298,7 @@ function LfgPage() {
           }
         }
         const seasons = [...new Set(Object.values(pending).flatMap((entry) => entry.season === null ? [] : [entry.season]))];
-        const keys = [...new Set(lobbies.flatMap((row) => seatsOf(row, discordNames, discordKeys, discordHandles).flatMap((seat) => seat.playerKey ? [seat.playerKey] : [])))];
+        const keys = [...new Set(lobbies.flatMap((row) => seatsOf(row, discordNames, discordKeys, discordHandles, discordVerified).flatMap((seat) => seat.playerKey ? [seat.playerKey] : [])))];
         const ratings: { player_key: string; season: number; elo: number }[] = [];
         if (keys.length && seasons.length) {
           for (let offset = 0; ; offset += 1000) {
@@ -380,10 +382,11 @@ function LfgPage() {
                 discordNames={discordNames}
                 discordKeys={discordKeys}
                 discordHandles={discordHandles}
+                discordVerified={discordVerified}
                 leagueDisplay={leagueDisplays[r.id]}
                 canManage={
                   isLfgAdmin ||
-                  isHost(r, seatsOf(r, discordNames, discordKeys, discordHandles), {
+                  isHost(r, seatsOf(r, discordNames, discordKeys, discordHandles, discordVerified), {
                     userId,
                     discordId: myDiscordId,
                     ign: myIgn,
@@ -425,6 +428,7 @@ function LfgCard({
   discordNames,
   discordKeys,
   discordHandles,
+  discordVerified,
   leagueDisplay,
   canManage,
   onChanged,
@@ -435,6 +439,7 @@ function LfgCard({
   discordNames: Record<string, string>;
   discordKeys: Record<string, string>;
   discordHandles: Record<string, string>;
+  discordVerified: Record<string, boolean>;
   leagueDisplay?: LeagueDisplay;
   canManage: boolean;
   onChanged: () => void;
@@ -448,7 +453,7 @@ function LfgCard({
   const [addName, setAddName] = useState("");
   const [addBusy, setAddBusy] = useState(false);
   const live = isLive(row);
-  const seats = seatsOf(row, discordNames, discordKeys, discordHandles);
+  const seats = seatsOf(row, discordNames, discordKeys, discordHandles, discordVerified);
   const titles = usePlayerTitles();
   const open = Math.max(0, 4 - seats.length);
   const countdown = useCountdown(row.auto_start_at);
@@ -826,7 +831,7 @@ function ManageLfgDialog({
       p_notes: row.is_league ? row.message_text : notes,
       p_password: password,
       p_expires_minutes: row.is_league ? 0 : minutes,
-      p_guest_players: guestsEdited ? guests.map((g) => g.trim()).filter(Boolean) : null,
+      p_guest_players: guestsEdited ? guests.map((g) => g.trim()).filter(Boolean) : (null as unknown as string[]), // PostgREST accepts SQL NULL; generated optional array type omits it.
       p_remove_web_ids: removedWeb,
       p_remove_discord_ids: removedDiscord,
     });
@@ -1057,7 +1062,7 @@ function CreateLfgDialog({
       p_password: password.trim().toLowerCase() === "none" ? "" : password,
       p_expires_minutes: mode === "live" ? liveMinutes : asyncHours * 60,
       p_guest_players: guestPlayers,
-      p_is_league: isAdminLeague(isLfgAdmin, isLeague),
+      p_is_league: false,
     });
     setBusy(false);
     const res = data as { ok?: boolean; error?: string } | null;
