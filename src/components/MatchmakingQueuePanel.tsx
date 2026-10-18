@@ -8,14 +8,14 @@ import { Loader2, Users } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { applyDefaultPassword } from "@/components/LobbyPasswordRow";
 import liveIcon from "@/assets/live-mode.png.asset.json";
-import asyncIcon from "@/assets/async-mode.png.asset.json";
+import { LEAGUE_QUEUE_MODES, LIVE_QUEUE_MINUTES } from "@/lib/lfg-identities";
 import uprisingIcon from "@/assets/uprising.png.asset.json";
 import ixIcon from "@/assets/ix.png.asset.json";
 import immoIcon from "@/assets/immo.png.asset.json";
 import choamIcon from "@/assets/choam.png.asset.json";
 import epicIcon from "@/assets/epic.png.asset.json";
 
-const MODE_ICON = { live: liveIcon.url, async: asyncIcon.url } as const;
+const MODE_ICON = { live: liveIcon.url } as const;
 function iconFor(name: string): string | null {
   const n = name.toLowerCase();
   if (n.includes("uprising")) return uprisingIcon.url;
@@ -64,7 +64,7 @@ type QueueRow = {
 type Preset = { id: number; name: string; board_type: string; expansions: string[] | null; modules: string[] | null; mode: string | null; start_date: string; end_date: string };
 
 const DURATIONS = {
-  live: [5, 15, 30, 45, 60].map((m) => ({ m, label: `${m} min` })),
+  live: LIVE_QUEUE_MINUTES.map((m) => ({ m, label: `${m} min` })),
   async: [1, 2, 6, 12].map((h) => ({ m: h * 60, label: `${h} h` })),
 } as const;
 
@@ -75,7 +75,7 @@ function left(iso: string | null, now: number) {
   return h ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}:${String(sec).padStart(2, "0")}`;
 }
 
-/** LFG-admin-only pilot: league pre-lobby queue for Live and ASync. */
+/** LFG-admin-only pilot: Live-only League pre-lobby queue. */
 export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null; myIgn: string | null }) {
   const [rows, setRows] = useState<QueueRow[]>([]);
   const [preset, setPreset] = useState<Preset | null>(null);
@@ -187,7 +187,7 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
       <p className="text-xs text-muted-foreground">If an open League table for your mode has a seat, joining puts you straight in it.</p>
       {!myIgn && <p className="text-sm text-destructive">Claim your in-game name first to join a queue.</p>}
       <div className="grid gap-4 md:grid-cols-2">
-        {(["live", "async"] as const).map((mode) => {
+        {LEAGUE_QUEUE_MODES.map((mode) => {
           const list = active.filter((r) => r.mode === mode);
           const mine = list.find(isMine);
           return (
@@ -221,7 +221,7 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
                 </Button>
                 <Button size="sm" variant="secondary" disabled={!myIgn || !preset || busy === `host-${mode}`} onClick={() => void host(mode)}>
                   {busy === `host-${mode}` && <Loader2 className="size-4 animate-spin" />}
-                  Host now
+                  Host lobby now
                 </Button>
                 {mine && <Button size="sm" variant="outline" disabled={busy === mode} onClick={() => void leave(mode)}>Leave</Button>}
               </div>
