@@ -1759,6 +1759,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_consolidate_player_records: {
+        Args: {
+          p_confirm_same_person: boolean
+          p_source: string
+          p_target: string
+        }
+        Returns: Json
+      }
       admin_list_user_roles: { Args: { p_user_id: string }; Returns: string[] }
       admin_rename_tournament_player: {
         Args: {
