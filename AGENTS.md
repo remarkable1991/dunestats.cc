@@ -18,3 +18,4 @@
 - League settings writes preserve format fields in the database RPC; unedited guest lists use NULL to preserve the latest roster rather than replacing it from stale forms.
 - LFG history queries filter and paginate before display; successful public history excludes private League rows, and privileged history reads verify roles server-side before service access.
 - Match/lobby corrections run service-only atomic RPCs with an authenticated administrator actor; missing per-match League deltas block rollback instead of guessing rating contributions.
+- Bot League ratings must use service-only `apply_league_match_ratings(game_id, season, results)` with player_key, elo_delta and won contributions, never apply direct aggregate updates as well; the ledger makes duplicate application detectable and reversal exact.
