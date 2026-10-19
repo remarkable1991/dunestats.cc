@@ -16,3 +16,5 @@
 - Lobby identity display uses a shared verified-map-first guild-directory resolver; directory suggestions may label/link players but must never grant host/member access or silently write authoritative mappings.
 - Main-admin player-record consolidation runs atomically through a service-only RPC after server-side role verification; it never moves Auth identities or grants permissions, and conflicting tournament registrations require separate review.
 - League settings writes preserve format fields in the database RPC; unedited guest lists use NULL to preserve the latest roster rather than replacing it from stale forms.
+- LFG history queries filter and paginate before display; successful public history excludes private League rows, and privileged history reads verify roles server-side before service access.
+- Match/lobby corrections run service-only atomic RPCs with an authenticated administrator actor; missing per-match League deltas block rollback instead of guessing rating contributions.
