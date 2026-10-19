@@ -64,7 +64,7 @@ export const revertAdminMatch = createServerFn({ method: "POST" })
     const { data: admin, error } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (error || !admin) throw new Error("Main admins only");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: result, error: e } = await supabaseAdmin.rpc("admin_revert_match_and_sp", { p_lobby_id: data.lobbyId, p_game_id: data.gameId, p_delete_result: data.deleteResult, p_confirmed: data.confirmed, p_actor: context.userId });
+    const { data: result, error: e } = await supabaseAdmin.rpc("admin_revert_match_and_sp", { p_lobby_id: data.lobbyId ?? undefined, p_game_id: data.gameId ?? undefined, p_delete_result: data.deleteResult, p_confirmed: data.confirmed, p_actor: context.userId });
     if (e) throw new Error(e.message);
     return result;
   });
