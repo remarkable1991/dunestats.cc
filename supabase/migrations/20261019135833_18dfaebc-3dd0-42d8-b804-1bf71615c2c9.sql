@@ -1,0 +1,1 @@
+CREATE POLICY league_delta_no_browser_access ON public.league_match_rating_deltas FOR ALL TO anon,authenticated USING(false) WITH CHECK(false); CREATE TRIGGER league_delta_updated BEFORE UPDATE ON public.league_match_rating_deltas FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
