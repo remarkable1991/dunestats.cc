@@ -1,7 +1,8 @@
 # Roadmap
 
-- [ ] Add self-only Leave Seat on both lobby views, with atomic roster changes and host/started-lobby safeguards.
-- [ ] Run leave-permission tests and verify available lobby views; authenticated real-user checks require an external Supabase session.
+- [x] Add self-only Leave Seat on both lobby views, with atomic roster changes and host/started-lobby safeguards.
+- [x] Pass eighteen leave/identity/history tests, confirm service-only permissions, and verify public lobby views with a clean build.
+- [ ] Verify signed-in self-leave end-to-end; external unmanaged Supabase provides no test session.
 
 - [x] Add paginated played-lobby history and admin history access from LFG.
 - [x] Add admin Discord mapping, match linking and atomic SP/global/recorded-League Elo reversal.
