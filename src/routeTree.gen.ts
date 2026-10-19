@@ -28,6 +28,7 @@ import { Route as TournamentRouteImport } from './routes/tournament'
 import { Route as TournamentRegisterRouteImport } from './routes/tournament-register'
 import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as UploadRouteImport } from './routes/upload'
+import { Route as AdminLfgHistoryRouteImport } from './routes/admin/lfg-history'
 import { Route as AdminMatchApprovalsRouteImport } from './routes/admin/match-approvals'
 import { Route as AdminMatchmakingRouteImport } from './routes/admin/matchmaking'
 import { Route as AdminNotificationEmailsRouteImport } from './routes/admin/notification-emails'
@@ -140,6 +141,11 @@ const UploadRoute = UploadRouteImport.update({
   path: '/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminLfgHistoryRoute = AdminLfgHistoryRouteImport.update({
+  id: '/admin/lfg-history',
+  path: '/admin/lfg-history',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminMatchApprovalsRoute = AdminMatchApprovalsRouteImport.update({
   id: '/admin/match-approvals',
   path: '/admin/match-approvals',
@@ -242,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/tournament-register': typeof TournamentRegisterRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/upload': typeof UploadRoute
+  '/admin/lfg-history': typeof AdminLfgHistoryRoute
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/matchmaking': typeof AdminMatchmakingRoute
   '/admin/notification-emails': typeof AdminNotificationEmailsRoute
@@ -279,6 +286,7 @@ export interface FileRoutesByTo {
   '/tournament-register': typeof TournamentRegisterRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/upload': typeof UploadRoute
+  '/admin/lfg-history': typeof AdminLfgHistoryRoute
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/matchmaking': typeof AdminMatchmakingRoute
   '/admin/notification-emails': typeof AdminNotificationEmailsRoute
@@ -317,6 +325,7 @@ export interface FileRoutesById {
   '/tournament-register': typeof TournamentRegisterRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/upload': typeof UploadRoute
+  '/admin/lfg-history': typeof AdminLfgHistoryRoute
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/matchmaking': typeof AdminMatchmakingRoute
   '/admin/notification-emails': typeof AdminNotificationEmailsRoute
@@ -356,6 +365,7 @@ export interface FileRouteTypes {
     | '/tournament-register'
     | '/unsubscribe'
     | '/upload'
+    | '/admin/lfg-history'
     | '/admin/match-approvals'
     | '/admin/matchmaking'
     | '/admin/notification-emails'
@@ -393,6 +403,7 @@ export interface FileRouteTypes {
     | '/tournament-register'
     | '/unsubscribe'
     | '/upload'
+    | '/admin/lfg-history'
     | '/admin/match-approvals'
     | '/admin/matchmaking'
     | '/admin/notification-emails'
@@ -430,6 +441,7 @@ export interface FileRouteTypes {
     | '/tournament-register'
     | '/unsubscribe'
     | '/upload'
+    | '/admin/lfg-history'
     | '/admin/match-approvals'
     | '/admin/matchmaking'
     | '/admin/notification-emails'
@@ -468,6 +480,7 @@ export interface RootRouteChildren {
   TournamentRegisterRoute: typeof TournamentRegisterRoute
   UnsubscribeRoute: typeof UnsubscribeRoute
   UploadRoute: typeof UploadRoute
+  AdminLfgHistoryRoute: typeof AdminLfgHistoryRoute
   AdminMatchApprovalsRoute: typeof AdminMatchApprovalsRoute
   AdminMatchmakingRoute: typeof AdminMatchmakingRoute
   AdminNotificationEmailsRoute: typeof AdminNotificationEmailsRoute
@@ -621,6 +634,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/lfg-history': {
+      id: '/admin/lfg-history'
+      path: '/admin/lfg-history'
+      fullPath: '/admin/lfg-history'
+      preLoaderRoute: typeof AdminLfgHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/match-approvals': {
       id: '/admin/match-approvals'
       path: '/admin/match-approvals'
@@ -756,6 +776,7 @@ const rootRouteChildren: RootRouteChildren = {
   TournamentRegisterRoute: TournamentRegisterRoute,
   UnsubscribeRoute: UnsubscribeRoute,
   UploadRoute: UploadRoute,
+  AdminLfgHistoryRoute: AdminLfgHistoryRoute,
   AdminMatchApprovalsRoute: AdminMatchApprovalsRoute,
   AdminMatchmakingRoute: AdminMatchmakingRoute,
   AdminNotificationEmailsRoute: AdminNotificationEmailsRoute,

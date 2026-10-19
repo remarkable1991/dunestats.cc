@@ -1768,10 +1768,12 @@ export type Database = {
         }
         Returns: Json
       }
-      admin_link_lobby_match: {
-        Args: { p_lobby_id: number; p_match_code: string }
-        Returns: Json
-      }
+      admin_link_lobby_match:
+        | { Args: { p_lobby_id: number; p_match_code: string }; Returns: Json }
+        | {
+            Args: { p_actor: string; p_lobby_id: number; p_match_code: string }
+            Returns: Json
+          }
       admin_list_user_roles: { Args: { p_user_id: string }; Returns: string[] }
       admin_rename_tournament_player: {
         Args: {
@@ -1783,15 +1785,26 @@ export type Database = {
         }
         Returns: Json
       }
-      admin_revert_match_and_sp: {
-        Args: {
-          p_confirmed?: boolean
-          p_delete_result?: boolean
-          p_game_id?: string
-          p_lobby_id?: number
-        }
-        Returns: Json
-      }
+      admin_revert_match_and_sp:
+        | {
+            Args: {
+              p_confirmed?: boolean
+              p_delete_result?: boolean
+              p_game_id?: string
+              p_lobby_id?: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_actor?: string
+              p_confirmed?: boolean
+              p_delete_result?: boolean
+              p_game_id?: string
+              p_lobby_id?: number
+            }
+            Returns: Json
+          }
       admin_set_table_roster: {
         Args: {
           p_players: Json

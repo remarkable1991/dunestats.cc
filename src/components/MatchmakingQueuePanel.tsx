@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Users } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { loadLobbyIdentities } from "@/lib/lfg-identity-loader";
 import { applyDefaultPassword } from "@/components/LobbyPasswordRow";
 import liveIcon from "@/assets/live-mode.png.asset.json";
 import { LEAGUE_QUEUE_MODES, LIVE_QUEUE_MINUTES } from "@/lib/lfg-identities";
@@ -84,13 +85,36 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
   const [busy, setBusy] = useState<string | null>(null);
   const [dur, setDur] = useState<{ live: number; async: number }>({ live: 45, async: 360 });
   const [now, setNow] = useState(() => Date.now());
+  const [identities, setIdentities] = useState<Awaited<ReturnType<typeof loadLobbyIdentities>>>({ names: {}, keys: {}, handles: {}, verified: {} });
+  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [season, setSeason] = useState<number | null>(null);
+  const [ratingState, setRatingState] = useState<"loading" | "ready" | "error">("loading");
+  const [loadError, setLoadError] = useState("");
 
   const load = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("matchmaking_queue")
       .select("id,mode,user_id,player_key,display_name,discord_user_id,expires_at")
       .order("joined_at");
-    setRows((data ?? []) as QueueRow[]);
+    if (error) { setLoadError("Could not load queue"); return; }
+    setLoadError("");
+    const list = (data ?? []) as QueueRow[];
+    setRows(list);
+    const ids = [...new Set(list.flatMap((r) => r.discord_user_id ? [r.discord_user_id] : []))];
+    setRatingState("loading");
+    try {
+      const resolved = ids.length ? await loadLobbyIdentities(ids) : { names: {}, keys: {}, handles: {}, verified: {} };
+      setIdentities(resolved);
+      const iso = new Date().toISOString();
+      const { data: activeSeason, error: se } = await supabase.from("sp_seasons").select("id").lte("starts_at", iso).gt("ends_at", iso).order("starts_at", { ascending: false }).limit(1).maybeSingle();
+      if (se || !activeSeason) throw new Error("No active season");
+      setSeason(activeSeason.id);
+      const keys = [...new Set(list.flatMap((r) => { const k = r.player_key || (r.discord_user_id ? resolved.keys[r.discord_user_id] : null); return k ? [k.trim().toLowerCase()] : []; }))];
+      const { data: values, error: re } = keys.length ? await supabase.from("player_league_ratings").select("player_key,elo").eq("season", activeSeason.id).in("player_key", keys) : { data: [], error: null };
+      if (re) throw re;
+      setRatings(Object.fromEntries((values ?? []).map((r) => [r.player_key, Number(r.elo)])));
+      setRatingState("ready");
+    } catch { setRatingState("error"); }
   }, []);
 
   useEffect(() => {
@@ -181,6 +205,7 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
         </div>
       </div>
       <div className="space-y-1.5">
+        {loadError && <p className="text-sm text-destructive">{loadError}</p>}
         {preset ? <FormatLine label="Now" p={preset} /> : <p className="text-xs text-muted-foreground">No active league format</p>}
         {nextPreset && <FormatLine label="Next" p={nextPreset} />}
       </div>
@@ -198,15 +223,19 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
               </div>
               <ul className="space-y-1 text-sm min-h-6">
                 {list.length === 0 && <li className="text-muted-foreground">Nobody waiting yet</li>}
-                {list.map((r) => (
+                {list.map((r) => {
+                  const key = (r.player_key || (r.discord_user_id ? identities.keys[r.discord_user_id] : null))?.trim().toLowerCase();
+                  const name = r.discord_user_id ? identities.names[r.discord_user_id] || r.display_name || `Discord user ${r.discord_user_id}` : r.display_name || r.player_key || "Web player";
+                  return (
                   <li key={r.id} className="flex justify-between gap-2">
                     <span className={isMine(r) ? "text-primary font-medium" : ""}>
-                      {r.display_name ?? r.player_key ?? "Discord player"}
+                      {key ? <Link to="/players/$key" params={{ key }} className="hover:underline">{name}</Link> : name}
+                      {key && <Badge variant="outline" className="ml-2" title={ratingState === "ready" ? `Season ${season} League Elo${ratings[key] === undefined ? " · Starting rating" : ""}` : "League Elo unavailable"}>{ratingState === "loading" ? "…" : ratingState === "error" ? "Elo unavailable" : `${Math.round(ratings[key] ?? 1000).toLocaleString()} Elo`}</Badge>}
                       {r.discord_user_id && <span className="ml-1 text-xs text-muted-foreground">· Discord</span>}
                     </span>
                     <span className="tabular-nums text-muted-foreground">{left(r.expires_at, now)}</span>
                   </li>
-                ))}
+                ); })}
               </ul>
               <div className="flex flex-wrap gap-1">
                 {DURATIONS[mode].map((d) => (

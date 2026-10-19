@@ -4,6 +4,7 @@ import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isHost } fr
 import { LobbyPasswordRow } from "@/components/LobbyPasswordRow";
 import { LobbyFormatIcons } from "@/components/LobbyFormatIcons";
 import { CancelLobbyButton } from "@/components/CancelLobbyButton";
+import { PlayedLobbyHistory } from "@/components/PlayedLobbyHistory";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { loadLobbyIdentities } from "@/lib/lfg-identity-loader";
@@ -346,10 +347,13 @@ function LfgPage() {
                 : `${rows.filter((r) => !isExpired(r, now)).length} open lobb${rows.filter((r) => !isExpired(r, now)).length === 1 ? "y" : "ies"} right now`}
             </p>
           </div>
+          <div className="flex flex-wrap gap-2">
+          {isLfgAdmin && <Button variant="outline" asChild><Link to="/admin/lfg-history"><Clock className="size-4" />Match & Lobby History</Link></Button>}
           <Button onClick={() => setCreateOpen(true)} className="gap-2">
             <Plus className="size-4" />
             Create LFG
           </Button>
+          </div>
         </div>
 
         {isLfgAdmin && <MatchmakingQueuePanel userId={userId} myIgn={myIgn} />}
@@ -397,6 +401,7 @@ function LfgPage() {
             ))}
           </div>
         )}
+        <PlayedLobbyHistory pilot={isLfgAdmin} />
       </main>
       <CreateLfgDialog
         open={createOpen}
