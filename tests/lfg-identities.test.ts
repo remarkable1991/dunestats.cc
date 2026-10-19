@@ -3,6 +3,12 @@ import { resolveLobbyIdentities, LEAGUE_QUEUE_MODES, LIVE_QUEUE_MINUTES } from "
 import { isHost, isMember, type LfgRow, type Seat } from "../src/lib/lfg-seats";
 
 describe("Lobby identity display", () => {
+  test("missing guild names remain identifiable without inventing an IGN", () => {
+    const result = resolveLobbyIdentities(["123456789"], [], []);
+    expect(result.names["123456789"]).toBe("Discord user 123456789");
+    expect(result.keys["123456789"]).toBeUndefined();
+    expect(result.verified["123456789"]).toBe(false);
+  });
   const member = { discord_user_id: "236215014019563520", display_name: "BLUDGEON", discord_username: "bludgeon_", global_name: null, suggested_player_key: "bludgeon" };
   test("guild suggestions provide a name and rating key without becoming verified", () => {
     const result = resolveLobbyIdentities([member.discord_user_id], [], [member]);

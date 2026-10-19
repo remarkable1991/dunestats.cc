@@ -1,5 +1,10 @@
 # Roadmap
 
+- [ ] Add paginated played-lobby history and admin history access from LFG.
+- [ ] Add admin Discord mapping, match linking and atomic SP/global/League Elo reversal.
+- [ ] Fix Content Creator assignment and show queue Elo/profile links.
+- [ ] Test visibility, identity and reversal rules; verify public history and report authenticated-check limitations.
+
 - [x] Resolve Discord lobby names through the guild directory without silently verifying suggestions.
 - [x] Link BLUDGEON to his claimed name and add safe duplicate-account player-data consolidation without merging sign-in accounts.
 - [x] Make lobby titles clickable, lock League format settings, remove duplicate footers and make the League queue Live-only.

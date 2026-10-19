@@ -13,7 +13,7 @@ export function resolveLobbyIdentities(ids: string[], maps: Mapping[], members: 
     const map = maps.find((m) => m.discord_user_id === id);
     const member = members.find((m) => m.discord_user_id === id);
     const key = map?.player_key?.trim() || member?.suggested_player_key?.trim();
-    names[id] = map?.display_name?.trim() || map?.player_key?.trim() || member?.display_name?.trim() || member?.global_name?.trim() || member?.discord_username?.trim() || UNKNOWN_NAME;
+    names[id] = map?.display_name?.trim() || map?.player_key?.trim() || member?.display_name?.trim() || member?.global_name?.trim() || member?.discord_username?.trim() || `Discord user ${id}`;
     if (key) keys[id] = leagueKey(key);
     const handle = map?.discord_username?.trim() || member?.discord_username?.trim();
     if (handle) handles[id] = handle;
