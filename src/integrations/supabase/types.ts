@@ -1988,6 +1988,7 @@ export type Database = {
         Returns: boolean
       }
       lfg_join_seat: { Args: { p_id: number }; Returns: Json }
+      lfg_leave_seat: { Args: { p_actor: string; p_id: number }; Returns: Json }
       lfg_link_game: {
         Args: { p_id: number; p_public_match_id: string }
         Returns: Json

@@ -4,6 +4,8 @@ import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isHost } fr
 import { LobbyPasswordRow } from "@/components/LobbyPasswordRow";
 import { LobbyFormatIcons } from "@/components/LobbyFormatIcons";
 import { CancelLobbyButton } from "@/components/CancelLobbyButton";
+import { LeaveLobbyButton } from "@/components/LeaveLobbyButton";
+import { canLeaveLobby } from "@/lib/lobby-leave";
 import { PlayedLobbyHistory } from "@/components/PlayedLobbyHistory";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
@@ -383,6 +385,7 @@ function LfgPage() {
                 row={r}
                 userId={userId}
                 myIgn={myIgn}
+                myDiscordId={myDiscordId}
                 discordNames={discordNames}
                 discordKeys={discordKeys}
                 discordHandles={discordHandles}
@@ -431,6 +434,7 @@ function LfgCard({
   userId,
   myIgn,
   discordNames,
+  myDiscordId,
   discordKeys,
   discordHandles,
   discordVerified,
@@ -441,6 +445,7 @@ function LfgCard({
   row: LfgRow;
   userId: string | null;
   myIgn: string | null;
+  myDiscordId: string | null;
   discordNames: Record<string, string>;
   discordKeys: Record<string, string>;
   discordHandles: Record<string, string>;
@@ -663,6 +668,7 @@ function LfgCard({
 
       <div className="flex flex-wrap items-center gap-2">
         {canManage && <CancelLobbyButton id={row.id} status={row.status} onCancelled={onChanged} />}
+        {canLeaveLobby(row, userId, myDiscordId) && <LeaveLobbyButton id={row.id} onLeft={onChanged} />}
         <Button asChild variant="outline" size="sm">
           <Link to="/lfg/$id" params={{ id: String(row.id) }}>Open lobby page</Link>
         </Button>

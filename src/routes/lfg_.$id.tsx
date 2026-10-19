@@ -13,6 +13,8 @@ import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isMember, i
 import { LobbyPasswordRow } from "@/components/LobbyPasswordRow";
 import { LobbyFormatIcons } from "@/components/LobbyFormatIcons";
 import { CancelLobbyButton } from "@/components/CancelLobbyButton";
+import { LeaveLobbyButton } from "@/components/LeaveLobbyButton";
+import { canLeaveLobby } from "@/lib/lobby-leave";
 import liveIcon from "@/assets/live-mode.png.asset.json";
 import asyncIcon from "@/assets/async-mode.png.asset.json";
 
@@ -261,6 +263,7 @@ function LobbyPage() {
           )}
           <span className="inline-flex items-center rounded-full border border-border/60 px-2.5 py-1 text-xs capitalize">{row.status}</span>
           {canManage && <CancelLobbyButton id={row.id} status={row.status} onCancelled={() => void load()} />}
+          {canLeaveLobby(row, userId, myDiscordId) && <LeaveLobbyButton id={row.id} onLeft={() => void load()} />}
           {discordUrl && (
             <Button asChild size="sm" variant="outline"><a href={discordUrl} target="_blank" rel="noreferrer">Open in Discord</a></Button>
           )}

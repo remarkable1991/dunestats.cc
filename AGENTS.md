@@ -19,3 +19,4 @@
 - LFG history queries filter and paginate before display; successful public history excludes private League rows, and privileged history reads verify roles server-side before service access.
 - Match/lobby corrections run service-only atomic RPCs with an authenticated administrator actor; missing per-match League deltas block rollback instead of guessing rating contributions.
 - Bot League ratings must use service-only `apply_league_match_ratings(game_id, season, results)` with player_key, elo_delta and won contributions, never apply direct aggregate updates as well; the ledger makes duplicate application detectable and reversal exact.
+- Lobby self-leave uses an authenticated server function and a service-only row-locked RPC deriving seat ownership from the authenticated actor's UUID and claimed Discord mapping; this preserves other players, guests and aligned roster arrays without authorizing by display-name similarity.
