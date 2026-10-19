@@ -1,9 +1,11 @@
 # Roadmap
 
-- [ ] Add paginated played-lobby history and admin history access from LFG.
-- [ ] Add admin Discord mapping, match linking and atomic SP/global/League Elo reversal.
-- [ ] Fix Content Creator assignment and show queue Elo/profile links.
-- [ ] Test visibility, identity and reversal rules; verify public history and report authenticated-check limitations.
+- [x] Add paginated played-lobby history and admin history access from LFG.
+- [x] Add admin Discord mapping, match linking and atomic SP/global/recorded-League Elo reversal.
+- [x] Fix Content Creator assignment and show queue Elo/profile links.
+- [x] Pass sixteen tests and transactional database rollback checks; verify real public history on desktop/mobile.
+- [ ] Verify signed-in admin history, mapping/link dialogs, queue ratings and role assignment end-to-end; external unmanaged Supabase provides no test session.
+- [ ] Deploy bot use of apply_league_match_ratings for reversible future League contributions; bot source/runtime is not available here. Historic contributions without recorded deltas are blocked safely.
 
 - [x] Resolve Discord lobby names through the guild directory without silently verifying suggestions.
 - [x] Link BLUDGEON to his claimed name and add safe duplicate-account player-data consolidation without merging sign-in accounts.
