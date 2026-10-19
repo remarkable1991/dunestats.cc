@@ -403,6 +403,36 @@ export type Database = {
         }
         Relationships: []
       }
+      league_match_rating_deltas: {
+        Row: {
+          created_at: string
+          elo_delta: number
+          game_id: string
+          player_key: string
+          season: number
+          updated_at: string
+          won: boolean
+        }
+        Insert: {
+          created_at?: string
+          elo_delta: number
+          game_id: string
+          player_key: string
+          season: number
+          updated_at?: string
+          won?: boolean
+        }
+        Update: {
+          created_at?: string
+          elo_delta?: number
+          game_id?: string
+          player_key?: string
+          season?: number
+          updated_at?: string
+          won?: boolean
+        }
+        Relationships: []
+      }
       league_presets: {
         Row: {
           board_type: string
@@ -1816,6 +1846,10 @@ export type Database = {
       }
       admin_set_user_role: {
         Args: { p_enabled: boolean; p_role: string; p_user_id: string }
+        Returns: Json
+      }
+      apply_league_match_ratings: {
+        Args: { p_game_id: string; p_results: Json; p_season: number }
         Returns: Json
       }
       approve_pending_tournament_match: {
