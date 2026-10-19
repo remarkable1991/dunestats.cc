@@ -1768,6 +1768,10 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_link_lobby_match: {
+        Args: { p_lobby_id: number; p_match_code: string }
+        Returns: Json
+      }
       admin_list_user_roles: { Args: { p_user_id: string }; Returns: string[] }
       admin_rename_tournament_player: {
         Args: {
@@ -1776,6 +1780,15 @@ export type Database = {
           p_tournament_num: number
           p_update_account?: boolean
           p_update_registration?: boolean
+        }
+        Returns: Json
+      }
+      admin_revert_match_and_sp: {
+        Args: {
+          p_confirmed?: boolean
+          p_delete_result?: boolean
+          p_game_id?: string
+          p_lobby_id?: number
         }
         Returns: Json
       }
