@@ -70,6 +70,7 @@ type ResponseRow = {
   id: string;
   category_id: string;
   user_id: string | null;
+  session_token?: string | null;
   answers: Record<string, unknown>;
   created_at: string;
 };
@@ -123,6 +124,26 @@ function AdminSurvey() {
   }, [roles.loading, roles.isAdmin, fetchParticipants]);
 
   const catTitle = (id: string) => cats.find((c) => c.id === id)?.title ?? "Unknown topic";
+
+  const [filterQ, setFilterQ] = useState("");
+  const [filterOpt, setFilterOpt] = useState("");
+  const filterQuestions = useMemo(
+    () => questions.filter((q) => asOptions(q.options).length > 0 && q.question_type !== "format_builder"),
+    [questions],
+  );
+  const filteredResponses = useMemo(() => {
+    if (!filterQ || !filterOpt) return responses;
+    const who = (r: ResponseRow) => r.user_id ?? `anon:${r.session_token ?? r.id}`;
+    const keys = new Set(
+      responses
+        .filter((r) => {
+          const v = r.answers?.[filterQ];
+          return v === filterOpt || (Array.isArray(v) && v.includes(filterOpt));
+        })
+        .map(who),
+    );
+    return responses.filter((r) => keys.has(who(r)));
+  }, [responses, filterQ, filterOpt]);
 
   const filteredParticipants = useMemo(() => {
     const q = partSearch.trim().toLowerCase();
@@ -368,9 +389,47 @@ function AdminSurvey() {
             </TabsContent>
 
             <TabsContent value="results" className="space-y-6 pt-4">
-              <FormatAnalyzer cats={cats} byCat={byCat} responses={responses} />
+              <Card className="space-y-3 border-primary/30 bg-card/70 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <div className="flex-1 space-y-1">
+                    <Label>Only show people who answered…</Label>
+                    <Select value={filterQ || "none"} onValueChange={(v) => { setFilterQ(v === "none" ? "" : v); setFilterOpt(""); }}>
+                      <SelectTrigger><SelectValue placeholder="Everyone" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Everyone (no filter)</SelectItem>
+                        {filterQuestions.map((q) => (
+                          <SelectItem key={q.id} value={q.id}>{catTitle(q.category_id)} · {q.prompt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {filteredResponses.length} of {responses.length} answers
+                  </div>
+                </div>
+                {filterQ && (
+                  <div className="flex flex-wrap gap-2">
+                    {asOptions(questions.find((q) => q.id === filterQ)?.options ?? []).map((o) => (
+                      <button
+                        key={o.value}
+                        type="button"
+                        onClick={() => setFilterOpt(filterOpt === o.value ? "" : o.value)}
+                        className={`rounded-full border px-3 py-1.5 text-sm transition ${filterOpt === o.value ? "border-primary bg-primary/15 text-foreground" : "border-border/60 text-muted-foreground hover:border-primary/50"}`}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {filterQ && filterOpt && (
+                  <p className="text-xs text-muted-foreground">
+                    Every topic below now only counts the people who picked this answer.
+                  </p>
+                )}
+              </Card>
+              <FormatAnalyzer cats={cats} byCat={byCat} responses={filteredResponses} />
               {cats.map((c) => {
-                const rows = responses.filter((r) => r.category_id === c.id);
+                const rows = filteredResponses.filter((r) => r.category_id === c.id);
                 const answeredQuestions = (byCat[c.id] ?? []).reduce(
                   (total, q) =>
                     total +
