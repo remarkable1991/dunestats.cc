@@ -32,6 +32,7 @@ import { Route as AdminLfgHistoryRouteImport } from './routes/admin/lfg-history'
 import { Route as AdminMatchApprovalsRouteImport } from './routes/admin/match-approvals'
 import { Route as AdminMatchmakingRouteImport } from './routes/admin/matchmaking'
 import { Route as AdminNotificationEmailsRouteImport } from './routes/admin/notification-emails'
+import { Route as AdminPlayersRouteImport } from './routes/admin/players'
 import { Route as AdminSurveyRouteImport } from './routes/admin/survey'
 import { Route as AdminTournamentEmailsRouteImport } from './routes/admin/tournament-emails'
 import { Route as AdminTournamentsRouteImport } from './routes/admin/tournaments'
@@ -161,6 +162,11 @@ const AdminNotificationEmailsRoute = AdminNotificationEmailsRouteImport.update({
   path: '/admin/notification-emails',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminPlayersRoute = AdminPlayersRouteImport.update({
+  id: '/admin/players',
+  path: '/admin/players',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminSurveyRoute = AdminSurveyRouteImport.update({
   id: '/admin/survey',
   path: '/admin/survey',
@@ -252,6 +258,7 @@ export interface FileRoutesByFullPath {
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/matchmaking': typeof AdminMatchmakingRoute
   '/admin/notification-emails': typeof AdminNotificationEmailsRoute
+  '/admin/players': typeof AdminPlayersRoute
   '/admin/survey': typeof AdminSurveyRoute
   '/admin/tournament-emails': typeof AdminTournamentEmailsRoute
   '/admin/tournaments': typeof AdminTournamentsRoute
@@ -290,6 +297,7 @@ export interface FileRoutesByTo {
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/matchmaking': typeof AdminMatchmakingRoute
   '/admin/notification-emails': typeof AdminNotificationEmailsRoute
+  '/admin/players': typeof AdminPlayersRoute
   '/admin/survey': typeof AdminSurveyRoute
   '/admin/tournament-emails': typeof AdminTournamentEmailsRoute
   '/admin/tournaments': typeof AdminTournamentsRoute
@@ -329,6 +337,7 @@ export interface FileRoutesById {
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/matchmaking': typeof AdminMatchmakingRoute
   '/admin/notification-emails': typeof AdminNotificationEmailsRoute
+  '/admin/players': typeof AdminPlayersRoute
   '/admin/survey': typeof AdminSurveyRoute
   '/admin/tournament-emails': typeof AdminTournamentEmailsRoute
   '/admin/tournaments': typeof AdminTournamentsRoute
@@ -369,6 +378,7 @@ export interface FileRouteTypes {
     | '/admin/match-approvals'
     | '/admin/matchmaking'
     | '/admin/notification-emails'
+    | '/admin/players'
     | '/admin/survey'
     | '/admin/tournament-emails'
     | '/admin/tournaments'
@@ -407,6 +417,7 @@ export interface FileRouteTypes {
     | '/admin/match-approvals'
     | '/admin/matchmaking'
     | '/admin/notification-emails'
+    | '/admin/players'
     | '/admin/survey'
     | '/admin/tournament-emails'
     | '/admin/tournaments'
@@ -445,6 +456,7 @@ export interface FileRouteTypes {
     | '/admin/match-approvals'
     | '/admin/matchmaking'
     | '/admin/notification-emails'
+    | '/admin/players'
     | '/admin/survey'
     | '/admin/tournament-emails'
     | '/admin/tournaments'
@@ -484,6 +496,7 @@ export interface RootRouteChildren {
   AdminMatchApprovalsRoute: typeof AdminMatchApprovalsRoute
   AdminMatchmakingRoute: typeof AdminMatchmakingRoute
   AdminNotificationEmailsRoute: typeof AdminNotificationEmailsRoute
+  AdminPlayersRoute: typeof AdminPlayersRoute
   AdminSurveyRoute: typeof AdminSurveyRoute
   AdminTournamentEmailsRoute: typeof AdminTournamentEmailsRoute
   AdminTournamentsRoute: typeof AdminTournamentsRoute
@@ -662,6 +675,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminNotificationEmailsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/players': {
+      id: '/admin/players'
+      path: '/admin/players'
+      fullPath: '/admin/players'
+      preLoaderRoute: typeof AdminPlayersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/survey': {
       id: '/admin/survey'
       path: '/admin/survey'
@@ -780,6 +800,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminMatchApprovalsRoute: AdminMatchApprovalsRoute,
   AdminMatchmakingRoute: AdminMatchmakingRoute,
   AdminNotificationEmailsRoute: AdminNotificationEmailsRoute,
+  AdminPlayersRoute: AdminPlayersRoute,
   AdminSurveyRoute: AdminSurveyRoute,
   AdminTournamentEmailsRoute: AdminTournamentEmailsRoute,
   AdminTournamentsRoute: AdminTournamentsRoute,
