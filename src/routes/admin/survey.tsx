@@ -409,7 +409,7 @@ function AdminSurvey() {
                 </div>
                 {filterQ && (
                   <div className="flex flex-wrap gap-2">
-                    {asOptions(questions.find((q) => q.id === filterQ)?.options).map((o) => (
+                    {asOptions(questions.find((q) => q.id === filterQ)?.options ?? []).map((o) => (
                       <button
                         key={o.value}
                         type="button"
