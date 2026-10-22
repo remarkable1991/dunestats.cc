@@ -1,7 +1,8 @@
 # Roadmap
 
-- [ ] Add read-only Discord verification, recorded-game profile links and registration timezones in Manage Registrations.
-- [ ] Test verification matching and check the registration panel; real signed-in checks depend on external Supabase access.
+- [x] Add read-only Discord verification, recorded-game profile links and registration timezones in Manage Registrations.
+- [x] Pass thirteen identity/verification tests and verify the sample registration panel and profile link with no browser errors.
+- [ ] Verify registration checks with real signed-in staff data; external unmanaged Supabase provides no test session.
 
 - [x] Add self-only Leave Seat on both lobby views, with atomic roster changes and host/started-lobby safeguards.
 - [x] Pass eighteen leave/identity/history tests, confirm service-only permissions, and verify public lobby views with a clean build.
