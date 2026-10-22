@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CheckCircle2, GitMerge, Loader2, Pencil, Plus, Search, Trash2, User } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, GitMerge, Loader2, Pencil, Plus, RefreshCw, Search, ShieldCheck, Trash2, User } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { loadRegistrationVerification } from "@/lib/registration-verification-loader";
+import { registrationTimezoneLabel, verifyRegistration } from "@/lib/registration-verification";
 
 type Reg = {
   id: string;
@@ -18,6 +21,8 @@ type Reg = {
   has_checked_in: boolean | null;
   check_in_method: string | null;
   created_at: string;
+  updated_at: string;
+  timezone: string | null;
 };
 
 const slotsOf = (r: Reg) =>
@@ -35,8 +40,10 @@ function summarizeAvailability(isos: string[]): string[] {
   const lines: string[] = [];
   for (const [day, arr] of byDay) {
     const ranges: string[] = [];
-    let start = arr[0]!;
-    let prev = arr[0]!;
+    const first = arr[0];
+    if (first === undefined) continue;
+    let start = first;
+    let prev = first;
     for (let i = 1; i <= arr.length; i++) {
       const cur = arr[i];
       if (cur == null || cur - prev > 30 * 60_000) {
@@ -62,19 +69,38 @@ export function RegistrationManager({ tournamentNum }: { tournamentNum: number }
   const [mergeFrom, setMergeFrom] = useState<Reg | null>(null);
   const [mergeInto, setMergeInto] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [verification, setVerification] = useState<Awaited<ReturnType<typeof loadRegistrationVerification>> | null>(null);
+  const [verificationError, setVerificationError] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const loadChecks = async () => {
+    setVerification(null);
+    setVerificationError(false);
+    try {
+      setVerification(await loadRegistrationVerification());
+    } catch {
+      setVerificationError(true);
+    }
+  };
 
   const load = async () => {
+    setLoading(true);
+    const checks = loadChecks();
     const { data, error } = await supabase
       .from("tournament_registrations")
-      .select("id, user_id, direwolf_name, discord_username, email, availability, has_checked_in, check_in_method, created_at")
+      .select("id, user_id, direwolf_name, discord_username, email, availability, has_checked_in, check_in_method, created_at, updated_at, timezone")
       .eq("tournament_num", tournamentNum)
       .order("created_at", { ascending: true });
     if (error) {
       toast.error(error.message);
       setRows([]);
+      await checks;
+      setLoading(false);
       return;
     }
     setRows((data ?? []) as Reg[]);
+    await checks;
+    setLoading(false);
   };
 
   const toggle = async () => {
@@ -179,9 +205,9 @@ export function RegistrationManager({ tournamentNum }: { tournamentNum: number }
 
   return (
     <div className="pt-1">
-      <button type="button" onClick={() => void toggle()} className="text-xs text-sand underline underline-offset-2 hover:text-sand/80">
+      <Button type="button" variant="link" onClick={() => void toggle()} className="h-auto p-0 text-xs text-sand underline underline-offset-2 hover:text-sand/80">
         {rows ? `${rows.length} registered player${rows.length === 1 ? "" : "s"} · manage` : "Manage registrations"}
-      </button>
+      </Button>
       {open && rows === null && <Loader2 className="mt-2 size-4 animate-spin text-sand" />}
       {open && rows !== null && (
         <div className="mt-3 space-y-3 rounded-lg border border-border bg-card/50 p-3">
@@ -194,29 +220,42 @@ export function RegistrationManager({ tournamentNum }: { tournamentNum: number }
               onClick={() => setEdit({ id: null, direwolf_name: "", discord_username: "", email: "", has_checked_in: false })}>
               <Plus className="size-3.5" /> Add player
             </Button>
+            <Button size="icon" variant="ghost" className="size-8" title="Refresh registrations and verification" aria-label="Refresh registrations and verification" disabled={loading} onClick={() => void load()}>
+              <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
           </div>
           <div className="text-xs text-muted-foreground">
             {rows.filter((r) => r.has_checked_in).length} checked in · {rows.filter(isDup).length} possible duplicates
           </div>
+          {verificationError && <div role="status" className="flex items-center gap-1 text-xs text-destructive"><AlertCircle className="size-3.5" /> Verification unavailable. Refresh to retry.</div>}
+          {!verification && !verificationError && <div role="status" className="flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="size-3.5 animate-spin" /> Checking Discord and recorded games…</div>}
           {filtered.length === 0 && <div className="text-xs text-muted-foreground">No registrations found.</div>}
           <div className="divide-y divide-border">
             {filtered.map((r) => {
               const slots = slotsOf(r);
               const isOpen = expanded === r.id;
+              const check = verification ? verifyRegistration(r, verification.mappings, verification.members, verification.ratings) : null;
+              const status = check?.discordStatus;
+              const discordLabel = status === "verified" ? "IGN verified" : status === "mismatch" ? `IGN mismatch: ${check?.mappedName}` : status === "mapped-in-guild" ? "In guild · mapped IGN unconfirmed" : status === "in-guild" ? "In guild · IGN unverified" : status === "not-found" ? "Not found in guild/map" : "Discord not provided";
               return (
                 <div key={r.id} className="py-2">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <button type="button" onClick={() => setExpanded(isOpen ? null : r.id)}
-                      className="text-sm font-medium text-foreground hover:text-sand hover:underline underline-offset-2">
+                    <Button type="button" variant="link" onClick={() => setExpanded(isOpen ? null : r.id)}
+                      className="h-auto whitespace-normal p-0 text-left text-sm font-medium text-foreground hover:text-sand hover:underline underline-offset-2">
                       {r.direwolf_name}
-                    </button>
+                    </Button>
+                    {check && (check.rating ? <Link to="/players/$key" params={{ key: check.rating.player_key }} className="text-xs text-sand underline underline-offset-2">{check.rating.games_played} games ↗</Link> : <span className="text-xs text-muted-foreground">0 recorded games</span>)}
                     {r.discord_username && <span className="text-xs text-muted-foreground">@{r.discord_username}</span>}
+                    {check && <span className={`inline-flex items-center gap-1 text-[11px] ${status === "verified" ? "text-primary" : status === "mismatch" || status === "not-found" ? "text-destructive" : "text-muted-foreground"}`}>
+                      {status === "verified" ? <ShieldCheck className="size-3 shrink-0" /> : <AlertCircle className="size-3 shrink-0" />}{discordLabel}
+                    </span>}
                     {r.user_id ? (
                       <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"><User className="size-3" /> account</span>
                     ) : (
                       <span className="text-[10px] text-muted-foreground">guest</span>
                     )}
                     <span className="text-xs text-muted-foreground">· {(slots.length * 0.5).toFixed(1)}h</span>
+                    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><Clock className="size-3 shrink-0" />{registrationTimezoneLabel(r.timezone)}</span>
                     {r.has_checked_in && (
                       <span className="inline-flex items-center gap-1 text-[10px] text-primary"><CheckCircle2 className="size-3" /> checked in</span>
                     )}
@@ -240,6 +279,8 @@ export function RegistrationManager({ tournamentNum }: { tournamentNum: number }
                   {r.email && <div className="text-[11px] text-muted-foreground">{r.email}</div>}
                   {isOpen && (
                     <div className="ml-1 mt-1 space-y-0.5 border-l-2 border-sand/30 pl-3">
+                      <div className="text-xs text-muted-foreground">Last registration update: {new Date(r.updated_at).toLocaleString()}</div>
+                      <div className="text-xs text-muted-foreground">Availability times shown in {Intl.DateTimeFormat().resolvedOptions().timeZone}; registered timezone: {registrationTimezoneLabel(r.timezone)}</div>
                       {slots.length === 0 && <div className="text-xs text-muted-foreground">No availability selected.</div>}
                       {summarizeAvailability(slots).map((line) => (
                         <div key={line} className="text-xs text-muted-foreground">{line}</div>
