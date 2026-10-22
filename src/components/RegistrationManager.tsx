@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { loadRegistrationVerification } from "@/lib/registration-verification-loader";
 import { registrationTimezoneLabel, verifyRegistration } from "@/lib/registration-verification";
+import { useServerFn } from "@tanstack/react-start";
+import { renamePlayerEverywhere } from "@/lib/player-admin.functions";
 
 type Reg = {
   id: string;
@@ -72,6 +74,9 @@ export function RegistrationManager({ tournamentNum }: { tournamentNum: number }
   const [verification, setVerification] = useState<Awaited<ReturnType<typeof loadRegistrationVerification>> | null>(null);
   const [verificationError, setVerificationError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [syncAccount, setSyncAccount] = useState(true);
+  const [syncSeats, setSyncSeats] = useState(false);
+  const renameFn = useServerFn(renamePlayerEverywhere);
 
   const loadChecks = async () => {
     setVerification(null);
@@ -147,6 +152,16 @@ export function RegistrationManager({ tournamentNum }: { tournamentNum: number }
         : !edit.has_checked_in
           ? { check_in_method: null, checked_in_at: null }
           : {};
+    const nameChanged = !!prev && prev.direwolf_name.trim().toLowerCase() !== base.direwolf_name.toLowerCase();
+    if (nameChanged && (syncAccount || syncSeats)) {
+      try {
+        const r = await renameFn({ data: { oldName: prev!.direwolf_name.trim(), newName: base.direwolf_name, updateSeats: syncSeats, updateRegistrations: false, updateAccount: syncAccount } });
+        toast.success(`Name synced: ${r.seats} seats${r.claimed || r.profile ? ", account updated" : ""}${r.alias ? ", correction remembered" : ""}`);
+      } catch (e) {
+        setBusy(false);
+        return toast.error(e instanceof Error ? e.message : "Could not sync the name");
+      }
+    }
     const { error } = edit.id
       ? await supabase.from("tournament_registrations").update({ ...base, ...checkin }).eq("id", edit.id)
       : await supabase.from("tournament_registrations").insert({
@@ -310,6 +325,21 @@ export function RegistrationManager({ tournamentNum }: { tournamentNum: number }
                 <Input value={edit.discord_username} onChange={(e) => setEdit({ ...edit, discord_username: e.target.value })} /></div>
               <div><Label className="text-xs">Email</Label>
                 <Input type="email" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></div>
+              {edit.id && (() => {
+                const p = rows?.find((r) => r.id === edit.id);
+                return p && edit.direwolf_name.trim() && p.direwolf_name.trim().toLowerCase() !== edit.direwolf_name.trim().toLowerCase();
+              })() && (
+                <div className="space-y-2 rounded-md border border-border bg-muted/30 p-2 text-xs">
+                  <label className="flex items-start gap-2">
+                    <input type="checkbox" className="mt-0.5" checked={syncAccount} onChange={(e) => setSyncAccount(e.target.checked)} />
+                    <span>Also update their claimed name and account username (if they have an account) and remember the old name as a correction.</span>
+                  </label>
+                  <label className="flex items-start gap-2">
+                    <input type="checkbox" className="mt-0.5" checked={syncSeats} onChange={(e) => setSyncSeats(e.target.checked)} />
+                    <span>Also rename them in every tournament standing/seat.</span>
+                  </label>
+                </div>
+              )}
               <label className="flex items-center justify-between text-sm">
                 Checked in
                 <Switch checked={edit.has_checked_in} onCheckedChange={(v) => setEdit({ ...edit, has_checked_in: v })} />
