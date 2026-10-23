@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { setPendingLobbyUpload } from "@/lib/league-lobby-detect";
+import { applyLeagueElo, setPendingLobbyUpload } from "@/lib/league-lobby-detect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { loadLobbyIdentities } from "@/lib/lfg-identity-loader";
@@ -228,6 +228,7 @@ function LobbyPage() {
     setLinkBusy(false);
     const res = data as { ok?: boolean; error?: string } | null;
     if (error || !res?.ok) return toast.error(res?.error ?? error?.message ?? "Could not link that match");
+    await applyLeagueElo(row.id);
     toast.success("Result linked to this lobby");
     setLinkCode("");
     void load();
