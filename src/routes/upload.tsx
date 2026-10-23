@@ -188,6 +188,16 @@ function UploadPage() {
         setUploadMode("tournament");
       }
 
+      // League lobby: either forced via ?lobby=, or suggested from seated names.
+      const names = detected.map((d) => d.player_name);
+      if (lobbyParam && forcedLobby.current) {
+        confirmLeagueLobby({ id: lobbyParam, row: forcedLobby.current, matched: [] });
+      } else if (!tNum) {
+        const lc = await detectLeagueLobby(names).catch(() => null);
+        if (lc) setLeagueLobby({ ...lc, confirmed: false });
+      }
+
+
 
 
 
@@ -263,6 +273,15 @@ function UploadPage() {
       } else {
         toast.success("Match submitted! ELO updated.");
       }
+      if (leagueLobby?.confirmed) {
+        try {
+          await linkMatchToLobby(leagueLobby.id, result.publicMatchId);
+          toast.success(`Linked to League lobby #${leagueLobby.id}.`);
+          setLeagueLobby(null);
+        } catch (e) {
+          toast.error(`Match saved, but linking to lobby #${leagueLobby.id} failed: ${e instanceof Error ? e.message : "unknown error"}. Link it from the lobby page.`);
+        }
+      }
 
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
@@ -320,6 +339,26 @@ function UploadPage() {
           Drop your Dune Imperium Digital end-screen screenshot — analysis starts automatically.
           Confirm the board version + expansions, review the players, then submit.
         </p>
+        {leagueLobby && (
+          <Card className="mb-6 p-4 border-primary/50 bg-primary/10 flex flex-wrap items-center gap-3">
+            <Trophy className="size-5 text-primary" />
+            <div className="flex-1 min-w-[220px] text-sm">
+              {leagueLobby.confirmed ? (
+                <><strong>Reporting League lobby #{leagueLobby.id}.</strong> The lobby's format is applied and this match will be linked to it on submit.</>
+              ) : (
+                <><strong>Is this League match #{leagueLobby.id}?</strong> {leagueLobby.matched.length} seated player{leagueLobby.matched.length > 1 ? "s" : ""} match: {leagueLobby.matched.join(", ")}.</>
+              )}
+            </div>
+            {leagueLobby.confirmed ? (
+              <Button size="sm" variant="ghost" onClick={() => setLeagueLobby(null)}>Not this lobby</Button>
+            ) : (
+              <>
+                <Button size="sm" onClick={() => confirmLeagueLobby(leagueLobby)}>Yes, link to #{leagueLobby.id}</Button>
+                <Button size="sm" variant="ghost" onClick={() => setLeagueLobby(null)}>No</Button>
+              </>
+            )}
+          </Card>
+        )}
 
         <div className="grid lg:grid-cols-2 gap-6">
           <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
