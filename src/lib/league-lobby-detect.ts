@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { SELECT_COLS, seatsOf, UNKNOWN_NAME, type LfgRow } from "@/lib/lfg-seats";
 import { loadLobbyIdentities } from "@/lib/lfg-identity-loader";
+import { applyLeagueEloForLobby } from "@/lib/league-elo.functions";
 
 const loose = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -84,6 +85,16 @@ export async function linkMatchToLobby(lobbyId: number, publicMatchId: string) {
   const { data, error } = await supabase.rpc("lfg_link_game" as never, { p_id: lobbyId, p_public_match_id: publicMatchId } as never);
   const res = data as { ok?: boolean; error?: string } | null;
   if (error || !res?.ok) throw new Error(res?.error ?? error?.message ?? "Could not link the match to the lobby");
+  await applyLeagueElo(lobbyId);
+}
+
+/** Apply seasonal League Elo for a linked League lobby (no-op for normal lobbies / already applied). */
+export async function applyLeagueElo(lobbyId: number) {
+  try {
+    await applyLeagueEloForLobby({ data: { lobbyId } });
+  } catch (e) {
+    console.error("League Elo apply failed:", e);
+  }
 }
 
 /** In-memory hand-off of a pasted/dropped screenshot from a lobby page to /upload. */

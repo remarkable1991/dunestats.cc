@@ -228,6 +228,7 @@ function LobbyPage() {
     setLinkBusy(false);
     const res = data as { ok?: boolean; error?: string } | null;
     if (error || !res?.ok) return toast.error(res?.error ?? error?.message ?? "Could not link that match");
+    await applyLeagueElo(row.id);
     toast.success("Result linked to this lobby");
     setLinkCode("");
     void load();
