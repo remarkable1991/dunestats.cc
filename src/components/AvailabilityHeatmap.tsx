@@ -338,6 +338,23 @@ export function HeatmapBody({
           <Check className={`size-3 ${futureOnly ? "opacity-100" : "opacity-30"}`} />
           Only today &amp; future
         </button>
+        {futureOnly && (
+          <button
+            type="button"
+            onClick={() => setShowMoreDays((v) => !v)}
+            className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs transition ${
+              showMoreDays
+                ? "border-sand/50 bg-sand/15 text-sand"
+                : "border-border/60 bg-background/40 text-muted-foreground hover:bg-background/70"
+            }`}
+          >
+            {showMoreDays
+              ? "Showing all future dates"
+              : hiddenFutureDays > 0
+                ? `Show more days (${hiddenFutureDays} hidden)`
+                : "Show more days"}
+          </button>
+        )}
         {registerTournamentNum != null && (
           <a
             href={`/tournament-register/${registerTournamentNum}`}
