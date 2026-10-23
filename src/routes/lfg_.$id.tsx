@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { setPendingLobbyUpload } from "@/lib/league-lobby-detect";
+import { applyLeagueElo, setPendingLobbyUpload } from "@/lib/league-lobby-detect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { loadLobbyIdentities } from "@/lib/lfg-identity-loader";
