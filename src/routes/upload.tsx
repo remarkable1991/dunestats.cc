@@ -1,5 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { LfgRow } from "@/lib/lfg-seats";
+import { detectLeagueLobby, linkMatchToLobby, loadLobbyForUpload, lobbyFormat, takePendingLobbyUpload, type LeagueLobbyCandidate } from "@/lib/league-lobby-detect";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -31,6 +33,10 @@ const TOURNAMENT_TABLE_OPTIONS = [
 ];
 
 export const Route = createFileRoute("/upload")({
+  validateSearch: (s: Record<string, unknown>): { lobby?: number } => {
+    const n = Number(s.lobby);
+    return Number.isInteger(n) && n > 0 ? { lobby: n } : {};
+  },
   head: () => ({ meta: [{ title: "Upload match · Strategy Arena" }] }),
   component: UploadPage,
 });
@@ -81,6 +87,21 @@ function UploadPage() {
   const [lastSave, setLastSave] = useState<SaveResult | null>(null);
   const [lastMatchId, setLastMatchId] = useState<string | null>(null);
   const [matchDialogOpen, setMatchDialogOpen] = useState(false);
+  const { lobby: lobbyParam } = Route.useSearch();
+  const forcedLobby = useRef<LfgRow | null>(null);
+  const [leagueLobby, setLeagueLobby] = useState<(LeagueLobbyCandidate & { confirmed: boolean }) | null>(null);
+
+  const confirmLeagueLobby = (lc: LeagueLobbyCandidate) => {
+    const f = lobbyFormat(lc.row);
+    setBoard(f.board);
+    setHasIx(f.hasIx);
+    setHasImmortality(f.hasImmortality);
+    setHasEpic(f.hasEpic);
+    setHasBaseLeaders(f.hasBaseLeaders);
+    if (f.playMode) setPlayMode(f.playMode);
+    setNotATournamentGame(true);
+    setLeagueLobby({ ...lc, confirmed: true });
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -88,6 +109,21 @@ function UploadPage() {
       else { setUserId(data.session.user.id); setChecking(false); }
     });
   }, [navigate]);
+
+  // Opened from a lobby page: load the lobby and pick up a pasted/dropped screenshot.
+  useEffect(() => {
+    if (!lobbyParam) return;
+    let active = true;
+    void loadLobbyForUpload(lobbyParam).then((l) => {
+      if (!active || !l) return;
+      forcedLobby.current = l.row;
+      confirmLeagueLobby({ id: lobbyParam, row: l.row, matched: l.seatNames });
+      const f = takePendingLobbyUpload(lobbyParam);
+      if (f) void onFile(f);
+    });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lobbyParam]);
 
   // Paste-from-clipboard support
   useEffect(() => {
@@ -118,6 +154,7 @@ function UploadPage() {
     setNotATournamentGame(false);
     setCandidate(null);
     setUploadMode("tournament");
+    if (!lobbyParam) setLeagueLobby(null);
 
     if (preview) URL.revokeObjectURL(preview);
     setPreview(f ? URL.createObjectURL(f) : null);
