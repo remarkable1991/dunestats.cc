@@ -112,6 +112,8 @@ export function HeatmapBody({
   registerTournamentNum = null,
 }: HeatmapBodyProps) {
   const [futureOnly, setFutureOnly] = useState(true);
+  // Default view shows the next 14 days; enable this to reveal later dates.
+  const [showMoreDays, setShowMoreDays] = useState(false);
   const playerNamesKey = useMemo(() => players.map((p) => p.player_name).join("\u0001"), [players]);
   const allNames = useMemo(() => players.map((p) => p.player_name), [players]);
   // Default: everyone selected. Clicking a player toggles them in/out of the filter.
@@ -162,11 +164,10 @@ export function HeatmapBody({
     first.setHours(0, 0, 0, 0);
     const lastDay = new Date(times[times.length - 1]);
     lastDay.setHours(0, 0, 0, 0);
-    // Only render days that actually contain availability (drop trailing blank days)
-    const span = Math.min(
-      28,
-      Math.floor((lastDay.getTime() - first.getTime()) / (24 * 3600 * 1000)) + 1,
-    );
+    // Render every day from the earliest to the latest availability recorded on
+    // this table — no cap, so future dates are never clipped.
+    const span = Math.floor((lastDay.getTime() - first.getTime()) / (24 * 3600 * 1000)) + 1;
+
 
     const dayList: Date[] = [];
     for (let i = 0; i < span; i++) {
@@ -193,8 +194,19 @@ export function HeatmapBody({
     if (!futureOnly) return indexed;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return indexed.filter(({ d }) => d.getTime() >= today.getTime());
-  }, [dayList, futureOnly]);
+    const from = indexed.filter(({ d }) => d.getTime() >= today.getTime());
+    if (showMoreDays) return from;
+    return from.slice(0, 14);
+  }, [dayList, futureOnly, showMoreDays]);
+
+  /** Future days hidden by the default 14-day window. */
+  const hiddenFutureDays = useMemo(() => {
+    if (!futureOnly || showMoreDays) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.max(0, dayList.filter((d) => d.getTime() >= today.getTime()).length - 14);
+  }, [dayList, futureOnly, showMoreDays]);
+
 
   const playerNames = useMemo(() => players.map((p) => p.player_name), [players]);
 
@@ -340,7 +352,9 @@ export function HeatmapBody({
         <p className="text-sm text-muted-foreground italic">
           {dayList.length === 0
             ? "No availability recorded for this table."
-            : "No availability from today onwards — turn off the filter to see past dates."}
+            : futureOnly && !showMoreDays
+              ? "No availability in the next 14 days — use Show more days to see later dates."
+              : "No availability from today onwards — turn off the filter to see past dates."}
         </p>
       ) : (
         <div className="overflow-x-auto">
