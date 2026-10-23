@@ -1,5 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { LfgRow } from "@/lib/lfg-seats";
+import { detectLeagueLobby, linkMatchToLobby, loadLobbyForUpload, lobbyFormat, takePendingLobbyUpload, type LeagueLobbyCandidate } from "@/lib/league-lobby-detect";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -31,6 +33,10 @@ const TOURNAMENT_TABLE_OPTIONS = [
 ];
 
 export const Route = createFileRoute("/upload")({
+  validateSearch: (s: Record<string, unknown>): { lobby?: number } => {
+    const n = Number(s.lobby);
+    return Number.isInteger(n) && n > 0 ? { lobby: n } : {};
+  },
   head: () => ({ meta: [{ title: "Upload match · Strategy Arena" }] }),
   component: UploadPage,
 });
@@ -81,6 +87,21 @@ function UploadPage() {
   const [lastSave, setLastSave] = useState<SaveResult | null>(null);
   const [lastMatchId, setLastMatchId] = useState<string | null>(null);
   const [matchDialogOpen, setMatchDialogOpen] = useState(false);
+  const { lobby: lobbyParam } = Route.useSearch();
+  const forcedLobby = useRef<LfgRow | null>(null);
+  const [leagueLobby, setLeagueLobby] = useState<(LeagueLobbyCandidate & { confirmed: boolean }) | null>(null);
+
+  const confirmLeagueLobby = (lc: LeagueLobbyCandidate) => {
+    const f = lobbyFormat(lc.row);
+    setBoard(f.board);
+    setHasIx(f.hasIx);
+    setHasImmortality(f.hasImmortality);
+    setHasEpic(f.hasEpic);
+    setHasBaseLeaders(f.hasBaseLeaders);
+    if (f.playMode) setPlayMode(f.playMode);
+    setNotATournamentGame(true);
+    setLeagueLobby({ ...lc, confirmed: true });
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -88,6 +109,21 @@ function UploadPage() {
       else { setUserId(data.session.user.id); setChecking(false); }
     });
   }, [navigate]);
+
+  // Opened from a lobby page: load the lobby and pick up a pasted/dropped screenshot.
+  useEffect(() => {
+    if (!lobbyParam) return;
+    let active = true;
+    void loadLobbyForUpload(lobbyParam).then((l) => {
+      if (!active || !l) return;
+      forcedLobby.current = l.row;
+      confirmLeagueLobby({ id: lobbyParam, row: l.row, matched: l.seatNames });
+      const f = takePendingLobbyUpload(lobbyParam);
+      if (f) void onFile(f);
+    });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lobbyParam]);
 
   // Paste-from-clipboard support
   useEffect(() => {
@@ -118,6 +154,7 @@ function UploadPage() {
     setNotATournamentGame(false);
     setCandidate(null);
     setUploadMode("tournament");
+    if (!lobbyParam) setLeagueLobby(null);
 
     if (preview) URL.revokeObjectURL(preview);
     setPreview(f ? URL.createObjectURL(f) : null);
@@ -187,6 +224,16 @@ function UploadPage() {
         setTTable(cand.table);
         setUploadMode("tournament");
       }
+
+      // League lobby: either forced via ?lobby=, or suggested from seated names.
+      const names = detected.map((d) => d.player_name);
+      if (lobbyParam && forcedLobby.current) {
+        confirmLeagueLobby({ id: lobbyParam, row: forcedLobby.current, matched: [] });
+      } else if (!tNum) {
+        const lc = await detectLeagueLobby(names).catch(() => null);
+        if (lc) setLeagueLobby({ ...lc, confirmed: false });
+      }
+
 
 
 
@@ -263,6 +310,15 @@ function UploadPage() {
       } else {
         toast.success("Match submitted! ELO updated.");
       }
+      if (leagueLobby?.confirmed) {
+        try {
+          await linkMatchToLobby(leagueLobby.id, result.publicMatchId);
+          toast.success(`Linked to League lobby #${leagueLobby.id}.`);
+          setLeagueLobby(null);
+        } catch (e) {
+          toast.error(`Match saved, but linking to lobby #${leagueLobby.id} failed: ${e instanceof Error ? e.message : "unknown error"}. Link it from the lobby page.`);
+        }
+      }
 
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
@@ -320,6 +376,26 @@ function UploadPage() {
           Drop your Dune Imperium Digital end-screen screenshot — analysis starts automatically.
           Confirm the board version + expansions, review the players, then submit.
         </p>
+        {leagueLobby && (
+          <Card className="mb-6 p-4 border-primary/50 bg-primary/10 flex flex-wrap items-center gap-3">
+            <Trophy className="size-5 text-primary" />
+            <div className="flex-1 min-w-[220px] text-sm">
+              {leagueLobby.confirmed ? (
+                <><strong>Reporting League lobby #{leagueLobby.id}.</strong> The lobby's format is applied and this match will be linked to it on submit.</>
+              ) : (
+                <><strong>Is this League match #{leagueLobby.id}?</strong> {leagueLobby.matched.length} seated player{leagueLobby.matched.length > 1 ? "s" : ""} match: {leagueLobby.matched.join(", ")}.</>
+              )}
+            </div>
+            {leagueLobby.confirmed ? (
+              <Button size="sm" variant="ghost" onClick={() => setLeagueLobby(null)}>Not this lobby</Button>
+            ) : (
+              <>
+                <Button size="sm" onClick={() => confirmLeagueLobby(leagueLobby)}>Yes, link to #{leagueLobby.id}</Button>
+                <Button size="sm" variant="ghost" onClick={() => setLeagueLobby(null)}>No</Button>
+              </>
+            )}
+          </Card>
+        )}
 
         <div className="grid lg:grid-cols-2 gap-6">
           <Card className="p-6 border-border/60 bg-card/70 shadow-arena">
