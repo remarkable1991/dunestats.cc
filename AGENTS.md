@@ -11,6 +11,7 @@
 
 - Lobby League Elo reads are batched by seated player keys and lobby season under pilot RLS; this keeps seasonal ratings separate and inaccessible to non-pilot users.
 - Semi-finals scheduling stays isolated from qualifier methods; registration overrides are trial-only and candidate ranking uses shared player-block coverage with nonzero per-player availability to avoid impossible timezone fallbacks.
+- Qualifier cross-game policy is explicit per strategy and the fixed-draft evaluator shares the search evaluator; this keeps fallback behavior testable without changing CSV serialization or semi-finals.
 - LFG roster merging and lobby membership/host checks live in `src/lib/lfg-seats.ts`, shared by `/lfg` and `/lfg/$id`; one source of truth avoids the list and detail pages disagreeing on who is seated.
 - Lobby format artwork and cancellation controls are shared between list and detail pages; cancellation verifies authenticated host ownership or LFG/admin roles server-side before changing the existing status, preserving roster and history without schema changes.
 - Lobby identity display uses a shared verified-map-first guild-directory resolver; directory suggestions may label/link players but must never grant host/member access or silently write authoritative mappings.

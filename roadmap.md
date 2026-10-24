@@ -1,5 +1,9 @@
 # Roadmap
 
+- [x] Relax qualifier backup conflicts in Levels 1–2 and cross-game checks from Level 3; preserve Discord exports and standby handling.
+- [x] Pass eleven qualifier/semi-finals tests and verify a 32-player browser search completes at Level 3 without runtime errors.
+- [ ] Verify real signed-in Matchmaker Studio review; blocked by external unmanaged Supabase session access.
+
 - [x] Add read-only Discord verification, recorded-game profile links and registration timezones in Manage Registrations.
 - [x] Pass thirteen identity/verification tests and verify the sample registration panel and profile link with no browser errors.
 - [ ] Verify registration checks with real signed-in staff data; external unmanaged Supabase provides no test session.
