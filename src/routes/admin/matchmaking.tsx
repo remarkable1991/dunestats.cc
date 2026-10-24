@@ -284,7 +284,7 @@ function MatchmakingPage() {
       setBest(result);
       if (!cancelled.current) {
         if (mode === "async") toast.success("Balanced ASync pairings are ready to review.");
-        else if (result?.brokenTables === 0) toast.success("A conflict-free schedule is ready to review.");
+        else if (result?.brokenTables === 0) toast.success("A complete set of suggested times is ready to review.");
         else toast.warning("Search finished with unresolved tables. Review the best draft below.");
       }
     } catch (error) {

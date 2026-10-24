@@ -25,6 +25,7 @@ export type MatchmakerSettings = {
 };
 
 export type Strategy = {
+  crossGameChecks?: "primary" | "none";
   minSlots: number;
   spacing: number;
   nearMode: "none" | "backup_only" | "full";
@@ -66,12 +67,12 @@ export type MatchmakerProgress = {
 };
 
 export const STRATEGIES: Strategy[] = [
-  { minSlots: 2, spacing: 20, nearMode: "none", minPairHours: 2, proximityBlocks: 0, name: "Strict", detail: "2+ unanimous slots · 10h gap" },
-  { minSlots: 1, spacing: 20, nearMode: "none", minPairHours: 2, proximityBlocks: 0, name: "Wide spacing", detail: "1+ unanimous slot · 10h gap" },
-  { minSlots: 1, spacing: 4, nearMode: "none", minPairHours: 2, proximityBlocks: 0, name: "Tight spacing", detail: "1+ unanimous slot · 2h gap" },
-  { minSlots: 1, spacing: 4, nearMode: "backup_only", minPairHours: 2, proximityBlocks: 3, name: "Hybrid", detail: "Slot A unanimous · backups 3/4 within ±90m" },
-  { minSlots: 1, spacing: 4, nearMode: "full", minPairHours: 2, proximityBlocks: 3, name: "Realistic 3/4", detail: "2h pair floor · 3/4 if missing player within ±90m" },
-  { minSlots: 1, spacing: 4, nearMode: "full", minPairHours: 0.5, proximityBlocks: 6, name: "Emergency", detail: "0.5h pair floor · missing player within ±3h" },
+  { crossGameChecks: "primary", minSlots: 2, spacing: 20, nearMode: "none", minPairHours: 2, proximityBlocks: 0, name: "Strict", detail: "2+ unanimous slots · 10h gap · only A conflict-free" },
+  { crossGameChecks: "primary", minSlots: 1, spacing: 20, nearMode: "none", minPairHours: 2, proximityBlocks: 0, name: "Wide spacing", detail: "1+ unanimous slot · 10h gap · only A conflict-free" },
+  { crossGameChecks: "none", minSlots: 1, spacing: 4, nearMode: "none", minPairHours: 2, proximityBlocks: 0, name: "Tight spacing", detail: "1+ unanimous slot · 2h gap · cross-game votes may overlap" },
+  { crossGameChecks: "none", minSlots: 1, spacing: 4, nearMode: "backup_only", minPairHours: 2, proximityBlocks: 3, name: "Hybrid", detail: "Slot A unanimous · backups 3/4 within ±90m · votes may overlap" },
+  { crossGameChecks: "none", minSlots: 1, spacing: 4, nearMode: "full", minPairHours: 2, proximityBlocks: 3, name: "Realistic 3/4", detail: "2h pair floor · 3/4 within ±90m · votes may overlap" },
+  { crossGameChecks: "none", minSlots: 1, spacing: 4, nearMode: "full", minPairHours: 0.5, proximityBlocks: 6, name: "Emergency", detail: "0.5h pair floor · missing player within ±3h · votes may overlap" },
 ];
 
 export function availabilityOf(value: unknown): string[] {
@@ -215,8 +216,17 @@ function evaluate(template: number[][][], mapping: string[], prepared: Prepared,
         brokenTables++; score -= 6000; push([], true); continue;
       }
       const selected: SuggestedSlot[] = [];
+      // Slot A avoids other primaries in Levels 1–2. Backups are poll options,
+      // not bookings, and may reuse another game's primary window.
+      const needsPrimaryCheck = strategy.crossGameChecks !== "none";
       for (let i = 0; i <= len - 4 && selected.length < targetSlots; i++) {
-        if (!players.every((p) => freeAt(p, i)) || isBusy(players, i)) continue;
+        if (!players.every((p) => freeAt(p, i)) || (needsPrimaryCheck && isBusy(players, i))) continue;
+        selected.push({ index: i, type: "perfect", missing: null, gap: null });
+        break;
+      }
+      // Rescan from the beginning: an earlier blocked primary can still be B/C.
+      for (let i = 0; i <= len - 4 && selected.length > 0 && selected.length < targetSlots; i++) {
+        if (!players.every((p) => freeAt(p, i))) continue;
         if (selected.some((slot) => Math.abs(i - slot.index) < strategy.spacing)) continue;
         selected.push({ index: i, type: "perfect", missing: null, gap: null });
       }
@@ -224,7 +234,6 @@ function evaluate(template: number[][][], mapping: string[], prepared: Prepared,
       if (allowNear) {
         const near: SuggestedSlot[] = [];
         for (let i = 0; i <= len - 4; i++) {
-          if (isBusy(players, i)) continue;
           const missingList = players.filter((p) => !freeAt(p, i));
           if (missingList.length !== 1) continue;
           const missing = missingList[0];
@@ -244,6 +253,7 @@ function evaluate(template: number[][][], mapping: string[], prepared: Prepared,
         for (const preferUnique of [true, false]) {
           for (const slot of near) {
             if (selected.length >= targetSlots) break;
+            if (needsPrimaryCheck && selected.length === 0 && isBusy(players, slot.index)) continue;
             if (selected.some((other) => Math.abs(other.index - slot.index) < strategy.spacing)) continue;
             if (preferUnique && selected.some((other) => other.missing != null && other.missing === slot.missing)) continue;
             selected.push(slot);
@@ -256,13 +266,19 @@ function evaluate(template: number[][][], mapping: string[], prepared: Prepared,
       else {
         const averagePosition = selected.reduce((sum, slot) => sum + slot.index, 0) / Math.max(1, selected.length) / len;
         score += 70 * perfect + 30 * (selected.length - perfect) + Math.trunc((1 - averagePosition) * 20) + Math.trunc(average * 2);
-        // Only the first slot is locked, to avoid ghost-booking later rounds.
-        if (selected.length) players.forEach((player) => [0, 1, 2, 3].forEach((o) => busy.get(player)?.add(selected[0].index + o)));
+        // Reserve only A, and only while primary cross-game checks apply.
+        if (needsPrimaryCheck && selected.length) players.forEach((player) => [0, 1, 2, 3].forEach((o) => busy.get(player)?.add(selected[0].index + o)));
       }
       push(selected, broken);
     }
   }
   return { score: score - brokenTables * 5000, brokenTables, tables };
+}
+
+/** Evaluate a fixed qualifier seating draft using the same rules as the search. */
+export function evaluateQualifierSchedule(rows: MatchmakerRegistration[], settings: MatchmakerSettings, template: number[][][], strategy: Strategy) {
+  const prepared = prepare(rows, settings);
+  return evaluate(template, prepared.players, prepared, strategy, settings.targetSlots);
 }
 
 export async function runMatchmaker(
