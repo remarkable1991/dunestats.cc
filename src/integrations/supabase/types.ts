@@ -119,6 +119,7 @@ export type Database = {
           discord_username: string
           display_name: string
           global_name: string | null
+          has_league_lfg_role: boolean | null
           has_verified_map: boolean | null
           joined_at: string | null
           similarity_score: number | null
@@ -130,6 +131,7 @@ export type Database = {
           discord_username: string
           display_name: string
           global_name?: string | null
+          has_league_lfg_role?: boolean | null
           has_verified_map?: boolean | null
           joined_at?: string | null
           similarity_score?: number | null
@@ -141,6 +143,7 @@ export type Database = {
           discord_username?: string
           display_name?: string
           global_name?: string | null
+          has_league_lfg_role?: boolean | null
           has_verified_map?: boolean | null
           joined_at?: string | null
           similarity_score?: number | null
@@ -707,6 +710,7 @@ export type Database = {
           discord_user_id: string | null
           discord_username: string | null
           display_name: string | null
+          has_league_lfg_role: boolean | null
           id: number
           player_key: string | null
           source: string
@@ -720,6 +724,7 @@ export type Database = {
           discord_user_id?: string | null
           discord_username?: string | null
           display_name?: string | null
+          has_league_lfg_role?: boolean | null
           id?: number
           player_key?: string | null
           source?: string
@@ -733,6 +738,7 @@ export type Database = {
           discord_user_id?: string | null
           discord_username?: string | null
           display_name?: string | null
+          has_league_lfg_role?: boolean | null
           id?: number
           player_key?: string | null
           source?: string
