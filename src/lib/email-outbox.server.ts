@@ -59,13 +59,7 @@ export async function dispatchOutbox() {
   const budget = Math.max(0, DAILY_LIMIT - (await sentLast24h(db)));
   if (budget === 0) return { sent: 0, failed: 0, budget: 0 };
 
-  const { data: rows, error } = await db
-    .from("email_outbox")
-    .select("id, to_email, subject, html, text_body")
-    .eq("status", "pending")
-    .not("campaign", "like", "lfg_alert:%")
-    .order("created_at", { ascending: true })
-    .limit(budget);
+  const { data: rows, error } = await db.rpc("claim_email_outbox_batch", { p_limit: Math.min(budget, 50) });
   if (error) throw new Error(error.message);
 
   let sent = 0;
@@ -101,6 +95,8 @@ export async function dispatchOutbox() {
       // Leave rows pending on rate/quota errors so they retry next run.
       if (res.status !== 429) {
         await db.from("email_outbox").update({ status: "failed", error: `${res.status}: ${body}`.slice(0, 1000) }).in("id", ids);
+      } else {
+        await db.from("email_outbox").update({ status: "pending", error: `${res.status}: ${body}`.slice(0, 1000) }).in("id", ids);
       }
       break;
     }

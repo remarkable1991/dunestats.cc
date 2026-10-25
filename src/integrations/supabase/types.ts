@@ -2009,6 +2009,28 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_email_outbox_batch: {
+        Args: { p_limit?: number }
+        Returns: {
+          campaign: string
+          created_at: string
+          error: string | null
+          html: string
+          id: string
+          sent_at: string | null
+          status: string
+          subject: string
+          text_body: string | null
+          to_email: string
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "email_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_player_name: {
         Args: { p_player_key: string; p_reset?: boolean }
         Returns: Json
