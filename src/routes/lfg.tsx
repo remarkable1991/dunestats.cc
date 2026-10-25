@@ -471,7 +471,7 @@ function LfgCard({
   const titles = usePlayerTitles();
   const open = Math.max(0, 4 - seats.length);
   const countdown = useCountdown(row.auto_start_at);
-  const seated = !!userId && (row.web_player_ids ?? []).includes(userId);
+  const seated = isMember(row, seats, { userId, discordId: myDiscordId, ign: myIgn });
   const accent = live ? "var(--teal)" : "var(--coral)";
 
   // Tick every second so an active lobby flips to "Expired" the moment it lapses

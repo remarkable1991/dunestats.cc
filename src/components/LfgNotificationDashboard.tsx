@@ -81,7 +81,9 @@ export function LfgNotificationDashboard({ userId }: { userId: string | null }) 
           claimed = await delivery({ data: { id: alert.id, action: "claim" } });
           if (!claimed) return;
           const notification = new Notification(alert.title, { body: alert.body, tag: alert.id, silent: !prefs.sound_enabled });
+          let shown = false;
           notification.onshow = () => {
+            shown = true;
             // Keep retrying the acknowledgement on this origin; browser_pending itself blocks email in the meantime.
             const acknowledge = () => delivery({ data: { id: alert.id, action: "received" } }).catch(() => {
               window.setTimeout(() => { void acknowledge(); }, 5000);
@@ -92,7 +94,7 @@ export function LfgNotificationDashboard({ userId }: { userId: string | null }) 
             void refresh();
           };
           notification.onclick = () => { window.focus(); window.location.assign(`/lfg/${alert.lobby_id}`); notification.close(); };
-          notification.onerror = () => { void delivery({ data: { id: alert.id, action: "failed" } }); };
+          notification.onerror = () => { if (!shown) void delivery({ data: { id: alert.id, action: "failed" } }); };
           // No timeout fallback: an uncertain OS delivery must never result in a duplicate email.
         } catch {
           if (claimed) await delivery({ data: { id: alert.id, action: "failed" } }).catch(() => false);
@@ -147,6 +149,7 @@ export function LfgNotificationDashboard({ userId }: { userId: string | null }) 
           <Button size="sm" variant="ghost" onClick={() => { try { playChime(); } catch { toast.error("Sound unavailable"); } }}>Test sound</Button>
         </div>
         <Label className="flex items-center justify-between gap-3"><span>Discord · lobby openings only</span><Switch checked={prefs.discord_openings} onCheckedChange={(discord_openings) => void save({ ...prefs, discord_openings })} aria-label="Discord lobby openings" /></Label>
+        <p className="text-xs text-muted-foreground">Discord preference saved for bot integration; delivery not connected yet.</p>
         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
           <Mail className="size-4" /><Label htmlFor="lfg-email-hours">Email backup</Label>
           <Select value={hours} onValueChange={setHours}><SelectTrigger id="lfg-email-hours" className="w-28"><SelectValue /></SelectTrigger><SelectContent>{[1, 2, 4].map((h) => <SelectItem key={h} value={String(h)}>{h} hour{h > 1 ? "s" : ""}</SelectItem>)}</SelectContent></Select>

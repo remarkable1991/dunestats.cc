@@ -1,8 +1,11 @@
 # Roadmap
 
-- [ ] Add LFG alert preferences, browser acknowledgements and timed, suppressed email fallback.
-- [ ] Restrict League early starts and share three-player voting on list/detail with Discord chat events.
-- [ ] Test delivery/start rules and verify LFG page; document external delivery verification blockers.
+- [x] Add LFG alert preferences, atomic browser acknowledgements and timed, suppressed email fallback.
+- [x] Restrict League early starts and share three-player voting on list/detail; display Discord chat requests.
+- [x] Test delivery/start rules and verify public LFG page; document external delivery verification blockers.
+- [ ] Connect minute-by-minute email scheduler and publish its endpoint; external scheduler access is unavailable.
+- [ ] Connect Discord opening preferences and verified three-player vote actors; bot source/runtime is unavailable.
+- [ ] Verify signed-in browser receipts and real email/vote flows; external unmanaged Supabase supplies no test session.
 
 - [x] Relax qualifier backup conflicts in Levels 1–2 and cross-game checks from Level 3; preserve Discord exports and standby handling.
 - [x] Pass eleven qualifier/semi-finals tests and verify a 32-player browser search completes at Level 3 without runtime errors.
