@@ -16,5 +16,7 @@ export const unsubscribeWithToken = createServerFn({ method: "POST" })
       .from("profiles")
       .upsert({ id: data.uid, tournament_emails_opt_in: false }, { onConflict: "id" });
     if (error) return { ok: false as const, error: error.message };
+    const { error: alertError } = await supabaseAdmin.from("lfg_alert_preferences").update({ email_until: null }).eq("user_id", data.uid);
+    if (alertError) return { ok: false as const, error: alertError.message };
     return { ok: true as const };
   });

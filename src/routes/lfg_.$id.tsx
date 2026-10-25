@@ -15,6 +15,7 @@ import { LobbyPasswordRow } from "@/components/LobbyPasswordRow";
 import { LobbyFormatIcons } from "@/components/LobbyFormatIcons";
 import { CancelLobbyButton } from "@/components/CancelLobbyButton";
 import { LeaveLobbyButton } from "@/components/LeaveLobbyButton";
+import { LobbyStartControls } from "@/components/LobbyStartControls";
 import { canLeaveLobby } from "@/lib/lobby-leave";
 import liveIcon from "@/assets/live-mode.png.asset.json";
 import asyncIcon from "@/assets/async-mode.png.asset.json";
@@ -42,6 +43,8 @@ const CHAT_LABEL: Record<string, string> = {
   lobby_name_ask: "📛 What is the lobby name?",
   ign_ask: "🙋 What is your in-game name?",
   ping: "📣 Pinged the LFG role",
+  start_3p_ask: "🎮 Start with three players?",
+  agree_3p: "✅ Agreed to start with three players",
 };
 
 function fmt(ts: string | null | undefined) {
@@ -288,6 +291,7 @@ function LobbyPage() {
           <span className="inline-flex items-center rounded-full border border-border/60 px-2.5 py-1 text-xs capitalize">{row.status}</span>
           {canManage && <CancelLobbyButton id={row.id} status={row.status} onCancelled={() => void load()} />}
           {canLeaveLobby(row, userId, myDiscordId) && <LeaveLobbyButton id={row.id} onLeft={() => void load()} />}
+          <LobbyStartControls row={row} count={seats.length} member={member} onChanged={load} />
           {discordUrl && (
             <Button asChild size="sm" variant="outline"><a href={discordUrl} target="_blank" rel="noreferrer">Open in Discord</a></Button>
           )}
