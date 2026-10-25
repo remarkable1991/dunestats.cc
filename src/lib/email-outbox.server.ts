@@ -63,6 +63,7 @@ export async function dispatchOutbox() {
     .from("email_outbox")
     .select("id, to_email, subject, html, text_body")
     .eq("status", "pending")
+    .not("campaign", "like", "lfg_alert:%")
     .order("created_at", { ascending: true })
     .limit(budget);
   if (error) throw new Error(error.message);

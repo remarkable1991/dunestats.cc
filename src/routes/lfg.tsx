@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
-import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isHost } from "@/lib/lfg-seats";
+import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isHost, isMember } from "@/lib/lfg-seats";
+import { LfgNotificationDashboard } from "@/components/LfgNotificationDashboard";
+import { LobbyStartControls } from "@/components/LobbyStartControls";
 import { LobbyPasswordRow } from "@/components/LobbyPasswordRow";
 import { LobbyFormatIcons } from "@/components/LobbyFormatIcons";
 import { CancelLobbyButton } from "@/components/CancelLobbyButton";
@@ -360,6 +362,8 @@ function LfgPage() {
 
         {isLfgAdmin && <MatchmakingQueuePanel userId={userId} myIgn={myIgn} />}
 
+        <LfgNotificationDashboard userId={userId} />
+
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList>
             <TabsTrigger value="all">All matches</TabsTrigger>
@@ -685,10 +689,7 @@ function LfgCard({
         )}
         {seated && !expired && (
           <>
-            <Button size="sm" disabled={busy} onClick={() => call("lfg_start_game")}>
-              <Gamepad2 className="size-4" />
-              Start game
-            </Button>
+            <LobbyStartControls row={row} count={seats.length} member={isMember(row, seats, { userId, discordId: myDiscordId, ign: myIgn })} onChanged={onChanged} />
             <Button
               size="sm"
               variant="secondary"
