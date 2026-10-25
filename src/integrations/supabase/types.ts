@@ -472,6 +472,101 @@ export type Database = {
         }
         Relationships: []
       }
+      lfg_alert_deliveries: {
+        Row: {
+          body: string
+          browser_received_at: string | null
+          created_at: string
+          email_due_at: string
+          email_sent_at: string | null
+          event_key: string
+          expires_at: string
+          id: string
+          kind: string
+          lobby_id: number
+          state: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          browser_received_at?: string | null
+          created_at?: string
+          email_due_at?: string
+          email_sent_at?: string | null
+          event_key: string
+          expires_at?: string
+          id?: string
+          kind: string
+          lobby_id: number
+          state?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          browser_received_at?: string | null
+          created_at?: string
+          email_due_at?: string
+          email_sent_at?: string | null
+          event_key?: string
+          expires_at?: string
+          id?: string
+          kind?: string
+          lobby_id?: number
+          state?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lfg_alert_deliveries_lobby_id_fkey"
+            columns: ["lobby_id"]
+            isOneToOne: false
+            referencedRelation: "active_async_matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lfg_alert_preferences: {
+        Row: {
+          browser_enabled: boolean
+          created_at: string
+          discord_openings: boolean
+          email_until: string | null
+          event_kinds: string[]
+          lobby_scope: string
+          sound_enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          browser_enabled?: boolean
+          created_at?: string
+          discord_openings?: boolean
+          email_until?: string | null
+          event_kinds?: string[]
+          lobby_scope?: string
+          sound_enabled?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          browser_enabled?: boolean
+          created_at?: string
+          discord_openings?: boolean
+          email_until?: string | null
+          event_kinds?: string[]
+          lobby_scope?: string
+          sound_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       lfg_lobby_events: {
         Row: {
           actor_name: string | null
@@ -502,6 +597,41 @@ export type Database = {
             foreignKeyName: "lfg_lobby_events_lobby_id_fkey"
             columns: ["lobby_id"]
             isOneToOne: false
+            referencedRelation: "active_async_matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lfg_three_player_votes: {
+        Row: {
+          approvals: string[]
+          created_at: string
+          lobby_id: number
+          requested_at: string
+          roster: string[]
+          updated_at: string
+        }
+        Insert: {
+          approvals?: string[]
+          created_at?: string
+          lobby_id: number
+          requested_at?: string
+          roster: string[]
+          updated_at?: string
+        }
+        Update: {
+          approvals?: string[]
+          created_at?: string
+          lobby_id?: number
+          requested_at?: string
+          roster?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lfg_three_player_votes_lobby_id_fkey"
+            columns: ["lobby_id"]
+            isOneToOne: true
             referencedRelation: "active_async_matches"
             referencedColumns: ["id"]
           },
@@ -1961,6 +2091,21 @@ export type Database = {
         }
         Returns: Json
       }
+      lfg_alert_browser_action: {
+        Args: { p_action: string; p_id: string }
+        Returns: boolean
+      }
+      lfg_alert_emit: {
+        Args: {
+          p_body: string
+          p_key: string
+          p_kind: string
+          p_lobby: number
+          p_title: string
+        }
+        Returns: undefined
+      }
+      lfg_claim_alert_email: { Args: { p_id: string }; Returns: Json }
       lfg_create_lobby:
         | {
             Args: {
@@ -2000,6 +2145,12 @@ export type Database = {
         Returns: Json
       }
       lfg_my_ign: { Args: never; Returns: string }
+      lfg_roster_tokens: {
+        Args: {
+          p_row: Database["public"]["Tables"]["active_async_matches"]["Row"]
+        }
+        Returns: string[]
+      }
       lfg_start_game: { Args: { p_id: number }; Returns: Json }
       lfg_update_lobby: {
         Args: {
@@ -2014,6 +2165,10 @@ export type Database = {
           p_remove_discord_ids?: string[]
           p_remove_web_ids?: string[]
         }
+        Returns: Json
+      }
+      lfg_vote_three: {
+        Args: { p_agree?: boolean; p_id: number }
         Returns: Json
       }
       mark_async_game_started: {
