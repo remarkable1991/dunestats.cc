@@ -18,6 +18,14 @@ export const DEFAULT_LFG_ALERTS: LfgAlertPreferences = {
   browser_enabled: false, sound_enabled: false, discord_openings: false,
   event_kinds: ["own_open", "full", "chat", "result"], lobby_scope: "league", email_until: null,
 };
+export type LfgDiscordPreference = {
+  linked: boolean; ambiguous: boolean; username: string | null;
+  map_role: boolean | null; guild_role: boolean | null;
+};
+export function discordAlertsEnabled(discord: LfgDiscordPreference) {
+  // An explicit mapping preference wins over the bot's potentially stale observed role.
+  return discord.linked && (discord.map_role ?? discord.guild_role ?? false);
+}
 export type LfgAlert = {
   id: string; lobby_id: number; title: string; body: string; kind: string;
   state: string; browser_received_at: string | null; email_due_at: string; expires_at: string;

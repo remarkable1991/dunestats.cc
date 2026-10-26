@@ -8,8 +8,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { lfgBrowserDelivery } from "@/lib/lfg-alerts.functions";
-import { DEFAULT_LFG_ALERTS, LFG_ALERT_EVENTS, emailWindow, type LfgAlert, type LfgAlertPreferences } from "@/lib/lfg-alerts";
+import { lfgBrowserDelivery, lfgDiscordPreference } from "@/lib/lfg-alerts.functions";
+import { DEFAULT_LFG_ALERTS, LFG_ALERT_EVENTS, discordAlertsEnabled, emailWindow, type LfgAlert, type LfgAlertPreferences, type LfgDiscordPreference } from "@/lib/lfg-alerts";
 
 function playChime() {
   const audio = new AudioContext();
@@ -34,6 +34,10 @@ export function LfgNotificationDashboard({ userId }: { userId: string | null }) 
   const [now, setNow] = useState(0);
   const pending = useRef(new Set<string>());
   const delivery = useServerFn(lfgBrowserDelivery);
+  const discordPreference = useServerFn(lfgDiscordPreference);
+  const [discord, setDiscord] = useState<LfgDiscordPreference | null>(null);
+  const accountRef = useRef(userId);
+  accountRef.current = userId;
   useEffect(() => {
     setPermission("Notification" in window ? Notification.permission : "unavailable");
     setNow(Date.now());
@@ -41,7 +45,7 @@ export function LfgNotificationDashboard({ userId }: { userId: string | null }) 
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
-    setLoaded(false); setPrefs(DEFAULT_LFG_ALERTS); setAlerts([]); pending.current.clear();
+    setLoaded(false); setPrefs(DEFAULT_LFG_ALERTS); setAlerts([]); setDiscord(null); pending.current.clear();
     if (!userId) return;
     let active = true;
     void supabase.from("lfg_alert_preferences").select("browser_enabled,sound_enabled,discord_openings,event_kinds,lobby_scope,email_until")
@@ -50,8 +54,11 @@ export function LfgNotificationDashboard({ userId }: { userId: string | null }) 
         if (error) { toast.error("Could not load LFG alert preferences"); return; }
         setPrefs(data ?? DEFAULT_LFG_ALERTS); setLoaded(true);
       });
+    void discordPreference({ data: {} }).then((state) => {
+      if (active) setDiscord(state);
+    }).catch(() => { if (active) toast.error("Could not load your Discord role"); });
     return () => { active = false; };
-  }, [userId]);
+  }, [userId, discordPreference]);
   const refresh = useCallback(async () => {
     if (!userId) return;
     const { data, error } = await supabase.from("lfg_alert_deliveries")
@@ -105,7 +112,9 @@ export function LfgNotificationDashboard({ userId }: { userId: string | null }) 
   const save = async (next: LfgAlertPreferences) => {
     if (!userId || !loaded) return;
     setBusy(true);
-    const { error } = await supabase.from("lfg_alert_preferences").upsert({ user_id: userId, ...next });
+    // Other controls must not overwrite Discord state from a stale form.
+    const { discord_openings: _discordOpenings, ...settings } = next;
+    const { error } = await supabase.from("lfg_alert_preferences").upsert({ user_id: userId, ...settings });
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     setPrefs(next);
@@ -119,6 +128,19 @@ export function LfgNotificationDashboard({ userId }: { userId: string | null }) 
       } catch { toast.error("Open the website in its own tab to enable browser notifications"); return; }
     }
     await save({ ...prefs, browser_enabled: enabled });
+  };
+  const discordToggle = async (enabled: boolean) => {
+    if (!userId || !loaded || busy || !discord?.linked) return;
+    const actor = userId;
+    setBusy(true);
+    try {
+      const state = await discordPreference({ data: { enabled } });
+      if (accountRef.current !== actor) return;
+      setDiscord(state);
+      setPrefs((current) => ({ ...current, discord_openings: discordAlertsEnabled(state) }));
+      toast.success("Discord alert preference saved");
+    } catch { toast.error("Could not save Discord alerts"); }
+    finally { setBusy(false); }
   };
   const remaining = prefs.email_until ? Math.max(0, Date.parse(prefs.email_until) - now) : 0;
   return <section className="border-y border-border py-5 space-y-4" aria-labelledby="lfg-alert-heading">
@@ -148,8 +170,8 @@ export function LfgNotificationDashboard({ userId }: { userId: string | null }) 
           <Label className="flex items-center gap-3"><Volume2 className="size-4" /> Sound<Switch checked={prefs.sound_enabled} onCheckedChange={(sound_enabled) => void save({ ...prefs, sound_enabled })} aria-label="Notification sound" /></Label>
           <Button size="sm" variant="ghost" onClick={() => { try { playChime(); } catch { toast.error("Sound unavailable"); } }}>Test sound</Button>
         </div>
-        <Label className="flex items-center justify-between gap-3"><span>Discord · lobby openings only</span><Switch checked={prefs.discord_openings} onCheckedChange={(discord_openings) => void save({ ...prefs, discord_openings })} aria-label="Discord lobby openings" /></Label>
-        <p className="text-xs text-muted-foreground">Discord preference saved for bot integration; delivery not connected yet.</p>
+        <Label className="flex items-center justify-between gap-3"><span>Discord · lobby openings only</span><Switch disabled={!discord?.linked} checked={discord ? discordAlertsEnabled(discord) : false} onCheckedChange={(enabled) => void discordToggle(enabled)} aria-label="Discord lobby openings" /></Label>
+        <p className="text-xs text-muted-foreground">{!userId ? "Sign in to manage Discord alerts" : !discord ? "Discord role unavailable" : discord.ambiguous ? "Multiple Discord links need review" : !discord.linked ? "Connect a verified Discord account to enable alerts" : `${discord.username ? `@${discord.username} · ` : ""}${discord.guild_role ? "Discord role detected" : "Discord role not detected"}${discord.guild_role !== null && discord.guild_role !== discordAlertsEnabled(discord) ? " · Awaiting bot role sync" : ""}`}</p>
         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
           <Mail className="size-4" /><Label htmlFor="lfg-email-hours">Email backup</Label>
           <Select value={hours} onValueChange={setHours}><SelectTrigger id="lfg-email-hours" className="w-28"><SelectValue /></SelectTrigger><SelectContent>{[1, 2, 4].map((h) => <SelectItem key={h} value={String(h)}>{h} hour{h > 1 ? "s" : ""}</SelectItem>)}</SelectContent></Select>
