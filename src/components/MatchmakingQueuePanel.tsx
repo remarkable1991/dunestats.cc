@@ -10,6 +10,9 @@ import { loadLobbyIdentities } from "@/lib/lfg-identity-loader";
 import { applyDefaultPassword } from "@/components/LobbyPasswordRow";
 import liveIcon from "@/assets/live-mode.png.asset.json";
 import { LEAGUE_QUEUE_MODES, LIVE_QUEUE_MINUTES } from "@/lib/lfg-identities";
+import { SELECT_COLS, seatsOf, type LfgRow } from "@/lib/lfg-seats";
+import { oldestQueueLobby } from "@/lib/league-queue-lobby";
+import { LobbyFormatIcons } from "@/components/LobbyFormatIcons";
 import uprisingIcon from "@/assets/uprising.png.asset.json";
 import ixIcon from "@/assets/ix.png.asset.json";
 import immoIcon from "@/assets/immo.png.asset.json";
@@ -79,6 +82,8 @@ function left(iso: string | null, now: number) {
 /** LFG-admin-only pilot: Live-only League pre-lobby queue. */
 export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null; myIgn: string | null }) {
   const [rows, setRows] = useState<QueueRow[]>([]);
+  const [lobbies, setLobbies] = useState<LfgRow[]>([]);
+  const [lobbyError, setLobbyError] = useState("");
   const [preset, setPreset] = useState<Preset | null>(null);
   const [nextPreset, setNextPreset] = useState<Preset | null>(null);
   const navigate = useNavigate();
@@ -92,15 +97,21 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
   const [loadError, setLoadError] = useState("");
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase
+    const [{ data, error }, lobbyResult] = await Promise.all([supabase
       .from("matchmaking_queue")
       .select("id,mode,user_id,player_key,display_name,discord_user_id,expires_at")
-      .order("joined_at");
+      .order("joined_at"), supabase.from("active_async_matches")
+      .select(SELECT_COLS).eq("is_league", true).eq("mode", "live")
+      .in("status", ["searching", "pending_creation"]).order("created_at")]);
+    const games = lobbyResult.error ? [] : (lobbyResult.data ?? []) as LfgRow[];
+    setLobbies(games);
+    setLobbyError(lobbyResult.error ? "Could not load available League games" : "");
     if (error) { setLoadError("Could not load queue"); return; }
     setLoadError("");
     const list = (data ?? []) as QueueRow[];
     setRows(list);
-    const ids = [...new Set(list.flatMap((r) => r.discord_user_id ? [r.discord_user_id] : []))];
+    const ids = [...new Set([...list.flatMap((r) => r.discord_user_id ? [r.discord_user_id] : []),
+      ...games.flatMap((r) => [...(r.player_ids ?? []), ...(r.host_id ? [r.host_id] : [])])])];
     setRatingState("loading");
     try {
       const resolved = ids.length ? await loadLobbyIdentities(ids) : { names: {}, keys: {}, handles: {}, verified: {} };
@@ -139,6 +150,7 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
     const ch = supabase
       .channel("mm-queue")
       .on("postgres_changes", { event: "*", schema: "public", table: "matchmaking_queue" }, () => void load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "active_async_matches" }, () => void load())
       .subscribe();
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => {
@@ -209,18 +221,37 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
         {preset ? <FormatLine label="Now" p={preset} /> : <p className="text-xs text-muted-foreground">No active league format</p>}
         {nextPreset && <FormatLine label="Next" p={nextPreset} />}
       </div>
-      <p className="text-xs text-muted-foreground">If an open League table for your mode has a seat, joining puts you straight in it.</p>
+      {lobbyError && <p className="text-sm text-destructive">{lobbyError}</p>}
       {!myIgn && <p className="text-sm text-destructive">Claim your in-game name first to join a queue.</p>}
       <div className="grid gap-4 md:grid-cols-2">
         {LEAGUE_QUEUE_MODES.map((mode) => {
           const list = active.filter((r) => r.mode === mode);
           const mine = list.find(isMine);
+          const game = oldestQueueLobby(lobbies, mode, now);
+          const seats = game ? seatsOf(game, identities.names, identities.keys, identities.handles, identities.verified) : [];
+          const hostName = seats.find((seat) => seat.host)?.name || game?.web_player_names?.[0] || (game ? identities.names[game.host_id] : null);
+          const seated = !!game && !!userId && (game.web_host_id === userId || (game.web_player_ids ?? []).includes(userId)
+            || seats.some((seat) => seat.identityVerified !== false && !!myKey && seat.playerKey === myKey));
           return (
             <div key={mode} className="rounded-md border border-border p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2 font-medium"><img src={MODE_ICON[mode]} alt="" className="size-5 object-contain" />{mode === "live" ? "Live" : "ASync"}</span>
                 <span className="flex items-center gap-1 text-sm text-muted-foreground"><Users className="size-4" />{list.length}/4</span>
               </div>
+              {game && <div className="space-y-2 border-y border-border py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Link to="/lfg/$id" params={{ id: String(game.id) }} className="font-medium hover:underline">
+                    {hostName ? `${hostName}'s Game` : "League game"} · #{game.id}
+                  </Link>
+                  <span className="text-sm text-muted-foreground">{seats.length}/4</span>
+                </div>
+                <LobbyFormatIcons row={game} />
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                  {seats.map((seat, i) => seat.playerKey
+                    ? <Link key={i} to="/players/$key" params={{ key: seat.playerKey }} className="hover:underline">{seat.name}</Link>
+                    : <span key={i}>{seat.name}</span>)}
+                </div>
+              </div>}
               <ul className="space-y-1 text-sm min-h-6">
                 {list.length === 0 && <li className="text-muted-foreground">Nobody waiting yet</li>}
                 {list.map((r) => {
@@ -237,16 +268,17 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
                   </li>
                 ); })}
               </ul>
-              <div className="flex flex-wrap gap-1">
+              {!game && <div className="flex flex-wrap gap-1">
                 {DURATIONS[mode].map((d) => (
                   <Button key={d.m} size="sm" variant={dur[mode] === d.m ? "default" : "outline"}
                     onClick={() => setDur((s) => ({ ...s, [mode]: d.m }))}>{d.label}</Button>
                 ))}
-              </div>
+              </div>}
               <div className="flex gap-2">
-                <Button size="sm" disabled={!myIgn || busy === mode} onClick={() => void join(mode)}>
+                <Button size="sm" disabled={!myIgn || busy === mode} onClick={() => seated && game
+                  ? void navigate({ to: "/lfg/$id", params: { id: String(game.id) } }) : void join(mode)}>
                   {busy === mode && <Loader2 className="size-4 animate-spin" />}
-                  {mine ? "Restart timer" : "Join queue"}
+                  {game ? seated ? "Open game" : "Join game" : mine ? "Restart timer" : "Join queue"}
                 </Button>
                 <Button size="sm" variant="secondary" disabled={!myIgn || !preset || busy === `host-${mode}`} onClick={() => void host(mode)}>
                   {busy === `host-${mode}` && <Loader2 className="size-4 animate-spin" />}

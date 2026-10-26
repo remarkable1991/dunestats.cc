@@ -26,3 +26,4 @@
 - LFG alert delivery uses an atomic per-event browser/email claim; uncertain browser delivery stays email-blocked, and the dedicated alert dispatcher shares the outbox budget without passing LFG alerts through the generic dispatcher.
 - Discord opening-alert changes use an authenticated server wrapper and service-only atomic ownership-scoped RPC; mapping preferences are desired state, guild role flags are observed state, and unrelated settings never overwrite Discord preferences.
 - League early-start controls share a database-enforced, roster-bound unanimous vote; Discord integrations must submit authenticated seat identities rather than trusting public chat sender names.
+- League queue game previews use the existing queue RPC's raw seat capacity and oldest-first eligibility through a browser-safe helper; joining remains authoritative in the existing RPC.
