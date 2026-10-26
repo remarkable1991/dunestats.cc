@@ -2154,7 +2154,7 @@ export type Database = {
             Returns: Json
           }
       lfg_discord_alert_preference: {
-        Args: { p_enabled?: boolean }
+        Args: { p_enabled?: boolean; p_user: string }
         Returns: Json
       }
       lfg_is_member: {
