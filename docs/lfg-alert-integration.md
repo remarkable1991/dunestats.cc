@@ -8,7 +8,9 @@ Alerts wait three minutes before becoming eligible for email, expire after thirt
 
 ## Discord preferences
 
-`lfg_alert_preferences.discord_openings` stores the user's requested Discord opening-alert preference; it does not grant or remove any Discord role. The bot must reconcile this field using verified `player_discord_map.claimed_by`/`discord_user_id` ownership. Existing `has_league_lfg_role` fields must not grant website League pilot access. No bot code or runtime was available to implement this reconciliation.
+The dashboard detects the signed-in user's verified `player_discord_map.claimed_by`/`discord_user_id` link. `player_discord_map.has_league_lfg_role` is the desired role state; when it is null, the observed `discord_guild_members.has_league_lfg_role` is used. An explicit mapping opt-out wins over stale guild observations. Unlinked or multiple-Discord accounts cannot toggle.
+
+The authenticated server calls service-only `lfg_discord_alert_preference` with the verified caller UUID, atomically updating only that caller's mapping and `lfg_alert_preferences.discord_openings`. Other dashboard settings omit `discord_openings` so stale forms cannot revert it. The bot must reconcile the requested mapping role against Discord and update the guild directory only after observing the real role. These fields never grant website League pilot access. Actual Discord role assignment remains external; no bot source/runtime was available.
 
 ## Three-player League votes
 

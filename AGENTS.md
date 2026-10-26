@@ -24,4 +24,5 @@
 - Admin IGN corrections run through main-admin server functions in `src/lib/player-admin.functions.ts` (/admin/players) and always record a `player_name_aliases` row; one place keeps seats, registrations, account claims and future registration hints in sync.
 - Registration verification is read-only and paginates directory, authoritative mappings and overall ratings; guild presence never verifies an IGN, and unavailable reads must not be displayed as negative matches.
 - LFG alert delivery uses an atomic per-event browser/email claim; uncertain browser delivery stays email-blocked, and the dedicated alert dispatcher shares the outbox budget without passing LFG alerts through the generic dispatcher.
+- Discord opening-alert changes use an authenticated server wrapper and service-only atomic ownership-scoped RPC; mapping preferences are desired state, guild role flags are observed state, and unrelated settings never overwrite Discord preferences.
 - League early-start controls share a database-enforced, roster-bound unanimous vote; Discord integrations must submit authenticated seat identities rather than trusting public chat sender names.
