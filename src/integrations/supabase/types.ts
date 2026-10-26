@@ -2153,6 +2153,10 @@ export type Database = {
             }
             Returns: Json
           }
+      lfg_discord_alert_preference: {
+        Args: { p_enabled?: boolean }
+        Returns: Json
+      }
       lfg_is_member: {
         Args: {
           p_row: Database["public"]["Tables"]["active_async_matches"]["Row"]
