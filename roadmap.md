@@ -1,12 +1,13 @@
 # Roadmap
 
-- [ ] Detect existing linked Discord roles and atomically save the user's Discord opening-alert preference to their mapping.
-- [ ] Test Discord preference ownership and existing-role detection; document external bot role reconciliation.
+- [x] Detect existing linked Discord roles and atomically save the user's Discord opening-alert preference to their mapping.
+- [x] Pass eleven alert-rule tests, verify service-only access and ReMarkable's existing role, and document external bot role reconciliation.
+- [ ] Verify signed-in Discord toggle end-to-end; external unmanaged Supabase provides no test session.
 - [x] Add LFG alert preferences, atomic browser acknowledgements and timed, suppressed email fallback.
 - [x] Restrict League early starts and share three-player voting on list/detail; display Discord chat requests.
 - [x] Test delivery/start rules and verify public LFG page; document external delivery verification blockers.
 - [ ] Connect minute-by-minute email scheduler and publish its endpoint; external scheduler access is unavailable.
-- [ ] Connect Discord opening preferences and verified three-player vote actors; bot source/runtime is unavailable.
+- [ ] Apply requested mapping role changes in Discord and connect verified three-player vote actors; bot source/runtime is unavailable.
 - [ ] Verify signed-in browser receipts and real email/vote flows; external unmanaged Supabase supplies no test session.
 
 - [x] Relax qualifier backup conflicts in Levels 1–2 and cross-game checks from Level 3; preserve Discord exports and standby handling.
