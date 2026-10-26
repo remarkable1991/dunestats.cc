@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Detect existing linked Discord roles and atomically save the user's Discord opening-alert preference to their mapping.
+- [ ] Test Discord preference ownership and existing-role detection; document external bot role reconciliation.
 - [x] Add LFG alert preferences, atomic browser acknowledgements and timed, suppressed email fallback.
 - [x] Restrict League early starts and share three-player voting on list/detail; display Discord chat requests.
 - [x] Test delivery/start rules and verify public LFG page; document external delivery verification blockers.
