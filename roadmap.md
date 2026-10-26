@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Preview only the oldest available League game and switch Join queue to Join game without changing database behavior.
+- [ ] Verify queue selection tests and populated game/queue browser states.
+
 - [x] Detect existing linked Discord roles and atomically save the user's Discord opening-alert preference to their mapping.
 - [x] Pass eleven alert-rule tests, verify service-only access and ReMarkable's existing role, and document external bot role reconciliation.
 - [ ] Verify signed-in Discord toggle end-to-end; external unmanaged Supabase provides no test session.
