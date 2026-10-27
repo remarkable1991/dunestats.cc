@@ -105,12 +105,11 @@ export const replaceTournamentPlayer = createServerFn({ method: "POST" })
     if ((s.player_discord_ids ?? []).map(String).includes(data.newDiscordId)) throw new Error("That Discord user is already at this table");
 
     const next = applyReplacement(s, data.oldIndex, data.newDiscordId, data.newName);
-    const { error: e1 } = await db
-      .from("tournament_match_schedules")
-      .update({ ...next, updated_at: new Date().toISOString() })
-      .eq("id", s.id)
-      .eq("updated_at", s.updated_at);
+    let q = db.from("tournament_match_schedules").update({ ...next, updated_at: new Date().toISOString() }).eq("id", s.id);
+    q = s.updated_at ? q.eq("updated_at", s.updated_at) : q.is("updated_at", null);
+    const { data: done, error: e1 } = await q.select("id");
     if (e1) throw new Error(e1.message);
+    if (!done?.length) throw new Error("The table changed meanwhile (new votes?) — reopen and try again");
 
     const { data: rows } = await db.from("tournament_matches").select("id,player_name").eq("tournament_num", s.tournament_num).eq("round_type", s.round_type).eq("table_identifier", s.table_identifier);
     const seat = ((rows ?? []) as { id: string; player_name: string }[]).find((r) => norm(r.player_name) === norm(oldName));
