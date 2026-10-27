@@ -447,6 +447,7 @@ export type Database = {
           modules: string[]
           name: string
           start_date: string
+          url: string | null
         }
         Insert: {
           board_type: string
@@ -458,6 +459,7 @@ export type Database = {
           modules?: string[]
           name: string
           start_date: string
+          url?: string | null
         }
         Update: {
           board_type?: string
@@ -469,6 +471,7 @@ export type Database = {
           modules?: string[]
           name?: string
           start_date?: string
+          url?: string | null
         }
         Relationships: []
       }

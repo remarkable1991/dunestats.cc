@@ -27,3 +27,4 @@
 - Discord opening-alert changes use an authenticated server wrapper and service-only atomic ownership-scoped RPC; mapping preferences are desired state, guild role flags are observed state, and unrelated settings never overwrite Discord preferences.
 - League early-start controls share a database-enforced, roster-bound unanimous vote; Discord integrations must submit authenticated seat identities rather than trusting public chat sender names.
 - League queue game previews use the existing queue RPC's raw seat capacity and oldest-first eligibility through a browser-safe helper; joining remains authoritative in the existing RPC.
+- Admin-only tournament player substitution runs through main-admin server functions in `src/lib/tournament-substitute.functions.ts`; it removes only the replaced player's votes and never overwrites an existing Discord mapping.

@@ -11,6 +11,7 @@ import { signedUrlOrR2 } from "@/lib/storage-r2";
 import { HeatmapBody, type HeatmapPlayer } from "@/components/AvailabilityHeatmap";
 import { tournamentPlayMode } from "@/components/TournamentPlayModeBadge";
 import { TableScheduleControls } from "@/components/TableScheduleControls";
+import { ReplacePlayerDialog } from "@/components/ReplacePlayerDialog";
 import {
   type MatchSchedule,
   SCHEDULE_SELECT,
@@ -291,6 +292,7 @@ function TableDetailPage() {
               title={`Dune Imperium · ${heading}`}
               onChanged={load}
             />
+            {isAdmin && !finished && <ReplacePlayerDialog schedule={schedule} onDone={load} />}
           </div>
 
           {(schedule.mode ?? "").toLowerCase() !== "async" && (
