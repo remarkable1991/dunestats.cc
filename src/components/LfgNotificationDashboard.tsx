@@ -7,22 +7,11 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { LFG_PREFS_EVENT, playChime } from "@/components/LfgAlertListener";
 import { supabase } from "@/integrations/supabase/client";
-import { lfgBrowserDelivery, lfgDiscordPreference } from "@/lib/lfg-alerts.functions";
+import { lfgDiscordPreference } from "@/lib/lfg-alerts.functions";
 import { DEFAULT_LFG_ALERTS, LFG_ALERT_EVENTS, discordAlertsEnabled, emailWindow, type LfgAlert, type LfgAlertPreferences, type LfgDiscordPreference } from "@/lib/lfg-alerts";
-
-function playChime() {
-  const audio = new AudioContext();
-  const oscillator = audio.createOscillator();
-  const gain = audio.createGain();
-  oscillator.connect(gain); gain.connect(audio.destination);
-  oscillator.frequency.setValueAtTime(660, audio.currentTime);
-  oscillator.frequency.setValueAtTime(880, audio.currentTime + .12);
-  gain.gain.setValueAtTime(.1, audio.currentTime);
-  gain.gain.exponentialRampToValueAtTime(.001, audio.currentTime + .4);
-  oscillator.start(); oscillator.stop(audio.currentTime + .4);
-  oscillator.onended = () => { void audio.close(); };
-}
 
 export function LfgNotificationDashboard({ userId }: { userId: string | null }) {
   const [prefs, setPrefs] = useState<LfgAlertPreferences>(DEFAULT_LFG_ALERTS);
@@ -32,8 +21,6 @@ export function LfgNotificationDashboard({ userId }: { userId: string | null }) 
   const [alerts, setAlerts] = useState<LfgAlert[]>([]);
   const [hours, setHours] = useState("2");
   const [now, setNow] = useState(0);
-  const pending = useRef(new Set<string>());
-  const delivery = useServerFn(lfgBrowserDelivery);
   const discordPreference = useServerFn(lfgDiscordPreference);
   const [discord, setDiscord] = useState<LfgDiscordPreference | null>(null);
   const accountRef = useRef(userId);
@@ -45,7 +32,7 @@ export function LfgNotificationDashboard({ userId }: { userId: string | null }) 
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
-    setLoaded(false); setPrefs(DEFAULT_LFG_ALERTS); setAlerts([]); setDiscord(null); pending.current.clear();
+    setLoaded(false); setPrefs(DEFAULT_LFG_ALERTS); setAlerts([]); setDiscord(null);
     if (!userId) return;
     let active = true;
     void supabase.from("lfg_alert_preferences").select("browser_enabled,sound_enabled,discord_openings,event_kinds,lobby_scope,email_until")
@@ -77,38 +64,6 @@ export function LfgNotificationDashboard({ userId }: { userId: string | null }) 
     window.addEventListener("focus", focus);
     return () => { clearInterval(timer); window.removeEventListener("focus", focus); void supabase.removeChannel(channel); };
   }, [userId, refresh]);
-  useEffect(() => {
-    if (!loaded || !prefs.browser_enabled || permission !== "granted") return;
-    for (const alert of alerts) {
-      if (alert.state !== "pending" || pending.current.has(alert.id) || Date.parse(alert.expires_at) <= Date.now()) continue;
-      pending.current.add(alert.id);
-      void (async () => {
-        let claimed = false;
-        try {
-          claimed = await delivery({ data: { id: alert.id, action: "claim" } });
-          if (!claimed) return;
-          const notification = new Notification(alert.title, { body: alert.body, tag: alert.id, silent: !prefs.sound_enabled });
-          let shown = false;
-          notification.onshow = () => {
-            shown = true;
-            // Keep retrying the acknowledgement on this origin; browser_pending itself blocks email in the meantime.
-            const acknowledge = () => delivery({ data: { id: alert.id, action: "received" } }).catch(() => {
-              window.setTimeout(() => { void acknowledge(); }, 5000);
-              return false;
-            });
-            void acknowledge();
-            if (prefs.sound_enabled) { try { playChime(); } catch { /* Audio may be blocked without a gesture. */ } }
-            void refresh();
-          };
-          notification.onclick = () => { window.focus(); window.location.assign(`/lfg/${alert.lobby_id}`); notification.close(); };
-          notification.onerror = () => { if (!shown) void delivery({ data: { id: alert.id, action: "failed" } }); };
-          // No timeout fallback: an uncertain OS delivery must never result in a duplicate email.
-        } catch {
-          if (claimed) await delivery({ data: { id: alert.id, action: "failed" } }).catch(() => false);
-        }
-      })();
-    }
-  }, [alerts, loaded, prefs.browser_enabled, prefs.sound_enabled, permission, delivery, refresh]);
   const save = async (next: LfgAlertPreferences) => {
     if (!userId || !loaded) return;
     setBusy(true);
@@ -118,6 +73,7 @@ export function LfgNotificationDashboard({ userId }: { userId: string | null }) 
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     setPrefs(next);
+    window.dispatchEvent(new Event(LFG_PREFS_EVENT));
   };
   const browserToggle = async (enabled: boolean) => {
     if (enabled) {
@@ -143,11 +99,18 @@ export function LfgNotificationDashboard({ userId }: { userId: string | null }) 
     finally { setBusy(false); }
   };
   const remaining = prefs.email_until ? Math.max(0, Date.parse(prefs.email_until) - now) : 0;
-  return <section className="border-y border-border py-5 space-y-4" aria-labelledby="lfg-alert-heading">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 id="lfg-alert-heading" className="font-display text-xl flex items-center gap-2"><Bell className="size-5 text-primary" /> LFG notifications</h2>
-      {!userId && <Button variant="outline" asChild><a href="/auth">Sign in</a></Button>}
-    </div>
+  const active = prefs.browser_enabled || remaining > 0;
+  return <Dialog>
+    <DialogTrigger asChild>
+      <Button variant="outline" className="gap-2 relative"><Bell className="size-4" />LFG notifications
+        {active && <span className="absolute -top-1 -right-1 size-2.5 rounded-full bg-primary" aria-label="Notifications active" />}
+      </Button>
+    </DialogTrigger>
+    <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+    <DialogHeader><DialogTitle className="font-display text-xl flex items-center gap-2"><Bell className="size-5 text-primary" /> LFG notifications</DialogTitle></DialogHeader>
+    <section className="space-y-4">
+    {!userId && <Button variant="outline" asChild><a href="/auth">Sign in</a></Button>}
+    <p className="text-xs text-muted-foreground">Browser notifications work on any page of the site while it is open.</p>
     <div className="grid gap-6 lg:grid-cols-2">
       <fieldset disabled={!loaded || busy} className="space-y-3 min-w-0">
         <legend className="font-medium text-sm mb-3">Notify me about</legend>
@@ -184,5 +147,7 @@ export function LfgNotificationDashboard({ userId }: { userId: string | null }) 
     {alerts.length > 0 && <div className="border-t border-border pt-3 space-y-2">
       {alerts.slice(0, 5).map((alert) => <a key={alert.id} href={`/lfg/${alert.lobby_id}`} className="flex flex-wrap items-center justify-between gap-2 text-sm text-primary hover:underline"><span>{alert.title} · #{alert.lobby_id}</span><span className="text-xs text-muted-foreground">{alert.state === "browser_received" ? "Browser delivered · no email" : alert.state === "email_sent" ? "Email sent" : alert.state === "browser_pending" ? "Browser delivery reserved · email blocked" : "New"}</span></a>)}
     </div>}
-  </section>;
+    </section>
+    </DialogContent>
+  </Dialog>;
 }
