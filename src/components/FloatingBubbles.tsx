@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { MessageCircle, Loader2, Send, X } from "lucide-react";
+import { MessageCircle, Loader2, Send, X, ClipboardList, Mail } from "lucide-react";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { SURVEY_PROMPT_KEY, readPromptState, shouldPromptSurvey, snooze } from "@/lib/survey-prompt";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -66,7 +68,47 @@ export function FloatingBubbles() {
   const [hasDiscordLinked, setHasDiscordLinked] = useState(false);
   const [discordDismissed, setDiscordDismissed] = useState(false);
   const [feedbackDismissed, setFeedbackDismissed] = useState(false);
+  const [mode, setMode] = useState<"choose" | "contact">("choose");
+  const [userId, setUserId] = useState<string | null>(null);
   const send = useServerFn(sendFeedback);
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  // Count page visits as interactions and occasionally ask logged-in users to take the survey.
+  useEffect(() => {
+    let state;
+    try {
+      state = readPromptState(localStorage.getItem(SURVEY_PROMPT_KEY));
+      state.interactions += 1;
+      localStorage.setItem(SURVEY_PROMPT_KEY, JSON.stringify(state));
+    } catch {
+      return;
+    }
+    if (!userId || pathname.startsWith("/survey")) return;
+    if (!shouldPromptSurvey(state, Date.now(), false)) return;
+    let cancelled = false;
+    supabase
+      .from("survey_responses")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .then(({ count, error }) => {
+        if (cancelled || error) return;
+        const save = (next: typeof state) => {
+          try { localStorage.setItem(SURVEY_PROMPT_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+        };
+        if ((count ?? 0) > 0) { save({ ...state, never: true }); return; }
+        // Snooze immediately so the toast is not repeated on every page.
+        save(snooze(state, Date.now()));
+        toast("Help shape Strategy Arena", {
+          id: "survey-prompt",
+          description: "Got 2 minutes for our player survey?",
+          duration: 30000,
+          action: { label: "Yes", onClick: () => navigate({ to: "/survey" }) },
+          cancel: { label: "Never", onClick: () => save({ ...snooze(state, Date.now()), never: true }) },
+        });
+      });
+    return () => { cancelled = true; };
+  }, [pathname, userId]);
 
   // Hydration-safe: read localStorage after mount
   useEffect(() => {
@@ -82,6 +124,7 @@ export function FloatingBubbles() {
     const { data } = await supabase.auth.getUser();
     const user = data.user;
     setIsLoggedIn(!!user);
+    setUserId(user?.id ?? null);
     const identities = user?.identities ?? [];
     setHasDiscordLinked(identities.some((i) => i.provider === "discord"));
   };
@@ -169,7 +212,7 @@ export function FloatingBubbles() {
         <div className="fixed bottom-3 right-3 z-50 sm:bottom-6 sm:right-6">
           <button
             type="button"
-            onClick={() => setOpen(true)}
+            onClick={() => { setMode("choose"); setOpen(true); }}
             aria-label="Send feedback"
             className="relative inline-flex size-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-black/30 transition-transform hover:scale-110 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-14"
           >
@@ -184,11 +227,25 @@ export function FloatingBubbles() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Send feedback</DialogTitle>
+            <DialogTitle>{mode === "choose" ? "Feedback" : "Send feedback"}</DialogTitle>
             <DialogDescription>
-              Got a question or idea? We read every message.
+              {mode === "choose" ? "How would you like to help?" : "Got a question or idea? We read every message."}
             </DialogDescription>
           </DialogHeader>
+          {mode === "choose" ? (
+            <div className="grid gap-3">
+              <Button variant="outline" className="h-auto justify-start gap-3 py-3" onClick={() => setMode("contact")}>
+                <Mail className="size-5" />
+                <span className="text-left"><span className="block font-medium">Contact us</span><span className="block text-xs text-muted-foreground">Send a message by email</span></span>
+              </Button>
+              <Button asChild variant="outline" className="h-auto justify-start gap-3 py-3">
+                <Link to="/survey" onClick={() => setOpen(false)}>
+                  <ClipboardList className="size-5" />
+                  <span className="text-left"><span className="block font-medium">Fill in the survey</span><span className="block text-xs text-muted-foreground">Tell us how you like to play</span></span>
+                </Link>
+              </Button>
+            </div>
+          ) : (
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="fb-email">Email {emailLocked ? "" : "(optional)"}</Label>
@@ -229,6 +286,7 @@ export function FloatingBubbles() {
               </Button>
             </div>
           </form>
+          )}
         </DialogContent>
       </Dialog>
     </>
