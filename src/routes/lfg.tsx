@@ -353,6 +353,7 @@ function LfgPage() {
           </div>
           <div className="flex flex-wrap gap-2">
           {isLfgAdmin && <Button variant="outline" asChild><Link to="/admin/lfg-history"><Clock className="size-4" />Match & Lobby History</Link></Button>}
+          <LfgNotificationDashboard userId={userId} />
           <Button onClick={() => setCreateOpen(true)} className="gap-2">
             <Plus className="size-4" />
             Create LFG
@@ -361,8 +362,6 @@ function LfgPage() {
         </div>
 
         {isLfgAdmin && <MatchmakingQueuePanel userId={userId} myIgn={myIgn} />}
-
-        <LfgNotificationDashboard userId={userId} />
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList>

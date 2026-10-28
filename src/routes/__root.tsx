@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
+import { LfgAlertListener } from "@/components/LfgAlertListener";
 import { FloatingBubbles } from "@/components/FloatingBubbles";
 import { useSpDailyCheckin } from "@/hooks/use-sp-daily-checkin";
 import { useSpReferralRedeem } from "@/hooks/use-sp-referral";
@@ -172,6 +173,7 @@ function RootComponent() {
       <Outlet />
       <Footer />
       <FloatingBubbles />
+      <LfgAlertListener />
       <Toaster />
     </QueryClientProvider>
   );
