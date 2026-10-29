@@ -56,6 +56,7 @@ import ixIcon from "@/assets/ix.png.asset.json";
 import uprisingIcon from "@/assets/uprising.png.asset.json";
 import immoIcon from "@/assets/immo.png.asset.json";
 import epicIcon from "@/assets/epic.png.asset.json";
+import baseLeadersIcon from "@/assets/base-leaders.png.asset.json";
 import { ArrowLeft, Users as UsersIcon, ArrowUp, ArrowDown, ArrowUpDown, Sparkles } from "lucide-react";
 import {
   type TournamentConfig,
@@ -277,6 +278,7 @@ function CurrentTournament({
   const titles = usePlayerTitles();
 
   const [formatLine, setFormatLine] = useState<string | null>(null);
+  const [gameModes, setGameModes] = useState<ModeFlags | null>(null);
   const [plan, setPlan] = useState(() => bracketPlan(null));
   const [seedingMode, setSeedingMode] = useState<"snake" | "manual">("snake");
   useEffect(() => {
@@ -284,6 +286,7 @@ function CurrentTournament({
       const all = await fetchTournaments();
       const cfg = all.find((t) => t.tournament_num === tournamentNum);
       setFormatLine(cfg ? formatTournamentFormat(cfg) : null);
+      setGameModes(cfg ? { hasIx: cfg.has_rise_of_ix, hasEpic: cfg.has_epic_mode, hasImmo: cfg.has_immortality, hasUprising: cfg.board_version === "uprising", hasBase: cfg.has_base_leaders } : null);
       setPlan(bracketPlan(cfg ?? null));
       setSeedingMode(cfg?.semifinal_seeding === "manual" ? "manual" : "snake");
     })();
@@ -911,6 +914,12 @@ function CurrentTournament({
           </h2>
 
           <p className="text-muted-foreground">{playModeDescription(tournamentNum)}</p>
+          {gameModes && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground">Game format:</span>
+              <ModeBadges flags={gameModes} size={20} />
+            </div>
+          )}
           {formatLine && (
             <p className="mt-2 inline-flex items-center gap-2 rounded-md border border-sand/40 bg-sand/10 px-3 py-1.5 text-xs text-sand">
               <Sword className="size-3.5" /> {formatLine}
@@ -1923,6 +1932,7 @@ function FutureTournaments() {
               hasEpic: t.has_epic_mode,
               hasImmo: t.has_immortality,
               hasUprising: t.board_version === "uprising",
+              hasBase: t.has_base_leaders,
             }}
             size={20}
           />
@@ -1947,7 +1957,7 @@ type TournamentSummaryCard = {
   num: number;
   title: string;
   subtitle: string;
-  modes: { hasIx: boolean; hasEpic: boolean; hasImmo: boolean; hasUprising: boolean };
+  modes: ModeFlags;
   progressPct: number;
   totalCells: number;
   completedCells: number;
@@ -2020,6 +2030,7 @@ function CurrentTournamentsHub() {
             hasEpic: profile?.has_epic_mode ?? false,
             hasImmo: profile?.has_immortality ?? false,
             hasUprising: (profile?.board_version ?? "uprising") === "uprising",
+            hasBase: profile?.has_base_leaders ?? false,
           },
           progressPct: pct,
           totalCells: total,
@@ -2177,7 +2188,7 @@ function configBadge(r: {
 
 // ─── Hall of Fame ───────────────────────────────────────────────────────────
 
-type ModeFlags = { hasIx: boolean; hasEpic: boolean; hasImmo: boolean; hasUprising: boolean };
+type ModeFlags = { hasIx: boolean; hasEpic: boolean; hasImmo: boolean; hasUprising: boolean; hasBase?: boolean };
 
 function detectTournamentModes(rows: PastRow[]): ModeFlags {
   return {
@@ -2194,6 +2205,7 @@ function ModeBadges({ flags, size = 28 }: { flags: ModeFlags; size?: number }) {
   if (flags.hasIx) items.push({ key: "ix", src: ixIcon.url, label: "Rise of Ix" });
   if (flags.hasEpic) items.push({ key: "epic", src: epicIcon.url, label: "Epic Mode" });
   if (flags.hasImmo) items.push({ key: "immo", src: immoIcon.url, label: "Immortality" });
+  if (flags.hasBase) items.push({ key: "base", src: baseLeadersIcon.url, label: "Base Leaders" });
   if (items.length === 0) {
     return <span className="text-xs text-muted-foreground italic">Base Game</span>;
   }

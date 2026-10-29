@@ -315,3 +315,18 @@ export function botCsv(num: number, draft: SemiDraft, discord: (p: string) => st
   });
   return [head, ...rows].map((r) => r.map(esc).join(",")).join("\n");
 }
+
+/** ASync semi-finals: no scheduling, tables seeded by snake order of the eligible pool. */
+export function snakeSemiDraft(pool: Standing[]): SemiDraft | null {
+  if (pool.length < 4 || pool.length % 4 !== 0) return null;
+  const tables = snake(pool.map((s) => s.player), pool.length / 4);
+  const meta = new Map(pool.map((s) => [s.player, s]));
+  return {
+    score: 0, partitionsTested: 1, slotsScanned: 0, alternatives: [],
+    tables: tables.map((players, i) => ({
+      name: `Semi Final ${i + 1}`, players, slots: [], closest: [], noAvailability: [], availableHours: {}, windowCounts: {},
+      avgTp: mean(players.map((p) => meta.get(p)?.tp ?? 0)),
+      avgRank: mean(players.map((p) => meta.get(p)?.rank ?? 0)),
+    })),
+  };
+}
