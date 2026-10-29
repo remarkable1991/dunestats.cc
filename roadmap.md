@@ -56,3 +56,6 @@
 - [x] Enable guided match verification on phone, tablet, and computer.
 - [x] Align each guided faction step with its exact faction editor.
 - [x] Add a clear start-verification action at the top of match pages.
+
+- [x] In-place League screenshot upload on lobby page with green/yellow/orange player checks and admin review queue.
+- [ ] Verify signed-in real upload end to end; blocked by external Supabase session access.
