@@ -45,8 +45,9 @@ export function matchScreenshotToSeats(names: string[], seats: MatchSeat[], game
   names.forEach((n, r) => seats.forEach((seat, s) => {
     const known = seat.name !== UNKNOWN_SEAT;
     const exact = !!loose(n) && (loose(n) === loose(seat.playerKey) || (known && loose(n) === loose(seat.name)));
-    const discord = Math.max(known ? similarity(n, seat.name) : 0, seat.discordHandle ? similarity(n, seat.discordHandle) : 0, seat.playerKey ? similarity(n, seat.playerKey) : 0);
-    scores.push({ r, s, score: exact ? 1 : discord, exact, discord });
+    const discord = seat.discordHandle ? similarity(n, seat.discordHandle) : 0;
+    const fuzzy = Math.max(known ? similarity(n, seat.name) : 0, seat.playerKey ? similarity(n, seat.playerKey) : 0, discord);
+    scores.push({ r, s, score: exact ? 1 : fuzzy, exact, discord });
   }));
   scores.sort((a, b) => b.score - a.score);
   const rowSeat = new Map<number, (typeof scores)[number]>();
@@ -67,7 +68,7 @@ export function matchScreenshotToSeats(names: string[], seats: MatchSeat[], game
       const hist = gamesOf(seat);
       let status: MatchStatus; let reason: string;
       if (c.exact && (hist > 0 || seat.identityVerified)) { status = "green"; reason = hist > 0 ? `Known IGN · ${hist} games` : "Verified link"; }
-      else if (c.discord >= 0.85) { status = "green"; reason = "Discord name matches"; }
+      else if (c.discord >= 0.85 && hist < VETERAN_GAMES) { status = "green"; reason = "Discord name matches"; }
       else if (hist >= VETERAN_GAMES) { status = "orange"; reason = `${seat.name} has ${hist} games under another name`; }
       else { status = "yellow"; reason = c.exact ? "Name matches, no history yet" : "Close spelling"; }
       return { rowIndex: r, screenshotName: n, seatIndex: c.s, seatName: seat.name, status, reason };
