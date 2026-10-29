@@ -1958,7 +1958,7 @@ type TournamentSummaryCard = {
   num: number;
   title: string;
   subtitle: string;
-  modes: { hasIx: boolean; hasEpic: boolean; hasImmo: boolean; hasUprising: boolean };
+  modes: ModeFlags;
   progressPct: number;
   totalCells: number;
   completedCells: number;
