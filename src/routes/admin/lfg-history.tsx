@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { LobbyFormatIcons } from "@/components/LobbyFormatIcons";
+import { LfgResultReviews } from "@/components/LfgResultReviews";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, ChevronLeft, ChevronRight, Link2, Loader2, Trash2, RefreshCw } from "lucide-react";
@@ -80,6 +81,7 @@ function AdminHistory() {
     <Link to="/lfg" className="inline-flex gap-2 items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" />LFG</Link>
     <div className="flex items-center justify-between gap-4"><h1 className="font-display text-3xl">Match & Lobby History</h1><Button variant="outline" size="icon" title="Refresh history" aria-label="Refresh history" disabled={loading} onClick={() => void load()}><RefreshCw className="size-4" /></Button></div>
     {roles.loading ? <Loader2 className="animate-spin size-5" /> : !roles.isLfgAdmin ? <p className="text-muted-foreground">{roles.userId ? "LFG admin access required." : <Link to="/auth" className="text-primary hover:underline">Sign in with an admin account</Link>}</p> : <>
+      <LfgResultReviews />
       <div className="flex flex-wrap gap-2 items-center"><Button variant={kind === "lobbies" ? "secondary" : "outline"} onClick={() => { setKind("lobbies"); setPage(0); }}>Lobbies</Button><Button variant={kind === "games" ? "secondary" : "outline"} onClick={() => { setKind("games"); setPage(0); }}>Uploaded matches</Button>
         {kind === "lobbies" && <Filter label="Lobby status" value={status} onChange={(v) => { setStatus(v); setPage(0); }} options={[["all", "All statuses"], ["started", "Started"], ["cancelled", "Cancelled"], ["timed_out", "Timed out"], ["pending_creation", "Awaiting Discord"], ["posting", "Posting"], ["searching", "Searching"]]} />}
         <Filter label="Play mode" value={mode} onChange={(v) => { if (v === "all" || v === "live" || v === "async") setMode(v); setPage(0); }} options={[["all", "All modes"], ["live", "Live"], ["async", "ASync"]]} />

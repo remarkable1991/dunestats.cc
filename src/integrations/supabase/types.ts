@@ -605,6 +605,66 @@ export type Database = {
           },
         ]
       }
+      lfg_result_reviews: {
+        Row: {
+          created_at: string
+          game_id: string | null
+          id: string
+          lobby_id: number
+          players: Json
+          public_match_id: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          submitted_by: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          game_id?: string | null
+          id?: string
+          lobby_id: number
+          players?: Json
+          public_match_id?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status: string
+          submitted_by: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          game_id?: string | null
+          id?: string
+          lobby_id?: number
+          players?: Json
+          public_match_id?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          submitted_by?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lfg_result_reviews_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lfg_result_reviews_lobby_id_fkey"
+            columns: ["lobby_id"]
+            isOneToOne: false
+            referencedRelation: "active_async_matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lfg_three_player_votes: {
         Row: {
           approvals: string[]
