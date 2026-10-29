@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { applyLeagueElo, setPendingLobbyUpload } from "@/lib/league-lobby-detect";
+import { applyLeagueElo } from "@/lib/league-lobby-detect";
+import { LobbyResultUpload } from "@/components/LobbyResultUpload";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { loadLobbyIdentities } from "@/lib/lfg-identity-loader";
@@ -150,25 +151,6 @@ function LobbyPage() {
   const canManage = row ? isHost(row, seats, me) || isAdmin : false;
   const canUpload = !!row && canReport && !linkedCode && (seats.length >= 4 || row.status === "started");
 
-  const startUpload = useCallback((f: File) => {
-    if (!row) return;
-    setPendingLobbyUpload({ lobbyId: row.id, file: f });
-    void navigate({ to: "/upload", search: { lobby: row.id } });
-  }, [row, navigate]);
-
-  useEffect(() => {
-    if (!canUpload) return;
-    const onPaste = (e: ClipboardEvent) => {
-      for (const it of e.clipboardData?.items ?? []) {
-        if (it.kind === "file" && it.type.startsWith("image/")) {
-          const f = it.getAsFile();
-          if (f) { e.preventDefault(); startUpload(f); return; }
-        }
-      }
-    };
-    window.addEventListener("paste", onPaste);
-    return () => window.removeEventListener("paste", onPaste);
-  }, [canUpload, startUpload]);
 
   const removeSeat = async (seat: Seat) => {
     if (!row || seat.host) return;
@@ -368,17 +350,7 @@ function LobbyPage() {
           <p className="text-sm text-muted-foreground">Only players in this lobby or LFG admins can report its result.</p>
         ) : (
           <div className="space-y-3">
-            <label
-              htmlFor="lobby-upload"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f?.type.startsWith("image/")) startUpload(f); }}
-              className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground cursor-pointer hover:border-primary/60 transition-colors"
-            >
-              <Upload className="size-6 text-primary" />
-              <span>Click, drag &amp; drop, or paste (Ctrl+V) the end-of-game screenshot.</span>
-              <span className="text-xs">It's read automatically, uses this lobby's format and is linked to lobby #{row.id} when you submit.</span>
-            </label>
-            <input id="lobby-upload" type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) startUpload(f); }} />
+            {canUpload && <LobbyResultUpload row={row} seats={seats} userId={userId} onDone={() => void load()} />}
             <p className="text-xs text-muted-foreground">Already uploaded it? Paste the match ID (for example SPICE-CORIOLIS-8930) to link it:</p>
             <div className="flex gap-2 max-w-md">
               <Input value={linkCode} onChange={(e) => setLinkCode(e.target.value)} placeholder="Match ID" />
