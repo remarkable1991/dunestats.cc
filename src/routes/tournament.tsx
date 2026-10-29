@@ -278,6 +278,7 @@ function CurrentTournament({
   const titles = usePlayerTitles();
 
   const [formatLine, setFormatLine] = useState<string | null>(null);
+  const [gameModes, setGameModes] = useState<ModeFlags | null>(null);
   const [plan, setPlan] = useState(() => bracketPlan(null));
   const [seedingMode, setSeedingMode] = useState<"snake" | "manual">("snake");
   useEffect(() => {
@@ -285,6 +286,7 @@ function CurrentTournament({
       const all = await fetchTournaments();
       const cfg = all.find((t) => t.tournament_num === tournamentNum);
       setFormatLine(cfg ? formatTournamentFormat(cfg) : null);
+      setGameModes(cfg ? { hasIx: cfg.has_rise_of_ix, hasEpic: cfg.has_epic_mode, hasImmo: cfg.has_immortality, hasUprising: cfg.board_version === "uprising", hasBase: cfg.has_base_leaders } : null);
       setPlan(bracketPlan(cfg ?? null));
       setSeedingMode(cfg?.semifinal_seeding === "manual" ? "manual" : "snake");
     })();
@@ -912,15 +914,12 @@ function CurrentTournament({
           </h2>
 
           <p className="text-muted-foreground">{playModeDescription(tournamentNum)}</p>
-          {(() => {
-            const prof = tournamentModes(tournamentNum);
-            return prof ? (
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="text-xs text-muted-foreground">Game format:</span>
-                <ModeBadges flags={{ hasIx: prof.has_rise_of_ix, hasEpic: prof.has_epic_mode, hasImmo: prof.has_immortality, hasUprising: prof.board_version === "uprising", hasBase: prof.has_base_leaders }} size={20} />
-              </div>
-            ) : null;
-          })()}
+          {gameModes && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground">Game format:</span>
+              <ModeBadges flags={gameModes} size={20} />
+            </div>
+          )}
           {formatLine && (
             <p className="mt-2 inline-flex items-center gap-2 rounded-md border border-sand/40 bg-sand/10 px-3 py-1.5 text-xs text-sand">
               <Sword className="size-3.5" /> {formatLine}
