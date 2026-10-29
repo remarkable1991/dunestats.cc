@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { applyLeagueElo } from "@/lib/league-lobby-detect";
 import { LobbyResultUpload } from "@/components/LobbyResultUpload";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -55,7 +55,6 @@ function fmt(ts: string | null | undefined) {
 function LobbyPage() {
   const { id } = Route.useParams();
   const titles = usePlayerTitles();
-  const navigate = useNavigate();
   const [row, setRow] = useState<LfgRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [chats, setChats] = useState<Chat[]>([]);
