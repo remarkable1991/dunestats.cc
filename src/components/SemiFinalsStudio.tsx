@@ -10,6 +10,7 @@ import {
   computeStandings,
   findRegistration,
   runSemiSearch,
+  snakeSemiDraft,
   type QualifierRow,
   type SemiDraft,
   type SemiRegistration,
@@ -52,7 +53,8 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
   const [minPlayerBlocks, setMinPlayerBlocks] = useState(1);
   const [registrationOverrides, setRegistrationOverrides] = useState<Record<string, string>>({});
   const [refresh, setRefresh] = useState(0);
-  const [draft, setDraft] = useState<SemiDraft | null>(null);
+  const [searchDraft, setDraft] = useState<SemiDraft | null>(null);
+  const isAsync = tournament.play_mode !== "live";
   const [running, setRunning] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [existing, setExisting] = useState<number | null>(null);
@@ -77,6 +79,10 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
   const pool = eligible.slice(direct, direct + semiCount);
   const poolSet = new Set(pool.map((s) => s.player));
   const gfSet = new Set(grandFinal.map((s) => s.player));
+  const poolKey = pool.map((s) => s.player).join("\u0001");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const asyncDraft = useMemo(() => (isAsync ? snakeSemiDraft(pool) : null), [isAsync, poolKey, standings]);
+  const draft = isAsync ? asyncDraft : searchDraft;
   const maxGames = Math.max(0, ...standings.map((s) => s.games));
 
   useEffect(() => setDraft(null), [skipped, start, end, target, minBlocks, maxBlocks, minPlayerBlocks, registrationOverrides]);
@@ -207,6 +213,9 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
       <p className="text-xs text-muted-foreground">Registration links affect this trial only; claimed names and Discord mappings stay unchanged. Times in availability lists use the player’s timezone; suggestions use your timezone.</p>
       {unresolved.length > 0 && <p className="text-sm text-coral">Match a registration or exclude: {unresolved.map((p) => p.player).join(", ")}.</p>}
       {duplicateLinks && <p className="text-sm text-coral">One registration is linked to multiple semi-finalists. Choose a different registration before searching.</p>}
+      {isAsync ? (
+        <p className="text-sm text-muted-foreground">ASync tournament: semi-final tables use the snake order of the included players (no time slots). Untick anyone above to pull in the next player.{pool.length % 4 !== 0 ? ` Need a multiple of 4 players (have ${pool.length}).` : ""}</p>
+      ) : (
       <Card className="border-sand/40 p-5">
         <h2 className="font-display text-xl">Search window</h2>
         <div className="mt-3 grid gap-4 sm:grid-cols-4 sm:items-end">
@@ -222,22 +231,23 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
         </div>
         <p className="mt-2 text-xs text-muted-foreground">Tests every split of the {pool.length} semi-finalists into tables of 4, comparing {minBlocks * 30}–{maxBlocks * 30} minute windows at least 10 hours apart. Nobody can have zero availability; partial windows require confirmation and balancing TP and rank between tables.</p>
       </Card>
+      )}
 
       {draft && (
         <section className="border-y border-sand/50 py-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2 text-teal"><CheckCircle2 className="size-5" /><span className="text-xs font-semibold uppercase">Trial seed — not published</span></div>
-              <h2 className="mt-1 font-display text-2xl">Best semi-final split</h2>
-              <p className="text-xs text-muted-foreground">{draft.partitionsTested} splits × {draft.slotsScanned} half-hour slots checked. Review, export, then publish.</p>
+              <div className="flex items-center gap-2 text-teal"><CheckCircle2 className="size-5" /><span className="text-xs font-semibold uppercase">{isAsync ? "Snake seed" : "Trial seed"} — not published</span></div>
+              <h2 className="mt-1 font-display text-2xl">{isAsync ? "Semi-final tables" : "Best semi-final split"}</h2>
+              {!isAsync && <p className="text-xs text-muted-foreground">{draft.partitionsTested} splits × {draft.slotsScanned} half-hour slots checked. Review, export, then publish.</p>}
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={async () => { await navigator.clipboard.writeText(announcement(num, draft, grandFinal)); toast.success("Announcement copied"); }}><Clipboard className="size-4" /> Discord text</Button>
-              <Button variant="outline" size="sm" onClick={() => download(`t${num}_semifinals_${tournament.play_mode === "live" ? "live" : "async"}_bot_ready.csv`, botCsv(num, draft, discordOf))}><Download className="size-4" /> Bot CSV</Button>
+              <Button variant="outline" size="sm" onClick={() => download(isAsync ? `async_${num}_semi_final_bot_ready.csv` : `t${num}_semifinals_live_bot_ready.csv`, botCsv(num, draft, discordOf))}><Download className="size-4" /> Bot CSV</Button>
               <Button size="sm" onClick={openPublish}><Upload className="size-4" /> Publish</Button>
             </div>
           </div>
-          {(() => {
+          {!isAsync && (() => {
             const perfect = draft.tables.reduce((n, t) => n + t.slots.filter((s) => s.type === "perfect").length, 0);
             const closest = draft.tables.map((t) => t.closest[0]);
             return (
@@ -256,7 +266,7 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
                   {t.players.map((p) => { const s = standings.find((x) => x.player === p); return <li key={p} className="flex justify-between"><span>#{s?.rank} {p}</span><span className="text-muted-foreground">{s?.tp} TP</span></li>; })}
                 </ul>
                 <div className="mt-3 space-y-1 text-xs">
-                  {t.slots.length === 0 && <p className="text-coral">No viable window with all four players partly available in this period.</p>}
+                  {!isAsync && t.slots.length === 0 && <p className="text-coral">No viable window with all four players partly available in this period.</p>}
                   {t.slots.map((s, i) => (
                     <p key={i}><Badge variant={s.type === "perfect" ? "default" : "outline"} className="mr-2 text-[10px]">{s.type === "perfect" ? "4/4" : `${(s.filled / s.blocks).toFixed(2)}/4 avg`}</Badge>{new Date(s.start).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} · {s.blocks * 30} min{s.missing.length > 0 && <span className="text-coral"> · check {s.missing.join(", ")}</span>}</p>
                   ))}
