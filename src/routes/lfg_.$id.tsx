@@ -197,7 +197,7 @@ function LobbyPage() {
   };
 
   useEffect(() => {
-    if (!row?.is_league || !isAdmin) return;
+    if (!row?.is_league) return;
     const season = row.season_num ?? row.season_id;
     const keys = seats.flatMap((s) => (s.playerKey ? [s.playerKey] : []));
     if (!season || !keys.length) return;
@@ -321,7 +321,7 @@ function LobbyPage() {
                   key={i}
                   seat={seat}
                   color={seat.playerKey ? colorForKey(titles, seat.playerKey) : undefined}
-                  elo={row.is_league && isAdmin ? (seat.playerKey ? ratings[seat.playerKey] ?? 1000 : null) : null}
+                  elo={row.is_league ? (seat.playerKey ? ratings[seat.playerKey] ?? 1000 : null) : null}
                   isAdmin={isAdmin}
                   onMapped={load}
                   onRemove={canManage && openLobby && !seat.host ? () => removeSeat(seat) : undefined}
