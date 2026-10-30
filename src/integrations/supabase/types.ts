@@ -1136,6 +1136,7 @@ export type Database = {
           referral_phase1_paid: boolean
           referral_phase2_paid: boolean
           referred_by_player_key: string | null
+          show_all_rating_tracks: boolean
           tournament_emails_opt_in: boolean
           updated_at: string
           username: string | null
@@ -1156,6 +1157,7 @@ export type Database = {
           referral_phase1_paid?: boolean
           referral_phase2_paid?: boolean
           referred_by_player_key?: string | null
+          show_all_rating_tracks?: boolean
           tournament_emails_opt_in?: boolean
           updated_at?: string
           username?: string | null
@@ -1176,6 +1178,7 @@ export type Database = {
           referral_phase1_paid?: boolean
           referral_phase2_paid?: boolean
           referred_by_player_key?: string | null
+          show_all_rating_tracks?: boolean
           tournament_emails_opt_in?: boolean
           updated_at?: string
           username?: string | null
@@ -2004,6 +2007,10 @@ export type Database = {
             Returns: Json
           }
       admin_list_user_roles: { Args: { p_user_id: string }; Returns: string[] }
+      admin_promote_lobby_league: {
+        Args: { p_actor: string; p_lobby_id: number }
+        Returns: Json
+      }
       admin_rename_tournament_player: {
         Args: {
           p_new_name: string
@@ -2045,6 +2052,10 @@ export type Database = {
       }
       admin_set_user_role: {
         Args: { p_enabled: boolean; p_role: string; p_user_id: string }
+        Returns: Json
+      }
+      admin_unlink_lobby: {
+        Args: { p_actor: string; p_lobby_id: number; p_mode: string }
         Returns: Json
       }
       apply_league_match_ratings: {
@@ -2242,6 +2253,10 @@ export type Database = {
         Returns: Json
       }
       lfg_my_ign: { Args: never; Returns: string }
+      lfg_record_result_identities: {
+        Args: { p_lobby_id: number; p_pairs: Json }
+        Returns: Json
+      }
       lfg_roster_tokens: {
         Args: {
           p_row: Database["public"]["Tables"]["active_async_matches"]["Row"]
@@ -2305,6 +2320,10 @@ export type Database = {
       report_match_for_review: {
         Args: { p_game_id: string; p_reason: string }
         Returns: Json
+      }
+      revert_league_deltas_for_game: {
+        Args: { p_game: string }
+        Returns: number
       }
       save_game_with_ratings: {
         Args: {
