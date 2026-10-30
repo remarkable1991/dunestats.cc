@@ -210,7 +210,7 @@ function MatchDetailsPage() {
       if (g.is_league) {
         const { data: ds } = await supabase.from("league_match_rating_deltas" as never).select("player_key,season,elo_delta").eq("game_id", g.id);
         const drows = (ds ?? []) as unknown as { player_key: string; season: number; elo_delta: number }[];
-        let season = drows[0]?.season ?? null;
+        let season: number | null = drows[0]?.season ?? null;
         if (season == null) {
           const { data: lob } = await supabase.from("active_async_matches").select("season_num,season_id").eq("linked_game_id", g.id).maybeSingle();
           season = lob?.season_num ?? lob?.season_id ?? null;
