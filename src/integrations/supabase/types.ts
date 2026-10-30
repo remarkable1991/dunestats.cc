@@ -2294,6 +2294,10 @@ export type Database = {
         Args: { p_id: string; p_note?: string }
         Returns: Json
       }
+      report_match_for_review: {
+        Args: { p_game_id: string; p_reason: string }
+        Returns: Json
+      }
       save_game_with_ratings: {
         Args: {
           p_board_version: string
