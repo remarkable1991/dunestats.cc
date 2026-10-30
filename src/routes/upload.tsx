@@ -750,6 +750,11 @@ function UploadPage() {
                     </label>
                   </div>
                 )}
+                {duplicateLeaders(rows.map((r) => r.leader_name)).length > 0 && (
+                  <p className="mt-4 rounded border border-destructive/50 bg-destructive/10 p-2 text-sm text-destructive">
+                    The same leader appears more than once. Check the leaders — if you submit anyway, the match is marked "Needs review".
+                  </p>
+                )}
                 <Button
                   onClick={save}
                   disabled={saving || checkingDup || hasUnrecognized || (duplicateWarn && !confirmDuplicate)}
