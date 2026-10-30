@@ -149,7 +149,6 @@ const TOKEN_FALLBACK: Array<[string, string]> = [
   ["ромбур", "Prince Rhombur Vernius"],
   ["тессія", "Tessia Vernius"],
   ["тессия", "Tessia Vernius"],
-  ["армand", "Archduke Armand Ecaz"],
   ["арманд", "Archduke Armand Ecaz"],
   ["ілеса", "Ilesa Ecaz"],
   ["илеса", "Ilesa Ecaz"],
@@ -203,7 +202,8 @@ function keyOf(s: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[„“”«»"']/g, "")
-    .replace(/[^a-z0-9]+/g, "");
+    .replace(/й/g, "й")
+    .replace(/[^a-z0-9\u0400-\u04ff]+/g, "");
 }
 
 const ALIAS_INDEX = new Map<string, string>();
@@ -221,6 +221,8 @@ export function translateLeader(raw: string | null | undefined): string | null {
   const v = (raw ?? "").trim();
   if (!v) return null;
   const k = keyOf(v);
+  // Unsupported scripts normalize to "" — never let that match a leader.
+  if (!k) return null;
   const hit = ALIAS_INDEX.get(k);
   if (hit) return hit;
   // Fallback: substring match against canonical keys (e.g. extra prefixes).
