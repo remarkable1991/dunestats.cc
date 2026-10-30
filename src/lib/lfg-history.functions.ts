@@ -68,3 +68,45 @@ export const revertAdminMatch = createServerFn({ method: "POST" })
     if (e) throw new Error(e.message);
     return result;
   });
+async function requireLfgAdmin(context: { supabase: { from: (t: "user_roles") => any }; userId: string }) {
+  const { data: roles, error } = await context.supabase.from("user_roles").select("role").eq("user_id", context.userId);
+  if (error || !(roles as { role: string }[] | null)?.some((r) => ["admin", "lfg_admin"].includes(r.role))) throw new Error("LFG admins only");
+}
+
+/** Admin unlink with three outcomes: delete match, back to League waiting for screenshot, or casual game. */
+export const unlinkLobbyResult = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ lobbyId: z.number().int().positive(), mode: z.enum(["delete", "league_pending", "casual"]) }))
+  .handler(async ({ data, context }) => {
+    await requireLfgAdmin(context as never);
+    if (data.mode === "delete") {
+      const { data: admin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+      if (!admin) throw new Error("Only main admins can fully delete a match");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await (supabaseAdmin as any).rpc("admin_unlink_lobby", { p_lobby_id: data.lobbyId, p_mode: data.mode, p_actor: context.userId });
+    if (error) throw new Error(error.message);
+    return result as { ok: boolean };
+  });
+
+export const promoteLobbyToLeague = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ lobbyId: z.number().int().positive() }))
+  .handler(async ({ data, context }) => {
+    await requireLfgAdmin(context as never);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await (supabaseAdmin as any).rpc("admin_promote_lobby_league", { p_lobby_id: data.lobbyId, p_actor: context.userId });
+    if (error) throw new Error(error.message);
+    return result as { ok: boolean };
+  });
+
+/** Saves confirmed seat Discord ID ↔ IGN pairs after a lobby result is linked; never overwrites existing mappings. */
+export const recordResultIdentities = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ lobbyId: z.number().int().positive(), pairs: z.array(z.object({ discord_user_id: z.string().max(40), player_name: z.string().max(60) })).max(6) }))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await (supabaseAdmin as any).rpc("lfg_record_result_identities", { p_lobby_id: data.lobbyId, p_pairs: data.pairs });
+    if (error) throw new Error(error.message);
+    return result as { ok: boolean; mapped?: number };
+  });
