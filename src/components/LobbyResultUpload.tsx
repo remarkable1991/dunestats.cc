@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { duplicateLeaders, reportMatchForReview } from "@/lib/duplicate-leaders";
 import { Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -90,6 +91,8 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
     if (!userId) return toast.error("Sign in to submit");
     if (rows.length < 3) return toast.error("Need at least 3 players");
     if (rows.some((r) => !r.player_name.trim() || !isCanonicalLeader(r.leader_name))) return toast.error("Fill in every name and pick a valid leader.");
+    const dupLeaders = duplicateLeaders(rows.map((r) => r.leader_name));
+    if (dupLeaders.length && !confirm(`The same leader is listed more than once (${dupLeaders.join(", ")}). Submit anyway? The match will be marked "Needs review".`)) return;
     const f = lobbyFormat(row);
     setSaving(true);
     try {
@@ -100,6 +103,10 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
       });
       if (result.status === "duplicate") { setDup(true); toast.warning("This looks like an already uploaded game. Press submit again to confirm."); return; }
       await linkMatchToLobby(row.id, result.publicMatchId);
+      if (dupLeaders.length) {
+        const { data: dg } = await supabase.from("games").select("id").eq("public_match_id", result.publicMatchId).maybeSingle();
+        if (dg?.id) await reportMatchForReview(dg.id, `Duplicate leaders on upload: ${dupLeaders.join(", ")}`).catch((e) => console.error(e));
+      }
       if (report.status !== "green") {
         const { data: g } = await supabase.from("games").select("id").eq("public_match_id", result.publicMatchId).maybeSingle();
         const { error } = await supabase.from("lfg_result_reviews" as never).insert({
@@ -173,6 +180,9 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
           {report.missing.map((v) => (
             <p key={v.seatIndex} className="flex items-center gap-2 text-sm text-destructive"><AlertTriangle className="size-4" /> {v.seatName} ({v.games} games) is seated but not on the screenshot.</p>
           ))}
+          {duplicateLeaders(rows.map((r) => r.leader_name)).length > 0 && (
+            <p className="flex items-center gap-2 text-sm text-destructive"><AlertTriangle className="size-4" /> The same leader appears more than once. Check the leaders — if you submit anyway, the match is marked "Needs review".</p>
+          )}
           {report.status !== "green" && (
             <p className="text-xs text-muted-foreground">You can still submit. Because not every player is confirmed, an admin will check it in the next few days.</p>
           )}

@@ -24,6 +24,8 @@ import { useLeaderPortraits } from "@/lib/leader-portraits";
 import { applyFirstPlayer, telemetryPayload, influenceEfficiency, type FactionKey, type TelemetryPlayer } from "@/lib/match-telemetry";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Info } from "lucide-react";
+import { CANONICAL_LEADERS } from "@/lib/leader-translate";
+import { reportMatchForReview } from "@/lib/duplicate-leaders";
 import {
   FACTIONS,
   FactionInfluenceTrackBoard,
@@ -527,7 +529,7 @@ function MatchDetailsPage() {
               <Copy className="size-4" /> Copy link
             </Button>
             {canEdit && (
-              <EditMatchDialog game={game} onSaved={() => setReloadKey((k) => k + 1)} />
+              <EditMatchDialog game={game} isStaff={isMatchStaff} onSaved={() => setReloadKey((k) => k + 1)} />
             )}
           </div>
         </div>
@@ -570,6 +572,34 @@ function MatchDetailsPage() {
             <span className="text-xs px-2 py-0.5 rounded border border-amber-500/50 bg-amber-500/10 text-amber-400">
               Locked — changes are reported to a moderator
             </span>
+          )}
+          {game.ai_scan_status === "Needs review" && (
+            <span
+              title={game.ai_scan_summary ?? "Reported for review"}
+              className="text-xs px-2 py-0.5 rounded border border-coral/50 bg-coral/10 text-coral cursor-help"
+            >
+              ⚑ Needs review
+            </span>
+          )}
+          {game.ai_scan_status !== "Needs review" && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-xs"
+              onClick={async () => {
+                const reason = window.prompt("What looks wrong with this match? (e.g. wrong leaders, wrong score)");
+                if (!reason?.trim()) return;
+                try {
+                  await reportMatchForReview(game.id, reason);
+                  toast.success("Thanks — the match is marked for review.");
+                  setReloadKey((k) => k + 1);
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Could not report the match");
+                }
+              }}
+            >
+              ⚑ Report for review
+            </Button>
           )}
           {game.ai_scan_status === "Issue detected" && (
             <span
@@ -1242,7 +1272,7 @@ async function saveMatchDetails(args: Record<string, unknown>, successMessage: s
 const numToStr = (n: number | null | undefined) =>
   n === null || n === undefined ? "" : String(n);
 
-function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void }) {
+function EditMatchDialog({ game, isStaff, onSaved }: { game: GameRow; isStaff: boolean; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [endRound, setEndRound] = useState(numToStr(game.end_round));
@@ -1317,6 +1347,7 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
           p_ai_scan_status: manualReviewStatus(game.ai_scan_status),
           p_players: players.map((p) => ({
             player_name: p.player_name,
+            ...(isStaff && p.leader_name ? { leader_name: p.leader_name } : {}),
             spice: p.spice.trim() === "" ? null : Number(p.spice),
             solaris: p.solaris.trim() === "" ? null : Number(p.solaris),
             water: p.water.trim() === "" ? null : Number(p.water),
@@ -1451,7 +1482,21 @@ function EditMatchDialog({ game, onSaved }: { game: GameRow; onSaved: () => void
                           {p.turn_order ? ` · turn ${p.turn_order}` : ""}
                         </span>
                       </div>
-                      <div className="text-xs text-muted-foreground truncate">{p.leader_name ?? "—"}</div>
+                      {isStaff ? (
+                        <select
+                          aria-label={`Leader for ${p.player_name}`}
+                          value={p.leader_name ?? ""}
+                          onChange={(e) => setPlayer(i, { leader_name: e.target.value })}
+                          className="mt-1 h-8 rounded-md border border-input bg-background px-2 text-xs"
+                        >
+                          {p.leader_name && !(CANONICAL_LEADERS as readonly string[]).includes(p.leader_name) && (
+                            <option value={p.leader_name}>{p.leader_name}</option>
+                          )}
+                          {CANONICAL_LEADERS.map((l) => <option key={l} value={l}>{l}</option>)}
+                        </select>
+                      ) : (
+                        <div className="text-xs text-muted-foreground truncate">{p.leader_name ?? "—"}</div>
+                      )}
                     </div>
                   </div>
                   <ToggleRow

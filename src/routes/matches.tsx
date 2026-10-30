@@ -64,6 +64,7 @@ const SCAN_STATUSES: Array<{ k: string; label: string }> = [
   { k: "Manually reviewed", label: "Manually reviewed" },
   { k: "Manually verified", label: "Manually verified" },
   { k: "Issue detected", label: "Issue detected" },
+  { k: "Needs review", label: "Needs review" },
   { k: "Roster mismatch", label: "Roster mismatch" },
   { k: "No", label: "No scan" },
 ];
@@ -78,6 +79,7 @@ function scanBadgeClass(status: string | null): string {
     case "Issue detected":
       return "border-amber-500/40 text-amber-400";
     case "Roster mismatch":
+    case "Needs review":
       return "border-coral/40 text-coral";
     default:
       return "border-border/60 text-muted-foreground";

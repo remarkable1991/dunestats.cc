@@ -119,6 +119,53 @@ const ALIASES: Array<[string, string]> = [
 // Distinctive, unambiguous tokens → canonical leader. Used as a last resort so
 // unseen translations (any language) still resolve instead of creating a new name.
 const TOKEN_FALLBACK: Array<[string, string]> = [
+  // Ukrainian / Russian (Cyrillic) distinctive tokens, normalized by keyOf.
+  ["фейд", "Feyd-Rautha Harkonnen"],
+  ["раут", "Feyd-Rautha Harkonnen"],
+  ["марго", "Lady Margot Fenring"],
+  ["фенрінг", "Lady Margot Fenring"],
+  ["фенринг", "Lady Margot Fenring"],
+  ["стабан", "Staban Tuek"],
+  ["туек", "Staban Tuek"],
+  ["туэк", "Staban Tuek"],
+  ["гурні", "Gurney Halleck"],
+  ["гурни", "Gurney Halleck"],
+  ["галлек", "Gurney Halleck"],
+  ["халлек", "Gurney Halleck"],
+  ["джесік", "Lady Jessica"],
+  ["джессік", "Lady Jessica"],
+  ["джессик", "Lady Jessica"],
+  ["ірулан", "Princess Irulan"],
+  ["ирулан", "Princess Irulan"],
+  ["шаддам", "Shaddam Corrino IV"],
+  ["амбер", "Lady Amber Metulli"],
+  ["метуллі", "Lady Amber Metulli"],
+  ["метулли", "Lady Amber Metulli"],
+  ["муаддіб", "Muad'Dib"],
+  ["муаддиб", "Muad'Dib"],
+  ["юна", '"Princess" Yuna Moritani'],
+  ["хундро", "Viscount Hundro Moritani"],
+  ["гундро", "Viscount Hundro Moritani"],
+  ["ромбур", "Prince Rhombur Vernius"],
+  ["тессія", "Tessia Vernius"],
+  ["тессия", "Tessia Vernius"],
+  ["арманд", "Archduke Armand Ecaz"],
+  ["ілеса", "Ilesa Ecaz"],
+  ["илеса", "Ilesa Ecaz"],
+  ["гелена", "Helena Richese"],
+  ["елена", "Helena Richese"],
+  ["ільбан", "Count Ilban Richese"],
+  ["ильбан", "Count Ilban Richese"],
+  ["аріана", "Countess Ariana Thorvald"],
+  ["ариана", "Countess Ariana Thorvald"],
+  ["мемнон", "Earl Memnon Thorvald"],
+  ["раббан", 'Glossu "Beast" Rabban'],
+  ["глоссу", 'Glossu "Beast" Rabban'],
+  ["володимир", "Baron Vladimir Harkonnen"],
+  ["владимир", "Baron Vladimir Harkonnen"],
+  ["барон", "Baron Vladimir Harkonnen"],
+  ["лето", "Duke Leto Atreides"],
+  ["пол", "Paul Atreides"],
   ["fenring", "Lady Margot Fenring"],
   ["margot", "Lady Margot Fenring"],
   ["irulan", "Princess Irulan"],
@@ -155,7 +202,7 @@ function keyOf(s: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[„“”«»"']/g, "")
-    .replace(/[^a-z0-9]+/g, "");
+    .replace(/[^a-z0-9\u0400-\u04ff]+/g, "");
 }
 
 const ALIAS_INDEX = new Map<string, string>();
@@ -173,6 +220,8 @@ export function translateLeader(raw: string | null | undefined): string | null {
   const v = (raw ?? "").trim();
   if (!v) return null;
   const k = keyOf(v);
+  // Unsupported scripts normalize to "" — never let that match a leader.
+  if (!k) return null;
   const hit = ALIAS_INDEX.get(k);
   if (hit) return hit;
   // Fallback: substring match against canonical keys (e.g. extra prefixes).
@@ -183,7 +232,7 @@ export function translateLeader(raw: string | null | undefined): string | null {
   }
   // Last resort: a distinctive name token (works for unseen translations).
   const matches = new Set<string>();
-  for (const [token, canonical] of TOKEN_FALLBACK) if (k.includes(token)) matches.add(canonical);
+  for (const [token, canonical] of TOKEN_FALLBACK) if (k.includes(keyOf(token))) matches.add(canonical);
   if (matches.size === 1) return Array.from(matches)[0];
   return null;
 }
