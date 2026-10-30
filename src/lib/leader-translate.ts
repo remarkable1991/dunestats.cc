@@ -202,7 +202,6 @@ function keyOf(s: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[„“”«»"']/g, "")
-    .replace(/й/g, "й")
     .replace(/[^a-z0-9\u0400-\u04ff]+/g, "");
 }
 
@@ -233,7 +232,7 @@ export function translateLeader(raw: string | null | undefined): string | null {
   }
   // Last resort: a distinctive name token (works for unseen translations).
   const matches = new Set<string>();
-  for (const [token, canonical] of TOKEN_FALLBACK) if (k.includes(token)) matches.add(canonical);
+  for (const [token, canonical] of TOKEN_FALLBACK) if (k.includes(keyOf(token))) matches.add(canonical);
   if (matches.size === 1) return Array.from(matches)[0];
   return null;
 }
