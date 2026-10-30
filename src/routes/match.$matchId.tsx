@@ -98,6 +98,7 @@ type GameRow = {
   end_round: number | null;
   image_url: string | null;
   tournament_num: number | null;
+  is_league?: boolean | null;
   conflict_title: string | null;
   play_mode?: string | null;
   youtube_url?: string | null;
@@ -140,6 +141,8 @@ function MatchDetailsPage() {
   const titles = usePlayerTitles();
   const { isContentCreator } = useRoles();
   const [revealed, setRevealed] = useState(false);
+  const { showAll: showAllTracks, setShowAll: setShowAllTracks } = useShowAllRatingTracks();
+  const [league, setLeague] = useState<{ season: number | null; deltas: Record<string, number>; totals: Record<string, number> }>({ season: null, deltas: {}, totals: {} });
 
   useEffect(() => {
     let cancelled = false;
@@ -147,7 +150,7 @@ function MatchDetailsPage() {
       // Note: no setLoading(true) here — background refreshes must not unmount
       // the page (that would close the verification dialog mid-review).
       const select =
-        "id, public_match_id, created_at, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, end_round, image_url, tournament_num, conflict_title, play_mode, youtube_url, ai_scan_status, ai_scan_summary, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, spice, solaris, water, is_leaver, player_slot, turn_order, player_color, has_first_player, has_high_council, has_swordmaster, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance)";
+        "id, public_match_id, created_at, is_league, game_version, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, end_round, image_url, tournament_num, conflict_title, play_mode, youtube_url, ai_scan_status, ai_scan_summary, game_results(placement, player_name, leader_name, points, elo_delta, elo_delta_overall, spice, solaris, water, is_leaver, player_slot, turn_order, player_color, has_first_player, has_high_council, has_swordmaster, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance)";
       let q = supabase.from("games").select(select).limit(1);
       q = UUID_RE.test(matchId)
         ? q.or(`public_match_id.eq.${matchId},id.eq.${matchId}`)
@@ -203,6 +206,23 @@ function MatchDetailsPage() {
         if (r.overall_vp_elo !== null && r.overall_vp_elo !== undefined) tmap[k].vp = Number(r.overall_vp_elo);
       });
       setTotals(tmap);
+      if (g.is_league) {
+        const { data: ds } = await supabase.from("league_match_rating_deltas" as never).select("player_key,season,elo_delta").eq("game_id", g.id);
+        const drows = (ds ?? []) as unknown as { player_key: string; season: number; elo_delta: number }[];
+        let season = drows[0]?.season ?? null;
+        if (season == null) {
+          const { data: lob } = await supabase.from("active_async_matches").select("season_num,season_id").eq("linked_game_id", g.id).maybeSingle();
+          season = lob?.season_num ?? lob?.season_id ?? null;
+        }
+        const deltas: Record<string, number> = {};
+        drows.forEach((d) => (deltas[d.player_key.toLowerCase().trim()] = Number(d.elo_delta)));
+        const totalsL: Record<string, number> = {};
+        if (season != null) {
+          const { data: lr } = await supabase.from("player_league_ratings").select("player_key,elo").eq("season", season).in("player_key", keys);
+          (lr ?? []).forEach((r) => (totalsL[r.player_key.toLowerCase().trim()] = Number(r.elo)));
+        }
+        if (!cancelled) setLeague({ season, deltas, totals: totalsL });
+      }
     })();
     return () => {
       cancelled = true;
@@ -528,6 +548,12 @@ function MatchDetailsPage() {
             <Button variant="outline" onClick={copyLink}>
               <Copy className="size-4" /> Copy link
             </Button>
+            {game.is_league && (
+              <label className="flex items-center gap-2 text-sm text-muted-foreground px-2">
+                <input type="checkbox" checked={showAllTracks} onChange={(e) => void setShowAllTracks(e.target.checked)} />
+                Show all stats
+              </label>
+            )}
             {canEdit && (
               <EditMatchDialog game={game} isStaff={isMatchStaff} onSaved={() => setReloadKey((k) => k + 1)} />
             )}
@@ -809,11 +835,18 @@ function MatchDetailsPage() {
                       </div>
 
                     </div>
+                    {game.is_league && (
+                      <div className="mt-2 grid grid-cols-1 gap-2 text-[11px] tabular-nums">
+                        <EloTrack label={league.season ? `League S${league.season}` : "League"} delta={league.deltas[r.player_name.toLowerCase().trim()] ?? null} total={league.totals[r.player_name.toLowerCase().trim()] ?? null} />
+                      </div>
+                    )}
+                    {(!game.is_league || showAllTracks) && (
                     <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] tabular-nums">
                       <EloTrack label="All" delta={r.elo_delta_overall} total={t?.overall ?? null} />
                       <EloTrack label={versionShort(game.game_version)} delta={r.elo_delta} total={t?.version ?? null} />
                       <EloTrack label="All VP" delta={vpDelta ?? null} total={t?.vp ?? null} />
                     </div>
+                    )}
                     <InfluenceEfficiencyBadges
                       player={r as unknown as TelemetryPlayer}
                       all={game.game_results as unknown as TelemetryPlayer[]}
