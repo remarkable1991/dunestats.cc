@@ -2190,6 +2190,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      lfg_bot_vote_three: {
+        Args: {
+          p_agree?: boolean
+          p_discord_user_id: string
+          p_lobby_id: number
+        }
+        Returns: Json
+      }
       lfg_claim_alert_email: { Args: { p_id: string }; Returns: Json }
       lfg_create_lobby:
         | {
