@@ -59,3 +59,11 @@
 
 - [x] In-place League screenshot upload on lobby page with green/yellow/orange player checks and admin review queue.
 - [ ] Verify signed-in real upload end to end; blocked by external Supabase session access.
+
+- [x] League unlink options (delete / back to League / casual + promote) with League Elo revert.
+- [x] Lobby result upload open to anyone with the link (signed in).
+- [x] Auto-save Discord↔IGN mapping for confirmed seats on report; MechanicsBeatsTheme mapped.
+- [x] League Elo by default on match page and /matches with profile-saved "Show all stats".
+- [x] Public League leaderboard as the default tab.
+- [ ] Match-page endboard upload for non-participants: left participant/staff-only to protect match edits; awaiting user decision.
+- [ ] Verify signed-in admin unlink flows; external unmanaged Supabase provides no test session.
