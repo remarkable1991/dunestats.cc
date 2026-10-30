@@ -1,6 +1,25 @@
-import { translateLeader } from "/dev-server/src/lib/leader-translate";
-import { test, expect } from "vitest";
-test("x",()=>{
- for (const s of ["Фейд-Раута Харконнен","Леді Марго Фенрінг","Стабан Туек","Гурні Галлек","Перемога",""]) console.log(s, "=>", translateLeader(s));
- expect(translateLeader("Перемога")).toBeNull();
+import { describe, it, expect } from "vitest";
+import { translateLeader } from "@/lib/leader-translate";
+import { duplicateLeaders } from "@/lib/duplicate-leaders";
+
+describe("Cyrillic leader translation", () => {
+  it("maps Ukrainian leader names (ORDOS-CARTHAG-1618)", () => {
+    expect(translateLeader("Фейд-Раута Харконнен")).toBe("Feyd-Rautha Harkonnen");
+    expect(translateLeader("Леді Марго Фенрінг")).toBe("Lady Margot Fenring");
+    expect(translateLeader("Стабан Туек")).toBe("Staban Tuek");
+    expect(translateLeader("Гурні Галлек")).toBe("Gurney Halleck");
+  });
+  it("never defaults unreadable text to a leader", () => {
+    expect(translateLeader("Перемога")).toBeNull();
+    expect(translateLeader("！！！")).toBeNull();
+  });
+});
+
+describe("duplicateLeaders", () => {
+  it("flags repeated leaders", () => {
+    expect(duplicateLeaders(["Paul Atreides", "Paul Atreides", "Staban Tuek", "Lady Jessica"])).toEqual(["Paul Atreides"]);
+  });
+  it("ignores blanks and unique leaders", () => {
+    expect(duplicateLeaders(["Paul Atreides", "", "", "Staban Tuek"])).toEqual([]);
+  });
 });
