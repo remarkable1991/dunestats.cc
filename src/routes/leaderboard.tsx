@@ -34,7 +34,7 @@ type SortKey = "elo" | "vp_elo" | "games_played" | "wins" | "top2" | "win_pct";
 type SortDir = "desc" | "asc" | null;
 
 function Leaderboard() {
-  const [version, setVersion] = useState<GameVersion>("overall");
+  const [version, setVersion] = useState<GameVersion | "league">("league");
   const [allRows, setAllRows] = useState<Row[]>([]);
   const [vpElos, setVpElos] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -71,6 +71,7 @@ function Leaderboard() {
   }, [version, minGames, q, sortKey, sortDir]);
 
   useEffect(() => {
+    if (version === "league") return;
     setLoading(true);
     (async () => {
       const PAGE = 1000;
@@ -201,9 +202,10 @@ function Leaderboard() {
           <span className="text-sand">Overall</span> track, and once in the matching expansion track.
         </p>
 
-        <Tabs value={version} onValueChange={(v) => setVersion(v as GameVersion)}>
+        <Tabs value={version} onValueChange={(v) => setVersion(v as GameVersion | "league")}>
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between mb-4">
             <TabsList className="bg-card/60 border border-border/60 flex-wrap h-auto">
+              <TabsTrigger value="league" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground">League</TabsTrigger>
               {GAME_VERSIONS.map((v) => (
                 <TabsTrigger key={v.value} value={v.value} className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground">
                   {v.label}
@@ -237,6 +239,9 @@ function Leaderboard() {
             </div>
           </div>
 
+          <TabsContent value="league">
+            <LeagueBoard q={q} minGames={minGames} />
+          </TabsContent>
           {GAME_VERSIONS.map((v) => (
             <TabsContent key={v.value} value={v.value}>
               <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
@@ -379,5 +384,84 @@ function Leaderboard() {
         </Tabs>
       </div>
     </div>
+  );
+}
+
+type LeagueRow = { player_key: string; elo: number; games_played: number; wins: number };
+
+function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
+  const [season, setSeason] = useState<number | null>(null);
+  const [seasons, setSeasons] = useState<number[]>([]);
+  const [rows, setRows] = useState<LeagueRow[]>([]);
+  const [names, setNames] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    void supabase.from("player_league_ratings").select("season").order("season", { ascending: false }).limit(1000).then(({ data }) => {
+      const list = [...new Set((data ?? []).map((r) => r.season))];
+      setSeasons(list);
+      setSeason((s) => s ?? list[0] ?? null);
+      if (!list.length) setLoading(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (season == null) return;
+    setLoading(true);
+    void (async () => {
+      const { data } = await supabase.from("player_league_ratings").select("player_key,elo,games_played,wins").eq("season", season).order("elo", { ascending: false }).limit(1000);
+      const list = (data ?? []).map((r) => ({ ...r, elo: Number(r.elo) })) as LeagueRow[];
+      setRows(list);
+      const keys = list.map((r) => r.player_key);
+      if (keys.length) {
+        const { data: pr } = await supabase.from("player_ratings").select("player_key,display_name").eq("game_version", "overall").in("player_key", keys);
+        setNames(Object.fromEntries((pr ?? []).map((r) => [r.player_key, r.display_name])));
+      }
+      setLoading(false);
+    })();
+  }, [season]);
+
+  const term = q.trim().toLowerCase();
+  const shown = rows.filter((r) => r.games_played >= Math.min(minGames, 1) && (!term || r.player_key.includes(term) || (names[r.player_key] ?? "").toLowerCase().includes(term)));
+
+  return (
+    <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
+      {seasons.length > 1 && (
+        <div className="p-3 border-b border-border/60 flex gap-2 items-center text-sm">
+          Season
+          <select value={season ?? ""} onChange={(e) => setSeason(Number(e.target.value))} className="bg-input border border-border rounded px-2 py-1">
+            {seasons.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-muted-foreground border-b border-border/60">
+              <th className="px-4 py-3 w-12">#</th>
+              <th className="px-4 py-3">Player</th>
+              <th className="px-4 py-3 text-right">League Elo</th>
+              <th className="px-4 py-3 text-right">Games</th>
+              <th className="px-4 py-3 text-right">Wins</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">Loading…</td></tr>
+            ) : shown.length === 0 ? (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No League games rated yet{season ? ` in season ${season}` : ""}.</td></tr>
+            ) : shown.map((r, i) => (
+              <tr key={r.player_key} className="border-b border-border/40">
+                <td className="px-4 py-3 font-display text-muted-foreground">{i + 1}</td>
+                <td className="px-4 py-3"><Link to="/players/$key" params={{ key: r.player_key }} className="hover:underline">{names[r.player_key] ?? r.player_key}</Link></td>
+                <td className="px-4 py-3 text-right font-display text-sand tabular-nums">{Math.round(r.elo)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{r.games_played}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{r.wins}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 }
