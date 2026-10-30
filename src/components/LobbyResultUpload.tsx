@@ -11,6 +11,7 @@ import { normalizeNames } from "@/lib/name-normalize";
 import { translateLeader, isCanonicalLeader, CANONICAL_LEADERS } from "@/lib/leader-translate";
 import { submitMatch } from "@/lib/match-submit";
 import { linkMatchToLobby, lobbyFormat } from "@/lib/league-lobby-detect";
+import { recordResultIdentities } from "@/lib/lfg-history.functions";
 import { loose, matchScreenshotToSeats, type MatchStatus } from "@/lib/lobby-result-match";
 import type { LfgRow, Seat } from "@/lib/lfg-seats";
 import { toast } from "sonner";
@@ -103,6 +104,12 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
       });
       if (result.status === "duplicate") { setDup(true); toast.warning("This looks like an already uploaded game. Press submit again to confirm."); return; }
       await linkMatchToLobby(row.id, result.publicMatchId);
+      // Remember who is who: confirmed or only-remaining seats get a Discord ↔ IGN mapping (existing mappings are never overwritten).
+      const pairs = report.rows.flatMap((m) => {
+        const s = m.seatIndex != null ? seats[m.seatIndex] : null;
+        return s?.discordId && m.status !== "orange" ? [{ discord_user_id: s.discordId, player_name: rows[m.rowIndex]?.player_name.trim() ?? m.screenshotName }] : [];
+      });
+      if (pairs.length) await recordResultIdentities({ data: { lobbyId: row.id, pairs } }).catch((e) => console.error("Identity mapping failed", e));
       if (dupLeaders.length) {
         const { data: dg } = await supabase.from("games").select("id").eq("public_match_id", result.publicMatchId).maybeSingle();
         if (dg?.id) await reportMatchForReview(dg.id, `Duplicate leaders on upload: ${dupLeaders.join(", ")}`).catch((e) => console.error(e));
