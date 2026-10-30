@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { applyLeagueElo } from "@/lib/league-lobby-detect";
 import { LobbyResultUpload } from "@/components/LobbyResultUpload";
+import { unlinkLobbyResult, promoteLobbyToLeague } from "@/lib/lfg-history.functions";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { loadLobbyIdentities } from "@/lib/lfg-identity-loader";
@@ -146,9 +147,28 @@ function LobbyPage() {
   const seats = useMemo(() => (row ? seatsOf(row, discordNames, discordKeys, discordHandles, discordVerified) : []), [row, discordNames, discordKeys, discordHandles, discordVerified]);
   const me = { userId, discordId: myDiscordId, ign: myIgn };
   const member = row ? isMember(row, seats, me) : false;
-  const canReport = member || isAdmin;
+  const isCasual = row?.league_status === "casual";
+  const closed = row?.status === "cancelled" || row?.status === "expired";
+  const canReport = isAdmin || (!isCasual && !closed);
   const canManage = row ? isHost(row, seats, me) || isAdmin : false;
   const canUpload = !!row && canReport && !linkedCode && (seats.length >= 4 || row.status === "started");
+  const [unlinkBusy, setUnlinkBusy] = useState(false);
+  const unlink = async (mode: "delete" | "league_pending" | "casual") => {
+    if (!row) return;
+    const text = mode === "delete" ? "Fully delete the linked match and revert all Elo/SP? This cannot be undone." : mode === "league_pending" ? "Unlink the match, revert any League Elo and put this lobby back to League waiting for a screenshot? The match stays as a casual game." : "Turn this lobby into a casual game? League Elo is reverted and uploads are closed until an admin promotes it back to League.";
+    if (!confirm(text)) return;
+    setUnlinkBusy(true);
+    try { await unlinkLobbyResult({ data: { lobbyId: row.id, mode } }); toast.success("Done"); void load(); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Could not unlink"); }
+    finally { setUnlinkBusy(false); }
+  };
+  const promote = async () => {
+    if (!row) return;
+    setUnlinkBusy(true);
+    try { await promoteLobbyToLeague({ data: { lobbyId: row.id } }); toast.success("Back to League — waiting for a screenshot"); void load(); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Could not promote"); }
+    finally { setUnlinkBusy(false); }
+  };
 
 
   const removeSeat = async (seat: Seat) => {
@@ -338,6 +358,15 @@ function LobbyPage() {
 
       <Card className="bg-card/70 border-border/60 p-4 space-y-3">
         <h2 className="font-display text-lg flex items-center gap-2"><Upload className="size-4" /> Result</h2>
+        {isCasual && <p className="text-sm text-muted-foreground">This lobby was turned into a casual game. It no longer takes League results.</p>}
+        {isAdmin && (linkedCode || isCasual) && (
+          <div className="flex flex-wrap gap-2">
+            {linkedCode && row.is_league && <Button size="sm" variant="outline" disabled={unlinkBusy} onClick={() => void unlink("league_pending")}>Unlink · back to League</Button>}
+            {linkedCode && row.is_league && <Button size="sm" variant="outline" disabled={unlinkBusy} onClick={() => void unlink("casual")}>Make casual</Button>}
+            {linkedCode && <Button size="sm" variant="destructive" disabled={unlinkBusy} onClick={() => void unlink("delete")}>Delete match &amp; unlink</Button>}
+            {isCasual && <Button size="sm" disabled={unlinkBusy} onClick={() => void promote()}>Promote to League</Button>}
+          </div>
+        )}
         {linkedCode ? (
           <p className="text-sm">
             Linked result:{" "}
@@ -346,9 +375,10 @@ function LobbyPage() {
         ) : !(full || started) ? (
           <p className="text-sm text-muted-foreground">The result upload opens once the lobby is full or started.</p>
         ) : !canReport ? (
-          <p className="text-sm text-muted-foreground">Only players in this lobby or LFG admins can report its result.</p>
+          isCasual ? null : <p className="text-sm text-muted-foreground">This lobby is closed.</p>
         ) : (
           <div className="space-y-3">
+            {!userId && <p className="text-sm text-muted-foreground"><Link to="/auth" className="text-primary underline">Sign in</Link> to submit the result.</p>}
             {canUpload && <LobbyResultUpload row={row} seats={seats} userId={userId} onDone={() => void load()} />}
             <p className="text-xs text-muted-foreground">Already uploaded it? Paste the match ID (for example SPICE-CORIOLIS-8930) to link it:</p>
             <div className="flex gap-2 max-w-md">
