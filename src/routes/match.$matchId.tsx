@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useShowAllRatingTracks } from "@/hooks/use-rating-tracks";
 import { PlayModePicker } from "@/components/PlayModePicker";
 import { MatchVideo, SpoilerToggle, youtubeId } from "@/components/MatchVideo";
 import { useRoles } from "@/hooks/use-roles";
