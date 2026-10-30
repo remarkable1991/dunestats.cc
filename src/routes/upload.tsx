@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { duplicateLeaders, reportMatchForReview } from "@/lib/duplicate-leaders";
 import { useEffect, useRef, useState } from "react";
 import type { LfgRow } from "@/lib/lfg-seats";
 import { detectLeagueLobby, linkMatchToLobby, loadLobbyForUpload, lobbyFormat, takePendingLobbyUpload, type LeagueLobbyCandidate } from "@/lib/league-lobby-detect";
@@ -259,6 +260,8 @@ function UploadPage() {
     const bad = rows.filter((r) => !isCanonicalLeader(r.leader_name));
     if (bad.length) return toast.error("Unrecognized leader — pick a valid leader from the dropdown for the highlighted row(s).");
     if (!userId) return toast.error("Sign in to submit");
+    const dupLeaders = duplicateLeaders(rows.map((r) => r.leader_name));
+    if (dupLeaders.length && !confirm(`The same leader is listed more than once (${dupLeaders.join(", ")}). Submit anyway? The match will be marked "Needs review".`)) return;
 
     const tournamentActive = !notATournamentGame && detectedTournamentNum != null && !!detectedTable;
     const tournament = tournamentActive
@@ -299,6 +302,10 @@ function UploadPage() {
       if (result.status === "duplicate") {
         setDuplicateWarn(true);
         return;
+      }
+      if (dupLeaders.length) {
+        const { data: dg } = await supabase.from("games").select("id").eq("public_match_id", result.publicMatchId).maybeSingle();
+        if (dg?.id) await reportMatchForReview(dg.id, `Duplicate leaders on upload: ${dupLeaders.join(", ")}`).catch((e) => console.error(e));
       }
       setLastSave(result.saveResult);
       setLastMatchId(result.publicMatchId);
