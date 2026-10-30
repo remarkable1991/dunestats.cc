@@ -1,3 +1,4 @@
+import { useShowAllRatingTracks } from "@/hooks/use-rating-tracks";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SupabaseImage } from "@/components/SupabaseImage";
 import { useEffect, useState } from "react";
@@ -100,6 +101,8 @@ function scanLabel(status: string | null): string {
 function MatchesPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [leagueDeltas, setLeagueDeltas] = useState<Record<string, number>>({});
+  const { showAll: showAllTracks, setShowAll: setShowAllTracks } = useShowAllRatingTracks();
   const [games, setGames] = useState<GameRow[]>([]);
   const [uploaders, setUploaders] = useState<Record<string, string>>({});
   const [vpDeltas, setVpDeltas] = useState<Record<string, number>>({});
@@ -203,6 +206,13 @@ function MatchesPage() {
         vmap[`${r.game_id}::${r.player_name.toLowerCase().trim()}`] = Number(r.elo_delta_overall);
       });
       setVpDeltas(vmap);
+      const leagueIds = rows.filter((g) => g.is_league).map((g) => g.id);
+      if (leagueIds.length) {
+        const { data: lds } = await supabase.from("league_match_rating_deltas" as never).select("game_id,player_key,elo_delta").in("game_id", leagueIds);
+        const lmap: Record<string, number> = {};
+        ((lds ?? []) as unknown as { game_id: string; player_key: string; elo_delta: number }[]).forEach((d) => (lmap[`${d.game_id}::${d.player_key.toLowerCase().trim()}`] = Number(d.elo_delta)));
+        setLeagueDeltas(lmap);
+      } else setLeagueDeltas({});
     } else {
       setVpDeltas({});
     }
@@ -347,6 +357,10 @@ function MatchesPage() {
               </button>
             ))}
           </div>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground px-2" title="On League games, also show overall and version Elo">
+            <input type="checkbox" checked={showAllTracks} onChange={(e) => void setShowAllTracks(e.target.checked)} />
+            Show all stats
+          </label>
           <button
             onClick={() => setVideoOnly((v) => !v)}
             className={`px-3 py-1.5 text-sm rounded border inline-flex items-center gap-1 ${videoOnly ? "bg-coral/20 text-coral border-coral" : "text-muted-foreground border-border/60 bg-card/60 hover:text-foreground"}`}
@@ -520,7 +534,8 @@ function MatchesPage() {
                             )}
                             {!spoiler && (
                             <Link to="/leaderboard" className="hover:underline underline-offset-2">
-                              <EloDeltaLine version={g.game_version} overall={r.elo_delta_overall} versionDelta={r.elo_delta} vpDelta={vpDeltas[`${g.id}::${r.player_name.toLowerCase().trim()}`]} />
+                              {g.is_league && <LeagueDeltaLine delta={leagueDeltas[`${g.id}::${r.player_name.toLowerCase().trim()}`]} />}
+                              {(!g.is_league || showAllTracks) && <EloDeltaLine version={g.game_version} overall={r.elo_delta_overall} versionDelta={r.elo_delta} vpDelta={vpDeltas[`${g.id}::${r.player_name.toLowerCase().trim()}`]} />}
                             </Link>
                             )}
                           </div>
@@ -557,4 +572,9 @@ function MatchesPage() {
       </div>
     </div>
   );
+}
+function LeagueDeltaLine({ delta }: { delta: number | undefined }) {
+  if (delta === undefined) return <div className="text-[11px] text-muted-foreground">League Elo pending</div>;
+  const d = Math.round(delta);
+  return <div className={`text-[11px] tabular-nums ${d > 0 ? "text-teal" : d < 0 ? "text-coral" : "text-muted-foreground"}`}>League {d > 0 ? "+" : ""}{d}</div>;
 }
