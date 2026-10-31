@@ -15,7 +15,9 @@ import { recordResultIdentities } from "@/lib/lfg-history.functions";
 import { loose, matchScreenshotToSeats, type MatchStatus } from "@/lib/lobby-result-match";
 import type { LfgRow, Seat } from "@/lib/lfg-seats";
 import { toast } from "sonner";
-import { CheckCircle2, AlertTriangle, Loader2, Upload, X } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Loader2, Upload, X, Maximize2 } from "lucide-react";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import exampleMatch from "@/assets/example-match.png.asset.json";
 
 type Row = { placement: number; player_name: string; leader_name: string; points: number };
 
@@ -131,17 +133,57 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
   };
 
   if (!file) {
+    const f = lobbyFormat(row);
+    const tags = [
+      `Board: ${f.board}`,
+      f.hasIx ? "Rise of Ix" : null,
+      f.hasImmortality ? "Immortality" : null,
+      f.hasEpic ? "Epic mode" : null,
+      f.hasBaseLeaders ? "Base leaders" : null,
+      f.playMode ? (f.playMode === "live" ? "Live" : "Async") : null,
+    ].filter(Boolean) as string[];
     return (
-      <>
-        <label htmlFor="lobby-upload" onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f?.type.startsWith("image/")) void analyze(f); }}
-          className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground cursor-pointer hover:border-primary/60 transition-colors">
-          <Upload className="size-6 text-primary" />
-          <span>Click, drag &amp; drop, or paste (Ctrl+V) the end-of-game screenshot.</span>
-          <span className="text-xs">It's read right here, uses this lobby's format and is linked to lobby #{row.id} when you submit.</span>
-        </label>
-        <input id="lobby-upload" type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void analyze(f); }} />
-      </>
+      <div className="grid lg:grid-cols-2 gap-4">
+        <div className="space-y-3">
+          <label htmlFor="lobby-upload" onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); const fl = e.dataTransfer.files?.[0]; if (fl?.type.startsWith("image/")) void analyze(fl); }}
+            className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border/70 bg-background/40 p-8 text-center text-sm text-muted-foreground cursor-pointer hover:border-primary transition-colors">
+            <Upload className="size-8 text-primary" />
+            <span>Click, drag &amp; drop, or paste (Ctrl+V) the end-of-game screenshot (PNG / JPG).</span>
+          </label>
+          <input id="lobby-upload" type="file" accept="image/*" className="hidden" onChange={(e) => { const fl = e.target.files?.[0]; if (fl) void analyze(fl); }} />
+          <div className="flex items-start gap-3 rounded-md border border-border/50 bg-background/30 p-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <button type="button" className="relative group shrink-0">
+                  <img src={exampleMatch.url} alt="Example end-screen" className="h-20 w-auto rounded border border-border/60 group-hover:border-primary transition" />
+                  <span className="absolute inset-0 flex items-center justify-center bg-background/40 opacity-0 group-hover:opacity-100 rounded"><Maximize2 className="size-4 text-primary" /></span>
+                </button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl p-2">
+                <img src={exampleMatch.url} alt="Example end-screen" className="w-full h-auto rounded" />
+              </DialogContent>
+            </Dialog>
+            <p className="text-xs text-muted-foreground">Example end-screen — your screenshot should look like this. Click to expand.</p>
+          </div>
+        </div>
+        <Card className="p-4 space-y-3 bg-background/40">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Game type</div>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="rounded border border-primary/60 bg-primary/10 px-2 py-0.5 text-sm text-primary">{row.is_league ? "League" : "Lobby"} · Lobby #{row.id}</span>
+              <span className="text-xs text-muted-foreground">Set automatically</span>
+            </div>
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Game settings (from this lobby)</div>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {tags.map((t) => <span key={t} className="rounded border border-border/60 px-2 py-0.5 text-xs">{t}</span>)}
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">After the scan you'll see who was matched to which seat before you submit.</p>
+        </Card>
+      </div>
     );
   }
 
