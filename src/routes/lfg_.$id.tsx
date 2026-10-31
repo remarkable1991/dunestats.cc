@@ -5,6 +5,7 @@ import { unlinkLobbyResult, promoteLobbyToLeague } from "@/lib/lfg-history.funct
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { loadLobbyIdentities } from "@/lib/lfg-identity-loader";
+import { LobbyLinkedResult } from "@/components/LobbyLinkedResult";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -368,10 +369,11 @@ function LobbyPage() {
           </div>
         )}
         {linkedCode ? (
-          <p className="text-sm">
-            Linked result:{" "}
-            <Link to="/match/$matchId" params={{ matchId: linkedCode }} className="text-primary underline underline-offset-2">{linkedCode}</Link>
-          </p>
+          row.linked_game_id ? (
+            <LobbyLinkedResult gameId={row.linked_game_id} code={linkedCode} isLeague={!!row.is_league} seats={seats} titles={titles} />
+          ) : (
+            <p className="text-sm">Linked result: <Link to="/match/$matchId" params={{ matchId: linkedCode }} className="text-primary underline underline-offset-2">{linkedCode}</Link></p>
+          )
         ) : !(full || started) ? (
           <p className="text-sm text-muted-foreground">The result upload opens once the lobby is full or started.</p>
         ) : !canReport ? (
