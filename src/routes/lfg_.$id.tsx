@@ -152,7 +152,7 @@ function LobbyPage() {
   const closed = row?.status === "cancelled" || row?.status === "expired";
   const canReport = isAdmin || (!isCasual && !closed);
   const canManage = row ? isHost(row, seats, me) || isAdmin : false;
-  const canUpload = !!row && canReport && !linkedCode && (seats.length >= 4 || row.status === "started");
+  const canUpload = !!row && !!row.is_league && canReport && !linkedCode && (seats.length >= 4 || row.status === "started");
   const [unlinkBusy, setUnlinkBusy] = useState(false);
   const unlink = async (mode: "delete" | "league_pending" | "casual") => {
     if (!row) return;
@@ -374,6 +374,8 @@ function LobbyPage() {
           ) : (
             <p className="text-sm">Linked result: <Link to="/match/$matchId" params={{ matchId: linkedCode }} className="text-primary underline underline-offset-2">{linkedCode}</Link></p>
           )
+        ) : !row.is_league ? (
+          <p className="text-sm text-muted-foreground">Casual lobbies don't take result uploads here. Upload the game on the upload page.</p>
         ) : !(full || started) ? (
           <p className="text-sm text-muted-foreground">The result upload opens once the lobby is full or started.</p>
         ) : !canReport ? (

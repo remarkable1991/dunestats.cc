@@ -5,6 +5,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { colorForKey } from "@/lib/player-title";
 import { useShowAllRatingTracks } from "@/hooks/use-rating-tracks";
 import type { Seat } from "@/lib/lfg-seats";
+import { leaderRouteFor } from "@/lib/leader-slug";
+import { useLeaderPortraits } from "@/lib/leader-portraits";
 
 type R = { placement: number; player_name: string; leader_name: string | null; points: number; elo_delta: number | null; elo_delta_overall: number | null };
 const loose = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -16,6 +18,7 @@ export function LobbyLinkedResult({ gameId, code, isLeague, seats, titles }: { g
   const [rows, setRows] = useState<R[]>([]);
   const [league, setLeague] = useState<Record<string, number>>({});
   const { showAll, setShowAll, signedIn } = useShowAllRatingTracks();
+  const portraits = useLeaderPortraits(Array.from(new Set(rows.map((r) => (r.leader_name ? leaderRouteFor(r.leader_name)?.slug : null)).filter((v): v is string => !!v))));
 
   useEffect(() => {
     let off = false;
@@ -56,6 +59,7 @@ export function LobbyLinkedResult({ gameId, code, isLeague, seats, titles }: { g
         return (
           <div key={r.placement + r.player_name} className="flex items-center gap-3 rounded-md border border-border/50 bg-background/40 px-3 py-2">
             <span className="font-display text-lg w-6 text-center">{r.placement}</span>
+            {(() => { const slug = r.leader_name ? leaderRouteFor(r.leader_name)?.slug : null; const src = slug ? portraits[slug] : null; return src ? <img src={src} alt={r.leader_name ?? ""} className="size-10 rounded-md object-cover border border-border/60 shrink-0" loading="lazy" /> : <div className="size-10 rounded-md bg-muted/40 border border-border/60 shrink-0" />; })()}
             <div className="min-w-0 flex-1">
               <Link to="/players/$key" params={{ key }} className="font-medium hover:underline underline-offset-2" style={{ color: colorForKey(titles, key) }}>{r.player_name}</Link>
               {extras.length > 0 && <span className="ml-2 text-xs text-muted-foreground">{extras.join(" · ")}</span>}

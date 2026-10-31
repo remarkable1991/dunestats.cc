@@ -180,7 +180,7 @@ function DiscordMark() {
 function LfgPage() {
   const [rows, setRows] = useState<LfgRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"all" | "live" | "async">("all");
+  const [tab, setTab] = useState<"all" | "league" | "live" | "async">("all");
   const [userId, setUserId] = useState<string | null>(null);
   const [myIgn, setMyIgn] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -333,7 +333,7 @@ function LfgPage() {
     () =>
       rows.filter(
         (r) =>
-          (!r.is_league || isLfgAdmin) && !isExpired(r, now) && (tab === "all" ? true : tab === "live" ? isLive(r) : !isLive(r)),
+          (!r.is_league || isLfgAdmin) && !isExpired(r, now) && (tab === "all" ? true : tab === "league" ? !!r.is_league : tab === "live" ? isLive(r) : !isLive(r)),
       ),
     [rows, tab, now, isLfgAdmin],
   );
@@ -366,6 +366,7 @@ function LfgPage() {
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList>
             <TabsTrigger value="all">All matches</TabsTrigger>
+            {isLfgAdmin && <TabsTrigger value="league">League matches</TabsTrigger>}
             <TabsTrigger value="live">Live matches</TabsTrigger>
             <TabsTrigger value="async">ASync matches</TabsTrigger>
           </TabsList>
