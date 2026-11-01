@@ -283,7 +283,7 @@ function LfgPage() {
   // Batch only visible pilot lobby participants; do not load the whole League ladder.
   useEffect(() => {
     const lobbies = rows.filter((row) => row.is_league);
-    if (!isLfgAdmin || !lobbies.length) {
+    if (!lobbies.length) {
       setLeagueDisplays({});
       return;
     }
@@ -333,7 +333,7 @@ function LfgPage() {
     () =>
       rows.filter(
         (r) =>
-          (!r.is_league || isLfgAdmin) && !isExpired(r, now) && (tab === "all" ? true : tab === "league" ? !!r.is_league : tab === "live" ? isLive(r) : !isLive(r)),
+          !isExpired(r, now) && (tab === "all" ? true : tab === "league" ? !!r.is_league : tab === "live" ? isLive(r) : !isLive(r)),
       ),
     [rows, tab, now, isLfgAdmin],
   );
@@ -361,12 +361,12 @@ function LfgPage() {
           </div>
         </div>
 
-        {isLfgAdmin && <MatchmakingQueuePanel userId={userId} myIgn={myIgn} />}
+        {<MatchmakingQueuePanel userId={userId} myIgn={myIgn} />}
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList>
             <TabsTrigger value="all">All matches</TabsTrigger>
-            {isLfgAdmin && <TabsTrigger value="league">League matches</TabsTrigger>}
+            {<TabsTrigger value="league">League matches</TabsTrigger>}
             <TabsTrigger value="live">Live matches</TabsTrigger>
             <TabsTrigger value="async">ASync matches</TabsTrigger>
           </TabsList>

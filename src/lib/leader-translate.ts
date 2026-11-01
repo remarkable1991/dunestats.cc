@@ -1,3 +1,4 @@
+import { classifyLeader } from "@/lib/leaders";
 // Canonical leader dictionary + multi-language / OCR translation map.
 // `translateLeader` returns the canonical English database string, or null
 // when the input cannot be confidently mapped to a known leader. The
@@ -224,12 +225,11 @@ export function translateLeader(raw: string | null | undefined): string | null {
   if (!k) return null;
   const hit = ALIAS_INDEX.get(k);
   if (hit) return hit;
-  // Fallback: substring match against canonical keys (e.g. extra prefixes).
-  for (const ck of CANONICAL_KEYS) {
-    if (ck.length >= 6 && (k.includes(ck) || ck.includes(k))) {
-      for (const c of CANONICAL_LEADERS) if (keyOf(c) === ck) return c;
-    }
-  }
+  // Fallback: the raw text contains exactly one full canonical name (e.g. extra prefixes).
+  // Never match partial reads (canonical containing raw) — that misattributed English names.
+  const contained = new Set<string>();
+  for (const c of CANONICAL_LEADERS) { const ck = keyOf(c); if (ck.length >= 6 && k.includes(ck)) contained.add(c); }
+  if (contained.size === 1) return Array.from(contained)[0];
   // Last resort: a distinctive name token (works for unseen translations).
   const matches = new Set<string>();
   for (const [token, canonical] of TOKEN_FALLBACK) if (k.includes(keyOf(token))) matches.add(canonical);
@@ -240,4 +240,11 @@ export function translateLeader(raw: string | null | undefined): string | null {
 export function isCanonicalLeader(name: string | null | undefined): boolean {
   if (!name) return false;
   return CANONICAL_KEYS.has(keyOf(name));
+}
+/** Split canonical leaders into those legal in the lobby's mode (shown first) and the rest. */
+export function leadersForMode(f: { board: string; hasIx: boolean; hasBaseLeaders: boolean }): { preferred: string[]; others: string[] } {
+  const allowed = new Set<string>(f.board === "uprising" ? ["uprising", ...(f.hasBaseLeaders ? ["base"] : []), ...(f.hasIx ? ["ix"] : [])] : ["base", ...(f.hasIx ? ["ix"] : [])]);
+  const preferred: string[] = []; const others: string[] = [];
+  for (const l of CANONICAL_LEADERS) (allowed.has(classifyLeader(l) ?? "") ? preferred : others).push(l);
+  return { preferred, others };
 }

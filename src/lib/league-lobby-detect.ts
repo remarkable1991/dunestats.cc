@@ -59,23 +59,30 @@ export async function loadLobbyForUpload(id: number): Promise<LobbyForUpload | n
 
 export type LeagueLobbyCandidate = { id: number; row: LfgRow; matched: string[] };
 
-/** Find an unreported League lobby where at least 2 detected players are seated. */
+/** Window (minutes since lobby creation) in which an unreported League lobby is suggested for a screenshot. */
+export const LEAGUE_SUGGEST_MIN_MINUTES = 30;
+export const LEAGUE_SUGGEST_MAX_MINUTES = 240;
+
+/** Find an unreported League lobby, created 30–240 minutes ago, where at least one detected player is seated. */
 export async function detectLeagueLobby(detected: string[]): Promise<LeagueLobbyCandidate | null> {
-  if (detected.filter(Boolean).length < 2) return null;
-  const since = new Date(Date.now() - 14 * 86400_000).toISOString();
+  if (detected.filter(Boolean).length < 1) return null;
+  const since = new Date(Date.now() - LEAGUE_SUGGEST_MAX_MINUTES * 60_000).toISOString();
+  const until = new Date(Date.now() - LEAGUE_SUGGEST_MIN_MINUTES * 60_000).toISOString();
   const { data } = await supabase
     .from("active_async_matches")
     .select(SELECT_COLS)
     .eq("is_league", true)
     .is("linked_game_id", null)
-    .in("status", ["searching", "started", "posting", "pending_creation"])
+    .in("status", ["searching", "started", "posting", "pending_creation", "full"])
     .gte("created_at", since)
+    .lte("created_at", until)
     .order("created_at", { ascending: false })
     .limit(30);
   let best: LeagueLobbyCandidate | null = null;
   for (const raw of (data ?? []) as unknown as LfgRow[]) {
+    if (raw.league_status === "casual") continue;
     const matched = countSeatMatches(detected, await withSeats(raw));
-    if (matched.length >= 2 && (!best || matched.length > best.matched.length)) best = { id: raw.id, row: raw, matched };
+    if (matched.length >= 1 && (!best || matched.length > best.matched.length)) best = { id: raw.id, row: raw, matched };
   }
   return best;
 }
