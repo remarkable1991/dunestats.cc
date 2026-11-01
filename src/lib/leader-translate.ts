@@ -240,3 +240,12 @@ export function isCanonicalLeader(name: string | null | undefined): boolean {
   if (!name) return false;
   return CANONICAL_KEYS.has(keyOf(name));
 }
+import { classifyLeader } from "@/lib/leaders";
+
+/** Split canonical leaders into those legal in the lobby's mode (shown first) and the rest. */
+export function leadersForMode(f: { board: string; hasIx: boolean; hasBaseLeaders: boolean }): { preferred: string[]; others: string[] } {
+  const allowed = new Set<string>(f.board === "uprising" ? ["uprising", ...(f.hasBaseLeaders ? ["base"] : []), ...(f.hasIx ? ["ix"] : [])] : ["base", ...(f.hasIx ? ["ix"] : [])]);
+  const preferred: string[] = []; const others: string[] = [];
+  for (const l of CANONICAL_LEADERS) (allowed.has(classifyLeader(l) ?? "") ? preferred : others).push(l);
+  return { preferred, others };
+}

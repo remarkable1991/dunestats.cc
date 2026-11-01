@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { parseScreenshot } from "@/lib/games.functions";
 import { normalizeNames } from "@/lib/name-normalize";
-import { translateLeader, isCanonicalLeader, CANONICAL_LEADERS } from "@/lib/leader-translate";
+import { translateLeader, isCanonicalLeader, leadersForMode } from "@/lib/leader-translate";
+import { SelectGroup, SelectLabel } from "@/components/ui/select";
 import { submitMatch } from "@/lib/match-submit";
 import { linkMatchToLobby, lobbyFormat } from "@/lib/league-lobby-detect";
 import { recordResultIdentities } from "@/lib/lfg-history.functions";
@@ -69,7 +70,14 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
     setParsing(true);
     try {
       const res = await parseScreenshot({ data: { imageBase64: await fileToBase64(f), mimeType: f.type || "image/png" } });
-      const raw = res.results.slice(0, 4).map((r) => ({ placement: r.placement, player_name: r.player_name, leader_name: translateLeader(r.leader_name) ?? (r.leader_name ?? ""), points: r.points }));
+      const seen = new Set<string>();
+      const raw = res.results.slice(0, 4).map((r) => {
+        const t = translateLeader(r.leader_name);
+        // Leaders are unique per game: a second hit on the same leader must be picked by hand.
+        const leader = t && !seen.has(t) ? t : "";
+        if (leader) seen.add(leader);
+        return { placement: r.placement, player_name: r.player_name, leader_name: leader || (r.leader_name ?? ""), points: r.points };
+      });
       setRows(await normalizeNames(raw));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not read screenshot");
@@ -87,6 +95,7 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
   }, [analyze]);
 
   const report = useMemo(() => matchScreenshotToSeats(rows.map((r) => r.player_name), seats.map((s) => ({ name: s.name, playerKey: s.playerKey, discordHandle: s.discordHandle, identityVerified: s.identityVerified })), games), [rows, seats, games]);
+  const modeLeaders = useMemo(() => leadersForMode(lobbyFormat(row)), [row]);
   const update = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   const reset = () => { setFile(null); setRows([]); setDup(false); setPreview((p) => { if (p) URL.revokeObjectURL(p); return null; }); };
 
@@ -95,7 +104,7 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
     if (rows.length < 3) return toast.error("Need at least 3 players");
     if (rows.some((r) => !r.player_name.trim() || !isCanonicalLeader(r.leader_name))) return toast.error("Fill in every name and pick a valid leader.");
     const dupLeaders = duplicateLeaders(rows.map((r) => r.leader_name));
-    if (dupLeaders.length && !confirm(`The same leader is listed more than once (${dupLeaders.join(", ")}). Submit anyway? The match will be marked "Needs review".`)) return;
+    if (dupLeaders.length) return toast.error(`Each leader can only be picked once (${dupLeaders.join(", ")}).`);
     const f = lobbyFormat(row);
     setSaving(true);
     try {
@@ -213,7 +222,13 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
                 <Input value={r.player_name} onChange={(e) => update(i, { player_name: e.target.value })} aria-label={`Player ${i + 1} in-game name`} />
                 <Select value={isCanonicalLeader(r.leader_name) ? r.leader_name : undefined} onValueChange={(v) => update(i, { leader_name: v })}>
                   <SelectTrigger aria-label={`Player ${i + 1} leader`} className={isCanonicalLeader(r.leader_name) ? "" : "border-destructive"}><SelectValue placeholder={r.leader_name || "Pick leader"} /></SelectTrigger>
-                  <SelectContent>{CANONICAL_LEADERS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    {([["This mode", modeLeaders.preferred], ["Other leaders", modeLeaders.others]] as const).map(([label, list]) => list.length > 0 && (
+                      <SelectGroup key={label}><SelectLabel>{label}</SelectLabel>
+                        {list.map((l) => <SelectItem key={l} value={l} disabled={rows.some((o, j) => j !== i && o.leader_name === l)}>{l}</SelectItem>)}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
                 </Select>
                 <Input type="number" value={r.points} onChange={(e) => update(i, { points: Number(e.target.value) || 0 })} aria-label={`Player ${i + 1} VP`} />
                 <div className="flex items-center gap-2 min-w-0">
