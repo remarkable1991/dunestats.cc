@@ -224,12 +224,11 @@ export function translateLeader(raw: string | null | undefined): string | null {
   if (!k) return null;
   const hit = ALIAS_INDEX.get(k);
   if (hit) return hit;
-  // Fallback: substring match against canonical keys (e.g. extra prefixes).
-  for (const ck of CANONICAL_KEYS) {
-    if (ck.length >= 6 && (k.includes(ck) || ck.includes(k))) {
-      for (const c of CANONICAL_LEADERS) if (keyOf(c) === ck) return c;
-    }
-  }
+  // Fallback: the raw text contains exactly one full canonical name (e.g. extra prefixes).
+  // Never match partial reads (canonical containing raw) — that misattributed English names.
+  const contained = new Set<string>();
+  for (const c of CANONICAL_LEADERS) { const ck = keyOf(c); if (ck.length >= 6 && k.includes(ck)) contained.add(c); }
+  if (contained.size === 1) return Array.from(contained)[0];
   // Last resort: a distinctive name token (works for unseen translations).
   const matches = new Set<string>();
   for (const [token, canonical] of TOKEN_FALLBACK) if (k.includes(keyOf(token))) matches.add(canonical);
