@@ -23,11 +23,11 @@ export function PlayedLobbyHistory({ pilot }: { pilot: boolean }) {
     setLoading(true); setError("");
     try {
       let q = supabase.from("active_async_matches").select(SELECT_COLS, { count: "exact" }).in("status", [...STARTED_LOBBY_STATUSES]);
-      if (!pilot) q = q.eq("is_league", false);
-      if (mode !== "all") q = q.eq("mode", mode);
+      if (mode === "league") q = q.eq("is_league", true);
+      else if (mode !== "all") q = q.eq("mode", mode);
       const { data, error: e, count: total } = await q.order("created_at", { ascending: false }).range(page * 12, page * 12 + 11);
       if (e) throw e;
-      const list = (data ?? []).filter((r) => canShowPlayedLobby(r.status, r.is_league, pilot));
+      const list = (data ?? []).filter((r) => canShowPlayedLobby(r.status, r.is_league, true));
       const ids = [...new Set(list.flatMap((r) => [...(r.player_ids ?? []), r.host_id]).filter(Boolean))];
       const resolved = ids.length ? await loadLobbyIdentities(ids) : { names: {}, keys: {}, handles: {}, verified: {} };
       setRows(list); setCount(total ?? 0); setIdentities(resolved);
@@ -35,7 +35,7 @@ export function PlayedLobbyHistory({ pilot }: { pilot: boolean }) {
   }, [page, mode, pilot]);
   useEffect(() => { void load(); }, [load]);
   return <section className="space-y-4 border-t border-border pt-6">
-    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-display text-xl">Previously played</h2><div className="flex gap-1">{["all", "live", "async"].map((value) => <Button key={value} size="sm" variant={mode === value ? "secondary" : "ghost"} onClick={() => { setMode(value); setPage(0); }}>{value !== "all" && <img src={value === "live" ? liveIcon.url : asyncIcon.url} alt="" className="size-4" />}{value === "all" ? "All" : value === "live" ? "Live" : "ASync"}</Button>)}</div></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-display text-xl">Previously played</h2><div className="flex flex-wrap gap-1">{["all", "league", "live", "async"].map((value) => <Button key={value} size="sm" variant={mode === value ? "secondary" : "ghost"} onClick={() => { setMode(value); setPage(0); }}>{(value === "live" || value === "async") && <img src={value === "live" ? liveIcon.url : asyncIcon.url} alt="" className="size-4" />}{value === "all" ? "All" : value === "league" ? "League" : value === "live" ? "Live" : "ASync"}</Button>)}</div></div>
     {loading ? <Loader2 className="size-5 animate-spin text-muted-foreground" /> : error ? <div className="text-destructive">{error} <Button variant="outline" onClick={() => void load()}>Retry</Button></div> : rows.length === 0 ? <p className="text-muted-foreground">No played lobbies found.</p> : <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{rows.map((row) => {
       const seats = seatsOf(row, identities.names, identities.keys, identities.handles, identities.verified);
       const host = seats.find((s) => s.host)?.name;

@@ -213,7 +213,6 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h2 className="font-display text-lg">League queue</h2>
-          <Badge variant="outline">Admin pilot</Badge>
         </div>
       </div>
       <div className="space-y-1.5">
