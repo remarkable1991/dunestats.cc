@@ -156,7 +156,7 @@ function LobbyPage() {
   const [unlinkBusy, setUnlinkBusy] = useState(false);
   const unlink = async (mode: "delete" | "league_pending" | "casual") => {
     if (!row) return;
-    const text = mode === "delete" ? "Fully delete the linked match and revert all Elo/SP? This cannot be undone." : mode === "league_pending" ? "Unlink the match, revert any League Elo and put this lobby back to League waiting for a screenshot? The match stays as a casual game." : "Turn this lobby into a casual game? League Elo is reverted and uploads are closed until an admin promotes it back to League.";
+    const text = mode === "delete" && !linkedCode ? "Cancel this game and revert any SP it gave? No match is linked, so no Elo changes." : mode === "delete" ? "Fully delete the linked match and revert all Elo/SP? This cannot be undone." : mode === "league_pending" ? "Unlink the match, revert any League Elo and put this lobby back to League waiting for a screenshot? The match stays as a casual game." : "Turn this lobby into a casual game? League Elo is reverted and uploads are closed until an admin promotes it back to League.";
     if (!confirm(text)) return;
     setUnlinkBusy(true);
     try { await unlinkLobbyResult({ data: { lobbyId: row.id, mode } }); toast.success("Done"); void load(); }
@@ -360,11 +360,15 @@ function LobbyPage() {
       <Card className="bg-card/70 border-border/60 p-4 space-y-3">
         <h2 className="font-display text-lg flex items-center gap-2"><Upload className="size-4" /> Result</h2>
         {isCasual && <p className="text-sm text-muted-foreground">This lobby was turned into a casual game. It no longer takes League results.</p>}
-        {isAdmin && (linkedCode || isCasual) && (
+        {isAdmin && (linkedCode || isCasual || (row.is_league && row.status === "started")) && (
           <div className="flex flex-wrap gap-2">
             {linkedCode && row.is_league && <Button size="sm" variant="outline" disabled={unlinkBusy} onClick={() => void unlink("league_pending")}>Unlink · back to League</Button>}
             {linkedCode && row.is_league && <Button size="sm" variant="outline" disabled={unlinkBusy} onClick={() => void unlink("casual")}>Make casual</Button>}
             {linkedCode && <Button size="sm" variant="destructive" disabled={unlinkBusy} onClick={() => void unlink("delete")}>Delete match &amp; unlink</Button>}
+            {!linkedCode && !isCasual && row.is_league && row.status === "started" && <>
+              <Button size="sm" variant="outline" disabled={unlinkBusy} onClick={() => void unlink("casual")}>Make casual</Button>
+              <Button size="sm" variant="destructive" disabled={unlinkBusy} onClick={() => void unlink("delete")}>Cancel game &amp; revert SP</Button>
+            </>}
             {isCasual && <Button size="sm" disabled={unlinkBusy} onClick={() => void promote()}>Promote to League</Button>}
           </div>
         )}
