@@ -283,7 +283,7 @@ function LfgPage() {
   // Batch only visible pilot lobby participants; do not load the whole League ladder.
   useEffect(() => {
     const lobbies = rows.filter((row) => row.is_league);
-    if (!isLfgAdmin || !lobbies.length) {
+    if (!lobbies.length) {
       setLeagueDisplays({});
       return;
     }
