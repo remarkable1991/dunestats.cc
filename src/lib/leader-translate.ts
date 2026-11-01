@@ -1,3 +1,4 @@
+import { classifyLeader } from "@/lib/leaders";
 // Canonical leader dictionary + multi-language / OCR translation map.
 // `translateLeader` returns the canonical English database string, or null
 // when the input cannot be confidently mapped to a known leader. The
@@ -240,8 +241,6 @@ export function isCanonicalLeader(name: string | null | undefined): boolean {
   if (!name) return false;
   return CANONICAL_KEYS.has(keyOf(name));
 }
-import { classifyLeader } from "@/lib/leaders";
-
 /** Split canonical leaders into those legal in the lobby's mode (shown first) and the rest. */
 export function leadersForMode(f: { board: string; hasIx: boolean; hasBaseLeaders: boolean }): { preferred: string[]; others: string[] } {
   const allowed = new Set<string>(f.board === "uprising" ? ["uprising", ...(f.hasBaseLeaders ? ["base"] : []), ...(f.hasIx ? ["ix"] : [])] : ["base", ...(f.hasIx ? ["ix"] : [])]);
