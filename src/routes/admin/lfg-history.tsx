@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { adminLobbyHistory, linkAdminLobby, revertAdminMatch } from "@/lib/lfg-history.functions";
+import { adminLobbyHistory, linkAdminLobby, revertAdminMatch, findLobbyCandidates, substituteLobbyPlayer } from "@/lib/lfg-history.functions";
 import { isStartAwardForLobby } from "@/lib/lfg-history";
 import { loadLobbyIdentities } from "@/lib/lfg-identity-loader";
 import { seatsOf, type LfgRow } from "@/lib/lfg-seats";
@@ -17,7 +17,7 @@ import { LobbyFormatIcons } from "@/components/LobbyFormatIcons";
 import { LfgResultReviews } from "@/components/LfgResultReviews";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, ChevronLeft, ChevronRight, Link2, Loader2, Trash2, RefreshCw } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Link2, Loader2, Trash2, RefreshCw, Search, UserRoundPen } from "lucide-react";
 
 export const Route = createFileRoute("/admin/lfg-history")({
   head: () => ({ meta: [
@@ -42,10 +42,12 @@ function AdminHistory() {
   const fetchHistory = useServerFn(adminLobbyHistory);
   const linkLobby = useServerFn(linkAdminLobby);
   const revert = useServerFn(revertAdminMatch);
+  const findCandidates = useServerFn(findLobbyCandidates);
+  const substitute = useServerFn(substituteLobbyPlayer);
   const [kind, setKind] = useState<"lobbies" | "games">("lobbies");
   const [status, setStatus] = useState("all");
   const [mode, setMode] = useState<"all" | "live" | "async">("all");
-  const [league, setLeague] = useState<"all" | "league" | "normal">("all");
+  const [league, setLeague] = useState<"all" | "league" | "normal" | "unreported">("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [history, setHistory] = useState<History | null>(null);
@@ -56,6 +58,8 @@ function AdminHistory() {
   const [mapping, setMapping] = useState<{ id: string; handle: string; name: string } | null>(null);
   const [ign, setIgn] = useState("");
   const [link, setLink] = useState<{ id: number; code: string } | null>(null);
+  const [candidates, setCandidates] = useState<Record<number, { loading: boolean; list: Awaited<ReturnType<typeof findLobbyCandidates>>["candidates"] }>>({});
+  const [sub, setSub] = useState<{ lobbyId: number; oldName: string; newName: string; transferSp: boolean } | null>(null);
   const [target, setTarget] = useState<RevertTarget | null>(null);
   const load = useCallback(async () => {
     if (!roles.isLfgAdmin) return;
@@ -73,9 +77,19 @@ function AdminHistory() {
   useEffect(() => { const timer = setTimeout(() => void load(), 250); return () => clearTimeout(timer); }, [load]);
   const perform = async (action: () => Promise<unknown>) => {
     setBusy(true);
-    try { await action(); toast.success("Saved"); setMapping(null); setLink(null); setTarget(null); await load(); }
+    try { await action(); toast.success("Saved"); setMapping(null); setLink(null); setTarget(null); setSub(null); await load(); }
     catch (e) { toast.error(e instanceof Error ? e.message : "Could not save"); }
     finally { setBusy(false); }
+  };
+  const scanCandidates = async (lobbyId: number) => {
+    setCandidates((c) => ({ ...c, [lobbyId]: { loading: true, list: [] } }));
+    try {
+      const { candidates: list } = await findCandidates({ data: { lobbyId } });
+      setCandidates((c) => ({ ...c, [lobbyId]: { loading: false, list } }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not scan for candidate matches");
+      setCandidates((c) => ({ ...c, [lobbyId]: { loading: false, list: [] } }));
+    }
   };
   return <div className="min-h-screen"><Navbar /><main className="container mx-auto px-4 py-8 space-y-6">
     <Link to="/lfg" className="inline-flex gap-2 items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" />LFG</Link>
@@ -85,7 +99,7 @@ function AdminHistory() {
       <div className="flex flex-wrap gap-2 items-center"><Button variant={kind === "lobbies" ? "secondary" : "outline"} onClick={() => { setKind("lobbies"); setPage(0); }}>Lobbies</Button><Button variant={kind === "games" ? "secondary" : "outline"} onClick={() => { setKind("games"); setPage(0); }}>Uploaded matches</Button>
         {kind === "lobbies" && <Filter label="Lobby status" value={status} onChange={(v) => { setStatus(v); setPage(0); }} options={[["all", "All statuses"], ["started", "Started"], ["cancelled", "Cancelled"], ["timed_out", "Timed out"], ["pending_creation", "Awaiting Discord"], ["posting", "Posting"], ["searching", "Searching"]]} />}
         <Filter label="Play mode" value={mode} onChange={(v) => { if (v === "all" || v === "live" || v === "async") setMode(v); setPage(0); }} options={[["all", "All modes"], ["live", "Live"], ["async", "ASync"]]} />
-        <Filter label="League filter" value={league} onChange={(v) => { if (v === "all" || v === "league" || v === "normal") setLeague(v); setPage(0); }} options={[["all", "All formats"], ["league", "League"], ["normal", "Non-League"]]} />
+        <Filter label="League filter" value={league} onChange={(v) => { if (v === "all" || v === "league" || v === "normal" || v === "unreported") setLeague(v); setPage(0); }} options={[["all", "All formats"], ["league", "League"], ["normal", "Non-League"], ["unreported", "League · not reported"]]} />
         <Input aria-label="Search history" className="w-64" placeholder={kind === "lobbies" ? "Lobby number or match ID" : "Match ID"} value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} />
       </div>
       {loading ? <Loader2 className="animate-spin size-5" /> : error ? <p className="text-destructive">{error}</p> : history?.rows.length === 0 ? <p className="text-muted-foreground">No history matches these filters.</p> : history?.kind === "lobbies" ? <div className="space-y-3">{history.rows.map((raw) => {
@@ -95,7 +109,9 @@ function AdminHistory() {
         const code = history.games.find((g) => g.id === row.linked_game_id)?.public_match_id;
         return <article key={row.id} className="border border-border rounded-md p-4 space-y-3">
           <div className="flex flex-wrap justify-between gap-3"><div className="space-y-2"><Link to="/lfg/$id" params={{ id: String(row.id) }} className="font-display text-lg text-primary hover:underline">#{row.id} · {seats.find((s) => s.host)?.name ?? "Lobby"}'s game</Link><div className="flex flex-wrap gap-2 text-xs items-center"><Badge variant="outline">{row.status}</Badge><span>{row.mode === "live" ? "Live" : "ASync"}{row.is_league ? " · League" : ""}</span><span className="text-muted-foreground">{new Date(row.created_at).toLocaleString()}</span><LobbyFormatIcons row={row} /></div></div><div className="flex flex-wrap items-center gap-2"><Button size="sm" variant="outline" onClick={() => setLink({ id: row.id, code: code ?? "" })}><Link2 className="size-4" />{row.linked_game_id ? "Edit match link" : "Link match"}</Button>{roles.isAdmin && <Button size="sm" variant="destructive" onClick={() => setTarget({ lobbyId: row.id, gameId: row.linked_game_id ?? null, title: `Lobby #${row.id}` })}><Trash2 className="size-4" />{row.linked_game_id ? "Delete result & revert" : "Cancel & revert SP"}</Button>}</div></div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">{seats.map((seat, i) => <div key={i} className="min-w-0 text-sm space-y-1"><div>{seat.playerKey ? <Link to="/players/$key" params={{ key: seat.playerKey }} className="hover:underline">{seat.name}</Link> : seat.name}</div>{seat.discordId && <div className="text-xs text-muted-foreground break-all">{seat.discordHandle || seat.discordId}</div>}{seat.discordId && <Button size="sm" variant="ghost" onClick={() => { setMapping({ id: seat.discordId ?? "", handle: seat.discordHandle ?? "", name: seat.name }); setIgn(seat.playerKey ?? ""); }}><Link2 className="size-3" />{seat.identityVerified ? "Review IGN link" : "Link IGN"}</Button>}</div>)}</div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">{seats.map((seat, i) => <div key={i} className="min-w-0 text-sm space-y-1"><div>{seat.playerKey ? <Link to="/players/$key" params={{ key: seat.playerKey }} className="hover:underline">{seat.name}</Link> : seat.name}</div>{seat.discordId && <div className="text-xs text-muted-foreground break-all">{seat.discordHandle || seat.discordId}</div>}<div className="flex flex-wrap gap-1">{seat.discordId && <Button size="sm" variant="ghost" onClick={() => { setMapping({ id: seat.discordId ?? "", handle: seat.discordHandle ?? "", name: seat.name }); setIgn(seat.playerKey ?? ""); }}><Link2 className="size-3" />{seat.identityVerified ? "Review IGN link" : "Link IGN"}</Button>}{(seat.playerKey || seat.name !== "Unknown player name") && <Button size="sm" variant="ghost" onClick={() => setSub({ lobbyId: row.id, oldName: seat.playerKey ?? seat.name, newName: "", transferSp: true })}><UserRoundPen className="size-3" />Substitute</Button>}</div></div>)}</div>
+          {row.is_league && row.status === "started" && !row.linked_game_id && <div className="space-y-2"><Button size="sm" variant="outline" disabled={candidates[row.id]?.loading} onClick={() => void scanCandidates(row.id)}>{candidates[row.id]?.loading ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}Find candidate matches</Button>
+            {candidates[row.id] && !candidates[row.id].loading && (candidates[row.id].list.length === 0 ? <p className="text-xs text-muted-foreground">No unlinked matches from that day share a player with this lobby.</p> : <ul className="space-y-1 text-sm">{candidates[row.id].list.map((c) => <li key={c.id} className="flex flex-wrap items-center gap-2"><Link to="/match/$matchId" params={{ matchId: c.code ?? c.id }} className="text-primary hover:underline">#{c.code ?? c.id}</Link><Badge variant={c.matched.length >= 3 ? "default" : "outline"}>{c.matched.length}/{c.players.length} players match</Badge><span className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleString()} · {c.players.join(", ")}</span><Button size="sm" variant="ghost" onClick={() => setLink({ id: row.id, code: c.code ?? "" })}><Link2 className="size-3" />Link</Button></li>)}</ul>)}</div>}
           {code && <Link to="/match/$matchId" params={{ matchId: code }} className="text-sm text-primary hover:underline">#{code}</Link>}
           <details className="text-sm"><summary className="cursor-pointer text-muted-foreground">{events.reduce((sum, e) => sum + e.amount, 0)} SP · {events.length} awards</summary><ul className="mt-2 space-y-1">{events.map((e) => <li key={e.id} className="flex flex-wrap justify-between gap-2"><span>{e.player_key} · {e.action_type.replaceAll("_", " ")}</span><span>{e.amount} SP</span></li>)}</ul></details>
         </article>;
@@ -113,6 +129,11 @@ function AdminHistory() {
       if (e) throw e; if (data && typeof data === "object" && "ok" in data && !data.ok) throw new Error("Mapping was not saved");
     })}>{busy && <Loader2 className="animate-spin size-4" />}Confirm link</Button></DialogFooter></DialogContent></Dialog>
     <Dialog open={!!link} onOpenChange={(open) => { if (!open && !busy) setLink(null); }}><DialogContent><DialogHeader><DialogTitle>Match link · Lobby #{link?.id}</DialogTitle><DialogDescription>Accepts #DESERT-MAKER-9440, the match code, or its internal ID. Confirming marks the lobby started.</DialogDescription></DialogHeader><Label htmlFor="match-code">Match ID</Label><Input id="match-code" value={link?.code ?? ""} onChange={(e) => setLink((l) => l ? { ...l, code: e.target.value } : null)} /><DialogFooter><Button variant="outline" disabled={busy} onClick={() => void perform(() => linkLobby({ data: { lobbyId: link?.id ?? 0, matchCode: "" } }))}>Unlink</Button><Button disabled={busy || !link?.code.trim()} onClick={() => void perform(() => linkLobby({ data: { lobbyId: link?.id ?? 0, matchCode: link?.code ?? "" } }))}>Confirm match link</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={!!sub} onOpenChange={(open) => { if (!open && !busy) setSub(null); }}><DialogContent><DialogHeader><DialogTitle>Substitute player · Lobby #{sub?.lobbyId}</DialogTitle><DialogDescription>Replaces <strong>{sub?.oldName}</strong> in this lobby's roster with the player who actually played. When SP transfer is on, the old player's start-of-match SP for this lobby is moved to the new player; both sides are recorded in the SP audit log and lobby history.</DialogDescription></DialogHeader><Label htmlFor="sub-new">Player who actually played (IGN)</Label><Input id="sub-new" value={sub?.newName ?? ""} onChange={(e) => setSub((s) => s ? { ...s, newName: e.target.value } : null)} placeholder="e.g. roninwitdadevil" /><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={sub?.transferSp ?? true} onChange={(e) => setSub((s) => s ? { ...s, transferSp: e.target.checked } : null)} />Transfer this lobby's start SP to the new player</label><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setSub(null)}>Cancel</Button><Button disabled={busy || !sub?.newName.trim()} onClick={() => void perform(async () => {
+      if (!sub) return;
+      const result = await substitute({ data: { lobbyId: sub.lobbyId, oldKey: sub.oldName, newKey: sub.newName.trim(), transferSp: sub.transferSp } });
+      toast.success(`Substituted · ${result?.sp_awards_moved ?? 0} SP awards moved`);
+    })}>{busy && <Loader2 className="animate-spin size-4" />}Confirm substitution</Button></DialogFooter></DialogContent></Dialog>
     <Dialog open={!!target} onOpenChange={(open) => { if (!open && !busy) setTarget(null); }}><DialogContent><DialogHeader><DialogTitle>Revert {target?.title}?</DialogTitle><DialogDescription>{target?.gameId ? "Delete the uploaded result and reverse its recorded global and League Elo and result SP, plus the linked lobby's start SP. The lobby remains in cancelled history. This cannot be undone." : "Cancel this lobby and remove its start SP awards, including its daily/weekly bonuses. The roster and history remain."} Applied League Elo without reversible bot deltas blocks the entire operation.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setTarget(null)}>Keep match</Button><Button variant="destructive" disabled={busy} onClick={() => void perform(() => revert({ data: { lobbyId: target?.lobbyId ?? null, gameId: target?.gameId ?? null, deleteResult: !!target?.gameId, confirmed: true } }))}>{busy ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}Confirm reversal</Button></DialogFooter></DialogContent></Dialog>
   </main></div>;
 }

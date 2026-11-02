@@ -6,7 +6,7 @@ import { SELECT_COLS } from "@/lib/lfg-seats";
 
 export const adminLobbyHistory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ page: z.number().int().min(0), kind: z.enum(["lobbies", "games"]), status: z.string().max(40), mode: z.enum(["all", "live", "async"]), league: z.enum(["all", "league", "normal"]), search: z.string().max(80) }))
+  .inputValidator(z.object({ page: z.number().int().min(0), kind: z.enum(["lobbies", "games"]), status: z.string().max(40), mode: z.enum(["all", "live", "async"]), league: z.enum(["all", "league", "normal", "unreported"]), search: z.string().max(80) }))
   .handler(async ({ data, context }) => {
     const { data: roles, error } = await context.supabase.from("user_roles").select("role").eq("user_id", context.userId);
     if (error || !roles?.some((r) => ["admin", "lfg_admin"].includes(r.role))) throw new Error("LFG admins only");
@@ -31,7 +31,8 @@ export const adminLobbyHistory = createServerFn({ method: "POST" })
     let q = supabaseAdmin.from("active_async_matches").select(SELECT_COLS, { count: "exact" });
     if (data.status !== "all") q = q.eq("status", data.status);
     if (data.mode !== "all") q = q.eq("mode", data.mode);
-    if (data.league !== "all") q = q.eq("is_league", data.league === "league");
+    if (data.league === "unreported") q = q.eq("is_league", true).eq("status", "started").is("linked_game_id", null);
+    else if (data.league !== "all") q = q.eq("is_league", data.league === "league");
     if (term) q = /^\d+$/.test(term) ? q.eq("id", Number(term)) : q.ilike("match_id", `%${term}%`);
     const { data: rows, error: e, count } = await q.order("created_at", { ascending: false }).range(start, start + 19);
     if (e) throw new Error("Could not load lobby history");
@@ -109,4 +110,71 @@ export const recordResultIdentities = createServerFn({ method: "POST" })
     const { data: result, error } = await (supabaseAdmin as any).rpc("lfg_record_result_identities", { p_lobby_id: data.lobbyId, p_pairs: data.pairs });
     if (error) throw new Error(error.message);
     return result as { ok: boolean; mapped?: number };
+  });
+
+const loose = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/** Candidate uploaded matches for an unreported lobby: games uploaded on the lobby's day (UTC, plus the next day) sharing at least one player name. */
+export const findLobbyCandidates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ lobbyId: z.number().int().positive() }))
+  .handler(async ({ data, context }) => {
+    await requireLfgAdmin(context as never);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: lobby, error: lobbyError } = await supabaseAdmin.from("active_async_matches").select(SELECT_COLS).eq("id", data.lobbyId).single();
+    if (lobbyError || !lobby) throw new Error("Lobby not found");
+    const created = new Date(lobby.created_at);
+    const start = new Date(Date.UTC(created.getUTCFullYear(), created.getUTCMonth(), created.getUTCDate()));
+    const end = new Date(start.getTime() + 2 * 86_400_000);
+    const { data: games, error: gamesError } = await supabaseAdmin
+      .from("games")
+      .select("id,public_match_id,created_at,is_league,play_mode,game_version")
+      .gte("created_at", start.toISOString())
+      .lt("created_at", end.toISOString())
+      .order("created_at", { ascending: true });
+    if (gamesError) throw new Error("Could not load candidate matches");
+    const ids = (games ?? []).map((g) => g.id);
+    type Candidate = { id: string; code: string | null; createdAt: string; isLeague: boolean | null; playMode: string | null; players: string[]; matched: string[] };
+    if (!ids.length) return { candidates: [] as Candidate[] };
+    const [{ data: results }, { data: links }] = await Promise.all([
+      supabaseAdmin.from("game_results").select("game_id,player_name").in("game_id", ids),
+      supabaseAdmin.from("active_async_matches").select("linked_game_id").in("linked_game_id", ids),
+    ]);
+    const linkedElsewhere = new Set((links ?? []).map((l) => l.linked_game_id).filter(Boolean));
+    const seatKeys = new Set(
+      [...(lobby.expected_player_keys ?? []), ...(lobby.guest_players ?? []), ...(lobby.web_player_names ?? [])]
+        .map((n) => loose(n ?? ""))
+        .filter(Boolean),
+    );
+    const byGame = new Map<string, string[]>();
+    for (const r of results ?? []) byGame.set(r.game_id, [...(byGame.get(r.game_id) ?? []), r.player_name]);
+    const candidates = (games ?? [])
+      .filter((g) => !linkedElsewhere.has(g.id))
+      .map((g) => {
+        const players = byGame.get(g.id) ?? [];
+        const matched = players.filter((p) => seatKeys.has(loose(p)));
+        return { id: g.id, code: g.public_match_id, createdAt: g.created_at, isLeague: g.is_league, playMode: g.play_mode, players, matched };
+      })
+      .filter((c) => c.matched.length > 0)
+      .sort((a, b) => b.matched.length - a.matched.length)
+      .slice(0, 10);
+    return { candidates };
+  });
+
+/** Replaces a seated player name on a lobby and optionally moves its start SP awards to the new player. */
+export const substituteLobbyPlayer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ lobbyId: z.number().int().positive(), oldKey: z.string().min(1).max(60), newKey: z.string().min(1).max(60), transferSp: z.boolean() }))
+  .handler(async ({ data, context }) => {
+    await requireLfgAdmin(context as never);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await (supabaseAdmin as any).rpc("lfg_admin_substitute_player", {
+      p_lobby_id: data.lobbyId,
+      p_old_key: data.oldKey,
+      p_new_key: data.newKey,
+      p_transfer_sp: data.transferSp,
+      p_actor: context.userId,
+    });
+    if (error) throw new Error(error.message);
+    return result as { ok: boolean; sp_awards_moved?: number };
   });
