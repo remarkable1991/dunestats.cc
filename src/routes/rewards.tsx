@@ -134,7 +134,7 @@ function RewardsPage() {
   }, [seasonId]);
 
   const startedSeasons = useMemo(
-    () => seasons.filter((s) => new Date(s.starts_at).getTime() <= Date.now()),
+    () => seasons.filter((s) => new Date(s.starts_at).getTime() <= Date.now()).sort((a, b) => b.id - a.id),
     [seasons],
   );
   const viewedSeason = seasons.find((s) => s.id === seasonId) ?? currentSeason;

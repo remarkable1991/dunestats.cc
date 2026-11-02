@@ -232,7 +232,7 @@ function UploadPage() {
         confirmLeagueLobby({ id: lobbyParam, row: forcedLobby.current, matched: [] });
       } else if (!tNum) {
         const lc = await detectLeagueLobby(names).catch(() => null);
-        if (lc) setLeagueLobby({ ...lc, confirmed: false });
+        if (lc) confirmLeagueLobby(lc);
       }
 
 

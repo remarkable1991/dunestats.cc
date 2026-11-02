@@ -37,6 +37,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MatchmakingQueuePanel } from "@/components/MatchmakingQueuePanel";
+import { LeagueSeasonBanner } from "@/components/LeagueSeasonBanner";
 import { Switch } from "@/components/ui/switch";
 import {
   Users,
@@ -361,6 +362,7 @@ function LfgPage() {
           </div>
         </div>
 
+        <LeagueSeasonBanner />
         {<MatchmakingQueuePanel userId={userId} myIgn={myIgn} />}
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
