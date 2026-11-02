@@ -141,8 +141,18 @@ export const findLobbyCandidates = createServerFn({ method: "POST" })
       supabaseAdmin.from("active_async_matches").select("linked_game_id").in("linked_game_id", ids),
     ]);
     const linkedElsewhere = new Set((links ?? []).map((l) => l.linked_game_id).filter(Boolean));
+    const discordIds = [...new Set([...(lobby.player_ids ?? []), lobby.host_id].filter(Boolean))];
+    const { data: maps } = discordIds.length
+      ? await supabaseAdmin.from("player_discord_map").select("player_key,display_name,discord_username").in("discord_user_id", discordIds)
+      : { data: [] };
     const seatKeys = new Set(
-      [...(lobby.expected_player_keys ?? []), ...(lobby.guest_players ?? []), ...(lobby.web_player_names ?? [])]
+      [
+        ...(lobby.expected_player_keys ?? []),
+        ...(lobby.guest_players ?? []),
+        ...(lobby.web_player_names ?? []),
+        ...(lobby.discord_usernames ?? []),
+        ...(maps ?? []).flatMap((m) => [m.player_key, m.display_name, m.discord_username]),
+      ]
         .map((n) => loose(n ?? ""))
         .filter(Boolean),
     );
