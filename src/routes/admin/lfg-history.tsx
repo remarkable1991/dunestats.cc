@@ -45,7 +45,7 @@ function AdminHistory() {
   const [kind, setKind] = useState<"lobbies" | "games">("lobbies");
   const [status, setStatus] = useState("all");
   const [mode, setMode] = useState<"all" | "live" | "async">("all");
-  const [league, setLeague] = useState<"all" | "league" | "normal">("all");
+  const [league, setLeague] = useState<"all" | "league" | "normal" | "unreported">("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [history, setHistory] = useState<History | null>(null);
@@ -56,6 +56,8 @@ function AdminHistory() {
   const [mapping, setMapping] = useState<{ id: string; handle: string; name: string } | null>(null);
   const [ign, setIgn] = useState("");
   const [link, setLink] = useState<{ id: number; code: string } | null>(null);
+  const [candidates, setCandidates] = useState<Record<number, { loading: boolean; list: Awaited<ReturnType<typeof findLobbyCandidates>>["candidates"] }>>({});
+  const [sub, setSub] = useState<{ lobbyId: number; oldName: string; newName: string; transferSp: boolean } | null>(null);
   const [target, setTarget] = useState<RevertTarget | null>(null);
   const load = useCallback(async () => {
     if (!roles.isLfgAdmin) return;
