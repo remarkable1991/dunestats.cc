@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Navbar } from "@/components/Navbar";
+import { LeagueSeasonBanner } from "@/components/LeagueSeasonBanner";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -426,14 +427,17 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
 
   return (
     <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
-      {seasons.length > 1 && (
-        <div className="p-3 border-b border-border/60 flex gap-2 items-center text-sm">
-          Season
-          <select value={season ?? ""} onChange={(e) => setSeason(Number(e.target.value))} className="bg-input border border-border rounded px-2 py-1">
-            {seasons.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-      )}
+      <div className="p-3 border-b border-border/60 space-y-2">
+        <LeagueSeasonBanner seasonId={season} />
+        {seasons.length > 1 && (
+          <div className="flex gap-2 items-center text-sm">
+            Season
+            <select value={season ?? ""} onChange={(e) => setSeason(Number(e.target.value))} className="bg-input border border-border rounded px-2 py-1">
+              {seasons.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+        )}
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>

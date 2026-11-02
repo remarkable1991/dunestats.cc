@@ -52,11 +52,12 @@ export function SpLearnMore({ className = "" }: { className?: string }) {
             </ul>
           </section>
           <section>
-            <h4 className="font-display text-sand mb-1">Legacy data</h4>
-            <p className="text-muted-foreground">
-              Matches and tournaments dated before <span className="text-foreground">July 1, 2026</span> are backfilled at
-              10% value and count only toward Lifetime SP — Season 1 starts fresh.
-            </p>
+            <h4 className="font-display text-sand mb-1">Seasons</h4>
+            <ul className="list-disc list-inside text-muted-foreground space-y-1">
+              <li><span className="text-foreground">Historic</span> — games before July 1, 2026 (pre-DuneStats), backfilled at 10% SP value.</li>
+              <li><span className="text-foreground">Season 0</span> — July 1 to November 1, 2026 (pre-League).</li>
+              <li><span className="text-foreground">Season 1</span> — November 1, 2026 to January 24, 2027, the first League season.</li>
+            </ul>
           </section>
         </div>
       </DialogContent>
