@@ -415,11 +415,11 @@ function SeatCard({ seat, color, elo, isAdmin, onMapped, onRemove, lobbyId, cand
   const [transferSp, setTransferSp] = useState(true);
   const substitute = useServerFn(substituteLobbyPlayer);
   const doSub = async () => {
-    const oldKey = seat.substitutedFor ? seat.substitutedFor : seat.playerKey ?? seat.name;
+    const oldKey = seat.playerKey ?? seat.name;
     if (!subName.trim() || !confirm(`Replace ${seat.name} with ${subName.trim()} in this lobby?${transferSp ? " Start SP moves to the new player." : ""}`)) return;
     setBusy(true);
     try {
-      const res = await substitute({ data: { lobbyId, oldKey: seat.substitutedFor ? seat.playerKey ?? oldKey : oldKey, newKey: subName.trim(), transferSp } });
+      const res = await substitute({ data: { lobbyId, oldKey, newKey: subName.trim(), transferSp } });
       toast.success(`${seat.name} replaced by ${subName.trim()} · ${res?.sp_awards_moved ?? 0} SP awards moved`);
       setSubOpen(false);
       onMapped();
