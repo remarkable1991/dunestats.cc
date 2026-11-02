@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { applyLeagueElo } from "@/lib/league-lobby-detect";
 import { LobbyResultUpload } from "@/components/LobbyResultUpload";
-import { unlinkLobbyResult, promoteLobbyToLeague } from "@/lib/lfg-history.functions";
+import { unlinkLobbyResult, promoteLobbyToLeague, substituteLobbyPlayer } from "@/lib/lfg-history.functions";
+import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { loadLobbyIdentities } from "@/lib/lfg-identity-loader";
@@ -72,6 +73,7 @@ function LobbyPage() {
   const [linkCode, setLinkCode] = useState("");
   const [linkBusy, setLinkBusy] = useState(false);
   const [linkedCode, setLinkedCode] = useState<string | null>(null);
+  const [gamePlayers, setGamePlayers] = useState<string[]>([]);
   const [addName, setAddName] = useState("");
   const [addBusy, setAddBusy] = useState(false);
   const [events, setEvents] = useState<LobbyEvent[]>([]);
@@ -100,6 +102,8 @@ function LobbyPage() {
       if (r.linked_game_id) {
         const { data: g } = await supabase.from("games").select("public_match_id").eq("id", r.linked_game_id).maybeSingle();
         setLinkedCode(g?.public_match_id ?? r.linked_game_id);
+        const { data: gr } = await supabase.from("game_results").select("player_name").eq("game_id", r.linked_game_id).order("placement");
+        setGamePlayers((gr ?? []).map((x) => x.player_name));
       } else setLinkedCode(null);
     }
   }, [id]);
@@ -325,6 +329,8 @@ function LobbyPage() {
                   elo={row.is_league ? (seat.playerKey ? ratings[seat.playerKey] ?? 1000 : null) : null}
                   isAdmin={isAdmin}
                   onMapped={load}
+                  lobbyId={row.id}
+                  candidates={gamePlayers.filter((n) => !seats.some((x) => x.playerKey && leagueKey(n) === x.playerKey))}
                   onRemove={canManage && openLobby && !seat.host ? () => removeSeat(seat) : undefined}
                 />
               ) : (
@@ -402,8 +408,24 @@ function LobbyPage() {
   );
 }
 
-function SeatCard({ seat, color, elo, isAdmin, onMapped, onRemove }: { seat: Seat; color?: string; elo: number | null; isAdmin: boolean; onMapped: () => void; onRemove?: () => void }) {
+function SeatCard({ seat, color, elo, isAdmin, onMapped, onRemove, lobbyId, candidates }: { seat: Seat; color?: string; elo: number | null; isAdmin: boolean; onMapped: () => void; onRemove?: () => void; lobbyId: number; candidates: string[] }) {
   const [open, setOpen] = useState(false);
+  const [subOpen, setSubOpen] = useState(false);
+  const [subName, setSubName] = useState("");
+  const [transferSp, setTransferSp] = useState(true);
+  const substitute = useServerFn(substituteLobbyPlayer);
+  const doSub = async () => {
+    const oldKey = seat.playerKey ?? seat.name;
+    if (!subName.trim() || !confirm(`Replace ${seat.name} with ${subName.trim()} in this lobby?${transferSp ? " Start SP moves to the new player." : ""}`)) return;
+    setBusy(true);
+    try {
+      const res = await substitute({ data: { lobbyId, oldKey, newKey: subName.trim(), transferSp } });
+      toast.success(`${seat.name} replaced by ${subName.trim()} · ${res?.sp_awards_moved ?? 0} SP awards moved`);
+      setSubOpen(false);
+      onMapped();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Could not substitute"); }
+    finally { setBusy(false); }
+  };
   const [ign, setIgn] = useState("");
   const [handle, setHandle] = useState("");
   const [busy, setBusy] = useState(false);
@@ -450,7 +472,28 @@ function SeatCard({ seat, color, elo, isAdmin, onMapped, onRemove }: { seat: Sea
         {seat.discord && <span className="rounded border border-border/60 px-1.5">Discord{seat.discordHandle ? ` @${seat.discordHandle}` : ""}</span>}
         {seat.web && <span className="rounded border border-border/60 px-1.5">Website</span>}
         {seat.guest && <span className="rounded border border-border/60 px-1.5">Guest (not linked)</span>}
+        {seat.substitutedFor && <span className="rounded border border-primary/50 px-1.5 text-primary">Played instead of {seat.substitutedFor}</span>}
       </div>
+      {isAdmin && (seat.playerKey || seat.name !== UNKNOWN_NAME) && (subOpen ? (
+        <div className="space-y-2 rounded border border-border/60 p-2">
+          <div className="text-xs text-muted-foreground">Who actually played in this seat?</div>
+          {candidates.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {candidates.map((c) => (
+                <Button key={c} size="sm" variant={subName === c ? "default" : "outline"} className="h-7 px-2 text-xs" onClick={() => setSubName(c)}>{c}</Button>
+              ))}
+            </div>
+          )}
+          <Input value={subName} onChange={(e) => setSubName(e.target.value)} placeholder="In-game name" className="h-8" />
+          <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={transferSp} onChange={(e) => setTransferSp(e.target.checked)} />Move this lobby's start SP to them</label>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => void doSub()} disabled={busy || !subName.trim()}>{busy ? <Loader2 className="size-3.5 animate-spin" /> : "Substitute"}</Button>
+            <Button size="sm" variant="ghost" onClick={() => setSubOpen(false)}>Cancel</Button>
+          </div>
+        </div>
+      ) : (
+        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setSubName(candidates[0] ?? ""); setSubOpen(true); }}>Substitute player</Button>
+      ))}
       {isAdmin && seat.discordId && (
         open ? (
           <div className="flex gap-2">
