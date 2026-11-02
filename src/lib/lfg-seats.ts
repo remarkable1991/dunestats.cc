@@ -44,6 +44,8 @@ export type Seat = {
   discordHandle: string | null;
   webUserId: string | null;
   identityVerified?: boolean;
+  /** Discord-linked IGN this seat was substituted from by an admin */
+  substitutedFor?: string | null;
 };
 
 export const UNKNOWN_NAME = "Unknown player name";
@@ -100,6 +102,13 @@ export function seatsOf(
     const mapped = discordNames[id] && discordNames[id] !== UNKNOWN_NAME ? discordNames[id] : null;
     const expected = keysAligned ? r.expected_player_keys?.[i]?.trim() || null : null;
     const handle = discordHandles[id]?.trim() || (handlesAligned ? r.discord_usernames?.[i]?.trim() || null : null);
+    // Admin substitution: expected key differs from the Discord-mapped IGN → the expected player actually sat here
+    const mappedKey = discordKeys[id] || (mapped ? leagueKey(mapped) : null);
+    const substituted = !!(expected && mappedKey && looseKey(expected) !== looseKey(mappedKey) && (!mapped || looseKey(expected) !== looseKey(mapped)));
+    if (substituted) {
+      add({ name: expected!, playerKey: leagueKey(expected!), web: false, discord: true, guest: false, host: id === r.host_id, discordId: id, discordHandle: handle, webUserId: null, identityVerified: true, substitutedFor: mapped ?? mappedKey }, true);
+      return;
+    }
 
     add(
       {
