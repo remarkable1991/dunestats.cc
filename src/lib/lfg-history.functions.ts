@@ -6,7 +6,7 @@ import { SELECT_COLS } from "@/lib/lfg-seats";
 
 export const adminLobbyHistory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ page: z.number().int().min(0), kind: z.enum(["lobbies", "games"]), status: z.string().max(40), mode: z.enum(["all", "live", "async"]), league: z.enum(["all", "league", "normal"]), search: z.string().max(80) }))
+  .inputValidator(z.object({ page: z.number().int().min(0), kind: z.enum(["lobbies", "games"]), status: z.string().max(40), mode: z.enum(["all", "live", "async"]), league: z.enum(["all", "league", "normal", "unreported"]), search: z.string().max(80) }))
   .handler(async ({ data, context }) => {
     const { data: roles, error } = await context.supabase.from("user_roles").select("role").eq("user_id", context.userId);
     if (error || !roles?.some((r) => ["admin", "lfg_admin"].includes(r.role))) throw new Error("LFG admins only");
@@ -31,7 +31,8 @@ export const adminLobbyHistory = createServerFn({ method: "POST" })
     let q = supabaseAdmin.from("active_async_matches").select(SELECT_COLS, { count: "exact" });
     if (data.status !== "all") q = q.eq("status", data.status);
     if (data.mode !== "all") q = q.eq("mode", data.mode);
-    if (data.league !== "all") q = q.eq("is_league", data.league === "league");
+    if (data.league === "unreported") q = q.eq("is_league", true).eq("status", "started").is("linked_game_id", null);
+    else if (data.league !== "all") q = q.eq("is_league", data.league === "league");
     if (term) q = /^\d+$/.test(term) ? q.eq("id", Number(term)) : q.ilike("match_id", `%${term}%`);
     const { data: rows, error: e, count } = await q.order("created_at", { ascending: false }).range(start, start + 19);
     if (e) throw new Error("Could not load lobby history");
