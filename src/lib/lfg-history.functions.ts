@@ -134,7 +134,8 @@ export const findLobbyCandidates = createServerFn({ method: "POST" })
       .order("created_at", { ascending: true });
     if (gamesError) throw new Error("Could not load candidate matches");
     const ids = (games ?? []).map((g) => g.id);
-    if (!ids.length) return { candidates: [] as unknown[] };
+    type Candidate = { id: string; code: string | null; createdAt: string; isLeague: boolean | null; playMode: string | null; players: string[]; matched: string[] };
+    if (!ids.length) return { candidates: [] as Candidate[] };
     const [{ data: results }, { data: links }] = await Promise.all([
       supabaseAdmin.from("game_results").select("game_id,player_name").in("game_id", ids),
       supabaseAdmin.from("active_async_matches").select("linked_game_id").in("linked_game_id", ids),
