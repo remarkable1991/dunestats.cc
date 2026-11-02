@@ -42,6 +42,8 @@ function AdminHistory() {
   const fetchHistory = useServerFn(adminLobbyHistory);
   const linkLobby = useServerFn(linkAdminLobby);
   const revert = useServerFn(revertAdminMatch);
+  const findCandidates = useServerFn(findLobbyCandidates);
+  const substitute = useServerFn(substituteLobbyPlayer);
   const [kind, setKind] = useState<"lobbies" | "games">("lobbies");
   const [status, setStatus] = useState("all");
   const [mode, setMode] = useState<"all" | "live" | "async">("all");
@@ -75,9 +77,19 @@ function AdminHistory() {
   useEffect(() => { const timer = setTimeout(() => void load(), 250); return () => clearTimeout(timer); }, [load]);
   const perform = async (action: () => Promise<unknown>) => {
     setBusy(true);
-    try { await action(); toast.success("Saved"); setMapping(null); setLink(null); setTarget(null); await load(); }
+    try { await action(); toast.success("Saved"); setMapping(null); setLink(null); setTarget(null); setSub(null); await load(); }
     catch (e) { toast.error(e instanceof Error ? e.message : "Could not save"); }
     finally { setBusy(false); }
+  };
+  const scanCandidates = async (lobbyId: number) => {
+    setCandidates((c) => ({ ...c, [lobbyId]: { loading: true, list: [] } }));
+    try {
+      const { candidates: list } = await findCandidates({ data: { lobbyId } });
+      setCandidates((c) => ({ ...c, [lobbyId]: { loading: false, list } }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not scan for candidate matches");
+      setCandidates((c) => ({ ...c, [lobbyId]: { loading: false, list: [] } }));
+    }
   };
   return <div className="min-h-screen"><Navbar /><main className="container mx-auto px-4 py-8 space-y-6">
     <Link to="/lfg" className="inline-flex gap-2 items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" />LFG</Link>
