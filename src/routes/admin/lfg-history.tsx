@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { adminLobbyHistory, linkAdminLobby, revertAdminMatch } from "@/lib/lfg-history.functions";
+import { adminLobbyHistory, linkAdminLobby, revertAdminMatch, findLobbyCandidates, substituteLobbyPlayer } from "@/lib/lfg-history.functions";
 import { isStartAwardForLobby } from "@/lib/lfg-history";
 import { loadLobbyIdentities } from "@/lib/lfg-identity-loader";
 import { seatsOf, type LfgRow } from "@/lib/lfg-seats";
@@ -17,7 +17,7 @@ import { LobbyFormatIcons } from "@/components/LobbyFormatIcons";
 import { LfgResultReviews } from "@/components/LfgResultReviews";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, ChevronLeft, ChevronRight, Link2, Loader2, Trash2, RefreshCw } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Link2, Loader2, Trash2, RefreshCw, Search, UserRoundPen } from "lucide-react";
 
 export const Route = createFileRoute("/admin/lfg-history")({
   head: () => ({ meta: [
