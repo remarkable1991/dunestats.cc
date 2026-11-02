@@ -2187,6 +2187,16 @@ export type Database = {
         }
         Returns: Json
       }
+      lfg_admin_substitute_player: {
+        Args: {
+          p_actor: string
+          p_lobby_id: number
+          p_new_key: string
+          p_old_key: string
+          p_transfer_sp: boolean
+        }
+        Returns: Json
+      }
       lfg_alert_browser_action: {
         Args: { p_action: string; p_id: string }
         Returns: boolean
