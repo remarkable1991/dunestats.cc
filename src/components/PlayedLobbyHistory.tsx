@@ -19,18 +19,27 @@ export function PlayedLobbyHistory({ pilot }: { pilot: boolean }) {
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deltas, setDeltas] = useState<Record<string, { player_key: string; elo_delta: number }[]>>({});
   const load = useCallback(async () => {
     setLoading(true); setError("");
     try {
       let q = supabase.from("active_async_matches").select(SELECT_COLS, { count: "exact" }).in("status", [...STARTED_LOBBY_STATUSES]);
       if (mode === "league") q = q.eq("is_league", true);
+      else if (mode === "unreported") q = q.eq("is_league", true).eq("status", "started").is("linked_game_id", null);
       else if (mode !== "all") q = q.eq("mode", mode);
       const { data, error: e, count: total } = await q.order("created_at", { ascending: false }).range(page * 12, page * 12 + 11);
       if (e) throw e;
       const list = (data ?? []).filter((r) => canShowPlayedLobby(r.status, r.is_league, true));
       const ids = [...new Set(list.flatMap((r) => [...(r.player_ids ?? []), r.host_id]).filter(Boolean))];
       const resolved = ids.length ? await loadLobbyIdentities(ids) : { names: {}, keys: {}, handles: {}, verified: {} };
-      setRows(list); setCount(total ?? 0); setIdentities(resolved);
+      const gameIds = list.filter((r) => r.is_league && r.linked_game_id).map((r) => r.linked_game_id as string);
+      const dm: Record<string, { player_key: string; elo_delta: number }[]> = {};
+      if (gameIds.length) {
+        const { data: ds } = await supabase.from("league_match_rating_deltas" as never).select("game_id,player_key,elo_delta").in("game_id", gameIds);
+        for (const d of (ds as unknown as { game_id: string; player_key: string; elo_delta: number }[]) ?? []) (dm[d.game_id] ??= []).push({ player_key: d.player_key, elo_delta: Number(d.elo_delta) });
+        for (const k in dm) dm[k].sort((a, b) => b.elo_delta - a.elo_delta);
+      }
+      setRows(list); setCount(total ?? 0); setIdentities(resolved); setDeltas(dm);
     } catch { setError("Could not load played lobbies."); } finally { setLoading(false); }
   }, [page, mode, pilot]);
   useEffect(() => { void load(); }, [load]);
