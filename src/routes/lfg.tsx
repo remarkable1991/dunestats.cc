@@ -413,6 +413,30 @@ function LfgPage() {
         )}
         <PlayedLobbyHistory pilot={isLfgAdmin} />
       </main>
+      <Dialog open={casualNoticeOpen} onOpenChange={setCasualNoticeOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>This creates a casual game</DialogTitle>
+            <DialogDescription>
+              Lobbies made here don't count for the League — no League Elo is gained or lost, and the result
+              doesn't need an end-board screenshot. Want a ranked game instead? Host from the League queue above.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCasualNoticeOpen(false)}>
+              Back
+            </Button>
+            <Button
+              onClick={() => {
+                setCasualNoticeOpen(false);
+                setCreateOpen(true);
+              }}
+            >
+              Continue with casual game
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <CreateLfgDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
