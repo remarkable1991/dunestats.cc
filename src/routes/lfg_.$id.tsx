@@ -83,6 +83,8 @@ function LobbyPage() {
   const [addName, setAddName] = useState("");
   const [addBusy, setAddBusy] = useState(false);
   const [events, setEvents] = useState<LobbyEvent[]>([]);
+  const [uuidNames, setUuidNames] = useState<Record<string, string>>({});
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const load = useCallback(async () => {
     const lobbyId = Number(id);
