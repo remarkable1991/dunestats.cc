@@ -115,12 +115,13 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
       });
       if (result.status === "duplicate") { setDup(true); toast.warning("This looks like an already uploaded game. Press submit again to confirm."); return; }
       await linkMatchToLobby(row.id, result.publicMatchId);
-      // Remember who is who: confirmed or only-remaining seats get a Discord ↔ IGN mapping (existing mappings are never overwritten).
+      // Automatically sync seat names, Discord ↔ IGN links and aliases for confident matches; changes are logged for admins.
       const pairs = report.rows.flatMap((m) => {
         const s = m.seatIndex != null ? seats[m.seatIndex] : null;
-        return s?.discordId && m.status !== "orange" ? [{ discord_user_id: s.discordId, player_name: rows[m.rowIndex]?.player_name.trim() ?? m.screenshotName }] : [];
+        return s && m.status !== "orange" ? [{ discord_user_id: s.discordId ?? null, seat_name: s.name, player_name: rows[m.rowIndex]?.player_name.trim() ?? m.screenshotName }] : [];
       });
-      if (pairs.length) await recordResultIdentities({ data: { lobbyId: row.id, pairs } }).catch((e) => console.error("Identity mapping failed", e));
+      let changes: { kind: string; from?: string; to: string }[] = [];
+      if (pairs.length) changes = (await recordResultIdentities({ data: { lobbyId: row.id, pairs } }).catch((e) => { console.error("Identity mapping failed", e); return null; }))?.changes ?? [];
       if (dupLeaders.length) {
         const { data: dg } = await supabase.from("games").select("id").eq("public_match_id", result.publicMatchId).maybeSingle();
         if (dg?.id) await reportMatchForReview(dg.id, `Duplicate leaders on upload: ${dupLeaders.join(", ")}`).catch((e) => console.error(e));
@@ -129,10 +130,10 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
         const { data: g } = await supabase.from("games").select("id").eq("public_match_id", result.publicMatchId).maybeSingle();
         const { error } = await supabase.from("lfg_result_reviews" as never).insert({
           lobby_id: row.id, game_id: g?.id ?? null, public_match_id: result.publicMatchId, status: report.status, submitted_by: userId,
-          players: { rows: report.rows, missing: report.missing },
+          players: { rows: report.rows, missing: report.missing, changes },
         } as never);
         if (error) console.error("Review flag failed", error);
-        toast.success("Result saved. An admin will double-check the player names in the next few days.");
+        toast.success(changes.length ? "Result saved. Player names were updated automatically." : "Result saved. An admin will double-check the player names.");
       } else toast.success("Result saved and linked to this lobby.");
       reset();
       onDone();
