@@ -1,3 +1,4 @@
+import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";

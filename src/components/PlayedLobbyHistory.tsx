@@ -1,3 +1,4 @@
+import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +17,7 @@ const PENDING_WINDOW_MS = 4 * 60 * 60 * 1000;
 
 export function PlayedLobbyHistory({ pilot }: { pilot: boolean }) {
   const [page, setPage] = useState(0);
+  const titles = usePlayerTitles();
   const [mode, setMode] = useState("all");
   const [rows, setRows] = useState<LfgRow[]>([]);
   const [identities, setIdentities] = useState<Awaited<ReturnType<typeof loadLobbyIdentities>>>({ names: {}, keys: {}, handles: {}, verified: {} });
