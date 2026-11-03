@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { MissingVeteran, SeatMatch } from "@/lib/lobby-result-match";
 
-type Review = { id: string; lobby_id: number; public_match_id: string | null; status: "green" | "yellow" | "orange"; players: { rows?: SeatMatch[]; missing?: MissingVeteran[] }; created_at: string };
+type Review = { id: string; lobby_id: number; public_match_id: string | null; status: "green" | "yellow" | "orange"; players: { rows?: SeatMatch[]; missing?: MissingVeteran[]; changes?: { kind: string; from?: string; to: string }[] }; created_at: string };
 
 /** Admin queue of lobby-page result uploads with uncertain player matches. */
 export function LfgResultReviews() {
@@ -26,8 +26,8 @@ export function LfgResultReviews() {
   if (!items.length) return null;
   return (
     <section className="border border-primary/40 rounded-md p-4 space-y-3">
-      <h2 className="font-display text-xl">League results to check ({items.length})</h2>
-      <p className="text-xs text-muted-foreground">Submitted from lobby pages with players that weren't fully confirmed. Fix names with Link IGN, the player admin page, or Delete &amp; revert below.</p>
+      <h2 className="font-display text-xl">Upload log · automatic name updates ({items.length})</h2>
+      <p className="text-xs text-muted-foreground">Changes already applied automatically when results were uploaded. Orange rows were not changed and may need a manual fix.</p>
       {items.map((r) => (
         <article key={r.id} className="border border-border rounded-md p-3 space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -37,9 +37,10 @@ export function LfgResultReviews() {
               {r.public_match_id && <Link to="/match/$matchId" params={{ matchId: r.public_match_id }} className="text-primary hover:underline">#{r.public_match_id}</Link>}
               <span className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString()}</span>
             </div>
-            <Button size="sm" variant="outline" onClick={() => void resolve(r.id)}>Mark checked</Button>
+            <Button size="sm" variant="outline" onClick={() => void resolve(r.id)}>Acknowledge</Button>
           </div>
           <ul className="text-sm space-y-1">
+            {(r.players.changes ?? []).filter((c) => c.kind !== "alias_added").map((c, i) => <li key={`c${i}`} className="text-teal">✓ {c.kind === "seat_renamed" ? "Seat renamed" : c.kind === "discord_relinked" ? "Discord link moved" : "Discord linked"}: {c.from ? `${c.from} → ` : ""}{c.to}</li>)}
             {(r.players.rows ?? []).filter((p) => p.status !== "green").map((p) => <li key={p.rowIndex}>{p.screenshotName} → {p.seatName ?? "no seat"} <span className="text-muted-foreground">· {p.reason}</span></li>)}
             {(r.players.missing ?? []).map((m) => <li key={m.seatIndex} className="text-destructive">{m.seatName} ({m.games} games) missing from screenshot</li>)}
           </ul>
