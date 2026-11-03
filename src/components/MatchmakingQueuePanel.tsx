@@ -85,6 +85,7 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
   const [rows, setRows] = useState<QueueRow[]>([]);
   const [lobbies, setLobbies] = useState<LfgRow[]>([]);
   const [lobbyError, setLobbyError] = useState("");
+  const titles = usePlayerTitles();
   const [preset, setPreset] = useState<Preset | null>(null);
   const [nextPreset, setNextPreset] = useState<Preset | null>(null);
   const navigate = useNavigate();
