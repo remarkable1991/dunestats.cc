@@ -104,12 +104,12 @@ export const promoteLobbyToLeague = createServerFn({ method: "POST" })
 /** Saves confirmed seat Discord ID ↔ IGN pairs after a lobby result is linked; never overwrites existing mappings. */
 export const recordResultIdentities = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ lobbyId: z.number().int().positive(), pairs: z.array(z.object({ discord_user_id: z.string().max(40), player_name: z.string().max(60) })).max(6) }))
+  .inputValidator(z.object({ lobbyId: z.number().int().positive(), pairs: z.array(z.object({ discord_user_id: z.string().max(40).nullable().optional(), seat_name: z.string().max(60).nullable().optional(), player_name: z.string().max(60) })).max(6) }))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: result, error } = await (supabaseAdmin as any).rpc("lfg_record_result_identities", { p_lobby_id: data.lobbyId, p_pairs: data.pairs });
     if (error) throw new Error(error.message);
-    return result as { ok: boolean; mapped?: number };
+    return result as { ok: boolean; mapped?: number; changes?: { kind: string; from?: string; to: string }[] };
   });
 
 const loose = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, "");

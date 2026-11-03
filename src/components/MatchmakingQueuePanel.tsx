@@ -1,3 +1,4 @@
+import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -84,6 +85,7 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
   const [rows, setRows] = useState<QueueRow[]>([]);
   const [lobbies, setLobbies] = useState<LfgRow[]>([]);
   const [lobbyError, setLobbyError] = useState("");
+  const titles = usePlayerTitles();
   const [preset, setPreset] = useState<Preset | null>(null);
   const [nextPreset, setNextPreset] = useState<Preset | null>(null);
   const navigate = useNavigate();
@@ -247,7 +249,7 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
                 <LobbyFormatIcons row={game} />
                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
                   {seats.map((seat, i) => seat.playerKey
-                    ? <Link key={i} to="/players/$key" params={{ key: seat.playerKey }} className="hover:underline">{seat.name}</Link>
+                    ? <Link key={i} to="/players/$key" params={{ key: seat.playerKey }} className="hover:underline" style={{ color: colorForKey(titles, seat.playerKey) }}>{seat.name}</Link>
                     : <span key={i}>{seat.name}</span>)}
                 </div>
               </div>}
@@ -259,7 +261,7 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
                   return (
                   <li key={r.id} className="flex justify-between gap-2">
                     <span className={isMine(r) ? "text-primary font-medium" : ""}>
-                      {key ? <Link to="/players/$key" params={{ key }} className="hover:underline">{name}</Link> : name}
+                      {key ? <Link to="/players/$key" params={{ key }} className="hover:underline" style={{ color: colorForKey(titles, key) }}>{name}</Link> : name}
                       {key && <Badge variant="outline" className="ml-2" title={ratingState === "ready" ? `Season ${season} League Elo${ratings[key] === undefined ? " · Starting rating" : ""}` : "League Elo unavailable"}>{ratingState === "loading" ? "…" : ratingState === "error" ? "Elo unavailable" : `${Math.round(ratings[key] ?? 1000).toLocaleString()} Elo`}</Badge>}
                       {r.discord_user_id && <span className="ml-1 text-xs text-muted-foreground">· Discord</span>}
                     </span>

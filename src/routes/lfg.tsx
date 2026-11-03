@@ -584,7 +584,7 @@ function LfgCard({
           <img src={live ? liveIcon.url : asyncIcon.url} alt={live ? "Live" : "Async"} className="size-6 shrink-0" />
           <div className="min-w-0">
             <Link to="/lfg/$id" params={{ id: String(row.id) }} className="block font-display break-words text-primary hover:underline">
-              {hostName ? `${hostName}'s Game [ID: ${displayId}]` : `New Match Open! [ID: ${displayId}]`}
+              {hostName ? <><span style={{ color: colorForKey(titles, seats.find((s) => s.host)?.playerKey) }}>{hostName}</span>{`'s Game [ID: ${displayId}]`}</> : `New Match Open! [ID: ${displayId}]`}
             </Link>
             <div className="text-xs uppercase tracking-wide" style={{ color: accent }}>
               {live ? "Live" : "ASync"} · {row.board_type?.replace(/<[^>]*>/g, "").trim() || "Not specified"}
