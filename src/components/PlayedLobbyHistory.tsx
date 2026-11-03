@@ -24,8 +24,10 @@ export function PlayedLobbyHistory({ pilot }: { pilot: boolean }) {
     setLoading(true); setError("");
     try {
       let q = supabase.from("active_async_matches").select(SELECT_COLS, { count: "exact" }).in("status", [...STARTED_LOBBY_STATUSES]);
+      const pendingSince = new Date(Date.now() - PENDING_WINDOW_MS).toISOString();
       if (mode === "league") q = q.eq("is_league", true);
-      else if (mode === "unreported") q = q.eq("is_league", true).eq("status", "started").is("linked_game_id", null);
+      else if (mode === "pending") q = q.eq("is_league", true).eq("status", "started").is("linked_game_id", null).gte("created_at", pendingSince);
+      else if (mode === "unreported") q = q.eq("is_league", true).eq("status", "started").is("linked_game_id", null).lt("created_at", pendingSince);
       else if (mode !== "all") q = q.eq("mode", mode);
       const { data, error: e, count: total } = await q.order("created_at", { ascending: false }).range(page * 12, page * 12 + 11);
       if (e) throw e;
