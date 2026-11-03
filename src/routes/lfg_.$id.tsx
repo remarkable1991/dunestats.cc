@@ -418,7 +418,34 @@ function LobbyPage() {
         ) : (
           <div className="space-y-3">
             {!userId && <p className="text-sm text-muted-foreground"><Link to="/auth" className="text-primary underline">Sign in</Link> to submit the result.</p>}
-            {canUpload && <LobbyResultUpload row={row} seats={seats} userId={userId} onDone={() => void load()} />}
+            {canUpload && (
+              <>
+                <Button onClick={() => setUploadOpen(true)} className="gap-2">
+                  <Upload className="size-4" /> Upload end board
+                </Button>
+                <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Upload end board</DialogTitle>
+                      <DialogDescription>
+                        Scan the end-of-game screenshot, confirm the players, and submit the result for this lobby.
+                      </DialogDescription>
+                    </DialogHeader>
+                    {uploadOpen && (
+                      <LobbyResultUpload
+                        row={row}
+                        seats={seats}
+                        userId={userId}
+                        onDone={() => {
+                          setUploadOpen(false);
+                          void load();
+                        }}
+                      />
+                    )}
+                  </DialogContent>
+                </Dialog>
+              </>
+            )}
             <p className="text-xs text-muted-foreground">Already uploaded it? Paste the match ID (for example SPICE-CORIOLIS-8930) to link it:</p>
             <div className="flex gap-2 max-w-md">
               <Input value={linkCode} onChange={(e) => setLinkCode(e.target.value)} placeholder="Match ID" />
