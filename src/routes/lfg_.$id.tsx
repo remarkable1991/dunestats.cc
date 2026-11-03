@@ -111,8 +111,19 @@ function LobbyPage() {
       ),
     ].filter((u) => !names[u.toLowerCase()]);
     if (unresolved.length) {
-      const { data: profs } = await supabase.from("profiles").select("id,username").in("id", unresolved);
-      for (const p of profs ?? []) if (p.username) names[p.id.toLowerCase()] = p.username;
+      const { data: claims } = await supabase
+        .from("player_discord_map")
+        .select("claimed_by,display_name,player_key")
+        .in("claimed_by", unresolved);
+      for (const c of claims ?? []) {
+        const label = c.display_name?.trim() || c.player_key?.trim();
+        if (c.claimed_by && label) names[c.claimed_by.toLowerCase()] = label;
+      }
+      const stillMissing = unresolved.filter((u) => !names[u.toLowerCase()]);
+      if (stillMissing.length) {
+        const { data: profs } = await supabase.from("profiles").select("id,username").in("id", stillMissing);
+        for (const p of profs ?? []) if (p.username) names[p.id.toLowerCase()] = p.username;
+      }
     }
     setUuidNames(names);
     if (r) {
