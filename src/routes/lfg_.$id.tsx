@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, Globe, UserMinus, Link2, Loader2, Upload, Users, Trophy, Clock } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isMember, isHost, type Seat } from "@/lib/lfg-seats";
 import { LobbyPasswordRow } from "@/components/LobbyPasswordRow";
@@ -39,6 +40,11 @@ export const Route = createFileRoute("/lfg_/$id")({
 });
 
 type Chat = { id: string; sender_name: string; message_code: string; created_at: string | null };
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+/** Replace raw web user UUIDs in event text with the player's name when we can resolve it. */
+function resolveEventText(text: string, names: Record<string, string>) {
+  return text.replace(UUID_RE, (id) => names[id.toLowerCase()] ?? id);
+}
 type LobbyEvent = { id: string; actor_name: string | null; kind: string; detail: string; created_at: string };
 const CHAT_LABEL: Record<string, string> = {
   room_up: "🎮 Room is up!",
