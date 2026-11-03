@@ -96,8 +96,25 @@ function LobbyPage() {
     const r = (data as unknown as LfgRow) ?? null;
     setRow(r);
     setChats((chatRows as Chat[]) ?? []);
-    setEvents((eventRows as unknown as LobbyEvent[]) ?? []);
+    const eventList = (eventRows as unknown as LobbyEvent[]) ?? [];
+    setEvents(eventList);
     setLoading(false);
+    // Resolve raw web user UUIDs in event text to names: seated players first, profiles as fallback.
+    const names: Record<string, string> = {};
+    (r?.web_player_ids ?? []).forEach((uid, i) => {
+      const n = r?.web_player_names?.[i]?.trim();
+      if (uid && n) names[uid.toLowerCase()] = n;
+    });
+    const unresolved = [
+      ...new Set(
+        eventList.flatMap((e) => `${e.actor_name ?? ""} ${e.detail ?? ""}`.match(UUID_RE) ?? []),
+      ),
+    ].filter((u) => !names[u.toLowerCase()]);
+    if (unresolved.length) {
+      const { data: profs } = await supabase.from("profiles").select("id,username").in("id", unresolved);
+      for (const p of profs ?? []) if (p.username) names[p.id.toLowerCase()] = p.username;
+    }
+    setUuidNames(names);
     if (r) {
       const ids = [...new Set([...(r.player_ids ?? []), r.host_id].filter(Boolean))];
       if (ids.length) {
@@ -276,7 +293,7 @@ function LobbyPage() {
   const timeline = [
     { at: row.created_at, text: "Lobby created" },
     ...chats.map((c) => ({ at: c.created_at ?? row.created_at, text: `${c.sender_name}: ${CHAT_LABEL[c.message_code] ?? c.message_code}` })),
-    ...events.map((e) => ({ at: e.created_at, text: e.kind === "join" || e.kind === "leave" || !e.actor_name ? e.detail : `${e.detail} (by ${e.actor_name})` })),
+    ...events.map((e) => ({ at: e.created_at, text: resolveEventText(e.kind === "join" || e.kind === "leave" || !e.actor_name ? e.detail : `${e.detail} (by ${e.actor_name})`, uuidNames) })),
     ...(row.auto_start_at ? [{ at: row.auto_start_at, text: "Auto-start time" }] : []),
     ...(row.expires_at ? [{ at: row.expires_at, text: "Lobby expires" }] : []),
   ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
