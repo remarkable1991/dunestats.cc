@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, Globe, UserMinus, Link2, Loader2, Upload, Users, Trophy, Clock } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isMember, isHost, type Seat } from "@/lib/lfg-seats";
 import { LobbyPasswordRow } from "@/components/LobbyPasswordRow";
@@ -39,6 +40,11 @@ export const Route = createFileRoute("/lfg_/$id")({
 });
 
 type Chat = { id: string; sender_name: string; message_code: string; created_at: string | null };
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+/** Replace raw web user UUIDs in event text with the player's name when we can resolve it. */
+function resolveEventText(text: string, names: Record<string, string>) {
+  return text.replace(UUID_RE, (id) => names[id.toLowerCase()] ?? id);
+}
 type LobbyEvent = { id: string; actor_name: string | null; kind: string; detail: string; created_at: string };
 const CHAT_LABEL: Record<string, string> = {
   room_up: "🎮 Room is up!",
@@ -77,6 +83,8 @@ function LobbyPage() {
   const [addName, setAddName] = useState("");
   const [addBusy, setAddBusy] = useState(false);
   const [events, setEvents] = useState<LobbyEvent[]>([]);
+  const [uuidNames, setUuidNames] = useState<Record<string, string>>({});
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const load = useCallback(async () => {
     const lobbyId = Number(id);
@@ -88,8 +96,36 @@ function LobbyPage() {
     const r = (data as unknown as LfgRow) ?? null;
     setRow(r);
     setChats((chatRows as Chat[]) ?? []);
-    setEvents((eventRows as unknown as LobbyEvent[]) ?? []);
+    const eventList = (eventRows as unknown as LobbyEvent[]) ?? [];
+    setEvents(eventList);
     setLoading(false);
+    // Resolve raw web user UUIDs in event text to names: seated players first, profiles as fallback.
+    const names: Record<string, string> = {};
+    (r?.web_player_ids ?? []).forEach((uid, i) => {
+      const n = r?.web_player_names?.[i]?.trim();
+      if (uid && n) names[uid.toLowerCase()] = n;
+    });
+    const unresolved = [
+      ...new Set(
+        eventList.flatMap((e) => `${e.actor_name ?? ""} ${e.detail ?? ""}`.match(UUID_RE) ?? []),
+      ),
+    ].filter((u) => !names[u.toLowerCase()]);
+    if (unresolved.length) {
+      const { data: claims } = await supabase
+        .from("player_discord_map")
+        .select("claimed_by,display_name,player_key")
+        .in("claimed_by", unresolved);
+      for (const c of claims ?? []) {
+        const label = c.display_name?.trim() || c.player_key?.trim();
+        if (c.claimed_by && label) names[c.claimed_by.toLowerCase()] = label;
+      }
+      const stillMissing = unresolved.filter((u) => !names[u.toLowerCase()]);
+      if (stillMissing.length) {
+        const { data: profs } = await supabase.from("profiles").select("id,username").in("id", stillMissing);
+        for (const p of profs ?? []) if (p.username) names[p.id.toLowerCase()] = p.username;
+      }
+    }
+    setUuidNames(names);
     if (r) {
       const ids = [...new Set([...(r.player_ids ?? []), r.host_id].filter(Boolean))];
       if (ids.length) {
@@ -268,7 +304,7 @@ function LobbyPage() {
   const timeline = [
     { at: row.created_at, text: "Lobby created" },
     ...chats.map((c) => ({ at: c.created_at ?? row.created_at, text: `${c.sender_name}: ${CHAT_LABEL[c.message_code] ?? c.message_code}` })),
-    ...events.map((e) => ({ at: e.created_at, text: e.kind === "join" || e.kind === "leave" || !e.actor_name ? e.detail : `${e.detail} (by ${e.actor_name})` })),
+    ...events.map((e) => ({ at: e.created_at, text: resolveEventText(e.kind === "join" || e.kind === "leave" || !e.actor_name ? e.detail : `${e.detail} (by ${e.actor_name})`, uuidNames) })),
     ...(row.auto_start_at ? [{ at: row.auto_start_at, text: "Auto-start time" }] : []),
     ...(row.expires_at ? [{ at: row.expires_at, text: "Lobby expires" }] : []),
   ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
@@ -393,7 +429,34 @@ function LobbyPage() {
         ) : (
           <div className="space-y-3">
             {!userId && <p className="text-sm text-muted-foreground"><Link to="/auth" className="text-primary underline">Sign in</Link> to submit the result.</p>}
-            {canUpload && <LobbyResultUpload row={row} seats={seats} userId={userId} onDone={() => void load()} />}
+            {canUpload && (
+              <>
+                <Button onClick={() => setUploadOpen(true)} className="gap-2">
+                  <Upload className="size-4" /> Upload end board
+                </Button>
+                <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Upload end board</DialogTitle>
+                      <DialogDescription>
+                        Scan the end-of-game screenshot, confirm the players, and submit the result for this lobby.
+                      </DialogDescription>
+                    </DialogHeader>
+                    {uploadOpen && (
+                      <LobbyResultUpload
+                        row={row}
+                        seats={seats}
+                        userId={userId}
+                        onDone={() => {
+                          setUploadOpen(false);
+                          void load();
+                        }}
+                      />
+                    )}
+                  </DialogContent>
+                </Dialog>
+              </>
+            )}
             <p className="text-xs text-muted-foreground">Already uploaded it? Paste the match ID (for example SPICE-CORIOLIS-8930) to link it:</p>
             <div className="flex gap-2 max-w-md">
               <Input value={linkCode} onChange={(e) => setLinkCode(e.target.value)} placeholder="Match ID" />

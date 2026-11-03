@@ -185,6 +185,7 @@ function LfgPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [myIgn, setMyIgn] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [casualNoticeOpen, setCasualNoticeOpen] = useState(false);
   const [discordNames, setDiscordNames] = useState<Record<string, string>>({});
   const [discordKeys, setDiscordKeys] = useState<Record<string, string>>({});
   const [discordHandles, setDiscordHandles] = useState<Record<string, string>>({});
@@ -355,7 +356,7 @@ function LfgPage() {
           <div className="flex flex-wrap gap-2">
           {isLfgAdmin && <Button variant="outline" asChild><Link to="/admin/lfg-history"><Clock className="size-4" />Match & Lobby History</Link></Button>}
           <LfgNotificationDashboard userId={userId} />
-          <Button onClick={() => setCreateOpen(true)} className="gap-2">
+          <Button onClick={() => setCasualNoticeOpen(true)} className="gap-2">
             <Plus className="size-4" />
             Create LFG
           </Button>
@@ -412,6 +413,30 @@ function LfgPage() {
         )}
         <PlayedLobbyHistory pilot={isLfgAdmin} />
       </main>
+      <Dialog open={casualNoticeOpen} onOpenChange={setCasualNoticeOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>This creates a casual game</DialogTitle>
+            <DialogDescription>
+              Lobbies made here don't count for the League — no League Elo is gained or lost, and the result
+              doesn't need an end-board screenshot. Want a ranked game instead? Host from the League queue above.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCasualNoticeOpen(false)}>
+              Back
+            </Button>
+            <Button
+              onClick={() => {
+                setCasualNoticeOpen(false);
+                setCreateOpen(true);
+              }}
+            >
+              Continue with casual game
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <CreateLfgDialog
         open={createOpen}
         onOpenChange={setCreateOpen}

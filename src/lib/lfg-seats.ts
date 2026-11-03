@@ -106,7 +106,9 @@ export function seatsOf(
     const mappedKey = discordKeys[id] || (mapped ? leagueKey(mapped) : null);
     const substituted = !!(expected && mappedKey && looseKey(expected) !== looseKey(mappedKey) && (!mapped || looseKey(expected) !== looseKey(mapped)));
     if (substituted) {
-      add({ name: expected!, playerKey: leagueKey(expected!), web: false, discord: true, guest: false, host: id === r.host_id, discordId: id, discordHandle: handle, webUserId: null, identityVerified: true, substitutedFor: mapped ?? mappedKey }, true);
+      // The Discord id stays for bot purposes, but its handle belongs to the
+      // player who was replaced — never show it next to the substitute's name.
+      add({ name: expected!, playerKey: leagueKey(expected!), web: false, discord: true, guest: false, host: id === r.host_id, discordId: id, discordHandle: null, webUserId: null, identityVerified: true, substitutedFor: mapped ?? mappedKey }, true);
       return;
     }
 
