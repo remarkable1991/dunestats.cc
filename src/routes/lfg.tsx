@@ -185,6 +185,7 @@ function LfgPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [myIgn, setMyIgn] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [casualNoticeOpen, setCasualNoticeOpen] = useState(false);
   const [discordNames, setDiscordNames] = useState<Record<string, string>>({});
   const [discordKeys, setDiscordKeys] = useState<Record<string, string>>({});
   const [discordHandles, setDiscordHandles] = useState<Record<string, string>>({});
@@ -355,7 +356,7 @@ function LfgPage() {
           <div className="flex flex-wrap gap-2">
           {isLfgAdmin && <Button variant="outline" asChild><Link to="/admin/lfg-history"><Clock className="size-4" />Match & Lobby History</Link></Button>}
           <LfgNotificationDashboard userId={userId} />
-          <Button onClick={() => setCreateOpen(true)} className="gap-2">
+          <Button onClick={() => setCasualNoticeOpen(true)} className="gap-2">
             <Plus className="size-4" />
             Create LFG
           </Button>
