@@ -11,6 +11,9 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import liveIcon from "@/assets/live-mode.png.asset.json";
 import asyncIcon from "@/assets/async-mode.png.asset.json";
 
+/** League games started within this window are "currently pending" — players may still be playing or uploading. */
+const PENDING_WINDOW_MS = 4 * 60 * 60 * 1000;
+
 export function PlayedLobbyHistory({ pilot }: { pilot: boolean }) {
   const [page, setPage] = useState(0);
   const [mode, setMode] = useState("all");
@@ -45,8 +48,16 @@ export function PlayedLobbyHistory({ pilot }: { pilot: boolean }) {
     } catch { setError("Could not load played lobbies."); } finally { setLoading(false); }
   }, [page, mode, pilot]);
   useEffect(() => { void load(); }, [load]);
+  // Live updates: a lobby that pops (starts) appears here without a page refresh.
+  useEffect(() => {
+    const ch = supabase
+      .channel("played-lobbies")
+      .on("postgres_changes", { event: "*", schema: "public", table: "active_async_matches" }, () => void load())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [load]);
   return <section className="space-y-4 border-t border-border pt-6">
-    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-display text-xl">Previously played</h2><div className="flex flex-wrap gap-1">{["all", "league", "unreported", "live", "async"].map((value) => <Button key={value} size="sm" variant={mode === value ? "secondary" : "ghost"} onClick={() => { setMode(value); setPage(0); }}>{(value === "live" || value === "async") && <img src={value === "live" ? liveIcon.url : asyncIcon.url} alt="" className="size-4" />}{value === "all" ? "All" : value === "league" ? "League" : value === "unreported" ? "League · not reported" : value === "live" ? "Live" : "ASync"}</Button>)}</div></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-display text-xl">Previously played</h2><div className="flex flex-wrap gap-1">{["all", "league", "pending", "unreported", "live", "async"].map((value) => <Button key={value} size="sm" variant={mode === value ? "secondary" : "ghost"} onClick={() => { setMode(value); setPage(0); }}>{(value === "live" || value === "async") && <img src={value === "live" ? liveIcon.url : asyncIcon.url} alt="" className="size-4" />}{value === "all" ? "All" : value === "league" ? "League" : value === "pending" ? "Currently pending" : value === "unreported" ? "League · not reported" : value === "live" ? "Live" : "ASync"}</Button>)}</div></div>
     {loading ? <Loader2 className="size-5 animate-spin text-muted-foreground" /> : error ? <div className="text-destructive">{error} <Button variant="outline" onClick={() => void load()}>Retry</Button></div> : rows.length === 0 ? <p className="text-muted-foreground">No played lobbies found.</p> : <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{rows.map((row) => {
       const seats = seatsOf(row, identities.names, identities.keys, identities.handles, identities.verified);
       const host = seats.find((s) => s.host)?.name;
