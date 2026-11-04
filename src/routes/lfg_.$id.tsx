@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { applyLeagueElo } from "@/lib/league-lobby-detect";
 import { LobbyResultUpload } from "@/components/LobbyResultUpload";
 import { unlinkLobbyResult, promoteLobbyToLeague, substituteLobbyPlayer } from "@/lib/lfg-history.functions";
@@ -84,7 +84,8 @@ function LobbyPage() {
   const [addBusy, setAddBusy] = useState(false);
   const [events, setEvents] = useState<LobbyEvent[]>([]);
   const [uuidNames, setUuidNames] = useState<Record<string, string>>({});
-  const [uploadOpen, setUploadOpen] = useState(false);
+  const navigate = useNavigate();
+  const [doneInfo, setDoneInfo] = useState<{ matchId: string | null; already: boolean } | null>(null);
 
   const load = useCallback(async () => {
     const lobbyId = Number(id);
@@ -416,7 +417,10 @@ function LobbyPage() {
         )}
         {linkedCode ? (
           row.linked_game_id ? (
-            <LobbyLinkedResult gameId={row.linked_game_id} code={linkedCode} isLeague={!!row.is_league} seats={seats} titles={titles} />
+            <div className="space-y-2">
+              <LobbyLinkedResult gameId={row.linked_game_id} code={linkedCode} isLeague={!!row.is_league} seats={seats} titles={titles} />
+              <Button size="sm" variant="outline" onClick={() => setDoneInfo({ matchId: linkedCode, already: true })}>Add end board details</Button>
+            </div>
           ) : (
             <p className="text-sm">Linked result: <Link to="/match/$matchId" params={{ matchId: linkedCode }} className="text-primary underline underline-offset-2">{linkedCode}</Link></p>
           )
@@ -431,30 +435,15 @@ function LobbyPage() {
             {!userId && <p className="text-sm text-muted-foreground"><Link to="/auth" className="text-primary underline">Sign in</Link> to submit the result.</p>}
             {canUpload && (
               <>
-                <Button onClick={() => setUploadOpen(true)} className="gap-2">
-                  <Upload className="size-4" /> Upload end board
-                </Button>
-                <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
-                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Upload end board</DialogTitle>
-                      <DialogDescription>
-                        Scan the end-of-game screenshot, confirm the players, and submit the result for this lobby.
-                      </DialogDescription>
-                    </DialogHeader>
-                    {uploadOpen && (
-                      <LobbyResultUpload
-                        row={row}
-                        seats={seats}
-                        userId={userId}
-                        onDone={() => {
-                          setUploadOpen(false);
-                          void load();
-                        }}
-                      />
-                    )}
-                  </DialogContent>
-                </Dialog>
+                <LobbyResultUpload
+                  row={row}
+                  seats={seats}
+                  userId={userId}
+                  onDone={(matchId, already) => {
+                    setDoneInfo({ matchId: matchId ?? null, already: !!already });
+                    void load();
+                  }}
+                />
               </>
             )}
             <p className="text-xs text-muted-foreground">Already uploaded it? Paste the match ID (for example SPICE-CORIOLIS-8930) to link it:</p>
@@ -467,6 +456,26 @@ function LobbyPage() {
           </div>
         )}
       </Card>
+      <Dialog open={!!doneInfo} onOpenChange={(o) => { if (!o) setDoneInfo(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{doneInfo?.already ? "This game was already uploaded" : "Match recorded!"}</DialogTitle>
+            <DialogDescription>
+              {doneInfo?.already
+                ? `Someone already uploaded the result for this lobby${doneInfo.matchId ? ` (#${doneInfo.matchId})` : ""}, so yours wasn't saved twice. You can still add more details — like High Council seats, Swordmaster, or combat info — on the match page.`
+                : "Your match is saved and the leaderboard is updated. Want to add more details — like High Council seats, Swordmaster, or combat info? Visit the match page to edit manually or upload an endboard screenshot for automatic analysis."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col sm:flex-row gap-2 mt-2">
+            {doneInfo?.matchId && (
+              <Button className="flex-1" onClick={() => { const id = doneInfo.matchId!; setDoneInfo(null); void navigate({ to: "/match/$matchId", params: { matchId: id } }); }}>
+                Add match details
+              </Button>
+            )}
+            <Button variant="outline" className="flex-1" onClick={() => setDoneInfo(null)}>Maybe later</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Shell>
   );
 }

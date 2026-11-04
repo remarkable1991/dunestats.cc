@@ -45,7 +45,7 @@ function StatusBadge({ status }: { status: MatchStatus }) {
   );
 }
 
-export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow; seats: Seat[]; userId: string | null; onDone: () => void }) {
+export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow; seats: Seat[]; userId: string | null; onDone: (matchId?: string, alreadyUploaded?: boolean) => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
@@ -108,6 +108,14 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
     const f = lobbyFormat(row);
     setSaving(true);
     try {
+      // The page may be stale: if someone already uploaded this lobby, don't submit a second copy.
+      const { data: fresh } = await supabase.from("active_async_matches").select("linked_game_id").eq("id", row.id).maybeSingle();
+      if (fresh?.linked_game_id) {
+        const { data: lg } = await supabase.from("games").select("public_match_id").eq("id", fresh.linked_game_id).maybeSingle();
+        reset();
+        onDone(lg?.public_match_id ?? undefined, true);
+        return;
+      }
       const result = await submitMatch({
         userId, file, board: f.board, hasIx: f.hasIx, hasEpic: f.hasEpic, hasImmortality: f.hasImmortality, hasBaseLeaders: f.hasBaseLeaders,
         rows: rows.map((r) => ({ placement: r.placement, player_name: r.player_name.trim(), leader_name: r.leader_name, points: r.points })),
@@ -136,7 +144,7 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
         toast.success(changes.length ? "Result saved. Player names were updated automatically." : "Result saved. An admin will double-check the player names.");
       } else toast.success("Result saved and linked to this lobby.");
       reset();
-      onDone();
+      onDone(result.publicMatchId);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
     } finally { setSaving(false); }
