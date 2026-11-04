@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
-import { Trophy, Search, UserPlus, BadgeCheck, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Trophy, Search, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { useChampions, isChampion } from "@/lib/champions";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
+import { AccountBadges, useDiscordLinks } from "@/components/AccountBadges";
 
 
 export const Route = createFileRoute("/leaderboard")({
@@ -150,6 +151,7 @@ function Leaderboard() {
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const startRank = page * PAGE_SIZE;
   const filtered = processed.slice(startRank, startRank + PAGE_SIZE);
+  const discordLinks = useDiscordLinks(filtered.map((r) => r.player_key));
 
   function cycleSort(key: SortKey) {
     if (sortKey !== key) {
@@ -333,19 +335,7 @@ function Leaderboard() {
                                 {winPct.toFixed(0)}%
                               </td>
                               <td className="px-4 py-3 text-right">
-                                {claimedAnywhere ? (
-                                  <span className="inline-flex items-center gap-1 text-xs text-teal">
-                                    <BadgeCheck className="size-3.5" /> Claimed
-                                  </span>
-                                ) : (
-                                  <Link
-                                    to="/claim"
-                                    search={{ player: r.player_key }}
-                                    className="inline-flex items-center gap-1 text-xs text-coral hover:text-sand underline-offset-2 hover:underline"
-                                  >
-                                    <UserPlus className="size-3.5" /> Unclaimed, claim now
-                                  </Link>
-                                )}
+                                <AccountBadges playerKey={r.player_key} webClaimed={claimedAnywhere} discord={discordLinks[r.player_key.toLowerCase()]} />
                               </td>
                             </tr>
                           );
@@ -388,7 +378,7 @@ function Leaderboard() {
   );
 }
 
-type LeagueRow = { player_key: string; elo: number; games_played: number; wins: number };
+type LeagueRow = { player_key: string; elo: number; games_played: number; wins: number; top2: number; claimed_by: string | null };
 
 function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
   const [season, setSeason] = useState<number | null>(null);
@@ -396,6 +386,10 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
   const [rows, setRows] = useState<LeagueRow[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [sortKey, setSortKey] = useState<"elo" | "games_played" | "wins" | "top2" | "win_pct">("elo");
+  const [sortAsc, setSortAsc] = useState(false);
+  const champions = useChampions();
+  const titles = usePlayerTitles();
 
   useEffect(() => {
     void supabase.from("player_league_ratings").select("season").order("season", { ascending: false }).limit(1000).then(({ data }) => {
@@ -411,19 +405,57 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
     setLoading(true);
     void (async () => {
       const { data } = await supabase.from("player_league_ratings").select("player_key,elo,games_played,wins").eq("season", season).order("elo", { ascending: false }).limit(1000);
-      const list = (data ?? []).map((r) => ({ ...r, elo: Number(r.elo) })) as LeagueRow[];
-      setRows(list);
-      const keys = list.map((r) => r.player_key);
+      const base = data ?? [];
+      const keys = base.map((r) => r.player_key);
+      const nameMap: Record<string, string> = {};
+      const claimMap: Record<string, string | null> = {};
+      const top2: Record<string, number> = {};
       if (keys.length) {
-        const { data: pr } = await supabase.from("player_ratings").select("player_key,display_name").eq("game_version", "overall").in("player_key", keys);
-        setNames(Object.fromEntries((pr ?? []).map((r) => [r.player_key, r.display_name])));
+        const [{ data: pr }, { data: deltas }] = await Promise.all([
+          supabase.from("player_ratings").select("player_key,display_name,claimed_by").eq("game_version", "overall").in("player_key", keys),
+          supabase.from("league_match_rating_deltas").select("game_id,player_key").eq("season", season).limit(5000),
+        ]);
+        for (const r of pr ?? []) { nameMap[r.player_key] = r.display_name; claimMap[r.player_key] = r.claimed_by; }
+        const gameIds = [...new Set((deltas ?? []).map((d) => d.game_id))];
+        if (gameIds.length) {
+          const { data: gr } = await supabase.from("game_results").select("game_id,player_name,placement").in("game_id", gameIds).lte("placement", 2);
+          const byGame = new Map<string, string[]>();
+          for (const d of deltas ?? []) byGame.set(d.game_id, [...(byGame.get(d.game_id) ?? []), d.player_key]);
+          const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+          for (const g of gr ?? []) {
+            const n = norm(g.player_name);
+            const k = (byGame.get(g.game_id) ?? []).find((pk) => norm(pk) === n || norm(nameMap[pk] ?? "") === n);
+            if (k) top2[k] = (top2[k] ?? 0) + 1;
+          }
+        }
       }
+      setNames(nameMap);
+      setRows(base.map((r) => ({ ...r, elo: Number(r.elo), top2: top2[r.player_key] ?? 0, claimed_by: claimMap[r.player_key] ?? null })));
       setLoading(false);
     })();
   }, [season]);
 
   const term = q.trim().toLowerCase();
-  const shown = rows.filter((r) => r.games_played >= Math.min(minGames, 1) && (!term || r.player_key.includes(term) || (names[r.player_key] ?? "").toLowerCase().includes(term)));
+  const val = (r: LeagueRow) => (sortKey === "win_pct" ? (r.games_played ? r.wins / r.games_played : 0) : r[sortKey]);
+  const ranked = [...rows].sort((a, b) => b.elo - a.elo);
+  const rankOf = new Map(ranked.map((r, i) => [r.player_key, i]));
+  const shown = rows
+    .filter((r) => r.games_played >= Math.min(minGames, 1) && (!term || r.player_key.includes(term) || (names[r.player_key] ?? "").toLowerCase().includes(term)))
+    .sort((a, b) => (sortAsc ? val(a) - val(b) : val(b) - val(a)));
+  const discordLinks = useDiscordLinks(shown.slice(0, 200).map((r) => r.player_key));
+
+  const Head = ({ label, k, className = "" }: { label: string; k: typeof sortKey; className?: string }) => (
+    <th className={`px-4 py-3 text-right ${className}`}>
+      <button
+        type="button"
+        onClick={() => (sortKey === k ? setSortAsc((a) => !a) : (setSortKey(k), setSortAsc(false)))}
+        className={`inline-flex items-center gap-1 uppercase tracking-wider hover:text-foreground ${sortKey === k ? "text-sand" : ""}`}
+      >
+        {label}
+        {sortKey === k ? (sortAsc ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />) : <ArrowUpDown className="size-3 opacity-50" />}
+      </button>
+    </th>
+  );
 
   return (
     <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
@@ -441,28 +473,50 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-muted-foreground border-b border-border/60">
-              <th className="px-4 py-3 w-12">#</th>
-              <th className="px-4 py-3">Player</th>
-              <th className="px-4 py-3 text-right">League Elo</th>
-              <th className="px-4 py-3 text-right">Games</th>
-              <th className="px-4 py-3 text-right">Wins</th>
+            <tr className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
+              <th className="px-4 py-3 text-left w-16">Rank</th>
+              <th className="px-4 py-3 text-left">Player</th>
+              <Head label="League Elo" k="elo" />
+              <Head label="Games" k="games_played" />
+              <Head label="Wins" k="wins" />
+              <Head label="Top 2" k="top2" className="hidden sm:table-cell" />
+              <Head label="Win %" k="win_pct" className="hidden md:table-cell" />
+              <th className="px-4 py-3 text-right">Status</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">Loading…</td></tr>
+              <tr><td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">Loading rankings…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No League games rated yet{season ? ` in season ${season}` : ""}.</td></tr>
-            ) : shown.map((r, i) => (
-              <tr key={r.player_key} className="border-b border-border/40">
-                <td className="px-4 py-3 font-display text-muted-foreground">{i + 1}</td>
-                <td className="px-4 py-3"><Link to="/players/$key" params={{ key: r.player_key }} className="hover:underline">{names[r.player_key] ?? r.player_key}</Link></td>
-                <td className="px-4 py-3 text-right font-display text-sand tabular-nums">{Math.round(r.elo)}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{r.games_played}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{r.wins}</td>
-              </tr>
-            ))}
+              <tr><td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">No League games rated yet{season ? ` in season ${season}` : ""}.</td></tr>
+            ) : shown.map((r) => {
+              const rank = rankOf.get(r.player_key) ?? 0;
+              const medal = rank === 0 ? "bg-sand text-sand-foreground" : rank === 1 ? "bg-teal/80 text-background" : rank === 2 ? "bg-coral/90 text-white" : "bg-muted text-muted-foreground";
+              const winPct = r.games_played ? (r.wins / r.games_played) * 100 : 0;
+              return (
+                <tr key={r.player_key} className="border-t border-border/40 hover:bg-secondary/30">
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex size-7 items-center justify-center rounded font-bold text-xs ${medal}`}>{rank + 1}</span>
+                  </td>
+                  <td className="px-4 py-3 font-medium">
+                    <Link to="/players/$key" params={{ key: r.player_key }} className="hover:underline underline-offset-2" style={{ color: colorForKey(titles, r.player_key) }}>
+                      <span className="inline-flex items-center gap-1">
+                        {isChampion(champions, r.player_key) && <Trophy className="size-3.5 text-sand" aria-label="Hall of Fame Champion" />}
+                        {names[r.player_key] ?? r.player_key}
+                      </span>
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-right font-display text-sand tabular-nums">{Math.round(r.elo)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{r.games_played}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{r.wins}</td>
+                  <td className="px-4 py-3 text-right tabular-nums hidden sm:table-cell">{r.top2}</td>
+                  <td className="px-4 py-3 text-right tabular-nums hidden md:table-cell">{winPct.toFixed(0)}%</td>
+                  <td className="px-4 py-3 text-right">
+                    <AccountBadges playerKey={r.player_key} webClaimed={!!r.claimed_by} discord={discordLinks[r.player_key.toLowerCase()]} />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
