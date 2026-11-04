@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
-import { Trophy, Search, UserPlus, BadgeCheck, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Trophy, Search, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { useChampions, isChampion } from "@/lib/champions";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { AccountBadges, useDiscordLinks } from "@/components/AccountBadges";
