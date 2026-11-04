@@ -84,6 +84,7 @@ function LobbyPage() {
   const [addBusy, setAddBusy] = useState(false);
   const [events, setEvents] = useState<LobbyEvent[]>([]);
   const [uuidNames, setUuidNames] = useState<Record<string, string>>({});
+  const navigate = useNavigate();
   const [doneInfo, setDoneInfo] = useState<{ matchId: string | null; already: boolean } | null>(null);
 
   const load = useCallback(async () => {
@@ -416,7 +417,10 @@ function LobbyPage() {
         )}
         {linkedCode ? (
           row.linked_game_id ? (
-            <LobbyLinkedResult gameId={row.linked_game_id} code={linkedCode} isLeague={!!row.is_league} seats={seats} titles={titles} />
+            <div className="space-y-2">
+              <LobbyLinkedResult gameId={row.linked_game_id} code={linkedCode} isLeague={!!row.is_league} seats={seats} titles={titles} />
+              <Button size="sm" variant="outline" onClick={() => setDoneInfo({ matchId: linkedCode, already: true })}>Add end board details</Button>
+            </div>
           ) : (
             <p className="text-sm">Linked result: <Link to="/match/$matchId" params={{ matchId: linkedCode }} className="text-primary underline underline-offset-2">{linkedCode}</Link></p>
           )
