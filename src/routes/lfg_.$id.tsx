@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { applyLeagueElo } from "@/lib/league-lobby-detect";
 import { LobbyResultUpload } from "@/components/LobbyResultUpload";
 import { unlinkLobbyResult, promoteLobbyToLeague, substituteLobbyPlayer } from "@/lib/lfg-history.functions";
