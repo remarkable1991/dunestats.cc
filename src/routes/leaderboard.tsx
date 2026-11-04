@@ -11,6 +11,7 @@ import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { Trophy, Search, UserPlus, BadgeCheck, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { useChampions, isChampion } from "@/lib/champions";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
+import { AccountBadges, useDiscordLinks } from "@/components/AccountBadges";
 
 
 export const Route = createFileRoute("/leaderboard")({
@@ -150,6 +151,7 @@ function Leaderboard() {
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const startRank = page * PAGE_SIZE;
   const filtered = processed.slice(startRank, startRank + PAGE_SIZE);
+  const discordLinks = useDiscordLinks(filtered.map((r) => r.player_key));
 
   function cycleSort(key: SortKey) {
     if (sortKey !== key) {
