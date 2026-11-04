@@ -333,19 +333,7 @@ function Leaderboard() {
                                 {winPct.toFixed(0)}%
                               </td>
                               <td className="px-4 py-3 text-right">
-                                {claimedAnywhere ? (
-                                  <span className="inline-flex items-center gap-1 text-xs text-teal">
-                                    <BadgeCheck className="size-3.5" /> Claimed
-                                  </span>
-                                ) : (
-                                  <Link
-                                    to="/claim"
-                                    search={{ player: r.player_key }}
-                                    className="inline-flex items-center gap-1 text-xs text-coral hover:text-sand underline-offset-2 hover:underline"
-                                  >
-                                    <UserPlus className="size-3.5" /> Unclaimed, claim now
-                                  </Link>
-                                )}
+                                <AccountBadges playerKey={r.player_key} webClaimed={claimedAnywhere} discord={discordLinks[r.player_key.toLowerCase()]} />
                               </td>
                             </tr>
                           );
