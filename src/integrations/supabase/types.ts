@@ -42,7 +42,9 @@ export type Database = {
           player_ids: string[] | null
           season_id: number | null
           season_num: number | null
+          started_at: string | null
           status: string
+          unreported_thread_id: string | null
           web_host_id: string | null
           web_player_ids: string[] | null
           web_player_names: string[] | null
@@ -74,7 +76,9 @@ export type Database = {
           player_ids?: string[] | null
           season_id?: number | null
           season_num?: number | null
+          started_at?: string | null
           status?: string
+          unreported_thread_id?: string | null
           web_host_id?: string | null
           web_player_ids?: string[] | null
           web_player_names?: string[] | null
@@ -106,7 +110,9 @@ export type Database = {
           player_ids?: string[] | null
           season_id?: number | null
           season_num?: number | null
+          started_at?: string | null
           status?: string
+          unreported_thread_id?: string | null
           web_host_id?: string | null
           web_player_ids?: string[] | null
           web_player_names?: string[] | null
@@ -775,6 +781,69 @@ export type Database = {
             columns: ["game_id"]
             isOneToOne: false
             referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      match_reports: {
+        Row: {
+          announced_to_discord: boolean
+          created_at: string
+          discord_thread_id: string | null
+          game_id: string | null
+          id: number
+          lobby_id: number | null
+          public_match_id: string | null
+          reason: string
+          reporter_discord_id: string | null
+          reporter_name: string | null
+          reporter_user_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          announced_to_discord?: boolean
+          created_at?: string
+          discord_thread_id?: string | null
+          game_id?: string | null
+          id?: number
+          lobby_id?: number | null
+          public_match_id?: string | null
+          reason: string
+          reporter_discord_id?: string | null
+          reporter_name?: string | null
+          reporter_user_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          announced_to_discord?: boolean
+          created_at?: string
+          discord_thread_id?: string | null
+          game_id?: string | null
+          id?: number
+          lobby_id?: number | null
+          public_match_id?: string | null
+          reason?: string
+          reporter_discord_id?: string | null
+          reporter_name?: string | null
+          reporter_user_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_reports_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_reports_lobby_id_fkey"
+            columns: ["lobby_id"]
+            isOneToOne: false
+            referencedRelation: "active_async_matches"
             referencedColumns: ["id"]
           },
         ]
@@ -2374,6 +2443,14 @@ export type Database = {
       sp_daily_checkin: { Args: never; Returns: Json }
       sp_register_referral: { Args: { p_referrer_key: string }; Returns: Json }
       sp_season_for: { Args: { ts: string }; Returns: number }
+      submit_match_report: {
+        Args: {
+          p_lobby_id?: string
+          p_public_match_id?: string
+          p_reason?: string
+        }
+        Returns: Json
+      }
       sync_new_game_to_sandbox_by_id: {
         Args: { p_game_id: string }
         Returns: undefined
