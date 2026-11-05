@@ -85,6 +85,11 @@ export const unlinkLobbyResult = createServerFn({ method: "POST" })
       if (!admin) throw new Error("Only main admins can fully delete a match");
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (data.mode === "delete") {
+      // Move daily/weekly first-game bonuses to the player's next game before the start SP is reverted.
+      const { error: re } = await (supabaseAdmin as any).rpc("lfg_cancel_sp_plan", { p_lobby_id: data.lobbyId, p_mode: "reassign", p_actor: context.userId });
+      if (re) throw new Error(re.message);
+    }
     const { data: result, error } = await (supabaseAdmin as any).rpc("admin_unlink_lobby", { p_lobby_id: data.lobbyId, p_mode: data.mode, p_actor: context.userId });
     if (error) throw new Error(error.message);
     return result as { ok: boolean };

@@ -334,7 +334,7 @@ function LobbyPage() {
           )}
           <span className="inline-flex items-center rounded-full border border-border/60 px-2.5 py-1 text-xs capitalize">{row.status}</span>
           <ReportIssueDialog key={linkedCode ?? "none"} lobbyId={row.id} matchId={linkedCode} />
-          {canManage && <CancelLobbyButton id={row.id} status={row.status} onCancelled={() => void load()} />}
+          {canManage && <CancelLobbyButton id={row.id} status={row.status} linked={!!row.linked_game_id} onCancelled={() => void load()} />}
           {canLeaveLobby(row, userId, myDiscordId) && <LeaveLobbyButton id={row.id} onLeft={() => void load()} />}
           <LobbyStartControls row={row} count={seats.length} member={member} onChanged={load} />
           {discordUrl && (
@@ -412,7 +412,6 @@ function LobbyPage() {
             {linkedCode && <Button size="sm" variant="destructive" disabled={unlinkBusy} onClick={() => void unlink("delete")}>Delete match &amp; unlink</Button>}
             {!linkedCode && !isCasual && row.is_league && row.status === "started" && <>
               <Button size="sm" variant="outline" disabled={unlinkBusy} onClick={() => void unlink("casual")}>Make casual</Button>
-              <Button size="sm" variant="destructive" disabled={unlinkBusy} onClick={() => void unlink("delete")}>Cancel game &amp; revert SP</Button>
             </>}
             {isCasual && <Button size="sm" disabled={unlinkBusy} onClick={() => void promote()}>Promote to League</Button>}
           </div>

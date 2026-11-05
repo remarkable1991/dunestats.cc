@@ -698,7 +698,7 @@ function LfgCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {canManage && <CancelLobbyButton id={row.id} status={row.status} onCancelled={onChanged} />}
+        {canManage && <CancelLobbyButton id={row.id} status={row.status} linked={!!row.linked_game_id} onCancelled={onChanged} />}
         {canLeaveLobby(row, userId, myDiscordId) && <LeaveLobbyButton id={row.id} onLeft={onChanged} />}
         <Button asChild variant="outline" size="sm">
           <Link to="/lfg/$id" params={{ id: String(row.id) }}>Open lobby page</Link>
