@@ -333,7 +333,7 @@ function LobbyPage() {
             </span>
           )}
           <span className="inline-flex items-center rounded-full border border-border/60 px-2.5 py-1 text-xs capitalize">{row.status}</span>
-          <ReportIssueDialog lobbyId={row.id} matchId={linkedCode} />
+          <ReportIssueDialog key={linkedCode ?? "none"} lobbyId={row.id} matchId={linkedCode} />
           {canManage && <CancelLobbyButton id={row.id} status={row.status} onCancelled={() => void load()} />}
           {canLeaveLobby(row, userId, myDiscordId) && <LeaveLobbyButton id={row.id} onLeft={() => void load()} />}
           <LobbyStartControls row={row} count={seats.length} member={member} onChanged={load} />
