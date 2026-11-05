@@ -2288,6 +2288,10 @@ export type Database = {
         }
         Returns: Json
       }
+      lfg_cancel_sp_plan: {
+        Args: { p_actor?: string; p_lobby_id: number; p_mode: string }
+        Returns: Json
+      }
       lfg_claim_alert_email: { Args: { p_id: string }; Returns: Json }
       lfg_create_lobby:
         | {
