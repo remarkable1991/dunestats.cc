@@ -26,7 +26,7 @@ import { applyFirstPlayer, telemetryPayload, influenceEfficiency, type FactionKe
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Info } from "lucide-react";
 import { CANONICAL_LEADERS } from "@/lib/leader-translate";
-import { reportMatchForReview } from "@/lib/duplicate-leaders";
+import { ReportIssueDialog } from "@/components/ReportIssueDialog";
 import {
   FACTIONS,
   FactionInfluenceTrackBoard,
@@ -608,26 +608,7 @@ function MatchDetailsPage() {
               ⚑ Needs review
             </span>
           )}
-          {game.ai_scan_status !== "Needs review" && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 px-2 text-xs"
-              onClick={async () => {
-                const reason = window.prompt("What looks wrong with this match? (e.g. wrong leaders, wrong score)");
-                if (!reason?.trim()) return;
-                try {
-                  await reportMatchForReview(game.id, reason);
-                  toast.success("Thanks — the match is marked for review.");
-                  setReloadKey((k) => k + 1);
-                } catch (e) {
-                  toast.error(e instanceof Error ? e.message : "Could not report the match");
-                }
-              }}
-            >
-              ⚑ Report for review
-            </Button>
-          )}
+          <ReportIssueDialog matchId={game.public_match_id ?? game.id} onReported={() => setReloadKey((k) => k + 1)} />
           {game.ai_scan_status === "Issue detected" && (
             <span
               title={game.ai_scan_summary ?? "Scan review needed"}
