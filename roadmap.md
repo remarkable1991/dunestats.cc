@@ -4,3 +4,8 @@
 - [x] Add the seat-confirmation dialog with taken-seat protection, optional claiming, and OCR alias correction.
 - [x] Use the flow on /upload, /tournament, and /lfg result uploads.
 - [x] Add rule tests and smoke-test the public upload screens; signed-in end-to-end testing is unavailable with external unmanaged auth.
+- [ ] Repair Lobby 538 / MEEKER-PLASTEEL-7914 so Ámenhotep's result, ratings, SP and alias belong to Amenhotep.
+- [ ] Normalize accents before lobby-seat matching and add regression tests.
+- [ ] Prioritize the seated lobby roster during screenshot-name normalization.
+- [ ] Paginate master-player and alias reads beyond Supabase's 1,000-row response cap.
+- [ ] Run targeted tests, verify the repaired records, and check the build.
