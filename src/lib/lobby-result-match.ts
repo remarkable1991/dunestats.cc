@@ -9,7 +9,11 @@ export type MatchReport = { rows: SeatMatch[]; missing: MissingVeteran[]; status
 export const VETERAN_GAMES = 5;
 export const UNKNOWN_SEAT = "Unknown player";
 
-export const loose = (s: string | null | undefined) => (s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+export const loose = (s: string | null | undefined) => (s ?? "")
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .toLowerCase()
+  .replace(/[^a-z0-9]/g, "");
 
 function lev(a: string, b: string) {
   const d = Array.from({ length: b.length + 1 }, (_, i) => i);

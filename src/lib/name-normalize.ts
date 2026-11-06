@@ -20,6 +20,18 @@ function shapeKey(s: string): string {
 
 let cache: { at: number; names: string[]; aliases: Map<string, string> } | null = null;
 
+const PAGE_SIZE = 1000;
+
+/** PostgREST caps each response at 1,000 rows regardless of a larger limit. */
+async function fetchAllPages<T>(fetchPage: (from: number, to: number) => PromiseLike<{ data: T[] | null }>): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data } = await fetchPage(from, from + PAGE_SIZE - 1);
+    rows.push(...(data ?? []));
+    if (!data || data.length < PAGE_SIZE) return rows;
+  }
+}
+
 async function loadMasterData(): Promise<{ names: string[]; aliases: Map<string, string> }> {
   if (cache && Date.now() - cache.at < 60_000) return { names: cache.names, aliases: cache.aliases };
   const seen = new Map<string, string>(); // lowercased -> canonical (most frequent spelling wins)
@@ -31,18 +43,22 @@ async function loadMasterData(): Promise<{ names: string[]; aliases: Map<string,
     counts.set(k, (counts.get(k) ?? 0) + 1);
     if (!seen.has(k) || (counts.get(k)! > 1 && n !== seen.get(k))) seen.set(k, n);
   };
-  const [{ data: tm }, { data: pr }, { data: gr }, { data: aliasRows }] = await Promise.all([
+  const [{ data: tm }, pr, { data: gr }, aliasRows] = await Promise.all([
     supabase.from("tournament_matches").select("player_name").limit(2000),
-    supabase.from("player_ratings").select("display_name").limit(5000),
+    fetchAllPages<{ display_name: string | null }>((from, to) =>
+      supabase.from("player_ratings").select("display_name").order("display_name", { ascending: true }).range(from, to),
+    ),
     supabase.from("game_results").select("player_name").limit(5000),
-    supabase.from("player_name_aliases").select("old_name,canonical_name").order("created_at", { ascending: false }).limit(5000),
+    fetchAllPages<{ old_name: string; canonical_name: string }>((from, to) =>
+      supabase.from("player_name_aliases").select("old_name,canonical_name").order("created_at", { ascending: false }).range(from, to),
+    ),
   ]);
   tm?.forEach((r) => add(r.player_name));
-  pr?.forEach((r) => add(r.display_name));
+  pr.forEach((r) => add(r.display_name));
   gr?.forEach((r) => add(r.player_name));
   const names = Array.from(seen.values());
   const aliases = new Map<string, string>();
-  for (const alias of aliasRows ?? []) {
+  for (const alias of aliasRows) {
     const oldKey = alias.old_name.trim().toLowerCase();
     const canonical = alias.canonical_name.trim();
     if (oldKey && canonical && !aliases.has(oldKey)) aliases.set(oldKey, canonical);
@@ -103,9 +119,11 @@ function safeSingleEdit(a: string, b: string): boolean {
  *      unambiguous match only) → master spelling.
  * Anything else is kept exactly as read from the screenshot.
  */
-export async function normalizeNames<T extends { player_name: string }>(rows: T[]): Promise<T[]> {
+export async function normalizeNames<T extends { player_name: string }>(rows: T[], preferredNames: string[] = []): Promise<T[]> {
   if (!rows.length) return rows;
-  const { names: master, aliases } = await loadMasterData();
+  const { names, aliases } = await loadMasterData();
+  const preferred = preferredNames.map((name) => name.trim()).filter((name) => name && !/^unknown player( name)?$/i.test(name));
+  const master = Array.from(new Map([...preferred, ...names].map((name) => [name.toLowerCase(), name])).values());
   if (!master.length && !aliases.size) return rows;
   const byLower = new Map(master.map((m) => [m.toLowerCase(), m]));
   const byShape = new Map<string, string>();

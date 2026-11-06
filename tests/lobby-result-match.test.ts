@@ -10,6 +10,12 @@ describe("lobby screenshot matching", () => {
     expect(r.status).toBe("green");
   });
 
+  it("treats accented OCR capitals as the same seated player", () => {
+    const r = matchScreenshotToSeats(["Ámenhotep"], [seat("Amenhotep", "amenhotep")], { amenhotep: 7 });
+    expect(r.rows[0].status).toBe("green");
+    expect(r.rows[0].reason).toBe("Known IGN · 7 games");
+  });
+
   it("one fuzzy spelling makes that player and the match yellow", () => {
     const r = matchScreenshotToSeats(["Nevic", "Duncraacer"], [seat("Nevic", "nevic"), seat("duncracer", null)], { nevic: 12 });
     expect(r.rows[1].status).toBe("yellow");

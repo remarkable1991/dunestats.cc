@@ -86,7 +86,8 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
         if (leader) seen.add(leader);
         return { placement: r.placement, player_name: r.player_name, leader_name: leader || (r.leader_name ?? ""), points: r.points };
       });
-      const detected = await normalizeNames(raw);
+      const seatedNames = seats.flatMap((seat) => [seat.name, seat.playerKey]).filter((name): name is string => !!name);
+      const detected = await normalizeNames(raw, seatedNames);
       setRows(detected);
       await offerUploaderIdentity(detected, (detectedName, canonicalName) => {
         setRows((current) => current.map((row) =>
@@ -98,7 +99,7 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not read screenshot");
     } finally { setParsing(false); }
-  }, [offerUploaderIdentity, resetUploaderIdentity]);
+  }, [offerUploaderIdentity, resetUploaderIdentity, seats]);
 
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
