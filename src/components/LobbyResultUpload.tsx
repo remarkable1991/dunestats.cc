@@ -18,6 +18,7 @@ import type { LfgRow, Seat } from "@/lib/lfg-seats";
 import { toast } from "sonner";
 import { CheckCircle2, AlertTriangle, Loader2, Upload, X, Maximize2 } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { useUploaderIdentity } from "@/components/UploaderIdentityDialog";
 import exampleMatch from "@/assets/example-match.png.asset.json";
 
 type Row = { placement: number; player_name: string; leader_name: string; points: number };
@@ -53,6 +54,12 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dup, setDup] = useState(false);
+  const {
+    offer: offerUploaderIdentity,
+    confirmForGame: confirmUploaderIdentity,
+    reset: resetUploaderIdentity,
+    dialog: uploaderIdentityDialog,
+  } = useUploaderIdentity(userId);
 
   useEffect(() => {
     const keys = [...new Set(seats.flatMap((s) => [s.playerKey, s.name.toLowerCase()]).filter((k): k is string => !!k))];
@@ -65,6 +72,7 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
   }, [seats]);
 
   const analyze = useCallback(async (f: File) => {
+    resetUploaderIdentity();
     setFile(f); setDup(false); setRows([]);
     setPreview((p) => { if (p) URL.revokeObjectURL(p); return URL.createObjectURL(f); });
     setParsing(true);
@@ -78,11 +86,19 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
         if (leader) seen.add(leader);
         return { placement: r.placement, player_name: r.player_name, leader_name: leader || (r.leader_name ?? ""), points: r.points };
       });
-      setRows(await normalizeNames(raw));
+      const detected = await normalizeNames(raw);
+      setRows(detected);
+      await offerUploaderIdentity(detected, (detectedName, canonicalName) => {
+        setRows((current) => current.map((row) =>
+          row.player_name.trim().toLowerCase() === detectedName.trim().toLowerCase()
+            ? { ...row, player_name: canonicalName }
+            : row,
+        ));
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not read screenshot");
     } finally { setParsing(false); }
-  }, []);
+  }, [offerUploaderIdentity, resetUploaderIdentity]);
 
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
@@ -97,7 +113,7 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
   const report = useMemo(() => matchScreenshotToSeats(rows.map((r) => r.player_name), seats.map((s) => ({ name: s.name, playerKey: s.playerKey, discordHandle: s.discordHandle, identityVerified: s.identityVerified })), games), [rows, seats, games]);
   const modeLeaders = useMemo(() => leadersForMode(lobbyFormat(row)), [row]);
   const update = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
-  const reset = () => { setFile(null); setRows([]); setDup(false); setPreview((p) => { if (p) URL.revokeObjectURL(p); return null; }); };
+  const reset = () => { resetUploaderIdentity(); setFile(null); setRows([]); setDup(false); setPreview((p) => { if (p) URL.revokeObjectURL(p); return null; }); };
 
   const submit = async () => {
     if (!userId) return toast.error("Sign in to submit");
@@ -122,6 +138,7 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
         tournament: null, pendingTournament: null, confirmDuplicate: dup, playMode: f.playMode,
       });
       if (result.status === "duplicate") { setDup(true); toast.warning("This looks like an already uploaded game. Press submit again to confirm."); return; }
+      await confirmUploaderIdentity(result.saveResult.game_id);
       await linkMatchToLobby(row.id, result.publicMatchId);
       // Automatically sync seat names, Discord ↔ IGN links and aliases for confident matches; changes are logged for admins.
       const pairs = report.rows.flatMap((m) => {
@@ -213,6 +230,7 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
 
   return (
     <Card className="p-4 space-y-4 bg-background/40">
+      {uploaderIdentityDialog}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 font-medium">
           {parsing ? <Loader2 className="size-4 animate-spin" /> : <StatusBadge status={report.status} />}

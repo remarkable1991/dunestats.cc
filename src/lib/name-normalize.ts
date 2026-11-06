@@ -18,10 +18,10 @@ function shapeKey(s: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
-let cache: { at: number; names: string[] } | null = null;
+let cache: { at: number; names: string[]; aliases: Map<string, string> } | null = null;
 
-async function loadMasterNames(): Promise<string[]> {
-  if (cache && Date.now() - cache.at < 60_000) return cache.names;
+async function loadMasterData(): Promise<{ names: string[]; aliases: Map<string, string> }> {
+  if (cache && Date.now() - cache.at < 60_000) return { names: cache.names, aliases: cache.aliases };
   const seen = new Map<string, string>(); // lowercased -> canonical (most frequent spelling wins)
   const counts = new Map<string, number>();
   const add = (raw?: string | null) => {
@@ -31,17 +31,32 @@ async function loadMasterNames(): Promise<string[]> {
     counts.set(k, (counts.get(k) ?? 0) + 1);
     if (!seen.has(k) || (counts.get(k)! > 1 && n !== seen.get(k))) seen.set(k, n);
   };
-  const [{ data: tm }, { data: pr }, { data: gr }] = await Promise.all([
+  const [{ data: tm }, { data: pr }, { data: gr }, { data: aliasRows }] = await Promise.all([
     supabase.from("tournament_matches").select("player_name").limit(2000),
     supabase.from("player_ratings").select("display_name").limit(5000),
     supabase.from("game_results").select("player_name").limit(5000),
+    supabase.from("player_name_aliases").select("old_name,canonical_name").order("created_at", { ascending: false }).limit(5000),
   ]);
   tm?.forEach((r) => add(r.player_name));
   pr?.forEach((r) => add(r.display_name));
   gr?.forEach((r) => add(r.player_name));
   const names = Array.from(seen.values());
-  cache = { at: Date.now(), names };
-  return names;
+  const aliases = new Map<string, string>();
+  for (const alias of aliasRows ?? []) {
+    const oldKey = alias.old_name.trim().toLowerCase();
+    const canonical = alias.canonical_name.trim();
+    if (oldKey && canonical && !aliases.has(oldKey)) aliases.set(oldKey, canonical);
+  }
+  cache = { at: Date.now(), names, aliases };
+  return { names, aliases };
+}
+
+async function loadMasterNames(): Promise<string[]> {
+  return (await loadMasterData()).names;
+}
+
+export function invalidateNameNormalizationCache(): void {
+  cache = null;
 }
 
 /** Characters OCR commonly confuses with each other. */
@@ -90,8 +105,8 @@ function safeSingleEdit(a: string, b: string): boolean {
  */
 export async function normalizeNames<T extends { player_name: string }>(rows: T[]): Promise<T[]> {
   if (!rows.length) return rows;
-  const master = await loadMasterNames();
-  if (!master.length) return rows;
+  const { names: master, aliases } = await loadMasterData();
+  if (!master.length && !aliases.size) return rows;
   const byLower = new Map(master.map((m) => [m.toLowerCase(), m]));
   const byShape = new Map<string, string>();
   for (const m of master) {
@@ -101,6 +116,8 @@ export async function normalizeNames<T extends { player_name: string }>(rows: T[
   return rows.map((row) => {
     const raw = row.player_name?.trim();
     if (!raw) return row;
+    const alias = aliases.get(raw.toLowerCase());
+    if (alias && alias.toLowerCase() !== raw.toLowerCase()) return { ...row, player_name: alias };
     const exact = byLower.get(raw.toLowerCase());
     if (exact) return exact === raw ? row : { ...row, player_name: exact };
     const shaped = byShape.get(shapeKey(raw));

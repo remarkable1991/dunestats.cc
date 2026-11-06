@@ -82,6 +82,7 @@ import { type MatchSchedule, SCHEDULE_SELECT, parseScheduleTime } from "@/lib/ma
 import { tableSlug } from "@/lib/tournament-slug";
 import { TournamentPlayModeBadge, tournamentPlayMode, playModeDescription } from "@/components/TournamentPlayModeBadge";
 import { useRegistrationAvailability, withRegistrationAvailability } from "@/lib/registration-availability";
+import { useUploaderIdentity } from "@/components/UploaderIdentityDialog";
 
 
 import { Pencil } from "lucide-react";
@@ -225,6 +226,12 @@ function CurrentTournament({
   >([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [myKeys, setMyKeys] = useState<Set<string>>(new Set());
+  const {
+    offer: offerUploaderIdentity,
+    confirmForGame: confirmUploaderIdentity,
+    reset: resetUploaderIdentity,
+    dialog: uploaderIdentityDialog,
+  } = useUploaderIdentity(userId);
   const [board, setBoard] = useState<"base" | "uprising">("uprising");
   const [hasIx, setHasIx] = useState(false);
   const [hasEpic, setHasEpic] = useState(false);
@@ -780,6 +787,7 @@ function CurrentTournament({
 
   // ===== Upload handlers =====
   const onFile = async (f: File | null) => {
+    resetUploaderIdentity();
     setFile(f);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(f ? URL.createObjectURL(f) : null);
@@ -832,6 +840,13 @@ function CurrentTournament({
       } else {
         toast.success(`Detected ${detected.length} players. Pick Round/Table manually.`);
       }
+      await offerUploaderIdentity(detected, (detectedName, canonicalName) => {
+        setParsedRows((current) => current.map((row) =>
+          row.player_name.trim().toLowerCase() === detectedName.trim().toLowerCase()
+            ? { ...row, player_name: canonicalName }
+            : row,
+        ));
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not read screenshot");
     } finally {
@@ -883,6 +898,7 @@ function CurrentTournament({
         confirmDuplicate: true,
       });
       if (result.status === "ok") {
+        await confirmUploaderIdentity(result.saveResult.game_id);
         setLastSave(result.saveResult);
         toast.success(
           result.tournamentApplied
@@ -893,6 +909,7 @@ function CurrentTournament({
       setFile(null);
       setPreview(null);
       setParsedRows([]);
+      resetUploaderIdentity();
       await refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Submission failed");
@@ -903,6 +920,7 @@ function CurrentTournament({
 
   return (
     <div className="space-y-8">
+      {uploaderIdentityDialog}
       <Button variant="ghost" size="sm" onClick={onBack} className="text-sand hover:text-sand -mb-4">
         <ArrowLeft className="size-4 mr-1" /> Back to Current Tournaments
       </Button>

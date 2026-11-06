@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { Upload as UploadIcon, Loader2, CheckCircle2, Maximize2, GripVertical, Trophy, AlertTriangle } from "lucide-react";
 import exampleMatch from "@/assets/example-match.png.asset.json";
 import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
+import { useUploaderIdentity } from "@/components/UploaderIdentityDialog";
 
 const TOURNAMENT_ROUND_OPTIONS = ["Game 1", "Game 2", "Game 3", "Finals"] as const;
 const TOURNAMENT_TABLE_OPTIONS = [
@@ -91,6 +92,12 @@ function UploadPage() {
   const { lobby: lobbyParam } = Route.useSearch();
   const forcedLobby = useRef<LfgRow | null>(null);
   const [leagueLobby, setLeagueLobby] = useState<(LeagueLobbyCandidate & { confirmed: boolean }) | null>(null);
+  const {
+    offer: offerUploaderIdentity,
+    confirmForGame: confirmUploaderIdentity,
+    reset: resetUploaderIdentity,
+    dialog: uploaderIdentityDialog,
+  } = useUploaderIdentity(userId);
 
   const confirmLeagueLobby = (lc: LeagueLobbyCandidate) => {
     const f = lobbyFormat(lc.row);
@@ -144,6 +151,7 @@ function UploadPage() {
   }, []);
 
   const onFile = async (f: File | null) => {
+    resetUploaderIdentity();
     setFile(f);
     setRows(emptyRows());
     setScanned(false);
@@ -239,6 +247,14 @@ function UploadPage() {
 
 
 
+      await offerUploaderIdentity(clampRows(detected), (detectedName, canonicalName) => {
+        setRows((current) => current.map((row) =>
+          row.player_name.trim().toLowerCase() === detectedName.trim().toLowerCase()
+            ? { ...row, player_name: canonicalName }
+            : row,
+        ));
+      });
+
       const unknown = detected.filter((d) => !isCanonicalLeader(d.leader_name)).length;
       if (unknown > 0) {
         toast.warning(`Detected ${res.results.length} players — ${unknown} leader${unknown > 1 ? "s" : ""} need manual selection.`);
@@ -303,6 +319,7 @@ function UploadPage() {
         setDuplicateWarn(true);
         return;
       }
+      await confirmUploaderIdentity(result.saveResult.game_id);
       if (dupLeaders.length) {
         const { data: dg } = await supabase.from("games").select("id").eq("public_match_id", result.publicMatchId).maybeSingle();
         if (dg?.id) await reportMatchForReview(dg.id, `Duplicate leaders on upload: ${dupLeaders.join(", ")}`).catch((e) => console.error(e));
@@ -778,6 +795,7 @@ function UploadPage() {
               </div>
           </Card>
         </div>
+        {uploaderIdentityDialog}
         <Dialog open={matchDialogOpen} onOpenChange={setMatchDialogOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
