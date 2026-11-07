@@ -81,6 +81,7 @@ type MatchRow = {
     has_immortality: boolean | null;
     has_epic_mode: boolean | null;
     has_base_leaders: boolean | null;
+    is_league: boolean | null;
   } | null;
 };
 
@@ -263,6 +264,41 @@ function ProfilePage() {
   const [achSeasons, setAchSeasons] = useState<{ id: number; name: string }[]>([]);
   const [achSeasonId, setAchSeasonId] = useState<number | null>(null);
   const [ranks, setRanks] = useState<Record<string, number>>({});
+  const [leagueOnly, setLeagueOnly] = useState(false);
+  const [leagueRows, setLeagueRows] = useState<Array<{ season: number; elo: number; games_played: number; wins: number }>>([]);
+  const [leagueSeason, setLeagueSeason] = useState<number | null>(null);
+  const [leagueRank, setLeagueRank] = useState<number | null>(null);
+  const [leagueDeltaMap, setLeagueDeltaMap] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let mounted = true;
+    void Promise.all([
+      supabase.from("player_league_ratings").select("season, elo, games_played, wins").eq("player_key", playerKey).order("season", { ascending: false }),
+      supabase.from("league_match_rating_deltas").select("game_id, elo_delta").eq("player_key", playerKey).limit(2000),
+    ]).then(([r, d]) => {
+      if (!mounted) return;
+      const rows = (r.data ?? []).map((x) => ({ ...x, elo: Number(x.elo) }));
+      setLeagueRows(rows);
+      setLeagueSeason(rows[0]?.season ?? null);
+      const m: Record<string, number> = {};
+      for (const x of d.data ?? []) m[x.game_id] = Number(x.elo_delta);
+      setLeagueDeltaMap(m);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [playerKey]);
+
+  const leagueRow = leagueRows.find((r) => r.season === leagueSeason) ?? null;
+  useEffect(() => {
+    if (!leagueRow) { setLeagueRank(null); return; }
+    void supabase
+      .from("player_league_ratings")
+      .select("player_key", { count: "exact", head: true })
+      .eq("season", leagueRow.season)
+      .gt("elo", leagueRow.elo)
+      .then(({ count }) => setLeagueRank((count ?? 0) + 1));
+  }, [leagueRow?.season, leagueRow?.elo]);
 
   useEffect(() => {
     let mounted = true;
@@ -302,7 +338,7 @@ function ProfilePage() {
         .eq("player_key", playerKey),
       supabase
         .from("game_results")
-        .select("placement, player_name, leader_name, points, elo_delta, elo_delta_overall, games!inner(id, created_at, game_version, board_version, image_url, public_match_id, tournament_num, has_rise_of_ix, has_immortality, has_epic_mode, has_base_leaders)")
+        .select("placement, player_name, leader_name, points, elo_delta, elo_delta_overall, games!inner(id, created_at, game_version, board_version, image_url, public_match_id, tournament_num, has_rise_of_ix, has_immortality, has_epic_mode, has_base_leaders, is_league)")
         .ilike("player_name", playerKey)
         .order("created_at", { foreignTable: "games", ascending: false })
         .limit(1000),
@@ -367,6 +403,7 @@ function ProfilePage() {
     const empty = () => ({ total: 0, c: [0, 0, 0, 0] });
     const out: Record<string, { total: number; c: number[] }> = {
       overall: empty(),
+      league: empty(),
       base: empty(),
       ix: empty(),
       uprising: empty(),
@@ -376,6 +413,10 @@ function ProfilePage() {
       const idx = Math.min(4, Math.max(1, m.placement)) - 1;
       out.overall.total += 1;
       out.overall.c[idx] += 1;
+      if (m.games?.is_league) {
+        out.league.total += 1;
+        out.league.c[idx] += 1;
+      }
       if (gv && out[gv]) {
         out[gv].total += 1;
         out[gv].c[idx] += 1;
@@ -404,6 +445,7 @@ function ProfilePage() {
       return Boolean(val) === (state === "true");
     };
     return matches.filter((m) => {
+      if (leagueOnly && !m.games?.is_league) return false;
       if (version !== "overall" && m.games?.game_version !== version) return false;
       if (!matchBool(fImmortality, m.games?.has_immortality)) return false;
       if (version === "ix" && !matchBool(fEpic, m.games?.has_epic_mode)) return false;
@@ -411,7 +453,7 @@ function ProfilePage() {
       if (version === "uprising" && !matchBool(fBaseLeaders, m.games?.has_base_leaders)) return false;
       return true;
     });
-  }, [matches, version, fImmortality, fEpic, fRiseOfIx, fBaseLeaders]);
+  }, [matches, version, fImmortality, fEpic, fRiseOfIx, fBaseLeaders, leagueOnly]);
 
   const leaderStats = useMemo(() => {
     const map = new Map<string, { leader: string; picks: number; wins: number; totalPoints: number }>();
@@ -489,7 +531,7 @@ function ProfilePage() {
 
   const PAGE_SIZE = 100;
   const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [version, fImmortality, fEpic, fRiseOfIx, fBaseLeaders, sortKey, sortDir]);
+  useEffect(() => { setPage(1); }, [leagueOnly, version, fImmortality, fEpic, fRiseOfIx, fBaseLeaders, sortKey, sortDir]);
   const totalPages = Math.max(1, Math.ceil(sortedMatches.length / PAGE_SIZE));
   const pagedMatches = sortedMatches.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   function SortTh({ label, k, className = "" }: { label: string; k: MSortKey; className?: string }) {
@@ -529,7 +571,42 @@ function ProfilePage() {
             </Link>
           )}
         </div>
-        <p className="text-muted-foreground mb-6">Personal stats across all leaderboard versions.</p>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+          <p className="text-muted-foreground">
+            {leagueOnly ? "League stats only." : "Personal stats across all leaderboard versions."}
+          </p>
+          <div className="flex items-center gap-2">
+            {leagueOnly && leagueRows.length > 1 && (
+              <select
+                aria-label="League season"
+                value={leagueSeason ?? ""}
+                onChange={(e) => setLeagueSeason(Number(e.target.value))}
+                className="h-8 rounded-md border border-border/60 bg-card/60 px-2 text-xs"
+              >
+                {leagueRows.map((r) => (
+                  <option key={r.season} value={r.season}>Season {r.season}</option>
+                ))}
+              </select>
+            )}
+            <div className="inline-flex rounded-full border border-border/60 bg-card/60 p-0.5">
+              {([
+                { v: false, label: "All matches" },
+                { v: true, label: "League only" },
+              ] as const).map((o) => (
+                <button
+                  key={o.label}
+                  type="button"
+                  onClick={() => setLeagueOnly(o.v)}
+                  className={`rounded-full px-3 py-1 text-xs transition ${
+                    leagueOnly === o.v ? "bg-sand text-sand-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
 
         {tournamentWins > 0 && (
           <Card className="p-4 border-sand/40 bg-gradient-to-br from-card to-card/40 mb-6">
@@ -557,6 +634,18 @@ function ProfilePage() {
           <p className="text-muted-foreground">No data for this player.</p>
         ) : (
           <>
+            {(leagueOnly || leagueRows.length > 0) && (
+              <Card className={`p-4 mb-3 border-border/60 bg-card/70 ring-1 ring-teal/40 ${leagueOnly ? "" : "sm:max-w-sm"}`}>
+                <RatingCard
+                  label={`League${leagueRow ? ` · Season ${leagueRow.season}` : ""}`}
+                  version="league"
+                  elo={leagueRow ? leagueRow.elo : null}
+                  rank={leagueRank}
+                  p={placementStats.league}
+                />
+              </Card>
+            )}
+            {!leagueOnly && (
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
               {GAME_VERSIONS.map((v) => {
                 const r = ratings.find((x) => x.game_version === v.value);
@@ -578,6 +667,8 @@ function ProfilePage() {
                 );
               })}
             </div>
+            )}
+            {leagueOnly && <div className="mb-5" />}
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-8">
               <QuickJump
@@ -613,7 +704,7 @@ function ProfilePage() {
 
             <AccountConsolidation target={ratings.find((r) => r.claimed_by)?.claimed_by ?? null} name={displayName} />
 
-            <EloHistoryChart playerKey={playerKey} />
+            <EloHistoryChart playerKey={playerKey} leagueOnly={leagueOnly} leagueSeason={leagueOnly ? leagueSeason : null} />
 
             {achievements.length > 0 && (
               <section id="achievements" className="mb-8 scroll-mt-24">
@@ -785,7 +876,17 @@ function ProfilePage() {
                       <td className="px-4 py-2 text-sand font-display tabular-nums">{m.points}</td>
                       <td className="px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground">
                         <div className="flex flex-col gap-1 items-start">
-                          <span>{m.games?.game_version}</span>
+                          <span className="flex items-center gap-1">
+                            {m.games?.game_version}
+                            {m.games?.is_league && (
+                              <span className="rounded border border-teal/50 bg-teal/10 px-1 text-[9px] text-teal">League</span>
+                            )}
+                          </span>
+                          {m.games && leagueDeltaMap[m.games.id] != null && (
+                            <span className={`normal-case tabular-nums ${leagueDeltaMap[m.games.id] >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                              League {leagueDeltaMap[m.games.id] >= 0 ? "+" : ""}{leagueDeltaMap[m.games.id].toFixed(1)}
+                            </span>
+                          )}
                           {m.games && (
                             <EloDeltaLine
                               version={m.games.game_version as "base" | "ix" | "uprising"}

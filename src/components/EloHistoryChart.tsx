@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
 import { TrendingUp } from "lucide-react";
 
-type SystemKey = "overall" | "base" | "ix" | "uprising" | "vp";
+type SystemKey = "overall" | "base" | "ix" | "uprising" | "vp" | "league";
 
 const SYSTEMS: Array<{ k: SystemKey; label: string }> = [
   { k: "overall", label: "Overall" },
@@ -13,6 +13,7 @@ const SYSTEMS: Array<{ k: SystemKey; label: string }> = [
   { k: "ix", label: "Rise of Ix" },
   { k: "uprising", label: "Uprising" },
   { k: "vp", label: "Overall VP (Sandbox)" },
+  { k: "league", label: "League" },
 ];
 
 const TIMEFRAMES: Array<{ k: string; label: string; days: number | null }> = [
@@ -89,7 +90,7 @@ function Pill({
   );
 }
 
-export function EloHistoryChart({ playerKey }: { playerKey: string }) {
+export function EloHistoryChart({ playerKey, leagueOnly = false, leagueSeason = null }: { playerKey: string; leagueOnly?: boolean; leagueSeason?: number | null }) {
   const [games, setGames] = useState<Game[]>([]);
   const [vpDeltas, setVpDeltas] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -97,6 +98,27 @@ export function EloHistoryChart({ playerKey }: { playerKey: string }) {
   const [mode, setMode] = useState<"time" | "count">("time");
   const [timeframe, setTimeframe] = useState("30d");
   const [count, setCount] = useState("25");
+  const [leagueDeltas, setLeagueDeltas] = useState<Array<{ game_id: string; season: number; elo_delta: number }>>([]);
+
+  useEffect(() => {
+    if (leagueOnly) setSystem("league");
+    else setSystem((s) => (s === "league" ? "overall" : s));
+  }, [leagueOnly]);
+
+  useEffect(() => {
+    let mounted = true;
+    void supabase
+      .from("league_match_rating_deltas")
+      .select("game_id, season, elo_delta")
+      .eq("player_key", playerKey)
+      .limit(2000)
+      .then(({ data }) => {
+        if (mounted) setLeagueDeltas(((data ?? []) as Array<{ game_id: string; season: number; elo_delta: number }>));
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [playerKey]);
 
   useEffect(() => {
     let mounted = true;
@@ -153,6 +175,11 @@ export function EloHistoryChart({ playerKey }: { playerKey: string }) {
       if (system === "base" || system === "ix" || system === "uprising") return g.game_version === system;
       return true;
     });
+    const lmap = new Map<string, number>();
+    for (const d of leagueDeltas) {
+      if (leagueSeason != null && d.season !== leagueSeason) continue;
+      lmap.set(d.game_id, Number(d.elo_delta));
+    }
     let rating = BASELINE;
     const pts: Point[] = [];
     for (const g of relevant) {
@@ -161,6 +188,7 @@ export function EloHistoryChart({ playerKey }: { playerKey: string }) {
       let delta: number | null = null;
       if (system === "overall") delta = me.elo_delta_overall;
       else if (system === "vp") delta = vpDeltas[`${g.id}::${playerKey}`] ?? null;
+      else if (system === "league") delta = lmap.get(g.id) ?? null;
       else delta = me.elo_delta;
       if (delta == null) continue;
       rating += Number(delta);
@@ -173,7 +201,7 @@ export function EloHistoryChart({ playerKey }: { playerKey: string }) {
       });
     }
     return pts;
-  }, [games, system, vpDeltas, playerKey]);
+  }, [games, system, vpDeltas, playerKey, leagueDeltas, leagueSeason]);
 
   const windowed = useMemo(() => {
     if (mode === "count") {
@@ -238,7 +266,7 @@ export function EloHistoryChart({ playerKey }: { playerKey: string }) {
 
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <div className="inline-flex flex-wrap rounded-full border border-border/60 bg-card/60 p-0.5">
-          {SYSTEMS.map((s) => (
+          {SYSTEMS.filter((s) => !leagueOnly || s.k === "league").map((s) => (
             <Pill key={s.k} active={system === s.k} onClick={() => setSystem(s.k)}>
               {s.label}
             </Pill>
