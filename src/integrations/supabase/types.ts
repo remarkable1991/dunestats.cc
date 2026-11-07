@@ -1198,6 +1198,7 @@ export type Database = {
           id: string
           last_sign_in_at: string | null
           last_sp_checkin_at: string | null
+          league_only_view: boolean
           lfg_async_emails_opt_in: boolean
           lfg_live_emails_opt_in: boolean
           news_emails_opt_in: boolean
@@ -1219,6 +1220,7 @@ export type Database = {
           id: string
           last_sign_in_at?: string | null
           last_sp_checkin_at?: string | null
+          league_only_view?: boolean
           lfg_async_emails_opt_in?: boolean
           lfg_live_emails_opt_in?: boolean
           news_emails_opt_in?: boolean
@@ -1240,6 +1242,7 @@ export type Database = {
           id?: string
           last_sign_in_at?: string | null
           last_sp_checkin_at?: string | null
+          league_only_view?: boolean
           lfg_async_emails_opt_in?: boolean
           lfg_live_emails_opt_in?: boolean
           news_emails_opt_in?: boolean

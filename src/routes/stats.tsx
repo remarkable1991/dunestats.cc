@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useEffect, useMemo, useState } from "react";
+import { useLeagueOnlyView } from "@/hooks/use-league-only";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -127,6 +128,7 @@ type Row = {
   games: {
     id: string;
     game_version: GameVersion;
+    is_league?: boolean | null;
     has_rise_of_ix: boolean | null;
     has_epic_mode: boolean | null;
     has_immortality: boolean | null;
@@ -192,7 +194,9 @@ function toneClass(personal: number | null, global: number, epsilon = 0.0001) {
 
 function StatsPage() {
   const navigate = useNavigate();
-  const [rows, setRows] = useState<Row[]>([]);
+  const [allRows, setRows] = useState<Row[]>([]);
+  const { leagueOnly, setLeagueOnly } = useLeagueOnlyView();
+  const rows = useMemo(() => (leagueOnly ? allRows.filter((r) => r.games?.is_league) : allRows), [allRows, leagueOnly]);
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState<GameVersion>("overall");
   const [mode, setMode] = useState<"basic" | "advanced">("basic");
@@ -275,7 +279,7 @@ function StatsPage() {
       while (true) {
         const { data, error } = await supabase
           .from("game_results")
-          .select("placement, leader_name, player_name, points, spice, solaris, water, has_high_council, has_swordmaster, turn_order, player_slot, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance, games!inner(id, game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, ai_scan_status, end_round, conflict_title)")
+          .select("placement, leader_name, player_name, points, spice, solaris, water, has_high_council, has_swordmaster, turn_order, player_slot, emperor_level, emperor_alliance, spacing_guild_level, spacing_guild_alliance, bene_gesserit_level, bene_gesserit_alliance, fremen_level, fremen_alliance, games!inner(id, is_league, game_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, ai_scan_status, end_round, conflict_title)")
           .order("id", { ascending: true })
           .range(from, from + PAGE - 1);
         if (error || !data || data.length === 0) break;
@@ -872,6 +876,23 @@ function StatsPage() {
         <div className="flex items-center gap-3 mb-2">
           <BarChart3 className="size-7 text-sand" />
           <h1 className="font-display text-3xl">Leader stats</h1>
+          <div className="ml-auto inline-flex rounded-full border border-border/60 bg-card/60 p-0.5">
+            {([
+              { v: false, label: "All matches" },
+              { v: true, label: "League only" },
+            ] as const).map((o) => (
+              <button
+                key={o.label}
+                type="button"
+                onClick={() => setLeagueOnly(o.v)}
+                className={`rounded-full px-3 py-1 text-xs transition ${
+                  leagueOnly === o.v ? "bg-sand text-sand-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
         </div>
         <p className="text-muted-foreground mb-6">
           Pick rate (share of seats this leader filled) and win rate per leader, by leaderboard version.

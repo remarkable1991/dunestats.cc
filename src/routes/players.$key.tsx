@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown, Target, History, TrendingUp, type LucideIcon } from "lucide-react";
 import { EloHistoryChart } from "@/components/EloHistoryChart";
+import { useLeagueOnlyView } from "@/hooks/use-league-only";
 import { AccountConsolidation } from "@/components/AccountConsolidation";
 import { AdminRoleManager } from "@/components/AdminRoleManager";
 
@@ -264,7 +265,7 @@ function ProfilePage() {
   const [achSeasons, setAchSeasons] = useState<{ id: number; name: string }[]>([]);
   const [achSeasonId, setAchSeasonId] = useState<number | null>(null);
   const [ranks, setRanks] = useState<Record<string, number>>({});
-  const [leagueOnly, setLeagueOnly] = useState(false);
+  const { leagueOnly, setLeagueOnly } = useLeagueOnlyView();
   const [leagueRows, setLeagueRows] = useState<Array<{ season: number; elo: number; games_played: number; wins: number }>>([]);
   const [leagueSeason, setLeagueSeason] = useState<number | null>(null);
   const [leagueRank, setLeagueRank] = useState<number | null>(null);

@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS league_only_view boolean NOT NULL DEFAULT false;
