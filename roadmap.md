@@ -1,8 +1,8 @@
 # To do
 
-- [ ] Restore BASIN-SIETCH-5272 to League in Lobby 593 with its four seasonal rating contributions.
-- [ ] Make admin League re-linking restore League status and apply missing ratings without duplicates.
-- [ ] Run linking regression tests and verify repaired profile history.
+- [x] Restore BASIN-SIETCH-5272 to League in Lobby 593 with its four seasonal rating contributions.
+- [x] Make admin League re-linking restore League status and apply missing ratings without duplicates.
+- [x] Run linking regression tests and verify repaired profile history on all four profiles; authenticated admin UI testing is unavailable with external unmanaged auth.
 
 - [x] Add a shared upload identity check that stays silent when any claimed IGN matches the screenshot.
 - [x] Add the seat-confirmation dialog with taken-seat protection, optional claiming, and OCR alias correction.

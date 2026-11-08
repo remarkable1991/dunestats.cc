@@ -55,6 +55,15 @@ export const linkAdminLobby = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: result, error: e } = await supabaseAdmin.rpc("admin_link_lobby_match", { p_lobby_id: data.lobbyId, p_match_code: cleanMatchCode(data.matchCode), p_actor: context.userId });
     if (e) throw new Error(e.message);
+    if (cleanMatchCode(data.matchCode)) {
+      const { applyLinkedLeagueElo } = await import("@/lib/league-elo.server");
+      try {
+        await applyLinkedLeagueElo(supabaseAdmin, data.lobbyId);
+      } catch (error) {
+        console.error("League ratings after admin link failed:", error);
+        throw new Error("Match linked, but League ratings could not be completed. Retry linking the same match to finish applying its ratings.");
+      }
+    }
     return result;
   });
 
