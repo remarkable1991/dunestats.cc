@@ -13,3 +13,8 @@
 - [x] Prioritize the seated lobby roster during screenshot-name normalization.
 - [x] Paginate master-player and alias reads beyond Supabase's 1,000-row response cap.
 - [x] Run targeted tests, verify the repaired records and match page, and check the build.
+
+- [ ] Show the linked LFG lobby on League match pages.
+- [ ] Add paginated player-name search and quick player filters to played LFG history.
+- [ ] Show both match ID and LFG lobby links in League profile history.
+- [ ] Run targeted checks and verify all three flows in the preview.
