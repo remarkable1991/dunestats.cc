@@ -411,14 +411,27 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
       const claimMap: Record<string, string | null> = {};
       const top2: Record<string, number> = {};
       if (keys.length) {
-        const [{ data: pr }, { data: deltas }] = await Promise.all([
+        const fetchDeltas = async () => {
+          const out: { game_id: string; player_key: string }[] = [];
+          for (let from = 0; ; from += 1000) {
+            const { data: page } = await supabase.from("league_match_rating_deltas").select("game_id,player_key").eq("season", season).order("game_id").order("player_key").range(from, from + 999);
+            out.push(...(page ?? []));
+            if (!page || page.length < 1000) break;
+          }
+          return out;
+        };
+        const [{ data: pr }, deltas] = await Promise.all([
           supabase.from("player_ratings").select("player_key,display_name,claimed_by").eq("game_version", "overall").in("player_key", keys),
-          supabase.from("league_match_rating_deltas").select("game_id,player_key").eq("season", season).limit(5000),
+          fetchDeltas(),
         ]);
         for (const r of pr ?? []) { nameMap[r.player_key] = r.display_name; claimMap[r.player_key] = r.claimed_by; }
-        const gameIds = [...new Set((deltas ?? []).map((d) => d.game_id))];
+        const gameIds = [...new Set(deltas.map((d) => d.game_id))];
         if (gameIds.length) {
-          const { data: gr } = await supabase.from("game_results").select("game_id,player_name,placement").in("game_id", gameIds).lte("placement", 2);
+          const gr: { game_id: string; player_name: string; placement: number }[] = [];
+          for (let i = 0; i < gameIds.length; i += 150) {
+            const { data: chunk } = await supabase.from("game_results").select("game_id,player_name,placement").in("game_id", gameIds.slice(i, i + 150)).lte("placement", 2);
+            gr.push(...(chunk ?? []));
+          }
           const byGame = new Map<string, string[]>();
           for (const d of deltas ?? []) byGame.set(d.game_id, [...(byGame.get(d.game_id) ?? []), d.player_key]);
           const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -436,11 +449,14 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
   }, [season]);
 
   const term = q.trim().toLowerCase();
-  const val = (r: LeagueRow) => (sortKey === "win_pct" ? (r.games_played ? r.wins / r.games_played : 0) : r[sortKey]);
+  const val = (r: LeagueRow) =>
+    sortKey === "win_pct" ? (r.games_played ? r.wins / r.games_played : 0)
+    : sortKey === "top2" ? (r.games_played ? r.top2 / r.games_played : 0)
+    : r[sortKey];
   const ranked = [...rows].sort((a, b) => b.elo - a.elo);
   const rankOf = new Map(ranked.map((r, i) => [r.player_key, i]));
   const shown = rows
-    .filter((r) => r.games_played >= Math.min(minGames, 1) && (!term || r.player_key.includes(term) || (names[r.player_key] ?? "").toLowerCase().includes(term)))
+    .filter((r) => r.games_played >= Math.max(minGames, 1) && (!term || r.player_key.includes(term) || (names[r.player_key] ?? "").toLowerCase().includes(term)))
     .sort((a, b) => (sortAsc ? val(a) - val(b) : val(b) - val(a)));
   const discordLinks = useDiscordLinks(shown.slice(0, 200).map((r) => r.player_key));
 
@@ -509,7 +525,7 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
                   <td className="px-4 py-3 text-right font-display text-sand tabular-nums">{Math.round(r.elo)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{r.games_played}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{r.wins}</td>
-                  <td className="px-4 py-3 text-right tabular-nums hidden sm:table-cell">{r.top2}</td>
+                  <td className="px-4 py-3 text-right tabular-nums hidden sm:table-cell">{r.games_played ? Math.round((r.top2 / r.games_played) * 100) : 0}%</td>
                   <td className="px-4 py-3 text-right tabular-nums hidden md:table-cell">{winPct.toFixed(0)}%</td>
                   <td className="px-4 py-3 text-right">
                     <AccountBadges playerKey={r.player_key} webClaimed={!!r.claimed_by} discord={discordLinks[r.player_key.toLowerCase()]} />
