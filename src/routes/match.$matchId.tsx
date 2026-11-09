@@ -144,6 +144,7 @@ function MatchDetailsPage() {
   const [revealed, setRevealed] = useState(false);
   const { showAll: showAllTracks, setShowAll: setShowAllTracks } = useShowAllRatingTracks();
   const [league, setLeague] = useState<{ season: number | null; deltas: Record<string, number>; totals: Record<string, number> }>({ season: null, deltas: {}, totals: {} });
+  const [linkedLobby, setLinkedLobby] = useState<{ id: number; is_league: boolean | null; season_num: number | null; season_id: number | null } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,7 +170,7 @@ function MatchDetailsPage() {
 
       // Fetch sandbox VP deltas + current totals for each player.
       const keys = Array.from(new Set(g.game_results.map((r) => r.player_name.toLowerCase().trim())));
-      const [{ data: sbrs }, { data: prs }, { data: sbrats }] = await Promise.all([
+      const [{ data: sbrs }, { data: prs }, { data: sbrats }, { data: lobbyRow }] = await Promise.all([
         supabase
           .from("sandbox_game_results")
           .select("player_name, elo_delta_overall")
@@ -183,6 +184,11 @@ function MatchDetailsPage() {
           .from("sandbox_player_ratings")
           .select("player_key, overall_vp_elo")
           .in("player_key", keys),
+        supabase
+          .from("active_async_matches")
+          .select("id, is_league, season_num, season_id")
+          .eq("linked_game_id", g.id)
+          .maybeSingle(),
       ]);
       if (cancelled) return;
       const vmap: Record<string, number> = {};
@@ -207,14 +213,12 @@ function MatchDetailsPage() {
         if (r.overall_vp_elo !== null && r.overall_vp_elo !== undefined) tmap[k].vp = Number(r.overall_vp_elo);
       });
       setTotals(tmap);
+      setLinkedLobby(lobbyRow ?? null);
       if (g.is_league) {
         const { data: ds } = await supabase.from("league_match_rating_deltas" as never).select("player_key,season,elo_delta").eq("game_id", g.id);
         const drows = (ds ?? []) as unknown as { player_key: string; season: number; elo_delta: number }[];
         let season: number | null = drows[0]?.season ?? null;
-        if (season == null) {
-          const { data: lob } = await supabase.from("active_async_matches").select("season_num,season_id").eq("linked_game_id", g.id).maybeSingle();
-          season = lob?.season_num ?? lob?.season_id ?? null;
-        }
+        if (season == null) season = lobbyRow?.season_num ?? lobbyRow?.season_id ?? null;
         const deltas: Record<string, number> = {};
         drows.forEach((d) => (deltas[d.player_key.toLowerCase().trim()] = Number(d.elo_delta)));
         const totalsL: Record<string, number> = {};
@@ -563,6 +567,16 @@ function MatchDetailsPage() {
 
 
         <div className="flex flex-wrap items-center gap-2 mb-6">
+          {linkedLobby && (game.is_league || linkedLobby.is_league) && (
+            <Link
+              to="/lfg/$id"
+              params={{ id: String(linkedLobby.id) }}
+              className="inline-flex items-center gap-1 rounded border border-teal/50 bg-teal/10 px-2 py-0.5 text-xs text-teal hover:underline"
+            >
+              <Trophy className="size-3" /> LFG #{linkedLobby.id}
+              {(linkedLobby.season_num ?? linkedLobby.season_id) != null && ` · S${linkedLobby.season_num ?? linkedLobby.season_id}`}
+            </Link>
+          )}
           <TournamentTag num={game.tournament_num} round={tourneyTable?.round} table={tourneyTable?.table} />
           {game.ai_scan_status === "Yes" && (
             <span className="text-xs px-2 py-0.5 rounded border border-amber-500/50 bg-amber-500/10 text-amber-400">

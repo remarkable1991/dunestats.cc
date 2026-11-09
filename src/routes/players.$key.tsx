@@ -270,6 +270,31 @@ function ProfilePage() {
   const [leagueSeason, setLeagueSeason] = useState<number | null>(null);
   const [leagueRank, setLeagueRank] = useState<number | null>(null);
   const [leagueDeltaMap, setLeagueDeltaMap] = useState<Record<string, number>>({});
+  const [lobbyByGame, setLobbyByGame] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const gameIds = [...new Set(matches.flatMap((m) => m.games?.is_league && m.games.id ? [m.games.id] : []))];
+    if (!gameIds.length) {
+      setLobbyByGame({});
+      return;
+    }
+    let mounted = true;
+    void supabase
+      .from("active_async_matches")
+      .select("id, linked_game_id")
+      .in("linked_game_id", gameIds)
+      .then(({ data, error }) => {
+        if (!mounted) return;
+        if (error) {
+          setLobbyByGame({});
+          return;
+        }
+        const map: Record<string, number> = {};
+        for (const row of data ?? []) if (row.linked_game_id) map[row.linked_game_id] = row.id;
+        setLobbyByGame(map);
+      });
+    return () => { mounted = false; };
+  }, [matches]);
 
   useEffect(() => {
     let mounted = true;
@@ -900,13 +925,24 @@ function ProfilePage() {
                       </td>
                       <td className="px-4 py-2 text-xs">
                         {m.games && (
-                          <Link
-                            to="/match/$matchId"
-                            params={{ matchId: m.games.public_match_id ?? m.games.id }}
-                            className="text-sand hover:underline font-mono"
-                          >
-                            {m.games.public_match_id ?? "View"}
-                          </Link>
+                          <div className="flex flex-col items-start gap-1">
+                            <Link
+                              to="/match/$matchId"
+                              params={{ matchId: m.games.public_match_id ?? m.games.id }}
+                              className="text-sand hover:underline font-mono"
+                            >
+                              {m.games.public_match_id ?? "View"}
+                            </Link>
+                            {m.games.is_league && lobbyByGame[m.games.id] && (
+                              <Link
+                                to="/lfg/$id"
+                                params={{ id: String(lobbyByGame[m.games.id]) }}
+                                className="text-teal hover:underline"
+                              >
+                                LFG #{lobbyByGame[m.games.id]}
+                              </Link>
+                            )}
+                          </div>
                         )}
                       </td>
                       <td className="px-2 py-1 text-right">

@@ -2339,6 +2339,15 @@ export type Database = {
         Returns: Json
       }
       lfg_my_ign: { Args: never; Returns: string }
+      lfg_played_history: {
+        Args: {
+          p_mode?: string
+          p_page?: number
+          p_page_size?: number
+          p_search?: string
+        }
+        Returns: Json
+      }
       lfg_record_result_identities: {
         Args: { p_lobby_id: number; p_pairs: Json }
         Returns: Json

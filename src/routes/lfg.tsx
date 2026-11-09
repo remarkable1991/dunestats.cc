@@ -411,7 +411,7 @@ function LfgPage() {
             ))}
           </div>
         )}
-        <PlayedLobbyHistory pilot={isLfgAdmin} />
+        <PlayedLobbyHistory />
       </main>
       <Dialog open={casualNoticeOpen} onOpenChange={setCasualNoticeOpen}>
         <DialogContent>
