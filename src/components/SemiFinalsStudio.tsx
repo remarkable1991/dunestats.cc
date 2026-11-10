@@ -53,6 +53,7 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
   const [minBlocks, setMinBlocks] = useState(2);
   const [maxBlocks, setMaxBlocks] = useState(4);
   const [minPlayerBlocks, setMinPlayerBlocks] = useState(1);
+  const [rankRange, setRankRange] = useState<[number, number] | null>(null);
   const [registrationOverrides, setRegistrationOverrides] = useState<Record<string, string>>({});
   const [refresh, setRefresh] = useState(0);
   const [searchDraft, setDraft] = useState<SemiDraft | null>(null);
@@ -98,12 +99,18 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
   const poolSet = new Set(pool.map((s) => s.player));
   const gfSet = new Set(grandFinal.map((s) => s.player));
   const poolKey = pool.map((s) => s.player).join("\u0001");
+  const poolAvgRank = pool.length ? pool.reduce((sum, s) => sum + s.rank, 0) / pool.length : 0;
+  const defaultRankMin = Math.max(1, Math.floor(poolAvgRank - 1.5));
+  const defaultRankMax = Math.max(defaultRankMin, Math.ceil(poolAvgRank + 1.5));
+  const minAvgRank = rankRange?.[0] ?? defaultRankMin;
+  const maxAvgRank = rankRange?.[1] ?? defaultRankMax;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const asyncDraft = useMemo(() => (isAsync ? snakeSemiDraft(pool) : null), [isAsync, poolKey, standings]);
   const draft = isAsync ? asyncDraft : searchDraft;
   const maxGames = Math.max(0, ...standings.map((s) => s.games));
 
-  useEffect(() => setDraft(null), [skipped, start, end, target, minBlocks, maxBlocks, minPlayerBlocks, registrationOverrides]);
+  useEffect(() => setRankRange(null), [poolKey]);
+  useEffect(() => setDraft(null), [skipped, start, end, target, minBlocks, maxBlocks, minPlayerBlocks, minAvgRank, maxAvgRank, registrationOverrides]);
 
   const registrationOf = (player: string, discord: string | null) => {
     const override = registrationOverrides[player];
@@ -119,10 +126,11 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
   const run = () => {
     setRunning(true);
     setTimeout(() => {
-      const result = runSemiSearch({ pool, regs, windowStart: new Date(start), windowEnd: new Date(end), targetSlots: target, minBlocks, maxBlocks, minPlayerBlocks, registrationOverrides });
+      const result = runSemiSearch({ pool, regs, windowStart: new Date(start), windowEnd: new Date(end), targetSlots: target, minBlocks, maxBlocks, minPlayerBlocks, minAvgRank, maxAvgRank, registrationOverrides });
       setDraft(result);
       setRunning(false);
       if (!result) toast.error(`Need a multiple of 4 semi-finalists (have ${pool.length}).`);
+      else if (!result.tables.length) toast.error("No complete split meets the availability and average-rank settings.");
     }, 20);
   };
 
@@ -249,14 +257,16 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
           <div><Label>From</Label><Input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} /></div>
           <div><Label>Until</Label><Input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
           <div><Label>Suggestions per table</Label><Input type="number" min={1} max={3} value={target} onChange={(e) => setTarget(Math.min(3, Math.max(1, Number(e.target.value) || 1)))} /></div>
-          <Button onClick={run} disabled={running || pool.length < 4 || pool.length % 4 !== 0 || !validDates || unresolved.length > 0 || duplicateLinks}>{running ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />} Find trial seed</Button>
+          <Button onClick={run} disabled={running || pool.length < 4 || pool.length % 4 !== 0 || !validDates || minAvgRank > maxAvgRank || unresolved.length > 0 || duplicateLinks}>{running ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />} Find trial seed</Button>
         </div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <div className="mt-4 grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
           <div><Label>Minimum consecutive blocks</Label><Select value={String(minBlocks)} onValueChange={(v) => { const n = Number(v); setMinBlocks(n); setMaxBlocks((m) => Math.max(m, n)); setMinPlayerBlocks((m) => Math.min(m, n)); }}><SelectTrigger aria-label="Minimum match duration"><SelectValue /></SelectTrigger><SelectContent>{[2, 3, 4].map((n) => <SelectItem key={n} value={String(n)}>{n} × 30 min ({n * 30} min)</SelectItem>)}</SelectContent></Select></div>
           <div><Label>Preferred consecutive blocks</Label><Select value={String(maxBlocks)} onValueChange={(v) => setMaxBlocks(Number(v))}><SelectTrigger aria-label="Preferred match duration"><SelectValue /></SelectTrigger><SelectContent>{[2, 3, 4].filter((n) => n >= minBlocks).map((n) => <SelectItem key={n} value={String(n)}>{n} × 30 min ({n * 30} min)</SelectItem>)}</SelectContent></Select></div>
           <div><Label>Minimum availability per player</Label><Select value={String(minPlayerBlocks)} onValueChange={(v) => setMinPlayerBlocks(Number(v))}><SelectTrigger aria-label="Minimum player availability"><SelectValue /></SelectTrigger><SelectContent>{[1, 2, 3, 4].filter((n) => n <= minBlocks).map((n) => <SelectItem key={n} value={String(n)}>{n * 30} min</SelectItem>)}</SelectContent></Select></div>
+          <div><Label htmlFor="min-avg-rank">Minimum average rank</Label><Input id="min-avg-rank" aria-label="Minimum average rank" type="number" min={1} step={0.25} value={minAvgRank} onChange={(e) => setRankRange([Number(e.target.value) || 1, maxAvgRank])} /></div>
+          <div><Label htmlFor="max-avg-rank">Maximum average rank</Label><Input id="max-avg-rank" aria-label="Maximum average rank" type="number" min={1} step={0.25} value={maxAvgRank} onChange={(e) => setRankRange([minAvgRank, Number(e.target.value) || 1])} /></div>
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">Tests every split of the {pool.length} semi-finalists into tables of 4, comparing {minBlocks * 30}–{maxBlocks * 30} minute windows at least 10 hours apart. Nobody can have zero availability; partial windows require confirmation and balancing TP and rank between tables.</p>
+        <p className="mt-2 text-xs text-muted-foreground">Checks every 4-player table within average rank {minAvgRank}–{maxAvgRank}, then combines disjoint tables into complete splits. It prefers {target} suggestion{target === 1 ? "" : "s"} per table with {minBlocks * 30}–{maxBlocks * 30} minute windows at least 10 hours apart, then balances TP and rank. Tables outside the usual pots are allowed.</p>
       </Card>
       )}
 
@@ -265,15 +275,16 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 text-teal"><CheckCircle2 className="size-5" /><span className="text-xs font-semibold uppercase">{isAsync ? "Snake seed" : "Trial seed"} — not published</span></div>
-              <h2 className="mt-1 font-display text-2xl">{isAsync ? "Semi-final tables" : "Best semi-final split"}</h2>
-              {!isAsync && <p className="text-xs text-muted-foreground">{draft.partitionsTested} splits × {draft.slotsScanned} half-hour slots checked. Review, export, then publish.</p>}
+              <h2 className="mt-1 font-display text-2xl">{isAsync ? "Semi-final tables" : draft.tables.length ? "Best semi-final split" : "No complete split found"}</h2>
+              {!isAsync && <p className="text-xs text-muted-foreground">{draft.viableTables} of {draft.tableCombosTested} possible tables met the settings · {draft.partitionsTested} complete splits checked across {draft.slotsScanned} half-hour positions.</p>}
             </div>
-            <div className="flex flex-wrap gap-2">
+            {(isAsync || draft.tables.length > 0) && <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={async () => { await navigator.clipboard.writeText(announcement(num, draft, grandFinal)); toast.success("Announcement copied"); }}><Clipboard className="size-4" /> Discord text</Button>
               <Button variant="outline" size="sm" onClick={() => download(isAsync ? `async_${num}_semi_final_bot_ready.csv` : `t${num}_semifinals_live_bot_ready.csv`, botCsv(num, draft, discordOf))}><Download className="size-4" /> Bot CSV</Button>
               <Button size="sm" onClick={openPublish}><Upload className="size-4" /> Publish</Button>
-            </div>
+            </div>}
           </div>
+          {!isAsync && draft.tables.length === 0 && <p className="mt-3 rounded-md border border-coral/40 p-3 text-sm">No set of disjoint tables covers everyone with the requested availability and average rank {minAvgRank}–{maxAvgRank}. Widen the rank range, reduce the per-player minimum, or adjust the registration links.</p>}
           {!isAsync && (() => {
             const perfect = draft.tables.reduce((n, t) => n + t.slots.filter((s) => s.type === "perfect").length, 0);
             const closest = draft.tables.map((t) => t.closest[0]);

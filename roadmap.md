@@ -1,5 +1,9 @@
 # To do
 
+- [x] Replace the single 16-player snake split with table-first search and adjustable average-rank bounds.
+- [x] Prefer the requested suggestions per table, show viable-table/split counts, and explain when no complete split fits.
+- [x] Add non-pot, rank-bound and two-suggestion regression tests; run all 97 tests, typecheck and check the preview build.
+
 - [x] Fix tournament registration link aliases and newest duplicate matching.
 - [x] Safely reconcile Tournament 20 duplicate registrations and prevent repeat guest/account duplicates.
 - [x] Persist semi-finals trial registration overrides and add a seven-day Discord update reminder.

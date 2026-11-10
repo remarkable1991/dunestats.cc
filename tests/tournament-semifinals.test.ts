@@ -10,8 +10,8 @@ const run = (availability: number[][], extra = {}) => runSemiSearch({ pool, regs
 describe("Semi-finals scheduling", () => {
   test("never recommends a player with zero availability", () => {
     const draft = run([[0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], []]);
-    expect(draft?.tables[0].slots).toEqual([]);
-    expect(draft?.tables[0].closest).toEqual([]);
+    expect(draft?.tables).toEqual([]);
+    expect(draft?.partitionsTested).toBe(0);
   });
   test("full 90 minutes beats a zero-player 120-minute fallback", () => {
     const draft = run([[0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2]], { minPlayerBlocks: 3, minBlocks: 3, maxBlocks: 3 });
@@ -26,7 +26,7 @@ describe("Semi-finals scheduling", () => {
   });
   test("minimum length and per-player threshold are enforced", () => {
     const draft = run([[0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0]], { minBlocks: 4, minPlayerBlocks: 2 });
-    expect(draft?.tables[0].slots).toEqual([]);
+    expect(draft?.tables).toEqual([]);
   });
   test("unique normalized names match but ambiguous names do not", () => {
     const r = regs([[0], [0], [0], [0]]);

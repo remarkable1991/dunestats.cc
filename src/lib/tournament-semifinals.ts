@@ -37,7 +37,7 @@ export type SemiSlot = { start: number; blocks: number; filled: number; type: "p
 export type ClosestWindow = { start: number; blocks: number; filled: number; total: number; perPlayer: { player: string; blocks: boolean[] }[] };
 export type SemiTable = { name: string; players: string[]; slots: SemiSlot[]; avgTp: number; avgRank: number; closest: ClosestWindow[]; noAvailability: string[]; availableHours: Record<string, number>; windowCounts: Record<number, number> };
 export type SemiAlternative = { score: number; tables: string[][]; perfect: number; near: number; bestFilled: number; bestTotal: number };
-export type SemiDraft = { tables: SemiTable[]; score: number; partitionsTested: number; slotsScanned: number; alternatives: SemiAlternative[] };
+export type SemiDraft = { tables: SemiTable[]; score: number; partitionsTested: number; tableCombosTested: number; viableTables: number; slotsScanned: number; alternatives: SemiAlternative[] };
 
 const SWISS = new Set(["Game 1", "Game 2", "Game 3", "Game_1", "Game_2", "Game_3"]);
 const SLOT_MS = 30 * 60_000;
@@ -191,24 +191,17 @@ const std = (xs: number[]) => { const m = mean(xs); return Math.sqrt(mean(xs.map
 
 function overlapHours(a: Uint8Array, b: Uint8Array) { let n = 0; for (let i = 0; i < a.length; i++) n += Math.min(a[i], b[i]); return n / 2; }
 
-/** All ways to split players into groups of 4 (exhaustive; 8 players → 35). */
-function partitions(players: string[]): string[][][] {
-  if (players.length === 0) return [[]];
-  const [first, ...rest] = players;
-  const out: string[][][] = [];
-  const combos = (arr: string[], k: number, start = 0, acc: string[] = []): string[][] => {
-    if (acc.length === k) return [acc];
-    const r: string[][] = [];
-    for (let i = start; i < arr.length; i++) r.push(...combos(arr, k, i + 1, [...acc, arr[i]]));
-    return r;
-  };
-  for (const c of combos(rest, 3)) {
-    const group = [first, ...c];
-    const remaining = rest.filter((p) => !c.includes(p));
-    for (const tail of partitions(remaining)) out.push([group, ...tail]);
-  }
-  return out;
-}
+type TableOption = {
+  players: string[];
+  mask: number;
+  candidates: Candidate[];
+  slots: SemiSlot[];
+  avgTp: number;
+  avgRank: number;
+  compatibility: number;
+  bestFilled: number;
+  bestTotal: number;
+};
 
 export function runSemiSearch(opts: {
   pool: Standing[];
@@ -219,13 +212,19 @@ export function runSemiSearch(opts: {
   minBlocks?: number;
   maxBlocks?: number;
   minPlayerBlocks?: number;
+  minAvgRank?: number;
+  maxAvgRank?: number;
   registrationOverrides?: Record<string, string>;
 }): SemiDraft | null {
-  const { pool, regs, targetSlots } = opts;
+  const { pool, regs } = opts;
   if (pool.length < 4 || pool.length % 4 !== 0) return null;
+  const targetSlots = Math.min(3, Math.max(1, Math.floor(opts.targetSlots) || 1));
   const minBlocks = Math.min(4, Math.max(2, opts.minBlocks ?? 2));
   const maxBlocks = Math.min(4, Math.max(minBlocks, opts.maxBlocks ?? 4));
   const minPlayerBlocks = Math.min(minBlocks, Math.max(1, opts.minPlayerBlocks ?? 1));
+  const minAvgRank = opts.minAvgRank ?? -Infinity;
+  const maxAvgRank = opts.maxAvgRank ?? Infinity;
+  if (minAvgRank > maxAvgRank) return null;
   if (!Number.isFinite(opts.windowStart.getTime()) || !Number.isFinite(opts.windowEnd.getTime()) || opts.windowEnd <= opts.windowStart) return null;
   const start = Math.ceil(opts.windowStart.getTime() / SLOT_MS) * SLOT_MS;
   const count = Math.max(0, Math.floor((opts.windowEnd.getTime() - start) / SLOT_MS));
@@ -236,65 +235,132 @@ export function runSemiSearch(opts: {
     const registration = override ? regs.find((r) => r.id === override) : findRegistration(s.player, s.discord, regs);
     maps.set(s.player, bitmap(registration?.availability, start, count));
   }
-  const cache = new Map<string, Candidate[]>();
-  const getCandidates = (players: string[]) => {
-    const key = [...players].sort().join("\u0001");
-    const cached = cache.get(key);
-    if (cached) return cached;
-    const result = candidates(players, maps, count, minBlocks, maxBlocks, minPlayerBlocks);
-    cache.set(key, result);
-    return result;
-  };
 
-  // Exhaustive up to 12 players (5,775 splits); beyond that seed by snake order only.
+  // Table-first search: evaluate every four-player table, then assemble only
+  // disjoint tables. This explores non-pot splits without materialising millions
+  // of complete partitions or freezing the browser on unavailable combinations.
   const names = pool.map((s) => s.player);
-  const parts = names.length <= 12 ? partitions(names) : [snake(names, names.length / 4)];
-  let best: SemiDraft | null = null;
-  const alts: SemiAlternative[] = [];
-  for (const tables of parts) {
-    const candidateLists = tables.map(getCandidates);
-    const slots = candidateLists.map((cs) => spaced(cs, targetSlots).map(asSlot));
-    const perfect = slots.map((s) => s.filter((x) => x.type === "perfect").length);
-    const totals = slots.map((s) => s.length);
-    const compat = tables.map((t) => { const h: number[] = []; for (let i = 0; i < t.length; i++) for (let j = i + 1; j < t.length; j++) h.push(overlapHours(maps.get(t[i]) ?? new Uint8Array(count), maps.get(t[j]) ?? new Uint8Array(count))); return mean(h); });
-    const tps = tables.map((t) => mean(t.map((p) => meta.get(p)?.tp ?? 0)));
-    const ranks = tables.map((t) => mean(t.map((p) => meta.get(p)?.rank ?? 0)));
-    const bestFilled = Math.min(...candidateLists.map((cs) => cs[0]?.filled ?? 0));
-    const bestTotal = Math.min(...candidateLists.map((cs) => (cs[0]?.blocks ?? maxBlocks) * 4));
-    // Prioritize the weakest table's viable shared minutes before balance.
-    let score = bestFilled * 20000 + candidateLists.reduce((n, cs) => n + (cs[0]?.filled ?? 0), 0) * 500;
-    score += Math.min(...totals) * 100 + Math.min(...perfect) * 50;
-    score += compat.reduce((a, b) => a + b, 0) * 10;
-    score -= std(tps) * 2 + std(ranks) * 1.5;
-    alts.push({ score, tables: tables.map((t) => [...t].sort((a, b) => (meta.get(a)?.rank ?? 0) - (meta.get(b)?.rank ?? 0))), perfect: perfect.reduce((a, b) => a + b, 0), near: totals.reduce((a, b) => a + b, 0) - perfect.reduce((a, b) => a + b, 0), bestFilled, bestTotal });
-    if (!best || score > best.score) {
-      best = {
-        score,
-        partitionsTested: parts.length,
-        slotsScanned: count,
-        alternatives: [],
-        tables: tables
-          .map((t, i) => {
-            const players = [...t].sort((a, b) => (meta.get(a)?.rank ?? 0) - (meta.get(b)?.rank ?? 0));
-            const hours: Record<string, number> = {};
-            for (const p of players) hours[p] = (maps.get(p) ?? new Uint8Array(count)).reduce((s, n) => s + n, 0) / 2;
-            return {
-              players,
-              slots: slots[i],
-              avgTp: tps[i],
-              avgRank: ranks[i],
-              closest: spaced(getCandidates(players), 3).map((c) => ({ ...c, start: start + c.start * SLOT_MS, total: players.length * c.blocks })),
-              windowCounts: Object.fromEntries([2, 3, 4].map((blocks) => [blocks * 30, candidates(players, maps, count, blocks, blocks, blocks).length])),
-              noAvailability: players.filter((p) => hours[p] === 0),
-              availableHours: hours,
-            };
-          })
-          .sort((a, b) => a.avgRank - b.avgRank)
-          .map((t, i) => ({ ...t, name: `Semi Final ${i + 1}`, slots: t.slots.map((s) => ({ ...s, start: start + s.start * SLOT_MS })) })),
-      };
+  const tableOptions: TableOption[] = [];
+  let tableCombosTested = 0;
+  const makeTables = (from: number, chosen: string[]) => {
+    if (chosen.length === 4) {
+      tableCombosTested++;
+      const avgRank = mean(chosen.map((p) => meta.get(p)?.rank ?? 0));
+      if (avgRank < minAvgRank || avgRank > maxAvgRank) return;
+      const tableCandidates = candidates(chosen, maps, count, minBlocks, maxBlocks, minPlayerBlocks);
+      if (!tableCandidates.length) return;
+      const hours: number[] = [];
+      for (let i = 0; i < chosen.length; i++) for (let j = i + 1; j < chosen.length; j++) {
+        hours.push(overlapHours(maps.get(chosen[i]) ?? new Uint8Array(count), maps.get(chosen[j]) ?? new Uint8Array(count)));
+      }
+      tableOptions.push({
+        players: chosen,
+        mask: chosen.reduce((mask, p) => mask | (1 << names.indexOf(p)), 0),
+        candidates: tableCandidates,
+        slots: spaced(tableCandidates, targetSlots).map(asSlot),
+        avgTp: mean(chosen.map((p) => meta.get(p)?.tp ?? 0)),
+        avgRank,
+        compatibility: mean(hours),
+        bestFilled: tableCandidates[0]?.filled ?? 0,
+        bestTotal: (tableCandidates[0]?.blocks ?? maxBlocks) * 4,
+      });
+      return;
     }
-  }
-  if (best) best.alternatives = alts.sort((a, b) => b.score - a.score).slice(1, 4);
+    for (let i = from; i <= names.length - (4 - chosen.length); i++) makeTables(i + 1, [...chosen, names[i]]);
+  };
+  makeTables(0, []);
+
+  const byPlayer: TableOption[][] = names.map(() => []);
+  for (const option of tableOptions) option.players.forEach((player) => byPlayer[names.indexOf(player)].push(option));
+  const leaders: { score: number; options: TableOption[] }[] = [];
+  let partitionsTested = 0;
+  const scoreSplit = (options: TableOption[]) => {
+    let bestFilled = Infinity;
+    let minSlots = Infinity;
+    let minPerfect = Infinity;
+    let filled = 0;
+    let compatibility = 0;
+    let targetsMet = true;
+    const tps: number[] = [];
+    const ranks: number[] = [];
+    for (const option of options) {
+      bestFilled = Math.min(bestFilled, option.bestFilled);
+      minSlots = Math.min(minSlots, option.slots.length);
+      minPerfect = Math.min(minPerfect, option.slots.reduce((n, s) => n + Number(s.type === "perfect"), 0));
+      targetsMet &&= option.slots.length >= targetSlots;
+      filled += option.bestFilled;
+      compatibility += option.compatibility;
+      tps.push(option.avgTp);
+      ranks.push(option.avgRank);
+    }
+    // First prefer complete schedules with the requested number of suggestions,
+    // then shared attendance, and finally the closest TP/rank balance.
+    let score = (targetsMet ? 1_000_000_000 : 0) + bestFilled * 20000 + filled * 500;
+    score += minSlots * 100 + minPerfect * 50 + compatibility * 10;
+    score -= std(tps) * 2 + std(ranks) * 1.5;
+    return score;
+  };
+  const selected: TableOption[] = [];
+  const assemble = (remainingMask: number) => {
+    if (!remainingMask) {
+      partitionsTested++;
+      const score = scoreSplit(selected);
+      const position = leaders.findIndex((leader) => score > leader.score);
+      if (leaders.length < 4 || position >= 0) {
+        leaders.splice(position < 0 ? leaders.length : position, 0, { score, options: [...selected] });
+        if (leaders.length > 4) leaders.pop();
+      }
+      return;
+    }
+    const anchorBit = remainingMask & -remainingMask;
+    const anchor = 31 - Math.clz32(anchorBit);
+    for (const option of byPlayer[anchor]) {
+      if ((option.mask & remainingMask) !== option.mask) continue;
+      selected.push(option);
+      assemble(remainingMask & ~option.mask);
+      selected.pop();
+    }
+  };
+  if (tableOptions.length) assemble((1 << names.length) - 1);
+
+  const makeDraft = (leader: { score: number; options: TableOption[] } | undefined): SemiDraft => ({
+    score: leader?.score ?? 0,
+    partitionsTested,
+    tableCombosTested,
+    viableTables: tableOptions.length,
+    slotsScanned: count,
+    alternatives: [],
+    tables: (leader?.options ?? []).map((option) => {
+      const players = [...option.players].sort((a, b) => (meta.get(a)?.rank ?? 0) - (meta.get(b)?.rank ?? 0));
+      const hours: Record<string, number> = {};
+      for (const p of players) hours[p] = (maps.get(p) ?? new Uint8Array(count)).reduce((s, n) => s + n, 0) / 2;
+      return {
+        name: "",
+        players,
+        slots: option.slots,
+        avgTp: option.avgTp,
+        avgRank: option.avgRank,
+        closest: spaced(option.candidates, 3).map((c) => ({ ...c, start: start + c.start * SLOT_MS, total: players.length * c.blocks })),
+        windowCounts: Object.fromEntries([2, 3, 4].map((blocks) => [blocks * 30, candidates(players, maps, count, blocks, blocks, blocks).length])),
+        noAvailability: players.filter((p) => hours[p] === 0),
+        availableHours: hours,
+      };
+    }).sort((a, b) => a.avgRank - b.avgRank)
+      .map((t, i) => ({ ...t, name: `Semi Final ${i + 1}`, slots: t.slots.map((s) => ({ ...s, start: start + s.start * SLOT_MS })) })),
+  });
+  const best = makeDraft(leaders[0]);
+  best.alternatives = leaders.slice(1).map((leader): SemiAlternative => {
+    const perfect = leader.options.reduce((n, t) => n + t.slots.filter((s) => s.type === "perfect").length, 0);
+    const total = leader.options.reduce((n, t) => n + t.slots.length, 0);
+    return {
+      score: leader.score,
+      tables: leader.options.map((t) => [...t.players].sort((a, b) => (meta.get(a)?.rank ?? 0) - (meta.get(b)?.rank ?? 0))),
+      perfect,
+      near: total - perfect,
+      bestFilled: Math.min(...leader.options.map((t) => t.bestFilled)),
+      bestTotal: Math.min(...leader.options.map((t) => t.bestTotal)),
+    };
+  });
   return best;
 }
 
@@ -345,7 +411,7 @@ export function snakeSemiDraft(pool: Standing[]): SemiDraft | null {
   const tables = snake(pool.map((s) => s.player), pool.length / 4);
   const meta = new Map(pool.map((s) => [s.player, s]));
   return {
-    score: 0, partitionsTested: 1, slotsScanned: 0, alternatives: [],
+    score: 0, partitionsTested: 1, tableCombosTested: 0, viableTables: 0, slotsScanned: 0, alternatives: [],
     tables: tables.map((players, i) => ({
       name: `Semi Final ${i + 1}`, players, slots: [], closest: [], noAvailability: [], availableHours: {}, windowCounts: {},
       avgTp: mean(players.map((p) => meta.get(p)?.tp ?? 0)),
