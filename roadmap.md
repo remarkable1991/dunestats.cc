@@ -1,5 +1,10 @@
 # To do
 
+- [ ] Fix tournament registration link aliases and newest duplicate matching.
+- [ ] Safely reconcile Tournament 20 duplicate registrations and prevent repeat guest/account duplicates.
+- [ ] Persist semi-finals trial registration overrides and add a seven-day Discord update reminder.
+- [ ] Run regression tests and verify the registration and semi-finals flows available in the preview.
+
 - [x] Restore BASIN-SIETCH-5272 to League in Lobby 593 with its four seasonal rating contributions.
 - [x] Make admin League re-linking restore League status and apply missing ratings without duplicates.
 - [x] Run linking regression tests and verify repaired profile history on all four profiles; authenticated admin UI testing is unavailable with external unmanaged auth.
