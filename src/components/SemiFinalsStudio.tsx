@@ -9,12 +9,14 @@ import {
   botCsv,
   computeStandings,
   findRegistration,
+  semiRegistrationReminder,
   runSemiSearch,
   snakeSemiDraft,
   type QualifierRow,
   type SemiDraft,
   type SemiRegistration,
 } from "@/lib/tournament-semifinals";
+import { parseRegistrationOverrides, registrationOverrideKey } from "@/lib/tournament-registration-view";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -59,18 +61,34 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
   const [publishOpen, setPublishOpen] = useState(false);
   const [existing, setExisting] = useState<number | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [registrationError, setRegistrationError] = useState(false);
 
   useEffect(() => {
-    setRows(null); setDraft(null); setSkipped(new Set()); setRegistrationOverrides({});
+    try { setRegistrationOverrides(parseRegistrationOverrides(localStorage.getItem(registrationOverrideKey(num)))); }
+    catch { toast.error("Saved registration selections could not be loaded"); }
+  }, [num]);
+
+  const updateOverrides = (next: Record<string, string>) => {
+    setRegistrationOverrides(next);
+    try { localStorage.setItem(registrationOverrideKey(num), JSON.stringify(next)); }
+    catch { toast.error("Selection applied, but could not be saved on this browser"); }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    setRows(null); setDraft(null); setRegistrationError(false);
     void Promise.all([
       supabase.from("tournament_matches").select("round_type, table_identifier, player_name, discord_username, placement, points, is_backup").eq("tournament_num", num),
       supabase.from("tournament_registrations").select("id, user_id, direwolf_name, discord_username, availability, updated_at, timezone").eq("tournament_num", num),
     ]).then(([m, r]) => {
+      if (cancelled) return;
       if (m.error) toast.error(m.error.message);
       if (r.error) toast.error(r.error.message);
+      setRegistrationError(Boolean(r.error || m.error));
       setRows((m.data ?? []) as QualifierRow[]);
       setRegs((r.data ?? []) as SemiRegistration[]);
     });
+    return () => { cancelled = true; };
   }, [num, refresh]);
 
   const standings = useMemo(() => computeStandings(rows ?? []), [rows]);
@@ -109,6 +127,15 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
   };
 
   const discordOf = (p: string) => standings.find((s) => s.player === p)?.discord ?? registrationOf(p, null)?.discord_username ?? null;
+
+  const copyReminder = async () => {
+    const reminder = semiRegistrationReminder(num, pool, registrationOf, Date.now());
+    if (!reminder.pending.length) { toast.success("All semi-finalists updated their registration in the last seven days"); return; }
+    try {
+      await navigator.clipboard.writeText(reminder.text);
+      toast.success(`Reminder copied for ${reminder.pending.length} / ${pool.length} semi-finalists`);
+    } catch { toast.error("Could not copy the reminder. Please allow clipboard access and try again."); }
+  };
 
   const openPublish = async () => {
     setExisting(null); setPublishOpen(true);
@@ -167,7 +194,7 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
             <h2 className="font-display text-xl">Qualifier standings</h2>
             <p className="text-xs text-muted-foreground">Order: TP → wins → avg placement → VP → VP share %. Top {direct} go straight to the Grand Final, next {semiCount} play the semi-finals. Skip anyone to pull in the next player.</p>
           </div>
-          <div className="flex items-center gap-2"><Badge variant="outline">{eligible.length}/{standings.length} included</Badge><Button size="sm" variant="outline" onClick={() => setRefresh((n) => n + 1)}>Refresh registrations</Button></div>
+          <div className="flex flex-wrap items-center gap-2"><Badge variant="outline">{eligible.length}/{standings.length} included</Badge><Button size="sm" variant="outline" onClick={() => setRefresh((n) => n + 1)}>Refresh registrations</Button><Button size="sm" variant="outline" onClick={copyReminder} disabled={registrationError || pool.length === 0}><Clipboard className="size-4" />Copy Discord reminder</Button><Button size="sm" variant="ghost" onClick={() => updateOverrides({})} disabled={Object.keys(registrationOverrides).length === 0}>Clear overrides</Button></div>
         </div>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-sm">
@@ -192,9 +219,9 @@ export function SemiFinalsStudio({ tournament }: { tournament: TournamentConfig 
                     <td className="pr-2">{s.vpPct.toFixed(1)}%</td>
                     <td className={`pr-2 ${s.games < maxGames ? "font-semibold text-coral" : ""}`}>{s.games}/{maxGames}</td>
                     <td className="min-w-52 pr-3 text-xs">
-                      <Select value={registrationOverrides[s.player] ?? "auto"} onValueChange={(value) => setRegistrationOverrides((prev) => { const next = { ...prev }; if (value === "auto") delete next[s.player]; else next[s.player] = value; return next; })}>
+                      <Select value={registrationOverrides[s.player] ?? "auto"} onValueChange={(value) => { const next = { ...registrationOverrides }; if (value === "auto") delete next[s.player]; else next[s.player] = value; updateOverrides(next); }}>
                         <SelectTrigger className="h-8" aria-label={`Registration for ${s.player}`}><SelectValue /></SelectTrigger>
-                        <SelectContent><SelectItem value="auto">{reg && !registrationOverrides[s.player] ? `Auto: ${reg.direwolf_name}` : "Automatic match"}</SelectItem>{regs.map((r) => r.id ? <SelectItem key={r.id} value={r.id}>{r.direwolf_name}{r.discord_username ? ` · ${r.discord_username}` : ""}</SelectItem> : null)}</SelectContent>
+                        <SelectContent><SelectItem value="auto">{reg && !registrationOverrides[s.player] ? `Auto: ${reg.direwolf_name}` : "Automatic match"}</SelectItem>{registrationOverrides[s.player] && !reg && <SelectItem value={registrationOverrides[s.player]}>Saved registration unavailable</SelectItem>}{regs.map((r) => r.id ? <SelectItem key={r.id} value={r.id}>{r.direwolf_name}{r.discord_username ? ` · ${r.discord_username}` : ""} · {fmt(r.updated_at)}</SelectItem> : null)}</SelectContent>
                       </Select>
                       {reg ? <details className="mt-1"><summary className={hours ? "cursor-pointer text-muted-foreground" : "cursor-pointer text-coral"}>{hours}h free in period · {registrationOverrides[s.player] ? "Trial link" : "Matched"}</summary><div className="max-h-40 overflow-y-auto py-1">{(Array.isArray(reg.availability) ? reg.availability : []).filter((v): v is string => typeof v === "string" && Date.parse(v) >= Date.parse(start) && Date.parse(v) < Date.parse(end)).sort().map((v) => <p key={v}>{new Date(v).toLocaleString(undefined, { timeZone: registrationTimezone(reg.timezone), month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} · 30 min</p>)}</div></details> : <p className="mt-1 text-coral">Unmatched registration</p>}
                     </td>

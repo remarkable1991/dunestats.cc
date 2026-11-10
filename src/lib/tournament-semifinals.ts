@@ -94,17 +94,40 @@ export function computeStandings(rows: QualifierRow[]): Standing[] {
 
 const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
 
-/** Only unique exact, verified-handle or punctuation-normalized matches are accepted. */
+/** Newest exact duplicate wins; fallback matches must identify one exact name. */
 export function findRegistration(player: string, discord: string | null, regs: SemiRegistration[]) {
-  const unique = (matches: SemiRegistration[]) => matches.length === 1 ? matches[0] : undefined;
+  const newest = (matches: SemiRegistration[]) => [...matches].sort((a, b) =>
+    (Date.parse(b.updated_at) || 0) - (Date.parse(a.updated_at) || 0) ||
+    Number(Boolean(b.user_id)) - Number(Boolean(a.user_id)) || (a.id ?? "").localeCompare(b.id ?? ""))[0];
+  const unique = (matches: SemiRegistration[]) => new Set(matches.map((r) => norm(r.direwolf_name))).size === 1 ? newest(matches) : undefined;
   const exact = regs.filter((r) => norm(r.direwolf_name) === norm(player));
-  if (exact.length) return unique(exact);
+  if (exact.length) return newest(exact);
   if (discord) {
     const linked = regs.filter((r) => norm(r.discord_username) === norm(discord));
     if (linked.length) return unique(linked);
   }
   const compact = (s: string) => norm(s).normalize("NFKC").replace(/[^\p{L}\p{N}]/gu, "");
   return unique(regs.filter((r) => compact(r.direwolf_name) === compact(player)));
+}
+
+export function needsRegistrationUpdate(registration: SemiRegistration | undefined, now: number) {
+  const updated = Date.parse(registration?.updated_at ?? "");
+  return !Number.isFinite(updated) || updated < now - 7 * 86_400_000;
+}
+
+export function semiRegistrationReminder(num: number, players: Standing[], registrationOf: (player: string, discord: string | null) => SemiRegistration | undefined, now: number) {
+  const pending = players.filter((p) => needsRegistrationUpdate(registrationOf(p.player, p.discord), now));
+  const names = pending.map((p) => {
+    const discord = p.discord ?? registrationOf(p.player, p.discord)?.discord_username;
+    const handle = discord?.trim().replace(/^@/, "");
+    return handle ? (/^\d{15,22}$/.test(handle) ? `<@${handle}>` : `@${handle}`) + ` (${p.player})` : p.player;
+  });
+  return { pending, text: [
+    `Friendly reminder to update your availability for Tournament ${num} Semi-Finals:`,
+    names.join(", "),
+    `Please update your registration with your available times for this week at https://dunestats.cc/tournament-register/${num}`,
+    `Awaiting update: ${pending.length} / ${players.length} players.`,
+  ].join("\n\n") };
 }
 
 export function availabilityHours(value: unknown, windowStart: Date, windowEnd: Date) {

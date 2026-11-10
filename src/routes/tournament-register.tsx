@@ -31,6 +31,7 @@ import immoIcon from "@/assets/immo.png.asset.json";
 import { suggestCanonicalName, type NameSuggestion } from "@/lib/name-normalize";
 import epicIcon from "@/assets/epic.png.asset.json";
 import { formatLongDate } from "@/lib/tournaments";
+import { registrationSearch } from "@/lib/tournament-registration-view";
 
 /** Expansion/board logos for a tournament. */
 function TournamentModeIcons({ t, size = 20 }: { t: TournamentConfig; size?: number }) {
@@ -69,9 +70,7 @@ function resolveTimezoneLabel(): string | null {
 }
 
 export const Route = createFileRoute("/tournament-register")({
-  validateSearch: (search: Record<string, unknown>): { t?: number } => ({
-    t: search.t != null && Number.isFinite(Number(search.t)) ? Number(search.t) : undefined,
-  }),
+  validateSearch: registrationSearch,
   head: () => ({
     meta: [
       { title: "Tournament Registration · Strategy Arena" },
