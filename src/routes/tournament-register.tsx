@@ -1,3 +1,4 @@
+import { FormatImage } from "@/components/FormatImage";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navbar } from "@/components/Navbar";
@@ -598,6 +599,8 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
             {formatLongDate(tournament.end_date)}
           </p>
         </div>
+
+        <FormatImage url={tournament.format_image_url} label={`${tournament.name} format`} />
 
         {(tournament.info_title || tournament.info_text || tournament.prizes_summary || tournament.prizes_text) && (
           <Card className="p-6 border-sand/40 bg-card/70 space-y-3">

@@ -1,3 +1,6 @@
+import { FormatImage } from "@/components/FormatImage";
+import { formatImageSlug, formatImageUrl, FORMAT_IMAGE_FOLDER } from "@/lib/format-image";
+import { uploadToR2 } from "@/lib/storage-r2";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
@@ -67,6 +70,7 @@ type Draft = {
   has_epic_mode: boolean;
   has_immortality: boolean;
   has_base_leaders: boolean;
+  format_image_url: string;
 };
 
 function toDraft(t: TournamentConfig): Draft {
@@ -96,6 +100,7 @@ function toDraft(t: TournamentConfig): Draft {
     has_epic_mode: t.has_epic_mode,
     has_immortality: t.has_immortality,
     has_base_leaders: t.has_base_leaders,
+    format_image_url: t.format_image_url ?? "",
   };
 }
 
@@ -133,6 +138,7 @@ function emptyDraft(nextNum: number): Draft {
     has_epic_mode: false,
     has_immortality: false,
     has_base_leaders: false,
+    format_image_url: "",
   };
 }
 
@@ -369,6 +375,7 @@ function TournamentForm({
       has_epic_mode: draft.has_epic_mode,
       has_immortality: draft.has_immortality,
       has_base_leaders: draft.has_base_leaders,
+      format_image_url: draft.format_image_url.trim() || null,
     };
     const { error } = await supabase.from("tournaments").upsert(payload, { onConflict: "tournament_num" });
     setSaving(false);
@@ -615,6 +622,8 @@ function TournamentForm({
         )}
       </div>
 
+      <FormatImageField draft={draft} set={set} />
+
       <div className="grid grid-cols-1 gap-4">
         <div>
           <Label htmlFor="itit">Tournament information — title</Label>
@@ -698,5 +707,48 @@ function CsvImportButton({ tournamentNum }: { tournamentNum: number }) {
         {busy ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} Import CSV
       </span>
     </label>
+  );
+}
+
+function FormatImageField({ draft, set }: { draft: Draft; set: <K extends keyof Draft>(k: K, v: Draft[K]) => void }) {
+  const [busy, setBusy] = useState(false);
+  const slug = formatImageSlug({
+    board: draft.board_version,
+    ix: draft.has_rise_of_ix,
+    immo: draft.has_immortality,
+    epic: draft.has_epic_mode,
+    baseLeaders: draft.has_base_leaders,
+  });
+  const upload = async (file: File) => {
+    setBusy(true);
+    try {
+      await uploadToR2("match-screenshots", `${FORMAT_IMAGE_FOLDER}/${slug}`, file.type || "image/png", file);
+      set("format_image_url", `${formatImageUrl(slug)}?v=${Date.now()}`);
+      toast.success(`Uploaded as ${slug} — remember to save`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="fimg">Format image</Label>
+      <p className="text-[11px] text-muted-foreground">
+        Filename for this format: <code>{slug}</code>. Uploading replaces any existing image with that name.
+      </p>
+      <div className="flex flex-wrap gap-2 items-center">
+        <Input id="fimg" placeholder="https://…/mode/UpIxImmo.png" value={draft.format_image_url} onChange={(e) => set("format_image_url", e.target.value)} className="flex-1 min-w-60" />
+        <Button size="sm" variant="secondary" type="button" onClick={() => set("format_image_url", formatImageUrl(slug))}>Use {slug}</Button>
+        <Button size="sm" variant="secondary" type="button" disabled={busy} asChild>
+          <label className="cursor-pointer">
+            {busy ? "Uploading…" : "Upload image"}
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} />
+          </label>
+        </Button>
+        {draft.format_image_url && <Button size="sm" variant="ghost" type="button" onClick={() => set("format_image_url", "")}>Remove</Button>}
+      </div>
+      <FormatImage url={draft.format_image_url || null} label={`${draft.name} format`} />
+    </div>
   );
 }

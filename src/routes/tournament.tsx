@@ -1,3 +1,4 @@
+import { FormatImage } from "@/components/FormatImage";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SupabaseImage } from "@/components/SupabaseImage";
 import { signedUrlOrR2 } from "@/lib/storage-r2";
@@ -1954,6 +1955,8 @@ function FutureTournaments() {
             }}
             size={20}
           />
+
+          <FormatImage url={t.format_image_url} label={`${t.name} format`} />
 
           <PrizesInfo summary={t.prizes_summary} details={t.prizes_text} />
 

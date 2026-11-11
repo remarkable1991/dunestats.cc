@@ -1931,6 +1931,7 @@ export type Database = {
           created_at: string
           direct_to_grand_final: number | null
           end_date: string
+          format_image_url: string | null
           grand_final_spots: number | null
           has_base_leaders: boolean
           has_epic_mode: boolean
@@ -1960,6 +1961,7 @@ export type Database = {
           created_at?: string
           direct_to_grand_final?: number | null
           end_date: string
+          format_image_url?: string | null
           grand_final_spots?: number | null
           has_base_leaders?: boolean
           has_epic_mode?: boolean
@@ -1989,6 +1991,7 @@ export type Database = {
           created_at?: string
           direct_to_grand_final?: number | null
           end_date?: string
+          format_image_url?: string | null
           grand_final_spots?: number | null
           has_base_leaders?: boolean
           has_epic_mode?: boolean

@@ -1,3 +1,4 @@
+import { FormatImage } from "@/components/FormatImage";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,7 +67,7 @@ type QueueRow = {
   discord_user_id: string | null;
   expires_at: string | null;
 };
-type Preset = { id: number; name: string; board_type: string; expansions: string[] | null; modules: string[] | null; mode: string | null; start_date: string; end_date: string };
+type Preset = { id: number; name: string; board_type: string; expansions: string[] | null; modules: string[] | null; mode: string | null; start_date: string; end_date: string; url?: string | null };
 
 const DURATIONS = {
   live: LIVE_QUEUE_MINUTES.map((m) => ({ m, label: `${m} min` })),
@@ -135,7 +136,7 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
     const iso = new Date().toISOString();
     void supabase
       .from("league_presets")
-      .select("id,name,board_type,expansions,modules,mode,start_date,end_date")
+      .select("id,name,board_type,expansions,modules,mode,start_date,end_date,url")
       .gt("end_date", iso)
       .order("start_date", { ascending: true })
       .order("id", { ascending: false })
@@ -220,6 +221,7 @@ export function MatchmakingQueuePanel({ userId, myIgn }: { userId: string | null
       <div className="space-y-1.5">
         {loadError && <p className="text-sm text-destructive">{loadError}</p>}
         {preset ? <FormatLine label="Now" p={preset} /> : <p className="text-xs text-muted-foreground">No active league format</p>}
+        {preset?.url && <FormatImage url={preset.url} label={`${preset.name} format`} />}
         {nextPreset && <FormatLine label="Next" p={nextPreset} />}
       </div>
       {lobbyError && <p className="text-sm text-destructive">{lobbyError}</p>}

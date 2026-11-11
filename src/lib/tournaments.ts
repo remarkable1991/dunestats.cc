@@ -29,6 +29,7 @@ export type TournamentConfig = {
   has_epic_mode: boolean;
   has_immortality: boolean;
   has_base_leaders: boolean;
+  format_image_url: string | null;
 };
 
 export type SemifinalSeeding = "snake" | "manual";
@@ -150,6 +151,7 @@ type Row = {
   has_epic_mode?: boolean | null;
   has_immortality?: boolean | null;
   has_base_leaders?: boolean | null;
+  format_image_url?: string | null;
 };
 
 
@@ -186,11 +188,12 @@ export function normalizeTournament(row: Row): TournamentConfig {
     has_epic_mode: !!row.has_epic_mode,
     has_immortality: !!row.has_immortality,
     has_base_leaders: !!row.has_base_leaders,
+    format_image_url: row.format_image_url ?? null,
   };
 }
 
 const SELECT =
-  "tournament_num, name, start_date, end_date, required_availability_pct, required_weekly_pct, checkboxes, info_title, info_text, prizes_summary, prizes_text, registration_open, checkin_start_at, total_players, direct_to_grand_final, to_semifinal, semifinal_tables, grand_final_spots, semifinal_seeding, play_mode, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders";
+  "tournament_num, name, start_date, end_date, required_availability_pct, required_weekly_pct, checkboxes, info_title, info_text, prizes_summary, prizes_text, registration_open, checkin_start_at, total_players, direct_to_grand_final, to_semifinal, semifinal_tables, grand_final_spots, semifinal_seeding, play_mode, board_version, has_rise_of_ix, has_epic_mode, has_immortality, has_base_leaders, format_image_url";
 
 export type BracketFields = Pick<
   TournamentConfig,
