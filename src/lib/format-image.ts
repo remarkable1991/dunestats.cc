@@ -1,4 +1,4 @@
-import { R2_MATCH_CONTENT_DOMAIN } from "@/lib/storage-r2";
+const FORMAT_IMAGE_DOMAIN = "https://pub-f1cf1291e80f47448517d28bc5cb51b3.r2.dev";
 
 export type FormatFlags = {
   board?: string | null;
@@ -20,5 +20,5 @@ export function formatImageSlug(f: FormatFlags): string {
 export const FORMAT_IMAGE_FOLDER = "mode";
 
 export function formatImageUrl(slug: string): string {
-  return `${R2_MATCH_CONTENT_DOMAIN}/${FORMAT_IMAGE_FOLDER}/${slug}`;
+  return `${FORMAT_IMAGE_DOMAIN}/${FORMAT_IMAGE_FOLDER}/${slug}`;
 }

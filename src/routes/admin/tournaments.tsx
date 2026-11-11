@@ -723,7 +723,7 @@ function FormatImageField({ draft, set }: { draft: Draft; set: <K extends keyof 
     setBusy(true);
     try {
       await uploadToR2("match-screenshots", `${FORMAT_IMAGE_FOLDER}/${slug}`, file.type || "image/png", file);
-      set("format_image_url", `${formatImageUrl(slug)}?v=${Date.now()}`);
+      set("format_image_url", formatImageUrl(slug));
       toast.success(`Uploaded as ${slug} — remember to save`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
