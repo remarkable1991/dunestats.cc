@@ -1,0 +1,1 @@
+UPDATE public.tournaments SET format_image_url = 'https://pub-f1cf1291e80f47448517d28bc5cb51b3.r2.dev/mode/UpIxImmo.png' WHERE tournament_num = 21;
