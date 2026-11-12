@@ -1,9 +1,9 @@
 # To do
 
-- [ ] Add manual score entry to lobby result reporting with seated players, rearrangeable ranks, leader dropdowns and VP inputs.
-- [ ] Allow verified admins to deliberately re-link an existing Discord mapping instead of blocking on the old IGN.
-- [ ] Repair Lobby 728 / KWISATZ-ORITHOPTER-5790 for Spellcastermax and Gabriel, including ratings, aliases, lobby link and League Elo.
-- [ ] Add focused regression tests and verify manual reporting plus the repaired match and mappings.
+- [x] Add manual score entry to lobby result reporting with seated players, rearrangeable ranks, leader dropdowns and VP inputs.
+- [x] Allow verified admins to deliberately re-link an existing Discord mapping instead of blocking on the old IGN.
+- [x] Repair Lobby 728 / KWISATZ-ORITHOPTER-5790 for Spellcastermax and Gabriel, including ratings, aliases, lobby link and League Elo.
+- [x] Run all 103 tests, verify the admin re-link transaction and repaired public match page; signed-in manual submission could not be browser-tested with external unmanaged auth.
 
 - [x] Replace the single 16-player snake split with table-first search and adjustable average-rank bounds.
 - [x] Prefer the requested suggestions per table, show viable-table/split counts, and explain when no complete split fits.
