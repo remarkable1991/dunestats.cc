@@ -504,7 +504,7 @@ function SeatCard({ seat, color, elo, isAdmin, onMapped, onRemove, lobbyId, cand
   const [busy, setBusy] = useState(false);
   const save = async () => {
     if (!seat.discordId || !ign.trim()) return;
-    if (!confirm(`Have you verified this Discord account and ${ign.trim()} belong to the same person?`)) return;
+    if (!confirm(`Have you verified this Discord account and ${ign.trim()} belong to the same person? This replaces any previous IGN linked to this Discord account.`)) return;
     setBusy(true);
     const { data, error } = await supabase.rpc("lfg_admin_map_discord" as never, {
       p_discord_user_id: seat.discordId,
@@ -513,9 +513,10 @@ function SeatCard({ seat, color, elo, isAdmin, onMapped, onRemove, lobbyId, cand
       p_display_name: ign.trim(),
     } as never);
     setBusy(false);
-    const res = data as { ok?: boolean; error?: string } | null;
+    const res = data as { ok?: boolean; error?: string; previous_player_key?: string | null } | null;
     if (error || !res?.ok) return toast.error(res?.error ?? error?.message ?? "Could not save the link");
-    toast.success(`Discord account linked to ${ign.trim()}`);
+    const moved = res.previous_player_key && res.previous_player_key !== ign.trim().toLowerCase();
+    toast.success(moved ? `Discord link moved from ${res.previous_player_key} to ${ign.trim()}` : `Discord account linked to ${ign.trim()}`);
     setOpen(false);
     onMapped();
   };

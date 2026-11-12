@@ -16,9 +16,11 @@ import { recordResultIdentities } from "@/lib/lfg-history.functions";
 import { loose, matchScreenshotToSeats, type MatchStatus } from "@/lib/lobby-result-match";
 import type { LfgRow, Seat } from "@/lib/lfg-seats";
 import { toast } from "sonner";
-import { CheckCircle2, AlertTriangle, Loader2, Upload, X, Maximize2 } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Loader2, Upload, X, Maximize2, ClipboardList, ChevronUp, ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { useUploaderIdentity } from "@/components/UploaderIdentityDialog";
+import { manualRowsFromSeats, reorderLobbyRows } from "@/lib/lobby-manual-result";
+import { UNKNOWN_NAME } from "@/lib/lfg-seats";
 import exampleMatch from "@/assets/example-match.png.asset.json";
 
 type Row = { placement: number; player_name: string; leader_name: string; points: number };
@@ -48,8 +50,10 @@ function StatusBadge({ status }: { status: MatchStatus }) {
 
 export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow; seats: Seat[]; userId: string | null; onDone: (matchId?: string, alreadyUploaded?: boolean) => void }) {
   const [file, setFile] = useState<File | null>(null);
+  const [manual, setManual] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [games, setGames] = useState<Record<string, number>>({});
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -73,6 +77,7 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
 
   const analyze = useCallback(async (f: File) => {
     resetUploaderIdentity();
+    setManual(false);
     setFile(f); setDup(false); setRows([]);
     setPreview((p) => { if (p) URL.revokeObjectURL(p); return URL.createObjectURL(f); });
     setParsing(true);
@@ -114,7 +119,24 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
   const report = useMemo(() => matchScreenshotToSeats(rows.map((r) => r.player_name), seats.map((s) => ({ name: s.name, playerKey: s.playerKey, discordHandle: s.discordHandle, identityVerified: s.identityVerified })), games), [rows, seats, games]);
   const modeLeaders = useMemo(() => leadersForMode(lobbyFormat(row)), [row]);
   const update = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
-  const reset = () => { resetUploaderIdentity(); setFile(null); setRows([]); setDup(false); setPreview((p) => { if (p) URL.revokeObjectURL(p); return null; }); };
+  const reorder = (from: number, to: number) => setRows((rs) => reorderLobbyRows(rs, from, to));
+  const reset = () => { resetUploaderIdentity(); setFile(null); setManual(false); setRows([]); setDup(false); setPreview((p) => { if (p) URL.revokeObjectURL(p); return null; }); };
+  const startManual = () => {
+    resetUploaderIdentity();
+    setFile(null);
+    setPreview((p) => { if (p) URL.revokeObjectURL(p); return null; });
+    setDup(false);
+    const prefilled = manualRowsFromSeats(seats, UNKNOWN_NAME);
+    setRows(prefilled);
+    setManual(true);
+    void offerUploaderIdentity(prefilled, (detectedName, canonicalName) => {
+      setRows((current) => current.map((row) =>
+        row.player_name.trim().toLowerCase() === detectedName.trim().toLowerCase()
+          ? { ...row, player_name: canonicalName }
+          : row,
+      ));
+    });
+  };
 
   const submit = async () => {
     if (!userId) return toast.error("Sign in to submit");
@@ -168,7 +190,7 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
     } finally { setSaving(false); }
   };
 
-  if (!file) {
+  if (!file && !manual) {
     const f = lobbyFormat(row);
     const tags = [
       `Board: ${f.board}`,
@@ -188,6 +210,10 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
             <span>Click, drag &amp; drop, or paste (Ctrl+V) the end-of-game screenshot (PNG / JPG).</span>
           </label>
           <input id="lobby-upload" type="file" accept="image/*" className="hidden" onChange={(e) => { const fl = e.target.files?.[0]; if (fl) void analyze(fl); }} />
+          <Button type="button" variant="outline" className="w-full" onClick={startManual} disabled={seats.length < 3}>
+            <ClipboardList className="size-4" /> Enter score manually
+          </Button>
+          {seats.length < 3 && <p className="text-xs text-muted-foreground">At least three seated players are needed for manual entry.</p>}
           <div className="flex items-start gap-3 rounded-md border border-border/50 bg-background/30 p-2">
             <Dialog>
               <DialogTrigger asChild>
@@ -234,10 +260,10 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
       {uploaderIdentityDialog}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 font-medium">
-          {parsing ? <Loader2 className="size-4 animate-spin" /> : <StatusBadge status={report.status} />}
-          {parsing ? "Reading screenshot…" : report.status === "green" ? "All players confirmed" : "Some players need a second look"}
+          {parsing ? <Loader2 className="size-4 animate-spin" /> : manual ? <ClipboardList className="size-5 text-primary" /> : <StatusBadge status={report.status} />}
+          {parsing ? "Reading screenshot…" : manual ? "Manual score entry · drag players or use the arrows to set ranks" : report.status === "green" ? "All players confirmed" : "Some players need a second look"}
         </div>
-        <Button size="icon" variant="ghost" onClick={reset} aria-label="Remove screenshot" disabled={saving}><X className="size-4" /></Button>
+        <Button size="icon" variant="ghost" onClick={reset} aria-label={manual ? "Close manual score entry" : "Remove screenshot"} disabled={saving}><X className="size-4" /></Button>
       </div>
       {preview && <img src={preview} alt="Uploaded end-of-game screenshot" className="max-h-64 rounded-md border border-border object-contain" />}
       {!parsing && rows.length > 0 && (
@@ -245,8 +271,20 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
           {[...rows].map((r, i) => {
             const m = report.rows[i];
             return (
-              <div key={i} className="grid gap-2 items-center sm:grid-cols-[2rem_1fr_1fr_5rem_1fr] rounded-md border border-border/60 p-2">
-                <span className="font-display text-lg text-center">#{r.placement}</span>
+              <div
+                key={i}
+                draggable={!saving}
+                onDragStart={() => setDragIdx(i)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); if (dragIdx !== null) reorder(dragIdx, i); setDragIdx(null); }}
+                onDragEnd={() => setDragIdx(null)}
+                className={`grid gap-2 items-center sm:grid-cols-[7rem_1fr_1fr_5rem_1fr] rounded-md border border-border/60 p-2 ${dragIdx === i ? "opacity-60" : ""}`}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  <span className="font-display text-lg w-8">#{r.placement}</span>
+                  <Button type="button" size="icon" variant="ghost" className="size-7" onClick={() => reorder(i, i - 1)} disabled={saving || i === 0} aria-label={`Move ${r.player_name || `player ${i + 1}`} up`}><ChevronUp className="size-4" /></Button>
+                  <Button type="button" size="icon" variant="ghost" className="size-7" onClick={() => reorder(i, i + 1)} disabled={saving || i === rows.length - 1} aria-label={`Move ${r.player_name || `player ${i + 1}`} down`}><ChevronDown className="size-4" /></Button>
+                </div>
                 <Input value={r.player_name} onChange={(e) => update(i, { player_name: e.target.value })} aria-label={`Player ${i + 1} in-game name`} />
                 <Select value={isCanonicalLeader(r.leader_name) ? r.leader_name : undefined} onValueChange={(v) => update(i, { leader_name: v })}>
                   <SelectTrigger aria-label={`Player ${i + 1} leader`} className={isCanonicalLeader(r.leader_name) ? "" : "border-destructive"}><SelectValue placeholder={r.leader_name || "Pick leader"} /></SelectTrigger>
