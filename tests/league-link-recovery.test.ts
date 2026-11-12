@@ -11,18 +11,25 @@ function fixture(ledger: Array<{ player_key: string; season: number }> = [], sea
     league_match_rating_deltas: ledger,
     player_league_ratings: [],
   };
+  const updates: Array<{ table: string; values: unknown }> = [];
   const from = (table: string) => {
     const builder = {
+      update: (values: unknown) => { updates.push({ table, values }); return builder; },
       select: () => builder, eq: () => builder, in: () => builder,
       maybeSingle: () => Promise.resolve({ data: tables[table], error: null }),
       then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data: tables[table], error: null }).then(resolve),
     };
     return builder;
   };
-  return { client: { from, rpc } as unknown as SupabaseClient<Database>, rpc };
+  return { client: { from, rpc } as unknown as SupabaseClient<Database>, rpc, updates };
 }
 
 describe("League re-link completion", () => {
+  it("restores the game's League flag before applying ratings", async () => {
+    const { client, updates } = fixture();
+    await applyLinkedLeagueElo(client, 593);
+    expect(updates).toContainEqual({ table: "games", values: { is_league: true } });
+  });
   it("restores missing ratings for all four Lobby 593 results in its recorded season", async () => {
     const { client, rpc } = fixture();
     expect(await applyLinkedLeagueElo(client, 593)).toMatchObject({ ok: true, season: 1 });
