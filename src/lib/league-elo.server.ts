@@ -11,6 +11,9 @@ export async function applyLinkedLeagueElo(client: SupabaseClient<Database>, lob
   const gameId = lobby.linked_game_id;
   const season = lobby.season_num ?? lobby.season_id;
   if (!season) throw new Error("This League lobby has no recorded season");
+  // A previous unlink from another lobby may have cleared the game's League flag; restore it before rating.
+  const { error: flagError } = await client.from("games").update({ is_league: true }).eq("id", gameId).eq("is_league", false);
+  if (flagError) throw new Error(flagError.message);
   const { data: results, error: resultError } = await client.from("game_results")
     .select("player_name,placement").eq("game_id", gameId);
   if (resultError) throw new Error(resultError.message);
