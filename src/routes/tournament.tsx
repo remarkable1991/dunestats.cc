@@ -286,6 +286,7 @@ function CurrentTournament({
   const titles = usePlayerTitles();
 
   const [formatLine, setFormatLine] = useState<string | null>(null);
+  const [formatImage, setFormatImage] = useState<{ url: string; name: string } | null>(null);
   const [gameModes, setGameModes] = useState<ModeFlags | null>(null);
   const [plan, setPlan] = useState(() => bracketPlan(null));
   const [seedingMode, setSeedingMode] = useState<"snake" | "manual">("snake");
@@ -294,6 +295,7 @@ function CurrentTournament({
       const all = await fetchTournaments();
       const cfg = all.find((t) => t.tournament_num === tournamentNum);
       setFormatLine(cfg ? formatTournamentFormat(cfg) : null);
+      setFormatImage(cfg?.format_image_url ? { url: cfg.format_image_url, name: cfg.name } : null);
       setGameModes(cfg ? { hasIx: cfg.has_rise_of_ix, hasEpic: cfg.has_epic_mode, hasImmo: cfg.has_immortality, hasUprising: cfg.board_version === "uprising", hasBase: cfg.has_base_leaders } : null);
       setPlan(bracketPlan(cfg ?? null));
       setSeedingMode(cfg?.semifinal_seeding === "manual" ? "manual" : "snake");
@@ -943,6 +945,11 @@ function CurrentTournament({
             <p className="mt-2 inline-flex items-center gap-2 rounded-md border border-sand/40 bg-sand/10 px-3 py-1.5 text-xs text-sand">
               <Sword className="size-3.5" /> {formatLine}
             </p>
+          )}
+          {formatImage && (
+            <div className="mt-3 max-w-[16rem]">
+              <FormatImage url={formatImage.url} label={`${formatImage.name} format`} />
+            </div>
           )}
         </div>
         <div className="flex items-center gap-3">
@@ -1983,6 +1990,7 @@ type TournamentSummaryCard = {
   totalCells: number;
   completedCells: number;
   phase: string;
+  imageUrl: string | null;
 };
 
 async function fetchActiveTournamentNums(): Promise<number[]> {
@@ -2008,6 +2016,7 @@ function CurrentTournamentsHub() {
       await loadTournamentModes();
       const summaries: TournamentSummaryCard[] = [];
       const activeNums = await fetchActiveTournamentNums();
+      const configs = await fetchTournaments().catch(() => []);
       for (const num of activeNums) {
         const { data } = await supabase
           .from("tournament_matches")
@@ -2057,6 +2066,7 @@ function CurrentTournamentsHub() {
           totalCells: total,
           completedCells: completed,
           phase,
+          imageUrl: configs.find((t) => t.tournament_num === num)?.format_image_url ?? null,
         });
       }
       if (!cancelled) setCards(summaries.filter((c) => c.totalCells > 0));
@@ -2136,6 +2146,9 @@ function CurrentTournamentsHub() {
               <ModeBadges flags={c.modes} size={22} />
             </div>
             <p className="mt-2 text-[11px] text-muted-foreground">{playModeDescription(c.num)}</p>
+            {c.imageUrl && (
+              <img src={c.imageUrl} alt={`${c.title} format`} loading="lazy" className="mt-3 w-full max-h-40 rounded-md border border-border object-contain bg-muted" />
+            )}
 
             <div className="mt-4">
               <div className="flex items-center justify-between text-xs mb-1">

@@ -18,6 +18,7 @@ import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { type LfgRow, SELECT_COLS, UNKNOWN_NAME, leagueKey, seatsOf, isMember, isHost, type Seat } from "@/lib/lfg-seats";
 import { LobbyPasswordRow } from "@/components/LobbyPasswordRow";
 import { LobbyFormatIcons } from "@/components/LobbyFormatIcons";
+import { LeagueFormatImage } from "@/components/LeagueFormatImage";
 import { ReportIssueDialog } from "@/components/ReportIssueDialog";
 import { CancelLobbyButton } from "@/components/CancelLobbyButton";
 import { LeaveLobbyButton } from "@/components/LeaveLobbyButton";
@@ -325,6 +326,7 @@ function LobbyPage() {
             {[...(row.expansions ?? []), ...(row.modules ?? [])].length ? ` · ${[...(row.expansions ?? []), ...(row.modules ?? [])].join(", ")}` : ""}
           </p>
           <div className="mt-2"><LobbyFormatIcons row={row} /></div>
+          {row.is_league && <div className="mt-3 max-w-[16rem]"><LeagueFormatImage at={row.created_at} /></div>}
         </div>
         <div className="flex flex-wrap gap-2">
           {row.is_league && (
