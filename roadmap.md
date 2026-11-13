@@ -1,9 +1,9 @@
 # To do
 
-- [ ] Rank open League lobby candidates by seated-player matches, then newest first; require confirmation for ambiguous or incomplete matches.
-- [ ] Add the safest-upload guidance to /upload and keep unambiguous 4/4 links automatic.
-- [ ] Enforce one linked lobby per game in the database and repair duplicate links plus BASIN-FILTRATION-4698 League ratings.
-- [ ] Add regression tests, run the relevant checks, and verify the public upload and repaired match flows.
+- [x] Rank open League lobby candidates by seated-player matches, then newest first; require confirmation for ambiguous or incomplete matches.
+- [x] Add the safest-upload guidance to /upload and keep unambiguous 4/4 links automatic.
+- [x] Enforce one linked lobby per game in the database and repair duplicate links plus BASIN-FILTRATION-4698 League ratings.
+- [x] Add regression tests, run all tests and typecheck, and verify the repaired public match; signed-in upload interaction remains untested with external unmanaged auth.
 
 - [x] Add manual score entry to lobby result reporting with seated players, rearrangeable ranks, leader dropdowns and VP inputs.
 - [x] Allow verified admins to deliberately re-link an existing Discord mapping instead of blocking on the old IGN.
