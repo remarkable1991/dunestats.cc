@@ -748,7 +748,7 @@ function FormatImageField({ draft, set }: { draft: Draft; set: <K extends keyof 
         </Button>
         {draft.format_image_url && <Button size="sm" variant="ghost" type="button" onClick={() => set("format_image_url", "")}>Remove</Button>}
       </div>
-      <FormatImage url={draft.format_image_url || null} label={`${draft.name} format`} />
+      <FormatImage preview url={draft.format_image_url || null} label={`${draft.name} format`} />
     </div>
   );
 }
