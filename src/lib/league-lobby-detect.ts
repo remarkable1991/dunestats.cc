@@ -59,13 +59,27 @@ export async function loadLobbyForUpload(id: number): Promise<LobbyForUpload | n
 
 export type LeagueLobbyCandidate = { id: number; row: LfgRow; matched: string[] };
 
+/** Best roster match first; equally good candidates are newest first. */
+export function rankLeagueLobbyCandidates(candidates: LeagueLobbyCandidate[]): LeagueLobbyCandidate[] {
+  return [...candidates].sort((a, b) =>
+    b.matched.length - a.matched.length
+    || new Date(b.row.created_at).getTime() - new Date(a.row.created_at).getTime()
+    || b.id - a.id,
+  );
+}
+
+/** Only a sole, complete four-player match is safe to link without asking. */
+export function shouldAutoConfirmLeagueLobby(candidates: LeagueLobbyCandidate[]): boolean {
+  return candidates.length === 1 && candidates[0].matched.length === 4;
+}
+
 /** Window (minutes since lobby creation) in which an unreported League lobby is suggested for a screenshot. */
 export const LEAGUE_SUGGEST_MIN_MINUTES = 30;
 export const LEAGUE_SUGGEST_MAX_MINUTES = 240;
 
-/** Find an unreported League lobby, created 30–240 minutes ago, where at least one detected player is seated. */
-export async function detectLeagueLobby(detected: string[]): Promise<LeagueLobbyCandidate | null> {
-  if (detected.filter(Boolean).length < 1) return null;
+/** Find open League lobbies sharing at least one detected player, best and newest first. */
+export async function detectLeagueLobbies(detected: string[]): Promise<LeagueLobbyCandidate[]> {
+  if (detected.filter(Boolean).length < 1) return [];
   const since = new Date(Date.now() - LEAGUE_SUGGEST_MAX_MINUTES * 60_000).toISOString();
   const until = new Date(Date.now() - LEAGUE_SUGGEST_MIN_MINUTES * 60_000).toISOString();
   const { data } = await supabase
@@ -78,13 +92,13 @@ export async function detectLeagueLobby(detected: string[]): Promise<LeagueLobby
     .lte("created_at", until)
     .order("created_at", { ascending: false })
     .limit(30);
-  let best: LeagueLobbyCandidate | null = null;
+  const candidates: LeagueLobbyCandidate[] = [];
   for (const raw of (data ?? []) as unknown as LfgRow[]) {
     if (raw.league_status === "casual") continue;
     const matched = countSeatMatches(detected, await withSeats(raw));
-    if (matched.length >= 1 && (!best || matched.length > best.matched.length)) best = { id: raw.id, row: raw, matched };
+    if (matched.length >= 1) candidates.push({ id: raw.id, row: raw, matched });
   }
-  return best;
+  return rankLeagueLobbyCandidates(candidates);
 }
 
 /** Link a saved match to a lobby (marks it reported). */

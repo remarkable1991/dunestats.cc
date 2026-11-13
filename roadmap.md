@@ -1,5 +1,10 @@
 # To do
 
+- [ ] Rank open League lobby candidates by seated-player matches, then newest first; require confirmation for ambiguous or incomplete matches.
+- [ ] Add the safest-upload guidance to /upload and keep unambiguous 4/4 links automatic.
+- [ ] Enforce one linked lobby per game in the database and repair duplicate links plus BASIN-FILTRATION-4698 League ratings.
+- [ ] Add regression tests, run the relevant checks, and verify the public upload and repaired match flows.
+
 - [x] Add manual score entry to lobby result reporting with seated players, rearrangeable ranks, leader dropdowns and VP inputs.
 - [x] Allow verified admins to deliberately re-link an existing Discord mapping instead of blocking on the old IGN.
 - [x] Repair Lobby 728 / KWISATZ-ORITHOPTER-5790 for Spellcastermax and Gabriel, including ratings, aliases, lobby link and League Elo.

@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { duplicateLeaders, reportMatchForReview } from "@/lib/duplicate-leaders";
 import { useEffect, useRef, useState } from "react";
 import type { LfgRow } from "@/lib/lfg-seats";
-import { detectLeagueLobby, linkMatchToLobby, loadLobbyForUpload, lobbyFormat, takePendingLobbyUpload, type LeagueLobbyCandidate } from "@/lib/league-lobby-detect";
+import { detectLeagueLobbies, linkMatchToLobby, loadLobbyForUpload, lobbyFormat, shouldAutoConfirmLeagueLobby, takePendingLobbyUpload, type LeagueLobbyCandidate } from "@/lib/league-lobby-detect";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -92,6 +92,7 @@ function UploadPage() {
   const { lobby: lobbyParam } = Route.useSearch();
   const forcedLobby = useRef<LfgRow | null>(null);
   const [leagueLobby, setLeagueLobby] = useState<(LeagueLobbyCandidate & { confirmed: boolean }) | null>(null);
+  const [leagueCandidates, setLeagueCandidates] = useState<LeagueLobbyCandidate[]>([]);
   const {
     offer: offerUploaderIdentity,
     confirmForGame: confirmUploaderIdentity,
@@ -108,6 +109,7 @@ function UploadPage() {
     setHasBaseLeaders(f.hasBaseLeaders);
     if (f.playMode) setPlayMode(f.playMode);
     setNotATournamentGame(true);
+    setLeagueCandidates([]);
     setLeagueLobby({ ...lc, confirmed: true });
   };
 
@@ -163,7 +165,10 @@ function UploadPage() {
     setNotATournamentGame(false);
     setCandidate(null);
     setUploadMode("tournament");
-    if (!lobbyParam) setLeagueLobby(null);
+    if (!lobbyParam) {
+      setLeagueLobby(null);
+      setLeagueCandidates([]);
+    }
 
     if (preview) URL.revokeObjectURL(preview);
     setPreview(f ? URL.createObjectURL(f) : null);
@@ -239,8 +244,13 @@ function UploadPage() {
       if (lobbyParam && forcedLobby.current) {
         confirmLeagueLobby({ id: lobbyParam, row: forcedLobby.current, matched: [] });
       } else if (!tNum) {
-        const lc = await detectLeagueLobby(names).catch(() => null);
-        if (lc) confirmLeagueLobby(lc);
+        const candidates = await detectLeagueLobbies(names).catch(() => []);
+        if (shouldAutoConfirmLeagueLobby(candidates)) {
+          confirmLeagueLobby(candidates[0]);
+        } else if (candidates.length) {
+          setLeagueCandidates(candidates);
+          setLeagueLobby({ ...candidates[0], confirmed: false });
+        }
       }
 
 
@@ -400,22 +410,50 @@ function UploadPage() {
           Drop your Dune Imperium Digital end-screen screenshot — analysis starts automatically.
           Confirm the board version + expansions, review the players, then submit.
         </p>
+        <div className="mb-6 rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          <strong className="text-foreground">Safest way to report a League game:</strong> upload directly on its lobby page. The lobby page links the match immediately without confusing it with another open lobby.
+        </div>
         {leagueLobby && (
-          <Card className="mb-6 p-4 border-primary/50 bg-primary/10 flex flex-wrap items-center gap-3">
-            <Trophy className="size-5 text-primary" />
-            <div className="flex-1 min-w-[220px] text-sm">
-              {leagueLobby.confirmed ? (
-                <><strong>Reporting League lobby #{leagueLobby.id}.</strong> The lobby's format is applied and this match will be linked to it on submit.</>
-              ) : (
-                <><strong>Is this League match #{leagueLobby.id}?</strong> {leagueLobby.matched.length} seated player{leagueLobby.matched.length > 1 ? "s" : ""} match: {leagueLobby.matched.join(", ")}.</>
-              )}
+          <Card className="mb-6 p-4 border-primary/50 bg-primary/10 space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <Trophy className="size-5 text-primary" />
+              <div className="flex-1 min-w-[220px] text-sm">
+                {leagueLobby.confirmed ? (
+                  <><strong>Reporting League lobby #{leagueLobby.id}.</strong> The lobby's format is applied and this match will be linked to it on submit.</>
+                ) : (
+                  <><strong>Which open League lobby does this match belong to?</strong> The best match and newest lobby are selected first. Check the players before linking.</>
+                )}
+              </div>
+              {leagueLobby.confirmed && <Button size="sm" variant="ghost" onClick={() => setLeagueLobby(null)}>Not this lobby</Button>}
             </div>
-            {leagueLobby.confirmed ? (
-              <Button size="sm" variant="ghost" onClick={() => setLeagueLobby(null)}>Not this lobby</Button>
-            ) : (
+            {!leagueLobby.confirmed && (
               <>
-                <Button size="sm" onClick={() => confirmLeagueLobby(leagueLobby)}>Yes, link to #{leagueLobby.id}</Button>
-                <Button size="sm" variant="ghost" onClick={() => setLeagueLobby(null)}>No</Button>
+                <RadioGroup
+                  value={String(leagueLobby.id)}
+                  onValueChange={(value) => {
+                    const selected = leagueCandidates.find((c) => c.id === Number(value));
+                    if (selected) setLeagueLobby({ ...selected, confirmed: false });
+                  }}
+                  className="space-y-2"
+                >
+                  {leagueCandidates.map((c, index) => (
+                    <label key={c.id} htmlFor={`league-lobby-${c.id}`} className="flex cursor-pointer items-start gap-3 rounded-md border border-border/60 bg-card/60 p-3 text-sm">
+                      <RadioGroupItem id={`league-lobby-${c.id}`} value={String(c.id)} className="mt-1" />
+                      <span className="flex-1">
+                        <span className="flex flex-wrap items-center gap-2 font-medium">
+                          Lobby #{c.id} · {c.matched.length}/4 players
+                          {index === 0 && <span className="text-xs text-primary">Best match{leagueCandidates.filter((other) => other.matched.length === c.matched.length).length > 1 ? " · newest" : ""}</span>}
+                        </span>
+                        <span className="mt-1 block text-muted-foreground">Matching: {c.matched.join(", ")}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">Opened {new Date(c.row.created_at).toLocaleString()}</span>
+                      </span>
+                    </label>
+                  ))}
+                </RadioGroup>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => confirmLeagueLobby(leagueLobby)}>Link to #{leagueLobby.id}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setLeagueLobby(null); setLeagueCandidates([]); }}>None of these</Button>
+                </div>
               </>
             )}
           </Card>
