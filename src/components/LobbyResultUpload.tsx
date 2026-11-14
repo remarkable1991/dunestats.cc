@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { CheckCircle2, AlertTriangle, Loader2, Upload, X, Maximize2, ClipboardList, ChevronUp, ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { useUploaderIdentity } from "@/components/UploaderIdentityDialog";
-import { manualRowsFromSeats, reorderLobbyRows } from "@/lib/lobby-manual-result";
+import { manualRowsFromSeats, reorderLobbyRows, snapToSeatNames } from "@/lib/lobby-manual-result";
 import { UNKNOWN_NAME } from "@/lib/lfg-seats";
 import exampleMatch from "@/assets/example-match.png.asset.json";
 
@@ -155,9 +155,12 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
         onDone(lg?.public_match_id ?? undefined, true);
         return;
       }
+      // Snap spacing-only variants to the seated IGN, then apply known aliases, so a typo never creates a new profile.
+      const seatNames = seats.map((s) => s.name).filter((n): n is string => !!n);
+      const cleanRows = await normalizeNames(snapToSeatNames(rows.map((r) => ({ ...r, player_name: r.player_name.trim() })), seatNames), seatNames);
       const result = await submitMatch({
         userId, file, board: f.board, hasIx: f.hasIx, hasEpic: f.hasEpic, hasImmortality: f.hasImmortality, hasBaseLeaders: f.hasBaseLeaders,
-        rows: rows.map((r) => ({ placement: r.placement, player_name: r.player_name.trim(), leader_name: r.leader_name, points: r.points })),
+        rows: cleanRows.map((r) => ({ placement: r.placement, player_name: r.player_name, leader_name: r.leader_name, points: r.points })),
         tournament: null, pendingTournament: null, confirmDuplicate: dup, playMode: f.playMode,
       });
       if (result.status === "duplicate") { setDup(true); toast.warning("This looks like an already uploaded game. Press submit again to confirm."); return; }
@@ -166,7 +169,7 @@ export function LobbyResultUpload({ row, seats, userId, onDone }: { row: LfgRow;
       // Automatically sync seat names, Discord ↔ IGN links and aliases for confident matches; changes are logged for admins.
       const pairs = report.rows.flatMap((m) => {
         const s = m.seatIndex != null ? seats[m.seatIndex] : null;
-        return s && m.status !== "orange" ? [{ discord_user_id: s.discordId ?? null, seat_name: s.name, player_name: rows[m.rowIndex]?.player_name.trim() ?? m.screenshotName }] : [];
+        return s && m.status !== "orange" ? [{ discord_user_id: s.discordId ?? null, seat_name: s.name, player_name: cleanRows[m.rowIndex]?.player_name ?? m.screenshotName }] : [];
       });
       let changes: { kind: string; from?: string; to: string }[] = [];
       if (pairs.length) changes = (await recordResultIdentities({ data: { lobbyId: row.id, pairs } }).catch((e) => { console.error("Identity mapping failed", e); return null; }))?.changes ?? [];

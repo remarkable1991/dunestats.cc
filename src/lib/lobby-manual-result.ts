@@ -28,3 +28,14 @@ export function reorderLobbyRows<T extends { placement: number }>(rows: T[], fro
   sorted.splice(to, 0, moved);
   return sorted.map((row, index) => ({ ...row, placement: index + 1 }));
 }
+
+const spaceless = (name: string) => name.trim().toLowerCase().replace(/\s+/g, "");
+
+/** Snap typed names to the seated spelling when they differ only by spacing/case (e.g. "Spellcaster Max" → "Spellcastermax"). */
+export function snapToSeatNames<T extends { player_name: string }>(rows: T[], seatNames: string[]): T[] {
+  const bySpaceless = new Map(seatNames.filter((n) => n.trim()).map((n) => [spaceless(n), n.trim()]));
+  return rows.map((r) => {
+    const seat = bySpaceless.get(spaceless(r.player_name));
+    return seat && seat !== r.player_name.trim() ? { ...r, player_name: seat } : r;
+  });
+}
