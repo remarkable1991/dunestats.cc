@@ -1,5 +1,8 @@
 # To do
 
+- [x] Replace the home stats with the approved eight-metric grid using complete tournament, League, game and lobby sources.
+- [x] Test the counting rules and verify the live totals and two-column mobile/four-column desktop layouts.
+
 - [x] Make League leaderboard ranks follow filtering/sorting and add sortable seasonal ELO gained/lost totals.
 - [x] Test totals and ranking rules, and verify the live leaderboard filters and sorts on desktop/mobile with real League rows.
 
