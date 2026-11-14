@@ -1,5 +1,8 @@
 # To do
 
+- [x] Make League leaderboard ranks follow filtering/sorting and add sortable seasonal ELO gained/lost totals.
+- [x] Test totals and ranking rules, and verify the live leaderboard filters and sorts on desktop/mobile with real League rows.
+
 - [x] Rank open League lobby candidates by seated-player matches, then newest first; require confirmation for ambiguous or incomplete matches.
 - [x] Add the safest-upload guidance to /upload and keep unambiguous 4/4 links automatic.
 - [x] Enforce one linked lobby per game in the database and repair duplicate links plus BASIN-FILTRATION-4698 League ratings.

@@ -12,10 +12,18 @@ import { Trophy, Search, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpD
 import { useChampions, isChampion } from "@/lib/champions";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { AccountBadges, useDiscordLinks } from "@/components/AccountBadges";
+import { rankLeagueLeaderboard, totalLeagueElo, type LeagueLeaderboardRow, type LeagueSortKey } from "@/lib/league-leaderboard";
 
 
 export const Route = createFileRoute("/leaderboard")({
-  head: () => ({ meta: [{ title: "Leaderboard · Strategy Arena" }] }),
+  head: () => ({ meta: [
+    { title: "League & Community Leaderboards · Dune Stats" },
+    { name: "description", content: "Compare seasonal League ELO, total rating gains and losses, wins and top-two finishes on Dune Stats." },
+    { property: "og:title", content: "League & Community Leaderboards · Dune Stats" },
+    { property: "og:description", content: "Explore Dune player rankings by ELO, games, wins and seasonal League rating gains and losses." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: Leaderboard,
 });
 
@@ -378,7 +386,7 @@ function Leaderboard() {
   );
 }
 
-type LeagueRow = { player_key: string; elo: number; games_played: number; wins: number; top2: number; claimed_by: string | null };
+type LeagueRow = LeagueLeaderboardRow & { claimed_by: string | null };
 
 function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
   const [season, setSeason] = useState<number | null>(null);
@@ -386,7 +394,7 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
   const [rows, setRows] = useState<LeagueRow[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [sortKey, setSortKey] = useState<"elo" | "games_played" | "wins" | "top2" | "win_pct">("elo");
+  const [sortKey, setSortKey] = useState<LeagueSortKey>("elo");
   const [sortAsc, setSortAsc] = useState(false);
   const champions = useChampions();
   const titles = usePlayerTitles();
@@ -410,11 +418,12 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
       const nameMap: Record<string, string> = {};
       const claimMap: Record<string, string | null> = {};
       const top2: Record<string, number> = {};
+      let eloTotals: ReturnType<typeof totalLeagueElo> = {};
       if (keys.length) {
         const fetchDeltas = async () => {
-          const out: { game_id: string; player_key: string }[] = [];
+          const out: { game_id: string; player_key: string; elo_delta: number }[] = [];
           for (let from = 0; ; from += 1000) {
-            const { data: page } = await supabase.from("league_match_rating_deltas").select("game_id,player_key").eq("season", season).order("game_id").order("player_key").range(from, from + 999);
+            const { data: page } = await supabase.from("league_match_rating_deltas").select("game_id,player_key,elo_delta").eq("season", season).order("game_id").order("player_key").range(from, from + 999);
             out.push(...(page ?? []));
             if (!page || page.length < 1000) break;
           }
@@ -424,6 +433,7 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
           supabase.from("player_ratings").select("player_key,display_name,claimed_by").eq("game_version", "overall").in("player_key", keys),
           fetchDeltas(),
         ]);
+        eloTotals = totalLeagueElo(deltas);
         for (const r of pr ?? []) { nameMap[r.player_key] = r.display_name; claimMap[r.player_key] = r.claimed_by; }
         const gameIds = [...new Set(deltas.map((d) => d.game_id))];
         if (gameIds.length) {
@@ -443,33 +453,28 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
         }
       }
       setNames(nameMap);
-      setRows(base.map((r) => ({ ...r, elo: Number(r.elo), top2: top2[r.player_key] ?? 0, claimed_by: claimMap[r.player_key] ?? null })));
+      setRows(base.map((r) => ({ ...r, elo: Number(r.elo), top2: top2[r.player_key] ?? 0, claimed_by: claimMap[r.player_key] ?? null,
+        ...(eloTotals[r.player_key] ?? { elo_gained: 0, elo_lost: 0 }),
+      })));
       setLoading(false);
     })();
   }, [season]);
 
-  const term = q.trim().toLowerCase();
-  const val = (r: LeagueRow) =>
-    sortKey === "win_pct" ? (r.games_played ? r.wins / r.games_played : 0)
-    : sortKey === "top2" ? (r.games_played ? r.top2 / r.games_played : 0)
-    : r[sortKey];
-  const ranked = [...rows].sort((a, b) => b.elo - a.elo);
-  const rankOf = new Map(ranked.map((r, i) => [r.player_key, i]));
-  const shown = rows
-    .filter((r) => r.games_played >= Math.max(minGames, 1) && (!term || r.player_key.includes(term) || (names[r.player_key] ?? "").toLowerCase().includes(term)))
-    .sort((a, b) => (sortAsc ? val(a) - val(b) : val(b) - val(a)));
+  const shown = rankLeagueLeaderboard(rows, names, { minGames, query: q, sortKey, ascending: sortAsc });
   const discordLinks = useDiscordLinks(shown.slice(0, 200).map((r) => r.player_key));
 
   const Head = ({ label, k, className = "" }: { label: string; k: typeof sortKey; className?: string }) => (
-    <th className={`px-4 py-3 text-right ${className}`}>
-      <button
+    <th aria-sort={sortKey === k ? (sortAsc ? "ascending" : "descending") : "none"} className={`px-4 py-3 text-right ${className}`}>
+      <Button
         type="button"
+        variant="ghost"
+        size="sm"
         onClick={() => (sortKey === k ? setSortAsc((a) => !a) : (setSortKey(k), setSortAsc(false)))}
-        className={`inline-flex items-center gap-1 uppercase tracking-wider hover:text-foreground ${sortKey === k ? "text-sand" : ""}`}
+        className={`h-auto p-0 text-xs whitespace-nowrap gap-1 uppercase hover:bg-transparent hover:text-foreground ${sortKey === k ? "text-sand" : ""}`}
       >
         {label}
         {sortKey === k ? (sortAsc ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />) : <ArrowUpDown className="size-3 opacity-50" />}
-      </button>
+      </Button>
     </th>
   );
 
@@ -493,6 +498,8 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
               <th className="px-4 py-3 text-left w-16">Rank</th>
               <th className="px-4 py-3 text-left">Player</th>
               <Head label="League Elo" k="elo" />
+              <Head label="ELO gained" k="elo_gained" />
+              <Head label="ELO lost" k="elo_lost" />
               <Head label="Games" k="games_played" />
               <Head label="Wins" k="wins" />
               <Head label="Top 2" k="top2" className="hidden sm:table-cell" />
@@ -502,17 +509,16 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">Loading rankings…</td></tr>
+              <tr><td colSpan={10} className="px-4 py-10 text-center text-muted-foreground">Loading rankings…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">No League games rated yet{season ? ` in season ${season}` : ""}.</td></tr>
+              <tr><td colSpan={10} className="px-4 py-10 text-center text-muted-foreground">No League games rated yet{season ? ` in season ${season}` : ""}.</td></tr>
             ) : shown.map((r) => {
-              const rank = rankOf.get(r.player_key) ?? 0;
-              const medal = rank === 0 ? "bg-sand text-sand-foreground" : rank === 1 ? "bg-teal/80 text-background" : rank === 2 ? "bg-coral/90 text-white" : "bg-muted text-muted-foreground";
+              const medal = r.rank === 1 ? "bg-sand text-sand-foreground" : r.rank === 2 ? "bg-teal/80 text-background" : r.rank === 3 ? "bg-coral/90 text-background" : "bg-muted text-muted-foreground";
               const winPct = r.games_played ? (r.wins / r.games_played) * 100 : 0;
               return (
                 <tr key={r.player_key} className="border-t border-border/40 hover:bg-secondary/30">
                   <td className="px-4 py-3">
-                    <span className={`inline-flex size-7 items-center justify-center rounded font-bold text-xs ${medal}`}>{rank + 1}</span>
+                    <span className={`inline-flex size-7 items-center justify-center rounded font-bold text-xs ${medal}`}>{r.rank}</span>
                   </td>
                   <td className="px-4 py-3 font-medium">
                     <Link to="/players/$key" params={{ key: r.player_key }} className="hover:underline underline-offset-2" style={{ color: colorForKey(titles, r.player_key) }}>
@@ -523,6 +529,8 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-right font-display text-sand tabular-nums">{Math.round(r.elo)}</td>
+                  <td className="px-4 py-3 text-right text-teal tabular-nums">+{r.elo_gained.toFixed(1)}</td>
+                  <td className="px-4 py-3 text-right text-coral tabular-nums">{r.elo_lost > 0 ? "−" : ""}{r.elo_lost.toFixed(1)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{r.games_played}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{r.wins}</td>
                   <td className="px-4 py-3 text-right tabular-nums hidden sm:table-cell">{r.games_played ? Math.round((r.top2 / r.games_played) * 100) : 0}%</td>
