@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { saveGame } from "@/lib/games.functions";
 import { uploadToR2 } from "@/lib/storage-r2";
+import { snapToKnownSpelling } from "@/lib/name-normalize";
 
 export type SubmitMatchRow = {
   placement: number;
@@ -66,12 +67,12 @@ export type SubmitMatchResult =
  *    and update the matching `tournament_matches` rows for that table.
  */
 export async function submitMatch(input: SubmitMatchInput): Promise<SubmitMatchResult> {
-  const rows = input.rows.map((r) => ({
+  const rows = await snapToKnownSpelling(input.rows.map((r) => ({
     placement: r.placement,
     player_name: r.player_name.trim(),
     leader_name: r.leader_name?.trim() || null,
     points: Number(r.points) || 0,
-  }));
+  })));
 
   if (!input.confirmDuplicate) {
     const dup = await checkRecentDuplicate(rows);

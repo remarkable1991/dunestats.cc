@@ -176,3 +176,19 @@ export async function suggestCanonicalName(raw: string): Promise<NameSuggestion 
   if (fixed && fixed.player_name.toLowerCase() !== name.toLowerCase()) return { kind: "fuzzy", name: fixed.player_name };
   return null;
 }
+
+/** Final safety net before saving: a name that differs from a known player only by spacing/case/accents uses that player's spelling. */
+export async function snapToKnownSpelling<T extends { player_name: string }>(rows: T[]): Promise<T[]> {
+  if (!rows.length) return rows;
+  const { names } = await loadMasterData();
+  const key = (n: string) => n.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+  const known = new Map<string, string>();
+  for (const n of names) if (!known.has(key(n))) known.set(key(n), n);
+  const exact = new Set(names.map((n) => n.toLowerCase()));
+  return rows.map((r) => {
+    const raw = r.player_name.trim();
+    if (exact.has(raw.toLowerCase())) return r;
+    const hit = known.get(key(raw));
+    return hit ? { ...r, player_name: hit } : r;
+  });
+}
