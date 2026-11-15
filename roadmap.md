@@ -1,8 +1,8 @@
 # To do
 
-- [ ] Store before/after League ranks for every player result and backfill all previous matches chronologically.
-- [ ] Keep rank history correct after new ratings, relinks and reversals, with regression tests.
-- [ ] Show rank and movement on match pages, linked lobby results and player match history; verify public pages.
+- [x] Store before/after League ranks for every player result and backfill all previous matches chronologically.
+- [x] Keep rank history correct after new ratings, relinks and reversals, with regression tests.
+- [x] Show rank and movement on match pages, linked lobby results, the matches list and player match history; verify public pages.
 
 - [x] Replace the home stats with the approved eight-metric grid using complete tournament, League, game and lobby sources.
 - [x] Test the counting rules and verify the live totals and two-column mobile/four-column desktop layouts.
