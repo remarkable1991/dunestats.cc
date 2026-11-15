@@ -418,6 +418,8 @@ export type Database = {
           elo_delta: number
           game_id: string
           player_key: string
+          rank_after: number | null
+          rank_before: number | null
           season: number
           updated_at: string
           won: boolean
@@ -427,6 +429,8 @@ export type Database = {
           elo_delta: number
           game_id: string
           player_key: string
+          rank_after?: number | null
+          rank_before?: number | null
           season: number
           updated_at?: string
           won?: boolean
@@ -436,6 +440,8 @@ export type Database = {
           elo_delta?: number
           game_id?: string
           player_key?: string
+          rank_after?: number | null
+          rank_before?: number | null
           season?: number
           updated_at?: string
           won?: boolean
@@ -2408,6 +2414,10 @@ export type Database = {
       promote_to_semifinals_n: {
         Args: { p_tables: Json; p_tournament_num: number }
         Returns: Json
+      }
+      recalculate_league_rank_history: {
+        Args: { p_season: number }
+        Returns: number
       }
       recalculate_sandbox_overall_vp_elo: { Args: never; Returns: undefined }
       register_tournament_guest: { Args: { p: Json }; Returns: Json }
