@@ -16,6 +16,8 @@ import { useChampions, isChampion, winCount } from "@/lib/champions";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { AchievementBadge, ratio, type Achievement } from "@/components/AchievementBadge";
+import { LeagueRankMovement } from "@/components/LeagueRankMovement";
+import type { LeagueRankSnapshot } from "@/lib/league-rank-history";
 
 export const Route = createFileRoute("/players/$key")({
   head: ({ params }) => ({
@@ -270,6 +272,7 @@ function ProfilePage() {
   const [leagueSeason, setLeagueSeason] = useState<number | null>(null);
   const [leagueRank, setLeagueRank] = useState<number | null>(null);
   const [leagueDeltaMap, setLeagueDeltaMap] = useState<Record<string, number>>({});
+  const [leagueRankMap, setLeagueRankMap] = useState<Record<string, LeagueRankSnapshot>>({});
   const [lobbyByGame, setLobbyByGame] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -300,15 +303,20 @@ function ProfilePage() {
     let mounted = true;
     void Promise.all([
       supabase.from("player_league_ratings").select("season, elo, games_played, wins").eq("player_key", playerKey).order("season", { ascending: false }),
-      supabase.from("league_match_rating_deltas").select("game_id, elo_delta").eq("player_key", playerKey).limit(2000),
+      supabase.from("league_match_rating_deltas").select("game_id, elo_delta, rank_before, rank_after").eq("player_key", playerKey).limit(2000),
     ]).then(([r, d]) => {
       if (!mounted) return;
       const rows = (r.data ?? []).map((x) => ({ ...x, elo: Number(x.elo) }));
       setLeagueRows(rows);
       setLeagueSeason(rows[0]?.season ?? null);
       const m: Record<string, number> = {};
-      for (const x of d.data ?? []) m[x.game_id] = Number(x.elo_delta);
+      const rankMap: Record<string, LeagueRankSnapshot> = {};
+      for (const x of d.data ?? []) {
+        m[x.game_id] = Number(x.elo_delta);
+        rankMap[x.game_id] = { rank_before: x.rank_before, rank_after: x.rank_after };
+      }
       setLeagueDeltaMap(m);
+      setLeagueRankMap(rankMap);
     });
     return () => {
       mounted = false;
@@ -912,6 +920,12 @@ function ProfilePage() {
                             <span className={`normal-case tabular-nums ${leagueDeltaMap[m.games.id] >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                               League {leagueDeltaMap[m.games.id] >= 0 ? "+" : ""}{leagueDeltaMap[m.games.id].toFixed(1)}
                             </span>
+                          )}
+                          {m.games && leagueRankMap[m.games.id] && (
+                            <LeagueRankMovement
+                              rankBefore={leagueRankMap[m.games.id].rank_before}
+                              rankAfter={leagueRankMap[m.games.id].rank_after}
+                            />
                           )}
                           {m.games && (
                             <EloDeltaLine

@@ -27,6 +27,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Info } from "lucide-react";
 import { CANONICAL_LEADERS } from "@/lib/leader-translate";
 import { ReportIssueDialog } from "@/components/ReportIssueDialog";
+import { LeagueRankMovement } from "@/components/LeagueRankMovement";
+import type { LeagueRankSnapshot } from "@/lib/league-rank-history";
 import {
   FACTIONS,
   FactionInfluenceTrackBoard,
@@ -143,7 +145,7 @@ function MatchDetailsPage() {
   const { isContentCreator } = useRoles();
   const [revealed, setRevealed] = useState(false);
   const { showAll: showAllTracks, setShowAll: setShowAllTracks } = useShowAllRatingTracks();
-  const [league, setLeague] = useState<{ season: number | null; deltas: Record<string, number>; totals: Record<string, number> }>({ season: null, deltas: {}, totals: {} });
+  const [league, setLeague] = useState<{ season: number | null; deltas: Record<string, number>; totals: Record<string, number>; ranks: Record<string, LeagueRankSnapshot> }>({ season: null, deltas: {}, totals: {}, ranks: {} });
   const [linkedLobby, setLinkedLobby] = useState<{ id: number; is_league: boolean | null; season_num: number | null; season_id: number | null } | null>(null);
 
   useEffect(() => {
@@ -215,18 +217,23 @@ function MatchDetailsPage() {
       setTotals(tmap);
       setLinkedLobby(lobbyRow ?? null);
       if (g.is_league) {
-        const { data: ds } = await supabase.from("league_match_rating_deltas" as never).select("player_key,season,elo_delta").eq("game_id", g.id);
-        const drows = (ds ?? []) as unknown as { player_key: string; season: number; elo_delta: number }[];
+        const { data: ds } = await supabase.from("league_match_rating_deltas" as never).select("player_key,season,elo_delta,rank_before,rank_after").eq("game_id", g.id);
+        const drows = (ds ?? []) as unknown as { player_key: string; season: number; elo_delta: number; rank_before: number | null; rank_after: number | null }[];
         let season: number | null = drows[0]?.season ?? null;
         if (season == null) season = lobbyRow?.season_num ?? lobbyRow?.season_id ?? null;
         const deltas: Record<string, number> = {};
-        drows.forEach((d) => (deltas[d.player_key.toLowerCase().trim()] = Number(d.elo_delta)));
+        const ranks: Record<string, LeagueRankSnapshot> = {};
+        drows.forEach((d) => {
+          const playerKey = d.player_key.toLowerCase().trim();
+          deltas[playerKey] = Number(d.elo_delta);
+          ranks[playerKey] = { rank_before: d.rank_before, rank_after: d.rank_after };
+        });
         const totalsL: Record<string, number> = {};
         if (season != null) {
           const { data: lr } = await supabase.from("player_league_ratings").select("player_key,elo").eq("season", season).in("player_key", keys);
           (lr ?? []).forEach((r) => (totalsL[r.player_key.toLowerCase().trim()] = Number(r.elo)));
         }
-        if (!cancelled) setLeague({ season, deltas, totals: totalsL });
+        if (!cancelled) setLeague({ season, deltas, totals: totalsL, ranks });
       }
     })();
     return () => {
@@ -833,7 +840,13 @@ function MatchDetailsPage() {
                     </div>
                     {game.is_league && (
                       <div className="mt-2 grid grid-cols-1 gap-2 text-[11px] tabular-nums">
-                        <EloTrack label={league.season ? `League S${league.season}` : "League"} delta={league.deltas[r.player_name.toLowerCase().trim()] ?? null} total={league.totals[r.player_name.toLowerCase().trim()] ?? null} />
+                        <EloTrack
+                          label={league.season ? `League S${league.season}` : "League"}
+                          delta={league.deltas[key] ?? null}
+                          total={league.totals[key] ?? null}
+                          rankBefore={league.ranks[key]?.rank_before}
+                          rankAfter={league.ranks[key]?.rank_after}
+                        />
                       </div>
                     )}
                     {(!game.is_league || showAllTracks) && (
@@ -1114,10 +1127,14 @@ function EloTrack({
   label,
   delta,
   total,
+  rankBefore,
+  rankAfter,
 }: {
   label: string;
   delta: number | null | undefined;
   total: number | null | undefined;
+  rankBefore?: number | null;
+  rankAfter?: number | null;
 }) {
   const d = fmtDelta(delta);
   const tone = delta === null || delta === undefined
@@ -1140,6 +1157,7 @@ function EloTrack({
         </span>
         {d && <span className={`text-[11px] ${tone}`}>({d})</span>}
       </div>
+      {rankAfter != null && <LeagueRankMovement rankBefore={rankBefore} rankAfter={rankAfter} className="mt-1" />}
     </Link>
   );
 }

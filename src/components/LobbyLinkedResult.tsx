@@ -7,6 +7,8 @@ import { useShowAllRatingTracks } from "@/hooks/use-rating-tracks";
 import type { Seat } from "@/lib/lfg-seats";
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useLeaderPortraits } from "@/lib/leader-portraits";
+import { LeagueRankMovement } from "@/components/LeagueRankMovement";
+import type { LeagueRankSnapshot } from "@/lib/league-rank-history";
 
 type R = { placement: number; player_name: string; leader_name: string | null; points: number; elo_delta: number | null; elo_delta_overall: number | null };
 const loose = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -16,7 +18,7 @@ const tone = (n: number | null | undefined) => (n == null ? "text-muted-foregrou
 /** Standings + Elo changes for a lobby's linked match, with IGN / Discord identity per seat. */
 export function LobbyLinkedResult({ gameId, code, isLeague, seats, titles }: { gameId: string; code: string; isLeague: boolean; seats: Seat[]; titles: Map<string, number> }) {
   const [rows, setRows] = useState<R[]>([]);
-  const [league, setLeague] = useState<Record<string, number>>({});
+  const [league, setLeague] = useState<Record<string, LeagueRankSnapshot & { elo_delta: number }>>({});
   const { showAll, setShowAll, signedIn } = useShowAllRatingTracks();
   const portraits = useLeaderPortraits(Array.from(new Set(rows.map((r) => (r.leader_name ? leaderRouteFor(r.leader_name)?.slug : null)).filter((v): v is string => !!v))));
 
@@ -27,9 +29,11 @@ export function LobbyLinkedResult({ gameId, code, isLeague, seats, titles }: { g
       if (off) return;
       setRows((data as R[]) ?? []);
       if (isLeague) {
-        const { data: ds } = await supabase.from("league_match_rating_deltas" as never).select("player_key,elo_delta").eq("game_id", gameId);
-        const m: Record<string, number> = {};
-        for (const d of (ds as unknown as { player_key: string; elo_delta: number }[]) ?? []) m[loose(d.player_key)] = Number(d.elo_delta);
+        const { data: ds } = await supabase.from("league_match_rating_deltas" as never).select("player_key,elo_delta,rank_before,rank_after").eq("game_id", gameId);
+        const m: Record<string, LeagueRankSnapshot & { elo_delta: number }> = {};
+        for (const d of (ds as unknown as { player_key: string; elo_delta: number; rank_before: number | null; rank_after: number | null }[]) ?? []) {
+          m[loose(d.player_key)] = { elo_delta: Number(d.elo_delta), rank_before: d.rank_before, rank_after: d.rank_after };
+        }
         if (!off) setLeague(m);
       }
     })();
@@ -67,9 +71,10 @@ export function LobbyLinkedResult({ gameId, code, isLeague, seats, titles }: { g
             </div>
             <span className="text-sm tabular-nums w-12 text-right">{r.points} VP</span>
             {isLeague && (
-              <div className="text-right w-20">
+              <div className="text-right w-24">
                 <div className="text-[10px] uppercase text-muted-foreground">League</div>
-                <div className={`text-sm tabular-nums ${tone(ld)}`}>{fmt(ld)}</div>
+                <div className={`text-sm tabular-nums ${tone(ld?.elo_delta)}`}>{fmt(ld?.elo_delta)}</div>
+                <LeagueRankMovement rankBefore={ld?.rank_before} rankAfter={ld?.rank_after} />
               </div>
             )}
             {showGeneral && (

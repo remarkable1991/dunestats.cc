@@ -1,0 +1,2 @@
+REVOKE ALL ON FUNCTION public.league_rank_history_after_delete() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.league_rank_history_after_update() FROM PUBLIC, anon, authenticated, service_role;

@@ -15,6 +15,8 @@ import { EloDeltaLine, TournamentTag } from "@/components/EloDelta";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useLeaderPortraits } from "@/lib/leader-portraits";
+import { LeagueRankMovement } from "@/components/LeagueRankMovement";
+import type { LeagueRankSnapshot } from "@/lib/league-rank-history";
 
 
 export const Route = createFileRoute("/matches")({
@@ -101,7 +103,7 @@ function scanLabel(status: string | null): string {
 function MatchesPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [leagueDeltas, setLeagueDeltas] = useState<Record<string, number>>({});
+  const [leagueDeltas, setLeagueDeltas] = useState<Record<string, LeagueRankSnapshot & { elo_delta: number }>>({});
   const { showAll: showAllTracks, setShowAll: setShowAllTracks } = useShowAllRatingTracks();
   const [games, setGames] = useState<GameRow[]>([]);
   const [uploaders, setUploaders] = useState<Record<string, string>>({});
@@ -208,9 +210,11 @@ function MatchesPage() {
       setVpDeltas(vmap);
       const leagueIds = rows.filter((g) => g.is_league).map((g) => g.id);
       if (leagueIds.length) {
-        const { data: lds } = await supabase.from("league_match_rating_deltas" as never).select("game_id,player_key,elo_delta").in("game_id", leagueIds);
-        const lmap: Record<string, number> = {};
-        ((lds ?? []) as unknown as { game_id: string; player_key: string; elo_delta: number }[]).forEach((d) => (lmap[`${d.game_id}::${d.player_key.toLowerCase().trim()}`] = Number(d.elo_delta)));
+        const { data: lds } = await supabase.from("league_match_rating_deltas" as never).select("game_id,player_key,elo_delta,rank_before,rank_after").in("game_id", leagueIds);
+        const lmap: Record<string, LeagueRankSnapshot & { elo_delta: number }> = {};
+        ((lds ?? []) as unknown as { game_id: string; player_key: string; elo_delta: number; rank_before: number | null; rank_after: number | null }[]).forEach((d) => {
+          lmap[`${d.game_id}::${d.player_key.toLowerCase().trim()}`] = { elo_delta: Number(d.elo_delta), rank_before: d.rank_before, rank_after: d.rank_after };
+        });
         setLeagueDeltas(lmap);
       } else setLeagueDeltas({});
     } else {
@@ -534,7 +538,7 @@ function MatchesPage() {
                             )}
                             {!spoiler && (
                             <Link to="/leaderboard" className="hover:underline underline-offset-2">
-                              {g.is_league && <LeagueDeltaLine delta={leagueDeltas[`${g.id}::${r.player_name.toLowerCase().trim()}`]} />}
+                              {g.is_league && <LeagueDeltaLine result={leagueDeltas[`${g.id}::${r.player_name.toLowerCase().trim()}`]} />}
                               {(!g.is_league || showAllTracks) && <EloDeltaLine version={g.game_version} overall={r.elo_delta_overall} versionDelta={r.elo_delta} vpDelta={vpDeltas[`${g.id}::${r.player_name.toLowerCase().trim()}`]} />}
                             </Link>
                             )}
@@ -573,8 +577,13 @@ function MatchesPage() {
     </div>
   );
 }
-function LeagueDeltaLine({ delta }: { delta: number | undefined }) {
-  if (delta === undefined) return <div className="text-[11px] text-muted-foreground">League Elo pending</div>;
-  const d = Math.round(delta);
-  return <div className={`text-[11px] tabular-nums ${d > 0 ? "text-teal" : d < 0 ? "text-coral" : "text-muted-foreground"}`}>League {d > 0 ? "+" : ""}{d}</div>;
+function LeagueDeltaLine({ result }: { result: (LeagueRankSnapshot & { elo_delta: number }) | undefined }) {
+  if (!result) return <div className="text-[11px] text-muted-foreground">League Elo pending</div>;
+  const d = Math.round(result.elo_delta);
+  return (
+    <div className="text-[11px] tabular-nums">
+      <div className={d > 0 ? "text-teal" : d < 0 ? "text-coral" : "text-muted-foreground"}>League {d > 0 ? "+" : ""}{d}</div>
+      <LeagueRankMovement rankBefore={result.rank_before} rankAfter={result.rank_after} />
+    </div>
+  );
 }
