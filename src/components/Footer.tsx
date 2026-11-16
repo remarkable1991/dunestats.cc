@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Instagram, Facebook } from "lucide-react";
+import { Instagram, Facebook, Heart } from "lucide-react";
 
 export function Footer() {
   return (
@@ -34,6 +34,10 @@ export function Footer() {
           >
             Discord
           </a>
+          <span className="opacity-30">|</span>
+          <Link to="/support" className="inline-flex items-center gap-1 text-primary transition-colors hover:text-foreground">
+            <Heart className="size-3.5" /> Support us
+          </Link>
           <span className="opacity-30">|</span>
           <Link
             to="/terms"

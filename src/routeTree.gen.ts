@@ -22,12 +22,14 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RewardsRouteImport } from './routes/rewards'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as StatsRouteImport } from './routes/stats'
+import { Route as SupportRouteImport } from './routes/support'
 import { Route as SurveyRouteImport } from './routes/survey'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TournamentRouteImport } from './routes/tournament'
 import { Route as TournamentRegisterRouteImport } from './routes/tournament-register'
 import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as UploadRouteImport } from './routes/upload'
+import { Route as AdminDonationsRouteImport } from './routes/admin/donations'
 import { Route as AdminLfgHistoryRouteImport } from './routes/admin/lfg-history'
 import { Route as AdminMatchApprovalsRouteImport } from './routes/admin/match-approvals'
 import { Route as AdminMatchmakingRouteImport } from './routes/admin/matchmaking'
@@ -113,6 +115,11 @@ const StatsRoute = StatsRouteImport.update({
   path: '/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SurveyRoute = SurveyRouteImport.update({
   id: '/survey',
   path: '/survey',
@@ -141,6 +148,11 @@ const UnsubscribeRoute = UnsubscribeRouteImport.update({
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',
   path: '/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDonationsRoute = AdminDonationsRouteImport.update({
+  id: '/admin/donations',
+  path: '/admin/donations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminLfgHistoryRoute = AdminLfgHistoryRouteImport.update({
@@ -255,12 +267,14 @@ export interface FileRoutesByFullPath {
   '/rewards': typeof RewardsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
+  '/support': typeof SupportRoute
   '/survey': typeof SurveyRoute
   '/terms': typeof TermsRoute
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/upload': typeof UploadRoute
+  '/admin/donations': typeof AdminDonationsRoute
   '/admin/lfg-history': typeof AdminLfgHistoryRoute
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/matchmaking': typeof AdminMatchmakingRoute
@@ -295,12 +309,14 @@ export interface FileRoutesByTo {
   '/rewards': typeof RewardsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
+  '/support': typeof SupportRoute
   '/survey': typeof SurveyRoute
   '/terms': typeof TermsRoute
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/upload': typeof UploadRoute
+  '/admin/donations': typeof AdminDonationsRoute
   '/admin/lfg-history': typeof AdminLfgHistoryRoute
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/matchmaking': typeof AdminMatchmakingRoute
@@ -336,12 +352,14 @@ export interface FileRoutesById {
   '/rewards': typeof RewardsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
+  '/support': typeof SupportRoute
   '/survey': typeof SurveyRoute
   '/terms': typeof TermsRoute
   '/tournament': typeof TournamentRoute
   '/tournament-register': typeof TournamentRegisterRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/upload': typeof UploadRoute
+  '/admin/donations': typeof AdminDonationsRoute
   '/admin/lfg-history': typeof AdminLfgHistoryRoute
   '/admin/match-approvals': typeof AdminMatchApprovalsRoute
   '/admin/matchmaking': typeof AdminMatchmakingRoute
@@ -378,12 +396,14 @@ export interface FileRouteTypes {
     | '/rewards'
     | '/sitemap.xml'
     | '/stats'
+    | '/support'
     | '/survey'
     | '/terms'
     | '/tournament'
     | '/tournament-register'
     | '/unsubscribe'
     | '/upload'
+    | '/admin/donations'
     | '/admin/lfg-history'
     | '/admin/match-approvals'
     | '/admin/matchmaking'
@@ -418,12 +438,14 @@ export interface FileRouteTypes {
     | '/rewards'
     | '/sitemap.xml'
     | '/stats'
+    | '/support'
     | '/survey'
     | '/terms'
     | '/tournament'
     | '/tournament-register'
     | '/unsubscribe'
     | '/upload'
+    | '/admin/donations'
     | '/admin/lfg-history'
     | '/admin/match-approvals'
     | '/admin/matchmaking'
@@ -458,12 +480,14 @@ export interface FileRouteTypes {
     | '/rewards'
     | '/sitemap.xml'
     | '/stats'
+    | '/support'
     | '/survey'
     | '/terms'
     | '/tournament'
     | '/tournament-register'
     | '/unsubscribe'
     | '/upload'
+    | '/admin/donations'
     | '/admin/lfg-history'
     | '/admin/match-approvals'
     | '/admin/matchmaking'
@@ -499,12 +523,14 @@ export interface RootRouteChildren {
   RewardsRoute: typeof RewardsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StatsRoute: typeof StatsRoute
+  SupportRoute: typeof SupportRoute
   SurveyRoute: typeof SurveyRoute
   TermsRoute: typeof TermsRoute
   TournamentRoute: typeof TournamentRoute
   TournamentRegisterRoute: typeof TournamentRegisterRoute
   UnsubscribeRoute: typeof UnsubscribeRoute
   UploadRoute: typeof UploadRoute
+  AdminDonationsRoute: typeof AdminDonationsRoute
   AdminLfgHistoryRoute: typeof AdminLfgHistoryRoute
   AdminMatchApprovalsRoute: typeof AdminMatchApprovalsRoute
   AdminMatchmakingRoute: typeof AdminMatchmakingRoute
@@ -619,6 +645,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StatsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/survey': {
       id: '/survey'
       path: '/survey'
@@ -659,6 +692,13 @@ declare module '@tanstack/react-router' {
       path: '/upload'
       fullPath: '/upload'
       preLoaderRoute: typeof UploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/donations': {
+      id: '/admin/donations'
+      path: '/admin/donations'
+      fullPath: '/admin/donations'
+      preLoaderRoute: typeof AdminDonationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/lfg-history': {
@@ -811,12 +851,14 @@ const rootRouteChildren: RootRouteChildren = {
   RewardsRoute: RewardsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StatsRoute: StatsRoute,
+  SupportRoute: SupportRoute,
   SurveyRoute: SurveyRoute,
   TermsRoute: TermsRoute,
   TournamentRoute: TournamentRoute,
   TournamentRegisterRoute: TournamentRegisterRoute,
   UnsubscribeRoute: UnsubscribeRoute,
   UploadRoute: UploadRoute,
+  AdminDonationsRoute: AdminDonationsRoute,
   AdminLfgHistoryRoute: AdminLfgHistoryRoute,
   AdminMatchApprovalsRoute: AdminMatchApprovalsRoute,
   AdminMatchmakingRoute: AdminMatchmakingRoute,

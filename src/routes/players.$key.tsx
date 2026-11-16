@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
-import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown, Target, History, TrendingUp, type LucideIcon } from "lucide-react";
+import { User as UserIcon, BadgeCheck, Trophy, Medal, ArrowUp, ArrowDown, ArrowUpDown, Target, History, TrendingUp, Heart, type LucideIcon } from "lucide-react";
 import { EloHistoryChart } from "@/components/EloHistoryChart";
 import { useLeagueOnlyView } from "@/hooks/use-league-only";
 import { AccountConsolidation } from "@/components/AccountConsolidation";
@@ -18,6 +19,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { AchievementBadge, ratio, type Achievement } from "@/components/AchievementBadge";
 import { LeagueRankMovement } from "@/components/LeagueRankMovement";
 import type { LeagueRankSnapshot } from "@/lib/league-rank-history";
+import { getDonatorStatus } from "@/lib/donations.functions";
 
 export const Route = createFileRoute("/players/$key")({
   head: ({ params }) => ({
@@ -274,6 +276,17 @@ function ProfilePage() {
   const [leagueDeltaMap, setLeagueDeltaMap] = useState<Record<string, number>>({});
   const [leagueRankMap, setLeagueRankMap] = useState<Record<string, LeagueRankSnapshot>>({});
   const [lobbyByGame, setLobbyByGame] = useState<Record<string, number>>({});
+  const [isDonator, setIsDonator] = useState(false);
+  const checkDonator = useServerFn(getDonatorStatus);
+
+  useEffect(() => {
+    let active = true;
+    setIsDonator(false);
+    void checkDonator({ data: { playerKey } }).then((result) => {
+      if (active) setIsDonator(result.isDonator);
+    });
+    return () => { active = false; };
+  }, [playerKey, checkDonator]);
 
   useEffect(() => {
     const gameIds = [...new Set(matches.flatMap((m) => m.games?.is_league && m.games.id ? [m.games.id] : []))];
@@ -602,6 +615,11 @@ function ProfilePage() {
               className="text-xs text-coral underline-offset-2 hover:underline"
             >
               Unclaimed — claim now
+            </Link>
+          )}
+          {isDonator && (
+            <Link to="/support" className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs text-primary hover:bg-primary/20" title="Verified Strategy Arena supporter">
+              <Heart className="size-3" /> Donator
             </Link>
           )}
         </div>

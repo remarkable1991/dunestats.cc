@@ -34,3 +34,4 @@
 - Lobby-page result uploads scan and submit in place via `src/components/LobbyResultUpload.tsx`; per-player confidence comes from pure `src/lib/lobby-result-match.ts`, and any non-green match still submits but writes an `lfg_result_reviews` row for admins, so uncertain identities never block reporting.
 - All screenshot result uploads share `useUploaderIdentity`; any claimed IGN on the endboard suppresses the prompt, while unmatched uploaders explicitly choose a seat, claim an unclaimed IGN, or map a confusable OCR spelling to their own claimed IGN after the match is saved.
 - League leaderboard totals and view ranks use the pure `league-leaderboard` helper; seasonal ledger gains/loss magnitudes and post-filter sorting remain independently testable.
+- Donation administration uses main-admin server functions, while public submissions and sanitized leaderboard reads use caller-permission RPCs; raw donor records stay private and hidden amounts receive no public rank.
