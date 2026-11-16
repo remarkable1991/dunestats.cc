@@ -1,10 +1,10 @@
 # To do
 
-- [ ] Add private donation records, verified-only public leaderboard/summary RPCs, season allocation, and donor badge lookup.
-- [ ] Build /support with payment links, allocation sliders, payment-note copying, submission privacy controls, live totals and seasonal/all-time rankings.
-- [ ] Build /admin/donations for main-admin verification, rejection and historical manual entries.
-- [ ] Add navigation/footer links and verified public-player donator badges.
-- [ ] Add donation rule tests; run the full test suite, typecheck/build and browser-check the public and admin flows available in this workspace.
+- [x] Add private donation records, verified-only public leaderboard/summary RPCs, season allocation, and donor badge lookup.
+- [x] Build /support with payment links, allocation sliders, payment-note copying, submission privacy controls, live totals and seasonal/all-time rankings.
+- [x] Build /admin/donations for main-admin verification, rejection and historical manual entries.
+- [x] Add navigation/footer links and verified public-player donator badges.
+- [x] Add donation rule tests and database privacy assertions; run all 125 tests, typecheck/build and browser-check guest submission, mobile, public pages and the signed-out admin guard. Signed-in admin interaction remains untested with external unmanaged auth.
 
 - [x] Store before/after League ranks for every player result and backfill all previous matches chronologically.
 - [x] Keep rank history correct after new ratings, relinks and reversals, with regression tests.
