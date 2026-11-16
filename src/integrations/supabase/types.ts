@@ -158,6 +158,83 @@ export type Database = {
         }
         Relationships: []
       }
+      donations: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          developer_pct: number
+          donated_at: string
+          donor_name: string
+          donor_note: string | null
+          hide_amount: boolean
+          hide_name: boolean
+          id: string
+          maintenance_pct: number
+          payment_method: string
+          player_key: string | null
+          season_id: number | null
+          status: string
+          tournament_pct: number
+          updated_at: string
+          user_id: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          developer_pct?: number
+          donated_at?: string
+          donor_name: string
+          donor_note?: string | null
+          hide_amount?: boolean
+          hide_name?: boolean
+          id?: string
+          maintenance_pct?: number
+          payment_method?: string
+          player_key?: string | null
+          season_id?: number | null
+          status?: string
+          tournament_pct?: number
+          updated_at?: string
+          user_id?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          developer_pct?: number
+          donated_at?: string
+          donor_name?: string
+          donor_note?: string | null
+          hide_amount?: boolean
+          hide_name?: boolean
+          id?: string
+          maintenance_pct?: number
+          payment_method?: string
+          player_key?: string | null
+          season_id?: number | null
+          status?: string
+          tournament_pct?: number
+          updated_at?: string
+          user_id?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donations_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "sp_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_outbox: {
         Row: {
           campaign: string
@@ -2205,6 +2282,38 @@ export type Database = {
           file_path: string
         }[]
       }
+      get_donation_leaderboard: {
+        Args: { p_currency?: string; p_season_id?: number }
+        Returns: {
+          amount: number
+          amount_hidden: boolean
+          currency: string
+          developer_pct: number
+          display_name: string
+          donated_at: string
+          donation_id: string
+          donor_rank: number
+          maintenance_pct: number
+          player_key: string
+          tournament_pct: number
+        }[]
+      }
+      get_donation_summary: {
+        Args: { p_currency?: string; p_season_id?: number }
+        Returns: {
+          developer_total: number
+          donation_count: number
+          maintenance_total: number
+          monthly_maintenance: number
+          supporter_count: number
+          total_amount: number
+          tournament_total: number
+        }[]
+      }
+      get_donator_player_keys: {
+        Args: { p_player_keys: string[] }
+        Returns: string[]
+      }
       get_player_achievements: { Args: { p_player_key: string }; Returns: Json }
       get_player_achievements_season: {
         Args: { p_player_key: string; p_season_id: number }
@@ -2472,6 +2581,22 @@ export type Database = {
       sp_daily_checkin: { Args: never; Returns: Json }
       sp_register_referral: { Args: { p_referrer_key: string }; Returns: Json }
       sp_season_for: { Args: { ts: string }; Returns: number }
+      submit_donation: {
+        Args: {
+          p_amount: number
+          p_currency: string
+          p_developer_pct: number
+          p_donor_name: string
+          p_donor_note?: string
+          p_hide_amount: boolean
+          p_hide_name: boolean
+          p_maintenance_pct: number
+          p_payment_method: string
+          p_player_key: string
+          p_tournament_pct: number
+        }
+        Returns: string
+      }
       submit_match_report: {
         Args: {
           p_lobby_id?: string
