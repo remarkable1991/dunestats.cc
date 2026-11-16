@@ -1,0 +1,1 @@
+DELETE FROM public.donations WHERE id = '20d900c8-69e2-4755-a24f-762cef546eec' AND donor_name = 'Automated Support Check' AND status = 'pending' AND amount = 0.01;
