@@ -1,6 +1,13 @@
 export const DONATION_CURRENCIES = ["USD", "EUR", "GBP"] as const;
 export type DonationCurrency = (typeof DONATION_CURRENCIES)[number];
 
+// Fixed reference rates keep historical rankings stable; original amounts remain authoritative.
+export const DONATION_USD_RATES: Record<DonationCurrency, number> = { USD: 1, EUR: 1.08, GBP: 1.28 };
+
+export function approximateDonationUsd(amount: number, currency: DonationCurrency): number {
+  return Math.round(amount * DONATION_USD_RATES[currency] * 100) / 100;
+}
+
 export type DonationAllocation = {
   tournament: number;
   maintenance: number;
@@ -87,6 +94,7 @@ export type PublicDonationRow = {
   donated_at: string;
   donor_rank: number | null;
   amount_hidden: boolean;
+  amount_usd: number | null;
 };
 
 export type DonationSummary = {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_DONATION_ALLOCATION,
+  approximateDonationUsd,
   formatDonationMoney,
   isCompleteDonationAllocation,
   makeDonationPaymentNote,
@@ -22,6 +23,18 @@ describe("donation allocation", () => {
   it("rejects incomplete or over-allocated splits", () => {
     expect(isCompleteDonationAllocation({ tournament: 50, maintenance: 40, developer: 20 })).toBe(false);
     expect(isCompleteDonationAllocation({ tournament: 101, maintenance: 0, developer: -1 })).toBe(false);
+  });
+});
+
+describe("unified donation ranking values", () => {
+  it("uses the fixed approximate USD reference rates for every supported currency", () => {
+    expect(approximateDonationUsd(50, "USD")).toBe(50);
+    expect(approximateDonationUsd(25, "EUR")).toBe(27);
+    expect(approximateDonationUsd(25, "GBP")).toBe(32);
+  });
+
+  it("ranks a larger euro donation above a smaller dollar donation after conversion", () => {
+    expect(approximateDonationUsd(100, "EUR")).toBeGreaterThan(approximateDonationUsd(50, "USD"));
   });
 });
 

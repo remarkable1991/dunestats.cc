@@ -34,6 +34,7 @@ import { useRoles } from "@/hooks/use-roles";
 import { getDonationSeasons, getPublicDonationBoard, submitDonation } from "@/lib/donations.functions";
 import {
   DEFAULT_DONATION_ALLOCATION,
+  approximateDonationUsd,
   DONATION_CURRENCIES,
   DONATION_PAYMENT_METHODS,
   donationPaymentMethodLabel,
@@ -53,17 +54,18 @@ const seasonQueryOptions = queryOptions({
   queryFn: () => getDonationSeasons(),
 });
 
-function boardQueryOptions(seasonId: number | null, currency: DonationCurrency) {
+function boardQueryOptions(seasonId: number | null) {
   return queryOptions({
-    queryKey: ["public-donation-board", seasonId, currency],
-    queryFn: () => getPublicDonationBoard({ data: { seasonId, currency } }),
+    queryKey: ["public-donation-board", seasonId],
+    queryFn: () => getPublicDonationBoard({ data: { seasonId } }),
   });
 }
 
 export const Route = createFileRoute("/support")({
+  ssr: false,
   loader: ({ context }) => Promise.all([
     context.queryClient.ensureQueryData(seasonQueryOptions),
-    context.queryClient.ensureQueryData(boardQueryOptions(null, "USD")),
+    context.queryClient.ensureQueryData(boardQueryOptions(null)),
   ]),
   head: () => ({
     meta: [
@@ -316,7 +318,7 @@ function SupportPage() {
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">Community transparency</p>
                 <h2 className="mt-2 font-display text-3xl">Verified supporters</h2>
-                <p className="mt-2 text-sm text-muted-foreground">Only confirmed contributions appear here. Amounts stay in their original currency.</p>
+                <p className="mt-2 text-sm text-muted-foreground">Every confirmed contribution appears together. Rankings use approximate USD values; original amounts stay unchanged.</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Tabs value={timeframe} onValueChange={(value) => setTimeframe(value as "all" | "season")}>
@@ -328,14 +330,10 @@ function SupportPage() {
                     <SelectContent>{seasonData.seasons.map((season) => <SelectItem key={season.id} value={String(season.id)}>{season.name}</SelectItem>)}</SelectContent>
                   </Select>
                 ) : null}
-                <Select value={currency} onValueChange={(value) => setCurrency(value as DonationCurrency)}>
-                  <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
-                  <SelectContent>{DONATION_CURRENCIES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
-                </Select>
               </div>
             </div>
             <Suspense fallback={<Card className="flex min-h-64 items-center justify-center"><Loader2 className="size-6 animate-spin text-primary" /></Card>}>
-              <DonationBoard seasonId={timeframe === "season" ? seasonId : null} currency={currency} />
+              <DonationBoard seasonId={timeframe === "season" ? seasonId : null} />
             </Suspense>
           </section>
         </div>
@@ -348,21 +346,21 @@ function Perk({ icon: Icon, title, text }: { icon: typeof Gift; title: string; t
   return <Card className="bg-card/55 p-5"><Icon className="size-6 text-primary" /><h2 className="mt-3 font-display text-base">{title}</h2><p className="mt-2 text-sm leading-relaxed text-muted-foreground">{text}</p></Card>;
 }
 
-function DonationBoard({ seasonId, currency }: { seasonId: number | null; currency: DonationCurrency }) {
-  const { data } = useSuspenseQuery(boardQueryOptions(seasonId, currency));
+function DonationBoard({ seasonId }: { seasonId: number | null }) {
+  const { data } = useSuspenseQuery(boardQueryOptions(seasonId));
   const rows = data.rows as PublicDonationRow[];
   const summary = Object.fromEntries(Object.entries(data.summary).map(([key, value]) => [key, Number(value)]));
   const monthly = summary.monthly_maintenance ?? 0;
-  const money = (value: number) => formatDonationMoney(value, currency);
+  const money = (value: number) => formatDonationMoney(value, "USD");
 
   return (
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="bg-card/60 p-5">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground"><Wrench className="size-4 text-teal" /> This month’s maintenance</div>
-          <p className="mt-3 font-display text-2xl text-foreground">{money(monthly)}{currency === "USD" ? <span className="ml-1 text-sm text-muted-foreground">/ $50.00</span> : null}</p>
-          {currency === "USD" ? <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-teal" style={{ width: `${Math.min(100, (monthly / 50) * 100)}%` }} /></div> : null}
-          <p className="mt-2 text-xs text-muted-foreground">Verified maintenance allocation in {currency}</p>
+          <p className="mt-3 font-display text-2xl text-foreground">{money(monthly)}<span className="ml-1 text-sm text-muted-foreground">/ $50.00</span></p>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-teal" style={{ width: `${Math.min(100, (monthly / 50) * 100)}%` }} /></div>
+          <p className="mt-2 text-xs text-muted-foreground">Approximate USD from verified maintenance allocations</p>
         </Card>
         <Card className="bg-card/60 p-5">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground"><Trophy className="size-4 text-primary" /> Rewards funded</div>
@@ -381,13 +379,16 @@ function DonationBoard({ seasonId, currency }: { seasonId: number | null; curren
           <table className="w-full min-w-[760px] text-sm">
             <thead><tr className="bg-secondary/35 text-xs uppercase tracking-wider text-muted-foreground"><th className="w-16 px-4 py-3 text-left">Rank</th><th className="px-4 py-3 text-left">Donor</th><th className="px-4 py-3 text-right">Amount</th><th className="px-4 py-3 text-left">Allocation</th><th className="px-4 py-3 text-right">Date</th></tr></thead>
             <tbody>
-              {!rows.length ? <tr><td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">No verified {currency} donations in this view yet. Yours could be the first.</td></tr> : null}
+              {!rows.length ? <tr><td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">No verified donations in this view yet. Yours could be the first.</td></tr> : null}
               {rows.map((row) => <DonationRow key={row.donation_id} row={row} />)}
             </tbody>
           </table>
         </div>
       </Card>
-      <p className="flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="size-4 text-teal" /> Hidden amounts are never sent to the public page and are excluded from numbered ranks.</p>
+      <div className="space-y-2 text-xs text-muted-foreground">
+        <p>Totals and ranks use fixed reference rates: €1 ≈ $1.08 and £1 ≈ $1.28. These are approximate ranking values, not live exchange quotes.</p>
+        <p className="flex items-center gap-2"><ShieldCheck className="size-4 text-teal" /> Hidden amounts are never sent to the public page and are excluded from numbered ranks.</p>
+      </div>
     </div>
   );
 }
@@ -403,7 +404,12 @@ function DonationRow({ row }: { row: PublicDonationRow }) {
           {row.amount_hidden ? <Badge variant="outline" className="text-[10px]">Verified supporter</Badge> : null}
         </div>
       </td>
-      <td className="px-4 py-4 text-right font-display text-base tabular-nums text-primary">{row.amount == null ? "Hidden" : formatDonationMoney(Number(row.amount), row.currency)}</td>
+      <td className="px-4 py-4 text-right font-display text-base tabular-nums text-primary">
+        {row.amount == null ? "Hidden" : <>
+          {formatDonationMoney(Number(row.amount), row.currency)}
+          {row.currency !== "USD" ? <span className="mt-0.5 block text-xs font-normal text-muted-foreground">≈ {formatDonationMoney(approximateDonationUsd(Number(row.amount), row.currency), "USD")}</span> : null}
+        </>}
+      </td>
       <td className="px-4 py-4"><div className="flex flex-wrap gap-1.5 text-[11px]"><Badge variant="outline" className="border-primary/30 text-primary"><Trophy className="mr-1 size-3" />{row.tournament_pct}%</Badge><Badge variant="outline" className="border-teal/30 text-teal"><Wrench className="mr-1 size-3" />{row.maintenance_pct}%</Badge><Badge variant="outline" className="border-coral/30 text-coral"><Coffee className="mr-1 size-3" />{row.developer_pct}%</Badge></div></td>
       <td className="px-4 py-4 text-right text-xs text-muted-foreground">{new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(row.donated_at))}</td>
     </tr>

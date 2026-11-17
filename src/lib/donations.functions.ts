@@ -1,30 +1,34 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import type { Database } from "@/integrations/supabase/types";
-import { DONATION_CURRENCIES, DONATION_PAYMENT_METHODS } from "@/lib/donations";
+import {
+  DONATION_CURRENCIES,
+  DONATION_PAYMENT_METHODS,
+  type DonationSeason,
+  type DonationSummary,
+  type PublicDonationRow,
+} from "@/lib/donations";
 
-function donationClient(url: string, key: string, authorization?: string) {
-  return createClient<Database>(url, key, {
-    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-    global: {
-      headers: authorization ? { Authorization: authorization } : undefined,
-      fetch: (input, init) => {
-        const headers = new Headers(init?.headers);
-        if (key.startsWith("sb_") && headers.get("Authorization") === `Bearer ${key}`) {
-          headers.delete("Authorization");
-        }
-        headers.set("apikey", key);
-        return fetch(input, { ...init, headers });
-      },
-    },
-  });
+async function donationRequest<T>(
+  url: string,
+  key: string,
+  path: string,
+  init: RequestInit = {},
+  authorization?: string,
+): Promise<T> {
+  const headers = new Headers(init.headers);
+  headers.set("apikey", key);
+  headers.set("Content-Type", "application/json");
+  if (authorization) headers.set("Authorization", authorization);
+  else if (!key.startsWith("sb_")) headers.set("Authorization", `Bearer ${key}`);
+  const response = await fetch(`${url}/rest/v1/${path}`, { ...init, headers });
+  const payload = await response.json() as { message?: string } | T;
+  if (!response.ok) throw new Error((payload as { message?: string }).message || "Donation request failed");
+  return payload as T;
 }
 
 const boardInput = z.object({
-  seasonId: z.number().int().positive().nullable(),
-  currency: z.enum(DONATION_CURRENCIES),
+  seasonId: z.number().int().nullable(),
 });
 
 export const getPublicDonationBoard = createServerFn({ method: "GET" })
@@ -32,45 +36,53 @@ export const getPublicDonationBoard = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const url = process.env["SUPABASE_URL"]!;
     const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
-    const db = donationClient(url, key);
-    const [rows, summary] = await Promise.all([
-      db.rpc("get_donation_leaderboard", { p_season_id: data.seasonId ?? undefined, p_currency: data.currency }),
-      db.rpc("get_donation_summary", { p_season_id: data.seasonId ?? undefined, p_currency: data.currency }),
-    ]);
-    if (rows.error) throw new Error("The donation leaderboard is temporarily unavailable");
-    if (summary.error) throw new Error("The donation totals are temporarily unavailable");
-    return {
-      rows: (rows.data ?? []).map((row) => ({ ...row, amount: row.amount == null ? null : Number(row.amount) })),
-      summary: summary.data ?? {
-        total_amount: 0,
-        tournament_total: 0,
-        maintenance_total: 0,
-        developer_total: 0,
-        supporter_count: 0,
-        donation_count: 0,
-        monthly_maintenance: 0,
-      },
-    };
+    const args = JSON.stringify({ p_season_id: data.seasonId });
+    try {
+      const [rows, summary] = await Promise.all([
+        donationRequest<PublicDonationRow[]>(url, key, "rpc/get_donation_leaderboard", { method: "POST", body: args }),
+        donationRequest<DonationSummary[]>(url, key, "rpc/get_donation_summary", { method: "POST", body: args }),
+      ]);
+      return {
+        rows: rows.map((row) => ({
+          ...row,
+          amount: row.amount == null ? null : Number(row.amount),
+          amount_usd: row.amount_usd == null ? null : Number(row.amount_usd),
+        })),
+        summary: summary[0] ?? {
+          total_amount: 0,
+          tournament_total: 0,
+          maintenance_total: 0,
+          developer_total: 0,
+          supporter_count: 0,
+          donation_count: 0,
+          monthly_maintenance: 0,
+        },
+      };
+    } catch {
+      throw new Error("The donation leaderboard is temporarily unavailable");
+    }
   });
 
 export const getDonationSeasons = createServerFn({ method: "GET" }).handler(async () => {
   const url = process.env["SUPABASE_URL"]!;
   const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
-  const db = donationClient(url, key);
-  const { data, error } = await db
-    .from("sp_seasons")
-    .select("id,name,starts_at,ends_at")
-    .lte("starts_at", new Date().toISOString())
-    .order("id", { ascending: false });
-  if (error) throw new Error("Season information is temporarily unavailable");
-  const now = Date.now();
-  const seasons = data ?? [];
-  return {
-    seasons,
-    currentSeasonId: seasons.find((season) => (
-      now >= new Date(season.starts_at).getTime() && now < new Date(season.ends_at).getTime()
-    ))?.id ?? seasons[0]?.id ?? null,
-  };
+  const params = new URLSearchParams({
+    select: "id,name,starts_at,ends_at",
+    starts_at: `lte.${new Date().toISOString()}`,
+    order: "id.desc",
+  });
+  try {
+    const seasons = await donationRequest<DonationSeason[]>(url, key, `sp_seasons?${params.toString()}`);
+    const now = Date.now();
+    return {
+      seasons,
+      currentSeasonId: seasons.find((season) => (
+        now >= new Date(season.starts_at).getTime() && now < new Date(season.ends_at).getTime()
+      ))?.id ?? seasons[0]?.id ?? null,
+    };
+  } catch {
+    throw new Error("Season information is temporarily unavailable");
+  }
 });
 
 const submissionInput = z.object({
@@ -97,22 +109,27 @@ export const submitDonation = createServerFn({ method: "POST" })
     const url = process.env["SUPABASE_URL"]!;
     const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
     const authorization = getRequest().headers.get("authorization") ?? undefined;
-    const db = donationClient(url, key, authorization);
-    const { data: id, error } = await db.rpc("submit_donation", {
-      p_donor_name: data.donorName,
-      p_player_key: data.playerKey || "",
-      p_amount: data.amount,
-      p_currency: data.currency,
-      p_tournament_pct: data.allocation.tournament,
-      p_maintenance_pct: data.allocation.maintenance,
-      p_developer_pct: data.allocation.developer,
-      p_hide_name: data.hideName,
-      p_hide_amount: data.hideAmount,
-      p_payment_method: data.paymentMethod,
-      p_donor_note: data.donorNote || undefined,
-    });
-    if (error) throw new Error(error.message || "Your donation could not be submitted");
-    return { id };
+    try {
+      const id = await donationRequest<string>(url, key, "rpc/submit_donation", {
+        method: "POST",
+        body: JSON.stringify({
+          p_donor_name: data.donorName,
+          p_player_key: data.playerKey || "",
+          p_amount: data.amount,
+          p_currency: data.currency,
+          p_tournament_pct: data.allocation.tournament,
+          p_maintenance_pct: data.allocation.maintenance,
+          p_developer_pct: data.allocation.developer,
+          p_hide_name: data.hideName,
+          p_hide_amount: data.hideAmount,
+          p_payment_method: data.paymentMethod,
+          p_donor_note: data.donorNote || null,
+        }),
+      }, authorization);
+      return { id };
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : "Your donation could not be submitted");
+    }
   });
 
 export const getDonatorStatus = createServerFn({ method: "GET" })
@@ -120,10 +137,13 @@ export const getDonatorStatus = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const url = process.env["SUPABASE_URL"]!;
     const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
-    const db = donationClient(url, key);
-    const { data: keys, error } = await db.rpc("get_donator_player_keys", {
-      p_player_keys: [data.playerKey.toLowerCase()],
-    });
-    if (error) return { isDonator: false };
-    return { isDonator: (keys ?? []).length > 0 };
+    try {
+      const keys = await donationRequest<string[]>(url, key, "rpc/get_donator_player_keys", {
+        method: "POST",
+        body: JSON.stringify({ p_player_keys: [data.playerKey.toLowerCase()] }),
+      });
+      return { isDonator: keys.length > 0 };
+    } catch {
+      return { isDonator: false };
+    }
   });

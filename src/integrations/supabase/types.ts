@@ -2283,10 +2283,11 @@ export type Database = {
         }[]
       }
       get_donation_leaderboard: {
-        Args: { p_currency?: string; p_season_id?: number }
+        Args: { p_season_id?: number }
         Returns: {
           amount: number
           amount_hidden: boolean
+          amount_usd: number
           currency: string
           developer_pct: number
           display_name: string
@@ -2299,7 +2300,7 @@ export type Database = {
         }[]
       }
       get_donation_summary: {
-        Args: { p_currency?: string; p_season_id?: number }
+        Args: { p_season_id?: number }
         Returns: {
           developer_total: number
           donation_count: number

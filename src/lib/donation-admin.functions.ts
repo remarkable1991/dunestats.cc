@@ -17,12 +17,9 @@ export const listDonationsForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const db = await assertAdmin(context as any);
-    const [donations, seasons] = await Promise.all([
-      db.from("donations").select("*").order("created_at", { ascending: false }).limit(200),
-      db.from("sp_seasons").select("id,name,starts_at,ends_at").order("id", { ascending: false }),
-    ]);
+    const donations = await db.from("donations").select("*").order("created_at", { ascending: false }).limit(200);
     if (donations.error) throw new Error("Could not load donation submissions");
-    return { donations: donations.data ?? [], seasons: seasons.data ?? [] };
+    return { donations: donations.data ?? [] };
   });
 
 export const verifyDonation = createServerFn({ method: "POST" })
@@ -73,7 +70,6 @@ const manualInput = z.object({
   hideAmount: z.boolean(),
   paymentMethod: z.enum(DONATION_PAYMENT_METHODS),
   donorNote: z.string().trim().max(500).nullable(),
-  seasonId: z.number().int().positive().nullable(),
   donatedAt: z.string().min(1),
 });
 
@@ -96,7 +92,6 @@ export const createHistoricalDonation = createServerFn({ method: "POST" })
       hide_amount: data.hideAmount,
       payment_method: data.paymentMethod,
       donor_note: data.donorNote || null,
-      season_id: data.seasonId,
       donated_at: donatedAt.toISOString(),
       status: "verified",
       verified_by: (context as any).userId,

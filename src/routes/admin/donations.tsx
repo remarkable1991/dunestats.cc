@@ -64,7 +64,6 @@ type DonationRow = {
 };
 type AdminData = {
   donations: DonationRow[];
-  seasons: Array<{ id: number; name: string; starts_at: string; ends_at: string }>;
 };
 
 function localDateTimeValue(date: Date) {
@@ -87,7 +86,6 @@ function AdminDonations() {
   const [currency, setCurrency] = useState<DonationCurrency>("USD");
   const [allocation, setAllocation] = useState(DEFAULT_DONATION_ALLOCATION);
   const [paymentMethod, setPaymentMethod] = useState<DonationPaymentMethod>("paypal");
-  const [seasonId, setSeasonId] = useState<number | null>(null);
   const [donatedAt, setDonatedAt] = useState("");
   const [hideName, setHideName] = useState(false);
   const [hideAmount, setHideAmount] = useState(false);
@@ -144,7 +142,6 @@ function AdminDonations() {
         hideAmount,
         paymentMethod,
         donorNote: donorNote || null,
-        seasonId,
         donatedAt: new Date(donatedAt).toISOString(),
       } });
       toast.success("Historical donation added and verified");
@@ -187,7 +184,7 @@ function AdminDonations() {
         {showManual ? (
           <Card className="border-primary/30 bg-card/70 p-5 sm:p-6">
             <h2 className="font-display text-xl">Add a verified historical donation</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Use the donor’s requested privacy settings. Leave season empty for an all-time-only contribution.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Use the donor’s requested privacy settings. The season is assigned automatically from the donation date.</p>
             <form className="mt-5 space-y-5" onSubmit={addHistorical}>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <Field label="Donor name"><Input required minLength={2} maxLength={80} value={donorName} onChange={(event) => setDonorName(event.target.value)} /></Field>
@@ -196,7 +193,6 @@ function AdminDonations() {
                 <Field label="Amount"><Input required type="number" min="0.01" max="1000000" step="0.01" value={amountInput} onChange={(event) => setAmountInput(event.target.value)} /></Field>
                 <Field label="Currency"><Select value={currency} onValueChange={(value) => setCurrency(value as DonationCurrency)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{DONATION_CURRENCIES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></Field>
                 <Field label="Payment method"><Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as DonationPaymentMethod)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{DONATION_PAYMENT_METHODS.map((method) => <SelectItem key={method} value={method}>{donationPaymentMethodLabel(method)}</SelectItem>)}</SelectContent></Select></Field>
-                <Field label="Season"><Select value={seasonId == null ? "none" : String(seasonId)} onValueChange={(value) => setSeasonId(value === "none" ? null : Number(value))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">All time only</SelectItem>{(data?.seasons ?? []).map((season) => <SelectItem key={season.id} value={String(season.id)}>{season.name}</SelectItem>)}</SelectContent></Select></Field>
               </div>
               <DonationAllocationControls amount={amount} currency={currency} value={allocation} onChange={setAllocation} />
               <Field label="Private admin note"><Textarea maxLength={500} value={donorNote} onChange={(event) => setDonorNote(event.target.value)} /></Field>
