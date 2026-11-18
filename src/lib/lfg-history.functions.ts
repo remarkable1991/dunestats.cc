@@ -202,3 +202,15 @@ export const substituteLobbyPlayer = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return result as { ok: boolean; sp_awards_moved?: number };
   });
+
+/** Admin-only: reopens a cancelled or expired lobby so it can be played, uploaded or linked again. */
+export const reopenLobby = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ lobbyId: z.number().int().positive() }))
+  .handler(async ({ data, context }) => {
+    await requireLfgAdmin(context as never);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await (supabaseAdmin as any).rpc("lfg_admin_reopen_lobby", { p_lobby_id: data.lobbyId, p_actor: context.userId });
+    if (error) throw new Error(error.message);
+    return result as { ok: boolean; status: string };
+  });

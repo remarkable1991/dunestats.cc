@@ -2378,6 +2378,10 @@ export type Database = {
         }
         Returns: Json
       }
+      lfg_admin_reopen_lobby: {
+        Args: { p_actor: string; p_lobby_id: number }
+        Returns: Json
+      }
       lfg_admin_substitute_player: {
         Args: {
           p_actor: string

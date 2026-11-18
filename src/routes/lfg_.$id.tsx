@@ -21,6 +21,7 @@ import { LobbyFormatIcons } from "@/components/LobbyFormatIcons";
 import { LeagueFormatImage } from "@/components/LeagueFormatImage";
 import { ReportIssueDialog } from "@/components/ReportIssueDialog";
 import { CancelLobbyButton } from "@/components/CancelLobbyButton";
+import { ReopenLobbyButton } from "@/components/ReopenLobbyButton";
 import { LeaveLobbyButton } from "@/components/LeaveLobbyButton";
 import { LobbyStartControls } from "@/components/LobbyStartControls";
 import { canLeaveLobby } from "@/lib/lobby-leave";
@@ -337,6 +338,7 @@ function LobbyPage() {
           <span className="inline-flex items-center rounded-full border border-border/60 px-2.5 py-1 text-xs capitalize">{row.status}</span>
           <ReportIssueDialog key={linkedCode ?? "none"} lobbyId={row.id} matchId={linkedCode} />
           {canManage && <CancelLobbyButton id={row.id} status={row.status} linked={!!row.linked_game_id} onCancelled={() => void load()} />}
+          {isAdmin && closed && <ReopenLobbyButton id={row.id} onReopened={() => void load()} />}
           {canLeaveLobby(row, userId, myDiscordId) && <LeaveLobbyButton id={row.id} onLeft={() => void load()} />}
           <LobbyStartControls row={row} count={seats.length} member={member} onChanged={load} />
           {discordUrl && (
