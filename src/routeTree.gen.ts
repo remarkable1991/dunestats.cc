@@ -20,6 +20,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RewardsRouteImport } from './routes/rewards'
+import { Route as SandboxRouteImport } from './routes/sandbox'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as StatsRouteImport } from './routes/stats'
 import { Route as SupportRouteImport } from './routes/support'
@@ -103,6 +104,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const RewardsRoute = RewardsRouteImport.update({
   id: '/rewards',
   path: '/rewards',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SandboxRoute = SandboxRouteImport.update({
+  id: '/sandbox',
+  path: '/sandbox',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -265,6 +271,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
   '/rewards': typeof RewardsRoute
+  '/sandbox': typeof SandboxRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
   '/support': typeof SupportRoute
@@ -307,6 +314,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
   '/rewards': typeof RewardsRoute
+  '/sandbox': typeof SandboxRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
   '/support': typeof SupportRoute
@@ -350,6 +358,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
   '/rewards': typeof RewardsRoute
+  '/sandbox': typeof SandboxRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/stats': typeof StatsRoute
   '/support': typeof SupportRoute
@@ -394,6 +403,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/reset-password'
     | '/rewards'
+    | '/sandbox'
     | '/sitemap.xml'
     | '/stats'
     | '/support'
@@ -436,6 +446,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/reset-password'
     | '/rewards'
+    | '/sandbox'
     | '/sitemap.xml'
     | '/stats'
     | '/support'
@@ -478,6 +489,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/reset-password'
     | '/rewards'
+    | '/sandbox'
     | '/sitemap.xml'
     | '/stats'
     | '/support'
@@ -521,6 +533,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   RewardsRoute: typeof RewardsRoute
+  SandboxRoute: typeof SandboxRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StatsRoute: typeof StatsRoute
   SupportRoute: typeof SupportRoute
@@ -629,6 +642,13 @@ declare module '@tanstack/react-router' {
       path: '/rewards'
       fullPath: '/rewards'
       preLoaderRoute: typeof RewardsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sandbox': {
+      id: '/sandbox'
+      path: '/sandbox'
+      fullPath: '/sandbox'
+      preLoaderRoute: typeof SandboxRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -849,6 +869,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   RewardsRoute: RewardsRoute,
+  SandboxRoute: SandboxRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StatsRoute: StatsRoute,
   SupportRoute: SupportRoute,

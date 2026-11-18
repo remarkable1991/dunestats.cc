@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
-import { Trophy, Search, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Trophy, Search, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, FlaskConical } from "lucide-react";
 import { useChampions, isChampion } from "@/lib/champions";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { AccountBadges, useDiscordLinks } from "@/components/AccountBadges";
@@ -481,7 +481,12 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
   return (
     <Card className="p-0 overflow-hidden border-border/60 bg-card/70 shadow-arena">
       <div className="p-3 border-b border-border/60 space-y-2">
-        <LeagueSeasonBanner seasonId={season} />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="min-w-0 flex-1"><LeagueSeasonBanner seasonId={season} /></div>
+          <Button asChild size="sm" variant="outline" className="shrink-0">
+            <Link to="/sandbox" search={season == null ? {} : { season }}><FlaskConical className="size-4" />Sandbox</Link>
+          </Button>
+        </div>
         {seasons.length > 1 && (
           <div className="flex gap-2 items-center text-sm">
             Season

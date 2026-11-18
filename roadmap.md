@@ -1,5 +1,9 @@
 # To do
 
+- [x] Build `/sandbox` with VP-weighted default, Standard and Winner-Takes-All formulas, clear controls and live-vs-simulated comparisons.
+- [x] Keep Leaderboard and Recent Matches as instant tabs over one browser-only season simulation; add only a small League leaderboard entry point.
+- [x] Add formula regression tests and verify calculations, public loading, controls, tabs and mobile layout without changing live ratings.
+
 - [x] Add private donation records, verified-only public leaderboard/summary RPCs, season allocation, and donor badge lookup.
 - [x] Build /support with payment links, allocation sliders, payment-note copying, submission privacy controls, live totals and seasonal/all-time rankings.
 - [x] Build /admin/donations for main-admin verification, rejection and historical manual entries.
