@@ -12,6 +12,7 @@ import { HeatmapBody, type HeatmapPlayer } from "@/components/AvailabilityHeatma
 import { tournamentPlayMode } from "@/components/TournamentPlayModeBadge";
 import { TableScheduleControls } from "@/components/TableScheduleControls";
 import { ReplacePlayerDialog } from "@/components/ReplacePlayerDialog";
+import { GrandFinalExportPanel } from "@/components/GrandFinalExportPanel";
 import {
   type MatchSchedule,
   SCHEDULE_SELECT,
@@ -400,6 +401,14 @@ function TableDetailPage() {
           </>
         ) : (
           <>
+            {isAdmin && seats.length > 0 && (
+              <GrandFinalExportPanel
+                tournamentNum={tournamentNum}
+                title={rows[0]?.table_identifier.replace(/!+$/, "") ?? heading}
+                players={heatmapPlayers}
+                live={tournamentPlayMode(tournamentNum) === "live"}
+              />
+            )}
             {scheduleCard}
             {availabilityCard}
             {resultCard}

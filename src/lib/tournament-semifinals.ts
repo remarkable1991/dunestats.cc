@@ -419,3 +419,35 @@ export function snakeSemiDraft(pool: Standing[]): SemiDraft | null {
     })),
   };
 }
+
+/**
+ * Single-table slot finder (Grand Final): unanimous 4/4 windows first, then
+ * 3/4 windows, spaced 10h apart. Async tables get no time suggestions.
+ */
+export function findTableSlots(opts: {
+  players: string[];
+  availability: Map<string, unknown>;
+  windowStart: Date;
+  windowEnd: Date;
+  take?: number;
+  minBlocks?: number;
+  maxBlocks?: number;
+}): SemiSlot[] {
+  const start = Math.ceil(opts.windowStart.getTime() / SLOT_MS) * SLOT_MS;
+  const count = Math.max(0, Math.floor((opts.windowEnd.getTime() - start) / SLOT_MS));
+  if (opts.players.length === 0 || count === 0) return [];
+  const maps = new Map(opts.players.map((p) => [p, bitmap(opts.availability.get(p), start, count)]));
+  const minB = opts.minBlocks ?? 2;
+  const maxB = opts.maxBlocks ?? 4;
+  const all = candidates(opts.players, maps, count, minB, maxB, 0);
+  const full = opts.players.length * 1;
+  const perfect = all.filter((c) => c.filled === c.blocks * full);
+  const near = all.filter((c) => c.filled !== c.blocks * full);
+  const take = opts.take ?? 3;
+  const picked = spaced(perfect, take);
+  for (const c of near) {
+    if (picked.length >= take) break;
+    if (picked.every((o) => Math.abs(o.start - c.start) >= SPACING)) picked.push(c);
+  }
+  return picked.map((c) => ({ ...asSlot(c), start: start + c.start * SLOT_MS }));
+}
