@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
-import { Trophy, Search, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, FlaskConical } from "lucide-react";
+import { Trophy, Search, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, FlaskConical, Crosshair } from "lucide-react";
 import { useChampions, isChampion } from "@/lib/champions";
 import { usePlayerTitles, colorForKey } from "@/lib/player-title";
 import { AccountBadges, useDiscordLinks } from "@/components/AccountBadges";
@@ -160,6 +160,28 @@ function Leaderboard() {
   const startRank = page * PAGE_SIZE;
   const filtered = processed.slice(startRank, startRank + PAGE_SIZE);
   const discordLinks = useDiscordLinks(filtered.map((r) => r.player_key));
+  const [leagueMe, setLeagueMe] = useState<{ rank: number; key: string } | null>(null);
+  const [jumpKey, setJumpKey] = useState<{ key: string; n: number } | null>(null);
+  const myIndex = userId ? processed.findIndex((r) => r.claimed_by === userId || myKeys.has(r.player_key)) : -1;
+  const myTarget = version === "league"
+    ? leagueMe
+    : myIndex >= 0 ? { rank: myIndex + 1, key: processed[myIndex].player_key } : null;
+  function jumpToMe() {
+    if (!myTarget) return;
+    if (version !== "league") setPage(Math.floor((myTarget.rank - 1) / PAGE_SIZE));
+    setJumpKey({ key: myTarget.key, n: Date.now() });
+  }
+  useEffect(() => {
+    if (!jumpKey) return;
+    const t = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-player-row="${CSS.escape(jumpKey.key)}"]`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("animate-pulse");
+      setTimeout(() => el.classList.remove("animate-pulse"), 2400);
+    }, 80);
+    return () => clearTimeout(t);
+  }, [jumpKey]);
 
   function cycleSort(key: SortKey) {
     if (sortKey !== key) {
@@ -223,7 +245,13 @@ function Leaderboard() {
                 </TabsTrigger>
               ))}
             </TabsList>
-            <div className="flex gap-2 items-center">
+            <div className="flex flex-wrap gap-2 items-center">
+              {userId && (
+                <Button type="button" size="sm" variant="outline" onClick={jumpToMe} disabled={!myTarget}
+                  title={myTarget ? "Jump to your row" : "You have no rank in this view"}>
+                  <Crosshair className="size-4" />{myTarget ? `My rank: #${myTarget.rank}` : "My rank: —"}
+                </Button>
+              )}
               <label className="text-xs text-muted-foreground flex items-center gap-2">
                 Min games
                 <select
@@ -251,7 +279,7 @@ function Leaderboard() {
           </div>
 
           <TabsContent value="league">
-            <LeagueBoard q={q} minGames={minGames} />
+            <LeagueBoard q={q} minGames={minGames} userId={userId} myKeys={myKeys} onMyRank={setLeagueMe} />
           </TabsContent>
           {GAME_VERSIONS.map((v) => (
             <TabsContent key={v.value} value={v.value}>
@@ -303,6 +331,7 @@ function Leaderboard() {
                           return (
                             <tr
                               key={r.player_key}
+                              data-player-row={r.player_key}
                               className={`border-t border-border/40 hover:bg-secondary/30 ${
                                 isMe ? "bg-sand/10 ring-1 ring-inset ring-sand/60" : ""
                               }`}
@@ -388,7 +417,7 @@ function Leaderboard() {
 
 type LeagueRow = LeagueLeaderboardRow & { claimed_by: string | null };
 
-function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
+function LeagueBoard({ q, minGames, userId, myKeys, onMyRank }: { q: string; minGames: number; userId: string | null; myKeys: Set<string>; onMyRank: (v: { rank: number; key: string } | null) => void }) {
   const [season, setSeason] = useState<number | null>(null);
   const [seasons, setSeasons] = useState<number[]>([]);
   const [rows, setRows] = useState<LeagueRow[]>([]);
@@ -461,6 +490,11 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
   }, [season]);
 
   const shown = rankLeagueLeaderboard(rows, names, { minGames, query: q, sortKey, ascending: sortAsc });
+  const isMine = (r: LeagueRow) => !!userId && (r.claimed_by === userId || myKeys.has(r.player_key));
+  const mine = loading ? undefined : shown.find(isMine);
+  const mineRank = mine ? mine.rank : null;
+  const mineKey = mine ? mine.player_key : null;
+  useEffect(() => { onMyRank(mineRank != null && mineKey ? { rank: mineRank, key: mineKey } : null); }, [mineRank, mineKey, onMyRank]);
   const discordLinks = useDiscordLinks(shown.slice(0, 200).map((r) => r.player_key));
 
   const Head = ({ label, k, className = "" }: { label: string; k: typeof sortKey; className?: string }) => (
@@ -521,7 +555,7 @@ function LeagueBoard({ q, minGames }: { q: string; minGames: number }) {
               const medal = r.rank === 1 ? "bg-sand text-sand-foreground" : r.rank === 2 ? "bg-teal/80 text-background" : r.rank === 3 ? "bg-coral/90 text-background" : "bg-muted text-muted-foreground";
               const winPct = r.games_played ? (r.wins / r.games_played) * 100 : 0;
               return (
-                <tr key={r.player_key} className="border-t border-border/40 hover:bg-secondary/30">
+                <tr key={r.player_key} data-player-row={r.player_key} className={`border-t border-border/40 hover:bg-secondary/30 ${isMine(r) ? "bg-sand/10 ring-1 ring-inset ring-sand/60" : ""}`}>
                   <td className="px-4 py-3">
                     <span className={`inline-flex size-7 items-center justify-center rounded font-bold text-xs ${medal}`}>{r.rank}</span>
                   </td>
