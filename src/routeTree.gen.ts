@@ -13,7 +13,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ClaimRouteImport } from './routes/claim'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as LfgRouteImport } from './routes/lfg'
 import { Route as MatchesRouteImport } from './routes/matches'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -22,7 +21,6 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RewardsRouteImport } from './routes/rewards'
 import { Route as SandboxRouteImport } from './routes/sandbox'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as StatsRouteImport } from './routes/stats'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as SurveyRouteImport } from './routes/survey'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -40,10 +38,14 @@ import { Route as AdminSurveyRouteImport } from './routes/admin/survey'
 import { Route as AdminTournamentEmailsRouteImport } from './routes/admin/tournament-emails'
 import { Route as AdminTournamentsRouteImport } from './routes/admin/tournaments'
 import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
+import { Route as LeaderboardIndexRouteImport } from './routes/leaderboard.index'
+import { Route as LeaderboardSplatRouteImport } from './routes/leaderboard.$'
 import { Route as LfgIdRouteImport } from './routes/lfg_.$id'
 import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
 import { Route as PlayersKeyRouteImport } from './routes/players.$key'
 import { Route as RUsernameRouteImport } from './routes/r.$username'
+import { Route as StatsIndexRouteImport } from './routes/stats.index'
+import { Route as StatsSplatRouteImport } from './routes/stats.$'
 import { Route as TournamentRegisterNumRouteImport } from './routes/tournament-register_.$num'
 import { Route as TournamentNumRouteImport } from './routes/tournament_.$num'
 import { Route as LeadersOriginSlugRouteImport } from './routes/leaders.$origin.$slug'
@@ -69,11 +71,6 @@ const ClaimRoute = ClaimRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LeaderboardRoute = LeaderboardRouteImport.update({
-  id: '/leaderboard',
-  path: '/leaderboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LfgRoute = LfgRouteImport.update({
@@ -114,11 +111,6 @@ const SandboxRoute = SandboxRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const StatsRoute = StatsRouteImport.update({
-  id: '/stats',
-  path: '/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SupportRoute = SupportRouteImport.update({
@@ -206,6 +198,16 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LeaderboardIndexRoute = LeaderboardIndexRouteImport.update({
+  id: '/leaderboard/',
+  path: '/leaderboard/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeaderboardSplatRoute = LeaderboardSplatRouteImport.update({
+  id: '/leaderboard/$',
+  path: '/leaderboard/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LfgIdRoute = LfgIdRouteImport.update({
   id: '/lfg_/$id',
   path: '/lfg/$id',
@@ -224,6 +226,16 @@ const PlayersKeyRoute = PlayersKeyRouteImport.update({
 const RUsernameRoute = RUsernameRouteImport.update({
   id: '/r/$username',
   path: '/r/$username',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatsIndexRoute = StatsIndexRouteImport.update({
+  id: '/stats/',
+  path: '/stats/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatsSplatRoute = StatsSplatRouteImport.update({
+  id: '/stats/$',
+  path: '/stats/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TournamentRegisterNumRoute = TournamentRegisterNumRouteImport.update({
@@ -264,7 +276,6 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/claim': typeof ClaimRoute
   '/forgot-password': typeof ForgotPasswordRoute
-  '/leaderboard': typeof LeaderboardRoute
   '/lfg': typeof LfgRoute
   '/matches': typeof MatchesRoute
   '/privacy': typeof PrivacyRoute
@@ -273,7 +284,6 @@ export interface FileRoutesByFullPath {
   '/rewards': typeof RewardsRoute
   '/sandbox': typeof SandboxRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/stats': typeof StatsRoute
   '/support': typeof SupportRoute
   '/survey': typeof SurveyRoute
   '/terms': typeof TermsRoute
@@ -291,12 +301,16 @@ export interface FileRoutesByFullPath {
   '/admin/tournament-emails': typeof AdminTournamentEmailsRoute
   '/admin/tournaments': typeof AdminTournamentsRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/leaderboard/$': typeof LeaderboardSplatRoute
   '/lfg/$id': typeof LfgIdRoute
   '/match/$matchId': typeof MatchMatchIdRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
+  '/stats/$': typeof StatsSplatRoute
   '/tournament-register/$num': typeof TournamentRegisterNumRoute
   '/tournament/$num': typeof TournamentNumRoute
+  '/leaderboard/': typeof LeaderboardIndexRoute
+  '/stats/': typeof StatsIndexRoute
   '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
   '/tournament/$num/$table': typeof TournamentNumTableRoute
   '/api/public/email-outbox/dispatch': typeof ApiPublicEmailOutboxDispatchRoute
@@ -307,7 +321,6 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/claim': typeof ClaimRoute
   '/forgot-password': typeof ForgotPasswordRoute
-  '/leaderboard': typeof LeaderboardRoute
   '/lfg': typeof LfgRoute
   '/matches': typeof MatchesRoute
   '/privacy': typeof PrivacyRoute
@@ -316,7 +329,6 @@ export interface FileRoutesByTo {
   '/rewards': typeof RewardsRoute
   '/sandbox': typeof SandboxRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/stats': typeof StatsRoute
   '/support': typeof SupportRoute
   '/survey': typeof SurveyRoute
   '/terms': typeof TermsRoute
@@ -334,12 +346,16 @@ export interface FileRoutesByTo {
   '/admin/tournament-emails': typeof AdminTournamentEmailsRoute
   '/admin/tournaments': typeof AdminTournamentsRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/leaderboard/$': typeof LeaderboardSplatRoute
   '/lfg/$id': typeof LfgIdRoute
   '/match/$matchId': typeof MatchMatchIdRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
+  '/stats/$': typeof StatsSplatRoute
   '/tournament-register/$num': typeof TournamentRegisterNumRoute
   '/tournament/$num': typeof TournamentNumRoute
+  '/leaderboard': typeof LeaderboardIndexRoute
+  '/stats': typeof StatsIndexRoute
   '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
   '/tournament/$num/$table': typeof TournamentNumTableRoute
   '/api/public/email-outbox/dispatch': typeof ApiPublicEmailOutboxDispatchRoute
@@ -351,7 +367,6 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/claim': typeof ClaimRoute
   '/forgot-password': typeof ForgotPasswordRoute
-  '/leaderboard': typeof LeaderboardRoute
   '/lfg': typeof LfgRoute
   '/matches': typeof MatchesRoute
   '/privacy': typeof PrivacyRoute
@@ -360,7 +375,6 @@ export interface FileRoutesById {
   '/rewards': typeof RewardsRoute
   '/sandbox': typeof SandboxRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/stats': typeof StatsRoute
   '/support': typeof SupportRoute
   '/survey': typeof SurveyRoute
   '/terms': typeof TermsRoute
@@ -378,12 +392,16 @@ export interface FileRoutesById {
   '/admin/tournament-emails': typeof AdminTournamentEmailsRoute
   '/admin/tournaments': typeof AdminTournamentsRoute
   '/auth_/callback': typeof AuthCallbackRoute
+  '/leaderboard/$': typeof LeaderboardSplatRoute
   '/lfg_/$id': typeof LfgIdRoute
   '/match/$matchId': typeof MatchMatchIdRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
+  '/stats/$': typeof StatsSplatRoute
   '/tournament-register_/$num': typeof TournamentRegisterNumRoute
   '/tournament_/$num': typeof TournamentNumRoute
+  '/leaderboard/': typeof LeaderboardIndexRoute
+  '/stats/': typeof StatsIndexRoute
   '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
   '/tournament_/$num_/$table': typeof TournamentNumTableRoute
   '/api/public/email-outbox/dispatch': typeof ApiPublicEmailOutboxDispatchRoute
@@ -396,7 +414,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/claim'
     | '/forgot-password'
-    | '/leaderboard'
     | '/lfg'
     | '/matches'
     | '/privacy'
@@ -405,7 +422,6 @@ export interface FileRouteTypes {
     | '/rewards'
     | '/sandbox'
     | '/sitemap.xml'
-    | '/stats'
     | '/support'
     | '/survey'
     | '/terms'
@@ -423,12 +439,16 @@ export interface FileRouteTypes {
     | '/admin/tournament-emails'
     | '/admin/tournaments'
     | '/auth/callback'
+    | '/leaderboard/$'
     | '/lfg/$id'
     | '/match/$matchId'
     | '/players/$key'
     | '/r/$username'
+    | '/stats/$'
     | '/tournament-register/$num'
     | '/tournament/$num'
+    | '/leaderboard/'
+    | '/stats/'
     | '/leaders/$origin/$slug'
     | '/tournament/$num/$table'
     | '/api/public/email-outbox/dispatch'
@@ -439,7 +459,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/claim'
     | '/forgot-password'
-    | '/leaderboard'
     | '/lfg'
     | '/matches'
     | '/privacy'
@@ -448,7 +467,6 @@ export interface FileRouteTypes {
     | '/rewards'
     | '/sandbox'
     | '/sitemap.xml'
-    | '/stats'
     | '/support'
     | '/survey'
     | '/terms'
@@ -466,12 +484,16 @@ export interface FileRouteTypes {
     | '/admin/tournament-emails'
     | '/admin/tournaments'
     | '/auth/callback'
+    | '/leaderboard/$'
     | '/lfg/$id'
     | '/match/$matchId'
     | '/players/$key'
     | '/r/$username'
+    | '/stats/$'
     | '/tournament-register/$num'
     | '/tournament/$num'
+    | '/leaderboard'
+    | '/stats'
     | '/leaders/$origin/$slug'
     | '/tournament/$num/$table'
     | '/api/public/email-outbox/dispatch'
@@ -482,7 +504,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/claim'
     | '/forgot-password'
-    | '/leaderboard'
     | '/lfg'
     | '/matches'
     | '/privacy'
@@ -491,7 +512,6 @@ export interface FileRouteTypes {
     | '/rewards'
     | '/sandbox'
     | '/sitemap.xml'
-    | '/stats'
     | '/support'
     | '/survey'
     | '/terms'
@@ -509,12 +529,16 @@ export interface FileRouteTypes {
     | '/admin/tournament-emails'
     | '/admin/tournaments'
     | '/auth_/callback'
+    | '/leaderboard/$'
     | '/lfg_/$id'
     | '/match/$matchId'
     | '/players/$key'
     | '/r/$username'
+    | '/stats/$'
     | '/tournament-register_/$num'
     | '/tournament_/$num'
+    | '/leaderboard/'
+    | '/stats/'
     | '/leaders/$origin/$slug'
     | '/tournament_/$num_/$table'
     | '/api/public/email-outbox/dispatch'
@@ -526,7 +550,6 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ClaimRoute: typeof ClaimRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
-  LeaderboardRoute: typeof LeaderboardRoute
   LfgRoute: typeof LfgRoute
   MatchesRoute: typeof MatchesRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -535,7 +558,6 @@ export interface RootRouteChildren {
   RewardsRoute: typeof RewardsRoute
   SandboxRoute: typeof SandboxRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  StatsRoute: typeof StatsRoute
   SupportRoute: typeof SupportRoute
   SurveyRoute: typeof SurveyRoute
   TermsRoute: typeof TermsRoute
@@ -553,12 +575,16 @@ export interface RootRouteChildren {
   AdminTournamentEmailsRoute: typeof AdminTournamentEmailsRoute
   AdminTournamentsRoute: typeof AdminTournamentsRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  LeaderboardSplatRoute: typeof LeaderboardSplatRoute
   LfgIdRoute: typeof LfgIdRoute
   MatchMatchIdRoute: typeof MatchMatchIdRoute
   PlayersKeyRoute: typeof PlayersKeyRoute
   RUsernameRoute: typeof RUsernameRoute
+  StatsSplatRoute: typeof StatsSplatRoute
   TournamentRegisterNumRoute: typeof TournamentRegisterNumRoute
   TournamentNumRoute: typeof TournamentNumRoute
+  LeaderboardIndexRoute: typeof LeaderboardIndexRoute
+  StatsIndexRoute: typeof StatsIndexRoute
   LeadersOriginSlugRoute: typeof LeadersOriginSlugRoute
   TournamentNumTableRoute: typeof TournamentNumTableRoute
   ApiPublicEmailOutboxDispatchRoute: typeof ApiPublicEmailOutboxDispatchRoute
@@ -593,13 +619,6 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/leaderboard': {
-      id: '/leaderboard'
-      path: '/leaderboard'
-      fullPath: '/leaderboard'
-      preLoaderRoute: typeof LeaderboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lfg': {
@@ -656,13 +675,6 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/stats': {
-      id: '/stats'
-      path: '/stats'
-      fullPath: '/stats'
-      preLoaderRoute: typeof StatsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/support': {
@@ -784,6 +796,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/leaderboard/': {
+      id: '/leaderboard/'
+      path: '/leaderboard'
+      fullPath: '/leaderboard/'
+      preLoaderRoute: typeof LeaderboardIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leaderboard/$': {
+      id: '/leaderboard/$'
+      path: '/leaderboard/$'
+      fullPath: '/leaderboard/$'
+      preLoaderRoute: typeof LeaderboardSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lfg_/$id': {
       id: '/lfg_/$id'
       path: '/lfg/$id'
@@ -810,6 +836,20 @@ declare module '@tanstack/react-router' {
       path: '/r/$username'
       fullPath: '/r/$username'
       preLoaderRoute: typeof RUsernameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stats/': {
+      id: '/stats/'
+      path: '/stats'
+      fullPath: '/stats/'
+      preLoaderRoute: typeof StatsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stats/$': {
+      id: '/stats/$'
+      path: '/stats/$'
+      fullPath: '/stats/$'
+      preLoaderRoute: typeof StatsSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tournament-register_/$num': {
@@ -862,7 +902,6 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ClaimRoute: ClaimRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
-  LeaderboardRoute: LeaderboardRoute,
   LfgRoute: LfgRoute,
   MatchesRoute: MatchesRoute,
   PrivacyRoute: PrivacyRoute,
@@ -871,7 +910,6 @@ const rootRouteChildren: RootRouteChildren = {
   RewardsRoute: RewardsRoute,
   SandboxRoute: SandboxRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  StatsRoute: StatsRoute,
   SupportRoute: SupportRoute,
   SurveyRoute: SurveyRoute,
   TermsRoute: TermsRoute,
@@ -889,12 +927,16 @@ const rootRouteChildren: RootRouteChildren = {
   AdminTournamentEmailsRoute: AdminTournamentEmailsRoute,
   AdminTournamentsRoute: AdminTournamentsRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  LeaderboardSplatRoute: LeaderboardSplatRoute,
   LfgIdRoute: LfgIdRoute,
   MatchMatchIdRoute: MatchMatchIdRoute,
   PlayersKeyRoute: PlayersKeyRoute,
   RUsernameRoute: RUsernameRoute,
+  StatsSplatRoute: StatsSplatRoute,
   TournamentRegisterNumRoute: TournamentRegisterNumRoute,
   TournamentNumRoute: TournamentNumRoute,
+  LeaderboardIndexRoute: LeaderboardIndexRoute,
+  StatsIndexRoute: StatsIndexRoute,
   LeadersOriginSlugRoute: LeadersOriginSlugRoute,
   TournamentNumTableRoute: TournamentNumTableRoute,
   ApiPublicEmailOutboxDispatchRoute: ApiPublicEmailOutboxDispatchRoute,

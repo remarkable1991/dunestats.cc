@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useSearchState } from "@/lib/url-state";
 
 import { leaderRouteFor } from "@/lib/leader-slug";
 import { useEffect, useMemo, useState } from "react";
@@ -100,8 +101,32 @@ function FilterBar(props: {
   );
 }
 
-export const Route = createFileRoute("/stats")({
-  head: () => ({ meta: [{ title: "Leader stats · Strategy Arena" }] }),
+const STATS_VERSIONS = ["overall", "base", "ix", "uprising"];
+function parseStatsPath(splat: string | undefined): { mode: "basic" | "advanced"; advView: "leaders" | "meta"; version: GameVersion } {
+  const parts = (splat ?? "").split("/").filter(Boolean);
+  const pickVersion = (v: string | undefined) => (STATS_VERSIONS.includes(v ?? "") ? v : "overall") as GameVersion;
+  if (parts[0] === "advanced-stats") {
+    return { mode: "advanced", advView: parts[1] === "general-meta" ? "meta" : "leaders", version: pickVersion(parts[2]) };
+  }
+  return { mode: "basic", advView: "leaders", version: pickVersion(parts[1]) };
+}
+function buildStatsPath(mode: "basic" | "advanced", advView: "leaders" | "meta", version: GameVersion) {
+  return mode === "basic" ? `basic/${version}` : `advanced-stats/${advView === "meta" ? "general-meta" : "leaders"}/${version}`;
+}
+
+export const Route = createFileRoute("/stats/$")({
+  validateSearch: (s: Record<string, unknown>) => s,
+  head: ({ params }) => {
+    const { mode, advView, version } = parseStatsPath(params._splat);
+    const label = mode === "basic" ? "Leader stats" : advView === "meta" ? "General meta" : "Advanced leader stats";
+    const title = `${label} (${version}) · Dune Stats`;
+    const description = `Dune Imperium ${label.toLowerCase()} for ${version} games: picks, win rates, top-two finishes and average points.`;
+    return { meta: [
+      { title }, { name: "description", content: description },
+      { property: "og:title", content: title }, { property: "og:description", content: description },
+      { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+    ] };
+  },
   component: StatsPage,
 });
 
@@ -198,23 +223,27 @@ function StatsPage() {
   const { leagueOnly, setLeagueOnly } = useLeagueOnlyView();
   const rows = useMemo(() => (leagueOnly ? allRows.filter((r) => r.games?.is_league) : allRows), [allRows, leagueOnly]);
   const [loading, setLoading] = useState(true);
-  const [version, setVersion] = useState<GameVersion>("overall");
-  const [mode, setMode] = useState<"basic" | "advanced">("basic");
-  const [advView, setAdvView] = useState<"leaders" | "meta">("leaders");
-  const [advSortKey, setAdvSortKey] = useState<"games" | "hc" | "sm" | "alliances" | "vpb" | "prod" | "bestSeat" | "secondSeat" | "thirdSeat" | "worstSeat">("games");
-  const [advSortDir, setAdvSortDir] = useState<"desc" | "asc">("desc");
+  const { _splat } = Route.useParams();
+  const { mode, advView, version } = parseStatsPath(_splat);
+  const goPath = (m: typeof mode, a: typeof advView, v: GameVersion) =>
+    void navigate({ to: "/stats/$", params: { _splat: buildStatsPath(m, a, v) }, search: (prev: Record<string, unknown>) => prev, resetScroll: false });
+  const setVersion = (v: GameVersion) => goPath(mode, advView, v);
+  const setMode = (m: typeof mode) => goPath(m, advView, version);
+  const setAdvView = (a: typeof advView) => goPath(mode, a, version);
+  const [advSortKey, setAdvSortKey] = useSearchState<"games" | "hc" | "sm" | "alliances" | "vpb" | "prod" | "bestSeat" | "secondSeat" | "thirdSeat" | "worstSeat">("advSort", "games");
+  const [advSortDir, setAdvSortDir] = useSearchState<"desc" | "asc">("advDir", "desc");
   const [userLeaders, setUserLeaders] = useState<Set<string>>(new Set());
   const [playerKeys, setPlayerKeys] = useState<string[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
-  const [compare, setCompare] = useState(false);
-  const [fEpic, setFEpic] = useState<TriState>("any");
-  const [fImmortality, setFImmortality] = useState<TriState>("any");
-  const [fBaseLeaders, setFBaseLeaders] = useState<TriState>("any");
-  const [fRiseOfIx, setFRiseOfIx] = useState<TriState>("any");
-  const [fPlayers, setFPlayers] = useState<"any" | "3" | "4">("any");
-  const [fVerified, setFVerified] = useState<"any" | "manual">("any");
-  const [fLeader, setFLeader] = useState<string>("any");
-  const [fPlayer, setFPlayer] = useState<string>("");
+  const [compare, setCompare] = useSearchState<boolean>("personal", false);
+  const [fEpic, setFEpic] = useSearchState<TriState>("epic", "any");
+  const [fImmortality, setFImmortality] = useSearchState<TriState>("immortality", "any");
+  const [fBaseLeaders, setFBaseLeaders] = useSearchState<TriState>("baseLeaders", "any");
+  const [fRiseOfIx, setFRiseOfIx] = useSearchState<TriState>("riseOfIx", "any");
+  const [fPlayers, setFPlayers] = useSearchState<"any" | "3" | "4">("players", "any");
+  const [fVerified, setFVerified] = useSearchState<"any" | "manual">("verified", "any");
+  const [fLeader, setFLeader] = useSearchState<string>("leader", "any");
+  const [fPlayer, setFPlayer] = useSearchState<string>("player", "");
 
   useEffect(() => {
     if (version !== "ix") setFEpic("any");
@@ -232,8 +261,8 @@ function StatsPage() {
     uprising: "text-[#A94444]",
     other: "",
   };
-  const [sortKey, setSortKey] = useState<SortKey | null>(null);
-  const [sortDir, setSortDir] = useState<"desc" | "asc" | null>(null);
+  const [sortKey, setSortKey] = useSearchState<SortKey | null>("sort", null);
+  const [sortDir, setSortDir] = useSearchState<"desc" | "asc" | null>("dir", null);
 
   useEffect(() => {
     (async () => {

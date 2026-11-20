@@ -5,7 +5,9 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useSearchState } from "@/lib/url-state";
 import { supabase } from "@/integrations/supabase/client";
 import { GAME_VERSIONS, type GameVersion } from "@/lib/game-version";
 import { Trophy, Search, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, FlaskConical, Crosshair } from "lucide-react";
@@ -15,9 +17,17 @@ import { AccountBadges, useDiscordLinks } from "@/components/AccountBadges";
 import { rankLeagueLeaderboard, totalLeagueElo, type LeagueLeaderboardRow, type LeagueSortKey } from "@/lib/league-leaderboard";
 
 
-export const Route = createFileRoute("/leaderboard")({
-  head: () => ({ meta: [
-    { title: "League & Community Leaderboards · Dune Stats" },
+const BOARD_TRACKS = ["league", "overall", "base", "ix", "uprising"];
+const BOARD_LABEL: Record<string, string> = { league: "League", overall: "Overall", base: "Base Game", ix: "Rise of Ix", uprising: "Uprising" };
+function parseTrack(splat: string | undefined): GameVersion | "league" {
+  const t = (splat ?? "").split("/")[0] ?? "";
+  return (BOARD_TRACKS.includes(t) ? t : "league") as GameVersion | "league";
+}
+
+export const Route = createFileRoute("/leaderboard/$")({
+  validateSearch: (s: Record<string, unknown>) => s,
+  head: ({ params }) => ({ meta: [
+    { title: `${BOARD_LABEL[parseTrack(params._splat)] ?? "League"} Leaderboard · Dune Stats` },
     { name: "description", content: "Compare seasonal League ELO, total rating gains and losses, wins and top-two finishes on Dune Stats." },
     { property: "og:title", content: "League & Community Leaderboards · Dune Stats" },
     { property: "og:description", content: "Explore Dune player rankings by ELO, games, wins and seasonal League rating gains and losses." },
@@ -44,15 +54,20 @@ type SortKey = "elo" | "vp_elo" | "games_played" | "wins" | "top2" | "win_pct";
 type SortDir = "desc" | "asc" | null;
 
 function Leaderboard() {
-  const [version, setVersion] = useState<GameVersion | "league">("league");
+  const navigate = useNavigate();
+  const version = parseTrack(Route.useParams()._splat);
+  const setVersion = (v: GameVersion | "league") =>
+    void navigate({ to: "/leaderboard/$", params: { _splat: v }, search: (prev: Record<string, unknown>) => { const { page: _p, season: _s, ...rest } = prev; return rest; }, resetScroll: false });
   const [allRows, setAllRows] = useState<Row[]>([]);
   const [vpElos, setVpElos] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  const [q, setQ] = useState("");
-  const [minGames, setMinGames] = useState(3);
-  const [page, setPage] = useState(0);
-  const [sortKey, setSortKey] = useState<SortKey | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>(null);
+  const [q, setQ] = useSearchState<string>("q", "");
+  const [minGames, setMinGames] = useSearchState<number>("minGames", 3);
+  const [pageNum, setPageNum] = useSearchState<number>("page", 1);
+  const page = Math.max(0, pageNum - 1);
+  const setPage = (v: number | ((p: number) => number)) => setPageNum((n) => Math.max(0, typeof v === "function" ? v(Math.max(0, n - 1)) : v) + 1);
+  const [sortKey, setSortKey] = useSearchState<SortKey | null>("sort", null);
+  const [sortDir, setSortDir] = useSearchState<SortDir>("dir", null);
   const [userId, setUserId] = useState<string | null>(null);
   const [myKeys, setMyKeys] = useState<Set<string>>(new Set());
   const champions = useChampions();
@@ -76,8 +91,11 @@ function Leaderboard() {
     })();
   }, [userId]);
 
+  const firstReset = useRef(true);
   useEffect(() => {
+    if (firstReset.current) { firstReset.current = false; return; }
     setPage(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version, minGames, q, sortKey, sortDir]);
 
   useEffect(() => {
@@ -418,13 +436,13 @@ function Leaderboard() {
 type LeagueRow = LeagueLeaderboardRow & { claimed_by: string | null };
 
 function LeagueBoard({ q, minGames, userId, myKeys, onMyRank }: { q: string; minGames: number; userId: string | null; myKeys: Set<string>; onMyRank: (v: { rank: number; key: string } | null) => void }) {
-  const [season, setSeason] = useState<number | null>(null);
+  const [season, setSeason] = useSearchState<number | null>("season", null);
   const [seasons, setSeasons] = useState<number[]>([]);
   const [rows, setRows] = useState<LeagueRow[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [sortKey, setSortKey] = useState<LeagueSortKey>("elo");
-  const [sortAsc, setSortAsc] = useState(false);
+  const [sortKey, setSortKey] = useSearchState<LeagueSortKey>("lsort", "elo");
+  const [sortAsc, setSortAsc] = useSearchState<boolean>("asc", false);
   const champions = useChampions();
   const titles = usePlayerTitles();
 
