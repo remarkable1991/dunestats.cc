@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SpLearnMore } from "@/components/SpLearnMore";
 import { Sparkles, CheckCircle2, HelpCircle, Gift, Trophy, ImageIcon, UserPlus, Coins } from "lucide-react";
 import { titleColor } from "@/lib/player-title";
+import { SeasonPrizePool } from "@/components/SeasonTournament";
 
 export const Route = createFileRoute("/rewards")({
   head: () => ({
@@ -22,6 +23,8 @@ export const Route = createFileRoute("/rewards")({
           "Seasonal and lifetime Rewards ranking plus the recruiter competition leaderboard. Earned by playing, uploading, verifying, competing and recruiting.",
       },
       { property: "og:title", content: "Rewards ledger · Strategy Arena" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       {
         property: "og:description",
         content:
@@ -214,9 +217,8 @@ function RewardsPage() {
                   ))}
                 </select>
               )}
-              <Badge variant="outline" className="border-sand/60 text-sand bg-sand/10">
-                {viewedEnded ? `🏆 ${viewedSeason?.name} Concluded — Final Standings` : "🏆 Seasonal Prizes: TBA Soon!"}
-              </Badge>
+              {viewedEnded && <Badge variant="outline" className="border-sand/60 text-sand bg-sand/10">🏆 {viewedSeason?.name} Concluded — Final Standings</Badge>}
+              <SeasonPrizePool seasonId={seasonId} />
             </div>
             <LedgerTable rows={filtered} column="seasonal_sp" loading={loading} />
           </TabsContent>

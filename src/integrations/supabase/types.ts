@@ -2015,13 +2015,17 @@ export type Database = {
           direct_to_grand_final: number | null
           end_date: string
           format_image_url: string | null
+          format_tbd: boolean
           grand_final_spots: number | null
           has_base_leaders: boolean
           has_epic_mode: boolean
           has_immortality: boolean
           has_rise_of_ix: boolean
+          hide_tournament_number: boolean
           info_text: string | null
           info_title: string | null
+          league_season_id: number | null
+          min_league_games: number
           name: string
           play_mode: string
           prizes_summary: string | null
@@ -2045,13 +2049,17 @@ export type Database = {
           direct_to_grand_final?: number | null
           end_date: string
           format_image_url?: string | null
+          format_tbd?: boolean
           grand_final_spots?: number | null
           has_base_leaders?: boolean
           has_epic_mode?: boolean
           has_immortality?: boolean
           has_rise_of_ix?: boolean
+          hide_tournament_number?: boolean
           info_text?: string | null
           info_title?: string | null
+          league_season_id?: number | null
+          min_league_games?: number
           name: string
           play_mode?: string
           prizes_summary?: string | null
@@ -2075,13 +2083,17 @@ export type Database = {
           direct_to_grand_final?: number | null
           end_date?: string
           format_image_url?: string | null
+          format_tbd?: boolean
           grand_final_spots?: number | null
           has_base_leaders?: boolean
           has_epic_mode?: boolean
           has_immortality?: boolean
           has_rise_of_ix?: boolean
+          hide_tournament_number?: boolean
           info_text?: string | null
           info_title?: string | null
+          league_season_id?: number | null
+          min_league_games?: number
           name?: string
           play_mode?: string
           prizes_summary?: string | null
@@ -2097,7 +2109,15 @@ export type Database = {
           tournament_num?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tournaments_league_season_id_fkey"
+            columns: ["league_season_id"]
+            isOneToOne: false
+            referencedRelation: "sp_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_dismissed_notifications: {
         Row: {

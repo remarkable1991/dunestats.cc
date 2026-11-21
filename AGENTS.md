@@ -38,3 +38,5 @@
 - League sandbox season replays use pure browser-safe helpers and public read-only data; this keeps experiments instant and prevents simulated settings from writing official ratings.
 
 - Stats and leaderboard views live in splat routes (`stats.$.tsx`, `leaderboard.$.tsx`): tabs are path segments, filters/sort/page are search params via `useSearchState` in `src/lib/url-state.ts`; this keeps every view shareable and bookmarkable.
+- Season-end events reuse tournament registration with season metadata and a season-based public URL; an ownership-aware database trigger enforces seasonal game eligibility on every write, while a shared cached public query supplies verified prize totals without exposing donor records.
+- Global function authentication uses attachBrowserAuth, which reads sessions only in the browser; public server-side loaders must not touch localStorage.

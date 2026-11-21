@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
+import type { Database } from "@/integrations/supabase/types";
 import {
   DONATION_CURRENCIES,
   DONATION_PAYMENT_METHODS,
@@ -30,6 +31,20 @@ async function donationRequest<T>(
 const boardInput = z.object({
   seasonId: z.number().int().nullable(),
 });
+
+export const getSeasonTournament = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ seasonId: z.number().int().positive() }))
+  .handler(async ({ data }) => {
+    const url = process.env["SUPABASE_URL"]!;
+    const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
+    const [tournaments, summaries] = await Promise.all([
+      donationRequest<Database["public"]["Tables"]["tournaments"]["Row"][]>(url, key, `tournaments?league_season_id=eq.${data.seasonId}&select=*`),
+      donationRequest<DonationSummary[]>(url, key, "rpc/get_donation_summary", {
+        method: "POST", body: JSON.stringify({ p_season_id: data.seasonId }),
+      }),
+    ]);
+    return { tournament: tournaments[0] ?? null, prizePool: Number(summaries[0]?.tournament_total ?? 0) };
+  });
 
 export const getPublicDonationBoard = createServerFn({ method: "GET" })
   .inputValidator(boardInput)

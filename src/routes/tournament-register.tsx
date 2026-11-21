@@ -33,6 +33,10 @@ import { suggestCanonicalName, type NameSuggestion } from "@/lib/name-normalize"
 import epicIcon from "@/assets/epic.png.asset.json";
 import { formatLongDate } from "@/lib/tournaments";
 import { registrationSearch } from "@/lib/tournament-registration-view";
+import { SeasonTournamentDetails, TournamentRegistrationLink } from "@/components/SeasonTournament";
+import { seasonTournamentEligibility, type LeagueEntry } from "@/lib/season-tournament";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { isRegistrationOpen } from "@/lib/tournaments";
 
 /** Expansion/board logos for a tournament. */
 function TournamentModeIcons({ t, size = 20 }: { t: TournamentConfig; size?: number }) {
@@ -169,7 +173,7 @@ function RegisterPage() {
                     </div>
                   </div>
                   <Button asChild className="bg-sand text-background hover:bg-sand/90">
-                    <Link to="/tournament-register" search={{ t: t.tournament_num }}>Register</Link>
+                    <TournamentRegistrationLink tournament={t}>Register</TournamentRegistrationLink>
                   </Button>
                 </Card>
               ))}
@@ -184,7 +188,7 @@ function RegisterPage() {
 }
 
 // ---------- The actual form ----------
-function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig; multiOpen: boolean }) {
+export function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig; multiOpen: boolean }) {
   const navigate = useNavigate();
   const DAYS = tournamentDayCount(tournament);
   const WEEKS = tournamentWeekCount(tournament);
@@ -237,6 +241,30 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
   const [email, setEmail] = useState("");
   const [discord, setDiscord] = useState("");
   const [initialDiscord, setInitialDiscord] = useState("");
+  const leagueSeason = tournament.league_season_id;
+  const isLeagueTournament = leagueSeason != null && (tournament.min_league_games ?? 0) > 0;
+  const [claimedNames, setClaimedNames] = useState<{ player_key: string; display_name: string }[]>([]);
+  const [leagueEntries, setLeagueEntries] = useState<LeagueEntry[]>([]);
+  const [eligibilityLoading, setEligibilityLoading] = useState(false);
+  const [eligibilityError, setEligibilityError] = useState(false);
+  useEffect(() => {
+    if (!isLeagueTournament || !userId || leagueSeason == null) return;
+    let cancelled = false;
+    setEligibilityLoading(true);
+    setEligibilityError(false);
+    void (async () => {
+      const names = await supabase.from("player_ratings").select("player_key,display_name").eq("claimed_by", userId);
+      if (names.error) throw names.error;
+      const unique = [...new Map((names.data ?? []).map((n) => [n.player_key, n])).values()];
+      const entries = unique.length ? await supabase.from("player_league_ratings").select("player_key,season,games_played").eq("season", leagueSeason).in("player_key", unique.map((n) => n.player_key)) : { data: [], error: null };
+      if (entries.error) throw entries.error;
+      if (!cancelled) { setClaimedNames(unique); setLeagueEntries(entries.data ?? []); }
+    })().catch(() => { if (!cancelled) setEligibilityError(true); }).finally(() => { if (!cancelled) setEligibilityLoading(false); });
+    return () => { cancelled = true; };
+  }, [isLeagueTournament, leagueSeason, userId]);
+  const eligibility = seasonTournamentEligibility(direwolf, leagueSeason ?? 1, tournament.min_league_games ?? 0, leagueEntries, claimedNames.map((n) => n.player_key));
+  const entryAllowed = !isLeagueTournament || (!!userId && !eligibilityLoading && !eligibilityError && eligibility.eligible);
+  const registrationOpen = isRegistrationOpen(tournament);
 
   // Availability
   const [selection, setSelection] = useState<Set<number>>(new Set());
@@ -499,6 +527,8 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
   };
 
   const submit = async () => {
+    if (!registrationOpen) { toast.error("Registration is closed"); return; }
+    if (!entryAllowed) { toast.error("Use your claimed in-game name with at least 10 Season 1 League games."); return; }
     if (!consented) return;
     if (!direwolf.trim()) { toast.error("Direwolf name required"); return; }
     if (direwolf.includes("+")) {
@@ -506,6 +536,7 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
       return;
     }
     if (!discord.trim()) { toast.error("Discord username required"); return; }
+    if (isLeagueTournament && selection.size === 0) { toast.error("Please select your availability before registering."); return; }
 
     if (!stats.overallOk) {
       toast.error(
@@ -564,7 +595,7 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
       );
       void navigate({ to: "/tournament" });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to register");
+      toast.error(e && typeof e === "object" && "message" in e ? String(e.message) : "Failed to register");
     } finally {
       setSubmitting(false);
     }
@@ -590,17 +621,26 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
 
         <div className="space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <TournamentPlayModeBadge num={tournament.tournament_num} mode={tournament.play_mode} />
-            <TournamentModeIcons t={tournament} />
+            {!tournament.format_tbd && <><TournamentPlayModeBadge num={tournament.tournament_num} mode={tournament.play_mode} /><TournamentModeIcons t={tournament} /></>}
           </div>
           <p className="text-xs text-muted-foreground">
-            Check-in opens {checkinStart(tournament).toLocaleString()} · Check-in closes{" "}
-            {checkinEnd(tournament).toLocaleString()} · Tournament runs {formatLongDate(tournament.start_date)} →{" "}
+            {tournament.format_tbd ? "Availability window: " : <>Check-in opens {checkinStart(tournament).toLocaleString()} · Check-in closes {checkinEnd(tournament).toLocaleString()} · Tournament runs </>}{formatLongDate(tournament.start_date)} →{" "}
             {formatLongDate(tournament.end_date)}
           </p>
         </div>
 
         <FormatImage url={tournament.format_image_url} label={`${tournament.name} format`} />
+        <SeasonTournamentDetails tournament={tournament} />
+        {isLeagueTournament && <div className="space-y-2 border-y border-border py-4">
+          {!userId ? <p className="text-sm text-muted-foreground">Sign in to register with your claimed League name. <Link to="/auth" className="text-sand underline">Sign in</Link></p>
+            : eligibilityLoading ? <p className="text-sm text-muted-foreground">Checking League eligibility…</p>
+            : eligibilityError ? <p className="text-sm text-destructive">League eligibility is temporarily unavailable. Refresh to try again.</p>
+            : <><p className="text-sm font-medium">Season {leagueSeason} League games: {eligibility.games}/{tournament.min_league_games}{eligibility.eligible ? " · Eligible" : " · Not yet eligible"}</p>
+              <progress aria-label="League registration eligibility" value={Math.min(eligibility.games, tournament.min_league_games ?? 10)} max={tournament.min_league_games ?? 10} className="w-full h-2 accent-sand" />
+              {!eligibility.claimed && <p className="text-sm text-muted-foreground">Choose a claimed in-game name below, or claim your player profile first.</p>}
+              {!eligibility.eligible && <Link to="/lfg" className="text-sm text-sand underline">Play more League games</Link>}</>}
+        </div>}
+        {!registrationOpen && <p className="text-sm text-destructive">Registration is closed.</p>}
 
         {(tournament.info_title || tournament.info_text || tournament.prizes_summary || tournament.prizes_text) && (
           <Card className="p-6 border-sand/40 bg-card/70 space-y-3">
@@ -608,11 +648,11 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
             {tournament.info_text && (
               <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{tournament.info_text}</p>
             )}
-            <PrizesInfo summary={tournament.prizes_summary} details={tournament.prizes_text} />
+            {!isLeagueTournament && <PrizesInfo summary={tournament.prizes_summary} details={tournament.prizes_text} />}
           </Card>
         )}
 
-        {!userId && !checking && (
+        {!userId && !checking && !isLeagueTournament && (
           <Card className="p-4 border-sand/40 bg-card/70">
             <p className="text-sm text-muted-foreground">
               Registering as a guest.{" "}
@@ -649,13 +689,13 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="direwolf">Direwolf Name <span className="text-destructive">*</span></Label>
-                <Input
+                {isLeagueTournament ? <Select value={claimedNames.find((n) => n.display_name === direwolf)?.display_name ?? ""} onValueChange={setDirewolf}><SelectTrigger id="direwolf" aria-label="Claimed League player"><SelectValue placeholder="Choose your claimed in-game name" /></SelectTrigger><SelectContent>{claimedNames.map((n) => <SelectItem key={n.player_key} value={n.display_name}>{n.display_name}</SelectItem>)}</SelectContent></Select> : <Input
                   id="direwolf"
                   value={direwolf}
                   onChange={(e) => setDirewolf(e.target.value)}
                   placeholder="Your in-game name"
                   aria-invalid={direwolf.includes("+")}
-                />
+                />}
                 {direwolf.includes("+") && (
                   <p className="text-[11px] text-destructive mt-1">
                     Your Direwolf name can't contain a "+". Enter the name without the + and anything after it.
@@ -766,8 +806,8 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
             <Button
               size="lg"
               onClick={submit}
-              disabled={!consented || submitting}
-              className="bg-sand text-background hover:bg-sand/90 gap-2"
+              disabled={!consented || submitting || !entryAllowed || !registrationOpen}
+              className="bg-sand text-background hover:bg-sand/90 gap-2 h-auto min-h-11 whitespace-normal text-center"
             >
               {submitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
               {alreadyRegistered ? `Update Registration for ${tournament.name}` : `Register for ${tournament.name}`}
@@ -776,10 +816,9 @@ function RegisterForm({ tournament, multiOpen }: { tournament: TournamentConfig;
         </fieldset>
 
         <p className="text-xs text-muted-foreground text-center pt-2">
-          Check-in opens {checkinStart(tournament).toLocaleString()}. Tournament runs{" "}
+          {tournament.format_tbd ? "Availability window: " : <>Check-in opens {checkinStart(tournament).toLocaleString()}. Tournament runs </>}
           {parseLocalDate(tournament.start_date).toLocaleDateString()} –{" "}
-          {parseLocalDate(tournament.end_date).toLocaleDateString()}. Registration closes{" "}
-          {registrationClosesAt(tournament).toLocaleString()}.
+          {parseLocalDate(tournament.end_date).toLocaleDateString()}. {tournament.format_tbd ? "Exact match dates and check-in: TBD." : <>Registration closes {registrationClosesAt(tournament).toLocaleString()}.</>}
         </p>
       </div>
     </div>

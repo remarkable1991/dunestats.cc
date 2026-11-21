@@ -1,8 +1,8 @@
 # To do
 
-- [ ] Open the unnumbered End of Season 1 Tournament with January 25–February 28 availability and database-enforced 10-game eligibility.
-- [ ] Connect verified seasonal prize totals and donation/discussion links across rewards, League leaderboard, registration and upcoming/home tournament cards.
-- [ ] Test eligibility and funding rules and verify public desktop/mobile registration; note unavailable signed-in checks.
+- [x] Open the unnumbered End of Season 1 Tournament with January 25–February 28 availability and database-enforced 10-game eligibility.
+- [x] Connect verified seasonal prize totals and donation/discussion links across rewards, League leaderboard, registration and upcoming/home tournament cards.
+- [x] Test eligibility and funding rules and verify public desktop/mobile registration; signed-in registration remains unverified because external unmanaged authentication is unavailable here.
 
 - [x] Build `/sandbox` with VP-weighted default, Standard and Winner-Takes-All formulas, clear controls and live-vs-simulated comparisons.
 - [x] Keep Leaderboard and Recent Matches as instant tabs over one browser-only season simulation; add only a small League leaderboard entry point.

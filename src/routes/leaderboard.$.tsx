@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Navbar } from "@/components/Navbar";
 import { LeagueSeasonBanner } from "@/components/LeagueSeasonBanner";
+import { SeasonPrizePool } from "@/components/SeasonTournament";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -535,6 +536,7 @@ function LeagueBoard({ q, minGames, userId, myKeys, onMyRank }: { q: string; min
       <div className="p-3 border-b border-border/60 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <div className="min-w-0 flex-1"><LeagueSeasonBanner seasonId={season} /></div>
+          <SeasonPrizePool seasonId={season} />
           <Button asChild size="sm" variant="outline" className="shrink-0">
             <Link to="/sandbox" search={season == null ? {} : { season }}><FlaskConical className="size-4" />Sandbox</Link>
           </Button>

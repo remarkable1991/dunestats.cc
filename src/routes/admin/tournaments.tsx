@@ -16,6 +16,7 @@ import { ArrowLeft, ClipboardCheck, Loader2, Mail, Plus, Save, Sparkles, Trash2,
 import { TournamentPlayModeBadge } from "@/components/TournamentPlayModeBadge";
 import { parseTournamentMatchesCsv } from "@/lib/tournament-csv";
 import { RegistrationManager } from "@/components/RegistrationManager";
+import { TournamentRegistrationLink } from "@/components/SeasonTournament";
 import {
   MAX_CHECKBOXES,
   type TournamentCheckbox,
@@ -71,6 +72,10 @@ type Draft = {
   has_immortality: boolean;
   has_base_leaders: boolean;
   format_image_url: string;
+  league_season_id: number | null;
+  min_league_games: number;
+  hide_tournament_number: boolean;
+  format_tbd: boolean;
 };
 
 function toDraft(t: TournamentConfig): Draft {
@@ -101,6 +106,10 @@ function toDraft(t: TournamentConfig): Draft {
     has_immortality: t.has_immortality,
     has_base_leaders: t.has_base_leaders,
     format_image_url: t.format_image_url ?? "",
+    league_season_id: t.league_season_id ?? null,
+    min_league_games: t.min_league_games ?? 0,
+    hide_tournament_number: t.hide_tournament_number ?? false,
+    format_tbd: t.format_tbd ?? false,
   };
 }
 
@@ -139,6 +148,10 @@ function emptyDraft(nextNum: number): Draft {
     has_immortality: false,
     has_base_leaders: false,
     format_image_url: "",
+    league_season_id: null,
+    min_league_games: 0,
+    hide_tournament_number: false,
+    format_tbd: false,
   };
 }
 
@@ -252,7 +265,7 @@ function AdminTournaments() {
             <Card key={t.tournament_num} className="p-4 border-sand/40 flex items-start justify-between gap-4 flex-wrap">
               <div className="space-y-1">
                 <div className="font-display text-lg text-sand">
-                  #{t.tournament_num} — {t.name}
+                  {!t.hide_tournament_number && <>#{t.tournament_num} — </>}{t.name}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {t.start_date} → {t.end_date} · {tournamentDayCount(t)} days ({tournamentWeekCount(t)} weeks)
@@ -274,6 +287,7 @@ function AdminTournaments() {
                 <RegistrationManager tournamentNum={t.tournament_num} />
               </div>
               <div className="flex gap-2 items-center">
+                {t.hide_tournament_number && <Button asChild size="sm" variant="outline"><TournamentRegistrationLink tournament={t}>Registration page</TournamentRegistrationLink></Button>}
                 <CsvImportButton tournamentNum={t.tournament_num} />
                 <Button size="sm" variant="outline" onClick={() => { setEditing(toDraft(t)); setIsNew(false); }}>
                   Edit
@@ -283,7 +297,7 @@ function AdminTournaments() {
                   variant="ghost"
                   className="text-destructive"
                   onClick={async () => {
-                    if (!window.confirm(`Delete tournament #${t.tournament_num}?`)) return;
+                    if (!window.confirm(`Delete ${t.hide_tournament_number ? t.name : `tournament #${t.tournament_num}`}?`)) return;
                     const { error } = await supabase
                       .from("tournaments")
                       .delete()
@@ -376,6 +390,10 @@ function TournamentForm({
       has_immortality: draft.has_immortality,
       has_base_leaders: draft.has_base_leaders,
       format_image_url: draft.format_image_url.trim() || null,
+      league_season_id: draft.league_season_id,
+      min_league_games: draft.min_league_games,
+      hide_tournament_number: draft.hide_tournament_number,
+      format_tbd: draft.format_tbd,
     };
     const { error } = await supabase.from("tournaments").upsert(payload, { onConflict: "tournament_num" });
     setSaving(false);
@@ -386,10 +404,11 @@ function TournamentForm({
 
   return (
     <Card className="p-6 border-sand/40 space-y-5">
-      <h2 className="font-display text-lg">{isNew ? "New tournament" : `Edit tournament #${draft.tournament_num}`}</h2>
+      <h2 className="font-display text-lg">{isNew ? "New tournament" : draft.hide_tournament_number ? `Edit ${draft.name}` : `Edit tournament #${draft.tournament_num}`}</h2>
+      {draft.league_season_id != null && <div className="flex items-center gap-2 flex-wrap"><span className="text-sm text-sand">Season {draft.league_season_id} · Requires {draft.min_league_games} League games</span><Label htmlFor="format-tbd">Format TBD</Label><Switch id="format-tbd" checked={draft.format_tbd} onCheckedChange={(v) => set("format_tbd", v)} /></div>}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
+        {!draft.hide_tournament_number && <div>
           <Label htmlFor="num">Tournament number</Label>
           <Input
             id="num"
@@ -398,7 +417,7 @@ function TournamentForm({
             disabled={!isNew}
             onChange={(e) => set("tournament_num", e.target.value)}
           />
-        </div>
+        </div>}
         <div>
           <Label htmlFor="name">Name / title</Label>
           <Input id="name" value={draft.name} onChange={(e) => set("name", e.target.value)} />

@@ -44,6 +44,7 @@ import { Route as LfgIdRouteImport } from './routes/lfg_.$id'
 import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
 import { Route as PlayersKeyRouteImport } from './routes/players.$key'
 import { Route as RUsernameRouteImport } from './routes/r.$username'
+import { Route as SeasonTournamentSeasonRouteImport } from './routes/season-tournament.$season'
 import { Route as StatsIndexRouteImport } from './routes/stats.index'
 import { Route as StatsSplatRouteImport } from './routes/stats.$'
 import { Route as TournamentRegisterNumRouteImport } from './routes/tournament-register_.$num'
@@ -228,6 +229,11 @@ const RUsernameRoute = RUsernameRouteImport.update({
   path: '/r/$username',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SeasonTournamentSeasonRoute = SeasonTournamentSeasonRouteImport.update({
+  id: '/season-tournament/$season',
+  path: '/season-tournament/$season',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StatsIndexRoute = StatsIndexRouteImport.update({
   id: '/stats/',
   path: '/stats/',
@@ -306,6 +312,7 @@ export interface FileRoutesByFullPath {
   '/match/$matchId': typeof MatchMatchIdRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
+  '/season-tournament/$season': typeof SeasonTournamentSeasonRoute
   '/stats/$': typeof StatsSplatRoute
   '/tournament-register/$num': typeof TournamentRegisterNumRoute
   '/tournament/$num': typeof TournamentNumRoute
@@ -351,6 +358,7 @@ export interface FileRoutesByTo {
   '/match/$matchId': typeof MatchMatchIdRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
+  '/season-tournament/$season': typeof SeasonTournamentSeasonRoute
   '/stats/$': typeof StatsSplatRoute
   '/tournament-register/$num': typeof TournamentRegisterNumRoute
   '/tournament/$num': typeof TournamentNumRoute
@@ -397,6 +405,7 @@ export interface FileRoutesById {
   '/match/$matchId': typeof MatchMatchIdRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
+  '/season-tournament/$season': typeof SeasonTournamentSeasonRoute
   '/stats/$': typeof StatsSplatRoute
   '/tournament-register_/$num': typeof TournamentRegisterNumRoute
   '/tournament_/$num': typeof TournamentNumRoute
@@ -444,6 +453,7 @@ export interface FileRouteTypes {
     | '/match/$matchId'
     | '/players/$key'
     | '/r/$username'
+    | '/season-tournament/$season'
     | '/stats/$'
     | '/tournament-register/$num'
     | '/tournament/$num'
@@ -489,6 +499,7 @@ export interface FileRouteTypes {
     | '/match/$matchId'
     | '/players/$key'
     | '/r/$username'
+    | '/season-tournament/$season'
     | '/stats/$'
     | '/tournament-register/$num'
     | '/tournament/$num'
@@ -534,6 +545,7 @@ export interface FileRouteTypes {
     | '/match/$matchId'
     | '/players/$key'
     | '/r/$username'
+    | '/season-tournament/$season'
     | '/stats/$'
     | '/tournament-register_/$num'
     | '/tournament_/$num'
@@ -580,6 +592,7 @@ export interface RootRouteChildren {
   MatchMatchIdRoute: typeof MatchMatchIdRoute
   PlayersKeyRoute: typeof PlayersKeyRoute
   RUsernameRoute: typeof RUsernameRoute
+  SeasonTournamentSeasonRoute: typeof SeasonTournamentSeasonRoute
   StatsSplatRoute: typeof StatsSplatRoute
   TournamentRegisterNumRoute: typeof TournamentRegisterNumRoute
   TournamentNumRoute: typeof TournamentNumRoute
@@ -838,6 +851,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RUsernameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/season-tournament/$season': {
+      id: '/season-tournament/$season'
+      path: '/season-tournament/$season'
+      fullPath: '/season-tournament/$season'
+      preLoaderRoute: typeof SeasonTournamentSeasonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/stats/': {
       id: '/stats/'
       path: '/stats'
@@ -932,6 +952,7 @@ const rootRouteChildren: RootRouteChildren = {
   MatchMatchIdRoute: MatchMatchIdRoute,
   PlayersKeyRoute: PlayersKeyRoute,
   RUsernameRoute: RUsernameRoute,
+  SeasonTournamentSeasonRoute: SeasonTournamentSeasonRoute,
   StatsSplatRoute: StatsSplatRoute,
   TournamentRegisterNumRoute: TournamentRegisterNumRoute,
   TournamentNumRoute: TournamentNumRoute,

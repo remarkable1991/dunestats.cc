@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PrizesInfo } from "@/components/PrizesInfo";
+import { SeasonTournamentDetails, TournamentRegistrationLink } from "@/components/SeasonTournament";
 import { Trophy, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -92,7 +93,7 @@ export function TournamentCountdown() {
                   {t.info_title?.trim() || t.name}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Tournament #{t.tournament_num} · {formatLongDate(t.start_date)} → {formatLongDate(t.end_date)} ({tournamentDayCount(t)} days)
+                  {!t.hide_tournament_number && <>Tournament #{t.tournament_num} · </>}{formatLongDate(t.start_date)} → {formatLongDate(t.end_date)} ({tournamentDayCount(t)} days)
                 </p>
               </div>
               <Button
@@ -103,9 +104,9 @@ export function TournamentCountdown() {
                     : "bg-sand text-background hover:bg-sand/90"
                 }
               >
-                <Link to="/tournament-register" search={{ t: t.tournament_num }}>
+                <TournamentRegistrationLink tournament={t}>
                   {isRegistered ? "Registered! Adjust your registration" : "Register now"}
-                </Link>
+                </TournamentRegistrationLink>
               </Button>
             </div>
 
@@ -115,11 +116,10 @@ export function TournamentCountdown() {
               </p>
             )}
 
-            <PrizesInfo summary={t.prizes_summary} details={t.prizes_text} />
+            {t.league_season_id ? <SeasonTournamentDetails tournament={t} /> : <PrizesInfo summary={t.prizes_summary} details={t.prizes_text} />}
 
             <div className="text-xs text-muted-foreground">
-              Check-in opens {checkinLocal} · Tournament starts 24 hours later · Minimum availability{" "}
-              {t.required_availability_pct}% overall and {t.required_weekly_pct}% per week
+              {t.format_tbd ? "Exact match dates and check-in: TBD." : <>Check-in opens {checkinLocal} · Tournament starts 24 hours later · Minimum availability {t.required_availability_pct}% overall and {t.required_weekly_pct}% per week</>}
             </div>
           </Card>
         );

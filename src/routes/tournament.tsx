@@ -1,4 +1,5 @@
 import { FormatImage } from "@/components/FormatImage";
+import { SeasonTournamentDetails, TournamentRegistrationLink } from "@/components/SeasonTournament";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SupabaseImage } from "@/components/SupabaseImage";
 import { signedUrlOrR2 } from "@/lib/storage-r2";
@@ -102,6 +103,7 @@ export const Route = createFileRoute("/tournament")({
         content: "Live Dune Imperium tournament brackets, standings, registration and results.",
       },
       { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { property: "og:url", content: "https://dunestats.cc/tournament" },
     ],
     links: [{ rel: "canonical", href: "https://dunestats.cc/tournament" }],
@@ -286,6 +288,7 @@ function CurrentTournament({
   const titles = usePlayerTitles();
 
   const [formatLine, setFormatLine] = useState<string | null>(null);
+  const [tournamentConfig, setTournamentConfig] = useState<TournamentConfig | null>(null);
   const [formatImage, setFormatImage] = useState<{ url: string; name: string } | null>(null);
   const [gameModes, setGameModes] = useState<ModeFlags | null>(null);
   const [plan, setPlan] = useState(() => bracketPlan(null));
@@ -294,6 +297,7 @@ function CurrentTournament({
     void (async () => {
       const all = await fetchTournaments();
       const cfg = all.find((t) => t.tournament_num === tournamentNum);
+      setTournamentConfig(cfg ?? null);
       setFormatLine(cfg ? formatTournamentFormat(cfg) : null);
       setFormatImage(cfg?.format_image_url ? { url: cfg.format_image_url, name: cfg.name } : null);
       setGameModes(cfg ? { hasIx: cfg.has_rise_of_ix, hasEpic: cfg.has_epic_mode, hasImmo: cfg.has_immortality, hasUprising: cfg.board_version === "uprising", hasBase: cfg.has_base_leaders } : null);
@@ -930,12 +934,12 @@ function CurrentTournament({
       <header className="flex items-end justify-between flex-wrap gap-4">
         <div>
           <h2 className="font-display text-3xl flex items-center gap-2 flex-wrap">
-            <Trophy className="size-7 text-sand" /> Live Tournament #{tournamentNum}
-            <TournamentPlayModeBadge num={tournamentNum} size={20} />
+            <Trophy className="size-7 text-sand" /> {tournamentConfig?.hide_tournament_number ? tournamentConfig.name : `Live Tournament #${tournamentNum}`}
+            {!tournamentConfig?.format_tbd && <TournamentPlayModeBadge num={tournamentNum} size={20} />}
           </h2>
 
-          <p className="text-muted-foreground">{playModeDescription(tournamentNum)}</p>
-          {gameModes && (
+          {tournamentConfig?.league_season_id ? <SeasonTournamentDetails tournament={tournamentConfig} /> : <p className="text-muted-foreground">{playModeDescription(tournamentNum)}</p>}
+          {gameModes && !tournamentConfig?.format_tbd && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className="text-xs text-muted-foreground">Game format:</span>
               <ModeBadges flags={gameModes} size={20} />
@@ -1530,7 +1534,7 @@ function CurrentTournament({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={String(tournamentNum)}>{tournamentNum}</SelectItem>
+                        <SelectItem value={String(tournamentNum)}>{tournamentConfig?.hide_tournament_number ? tournamentConfig.name : tournamentNum}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1933,7 +1937,7 @@ function FutureTournaments() {
               <div>
                 <h3 className="font-display text-2xl">{t.info_title?.trim() || t.name}</h3>
                 <p className="text-xs text-muted-foreground">
-                  Tournament #{t.tournament_num} · {formatLongDate(t.start_date)} → {formatLongDate(t.end_date)} (
+                  {!t.hide_tournament_number && <>Tournament #{t.tournament_num} · </>}{formatLongDate(t.start_date)} → {formatLongDate(t.end_date)} (
                   {tournamentDayCount(t)} days)
                 </p>
               </div>
@@ -1946,13 +1950,13 @@ function FutureTournaments() {
                   : "bg-sand text-background hover:bg-sand/90"
               }
             >
-              <Link to="/tournament-register" search={{ t: t.tournament_num }}>
+              <TournamentRegistrationLink tournament={t}>
                 {registered.has(t.tournament_num) ? "Registered! Adjust your registration" : "Register now"}
-              </Link>
+              </TournamentRegistrationLink>
             </Button>
           </div>
 
-          <ModeBadges
+          {!t.format_tbd && <ModeBadges
             flags={{
               hasIx: t.has_rise_of_ix,
               hasEpic: t.has_epic_mode,
@@ -1961,17 +1965,16 @@ function FutureTournaments() {
               hasBase: t.has_base_leaders,
             }}
             size={20}
-          />
+          />}
 
           <FormatImage url={t.format_image_url} label={`${t.name} format`} />
 
-          <PrizesInfo summary={t.prizes_summary} details={t.prizes_text} />
+          {t.league_season_id ? <SeasonTournamentDetails tournament={t} /> : <PrizesInfo summary={t.prizes_summary} details={t.prizes_text} />}
 
           <TruncatedInfoText text={t.info_text} />
 
           <div className="text-xs text-muted-foreground">
-            Check-in opens {checkinStart(t).toLocaleString()} · Tournament starts 24 hours later · Minimum availability{" "}
-            {t.required_availability_pct}% overall and {t.required_weekly_pct}% per week
+            {t.format_tbd ? "Exact match dates and check-in: TBD." : <>Check-in opens {checkinStart(t).toLocaleString()} · Tournament starts 24 hours later · Minimum availability {t.required_availability_pct}% overall and {t.required_weekly_pct}% per week</>}
           </div>
 
           {isInCheckin(t) ? <TournamentCheckin tournamentNum={t.tournament_num} /> : null}
@@ -1991,6 +1994,8 @@ type TournamentSummaryCard = {
   completedCells: number;
   phase: string;
   imageUrl: string | null;
+  hideNumber: boolean;
+  formatTbd: boolean;
 };
 
 async function fetchActiveTournamentNums(): Promise<number[]> {
@@ -2053,7 +2058,7 @@ function CurrentTournamentsHub() {
         const profile = tournamentModes(num);
         summaries.push({
           num,
-          title: `Tournament #${num}`,
+          title: configs.find((t) => t.tournament_num === num)?.hide_tournament_number ? configs.find((t) => t.tournament_num === num)?.name ?? "Season tournament" : `Tournament #${num}`,
           subtitle: profile?.subtitle ?? "Uprising\u00a0",
           modes: {
             hasIx: profile?.has_rise_of_ix ?? false,
@@ -2067,6 +2072,8 @@ function CurrentTournamentsHub() {
           completedCells: completed,
           phase,
           imageUrl: configs.find((t) => t.tournament_num === num)?.format_image_url ?? null,
+          hideNumber: configs.find((t) => t.tournament_num === num)?.hide_tournament_number ?? false,
+          formatTbd: configs.find((t) => t.tournament_num === num)?.format_tbd ?? false,
         });
       }
       if (!cancelled) setCards(summaries.filter((c) => c.totalCells > 0));
@@ -2127,13 +2134,13 @@ function CurrentTournamentsHub() {
                 }`}
               >
                 <Trophy className={`size-7 ${live ? "text-teal" : "text-coral"}`} />
-                <span
+                {!c.hideNumber && <span
                   className={`absolute -bottom-1 -right-1 inline-flex items-center justify-center size-7 rounded-full bg-background font-display text-sm border ${
                     live ? "text-teal border-teal/60" : "text-coral border-coral/60"
                   }`}
                 >
                   {c.num}
-                </span>
+                </span>}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="font-display text-xl leading-tight">{c.title}</div>
@@ -2142,8 +2149,7 @@ function CurrentTournamentsHub() {
               </div>
             </div>
             <div className="mt-4 flex items-center gap-2 flex-wrap">
-              <TournamentPlayModeBadge num={c.num} />
-              <ModeBadges flags={c.modes} size={22} />
+              {c.formatTbd ? <span className="text-sm text-muted-foreground">Format: TBD</span> : <><TournamentPlayModeBadge num={c.num} /><ModeBadges flags={c.modes} size={22} /></>}
             </div>
             <p className="mt-2 text-[11px] text-muted-foreground">{playModeDescription(c.num)}</p>
             {c.imageUrl && (
