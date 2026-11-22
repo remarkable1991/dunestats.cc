@@ -2,10 +2,27 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { TrendingUp } from "lucide-react";
+import {
+  rankHistorySummary,
+  visibleLeagueFormatChanges,
+  withRatingBaseline,
+  type LeagueFormatPreset,
+  type RatingBaselinePoint,
+} from "@/lib/elo-history";
 
 type SystemKey = "overall" | "base" | "ix" | "uprising" | "vp" | "league";
+type ChartMetric = "rating" | "rank";
 
 const SYSTEMS: Array<{ k: SystemKey; label: string }> = [
   { k: "overall", label: "Overall" },
@@ -55,17 +72,29 @@ type Game = {
 };
 
 type Point = {
+  kind: "game";
   x: number;
   label: string;
   rating: number;
   delta: number;
   game: Game;
+  rankBefore: number | null;
+  rankAfter: number | null;
+};
+
+type ChartPoint = (Point | RatingBaselinePoint) & { idx: number };
+type LeagueDelta = {
+  game_id: string;
+  season: number;
+  elo_delta: number;
+  rank_before: number | null;
+  rank_after: number | null;
 };
 
 const BASELINE = 1000;
 
-function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+function fmtDate(value: string | number) {
+  return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function Pill({
@@ -95,26 +124,39 @@ export function EloHistoryChart({ playerKey, leagueOnly = false, leagueSeason = 
   const [vpDeltas, setVpDeltas] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [system, setSystem] = useState<SystemKey>("overall");
+  const [metric, setMetric] = useState<ChartMetric>("rating");
   const [mode, setMode] = useState<"time" | "count">("time");
   const [timeframe, setTimeframe] = useState("30d");
   const [count, setCount] = useState("25");
-  const [leagueDeltas, setLeagueDeltas] = useState<Array<{ game_id: string; season: number; elo_delta: number }>>([]);
+  const [leagueDeltas, setLeagueDeltas] = useState<LeagueDelta[]>([]);
+  const [leaguePresets, setLeaguePresets] = useState<LeagueFormatPreset[]>([]);
 
   useEffect(() => {
     if (leagueOnly) setSystem("league");
-    else setSystem((s) => (s === "league" ? "overall" : s));
+    else setSystem((current) => (current === "league" ? "overall" : current));
   }, [leagueOnly]);
 
   useEffect(() => {
+    if (system !== "league") setMetric("rating");
+  }, [system]);
+
+  useEffect(() => {
     let mounted = true;
-    void supabase
-      .from("league_match_rating_deltas")
-      .select("game_id, season, elo_delta")
-      .eq("player_key", playerKey)
-      .limit(2000)
-      .then(({ data }) => {
-        if (mounted) setLeagueDeltas(((data ?? []) as Array<{ game_id: string; season: number; elo_delta: number }>));
-      });
+    void Promise.all([
+      supabase
+        .from("league_match_rating_deltas")
+        .select("game_id, season, elo_delta, rank_before, rank_after")
+        .eq("player_key", playerKey)
+        .limit(2000),
+      supabase
+        .from("league_presets")
+        .select("id, name, start_date, expansions")
+        .order("start_date", { ascending: true }),
+    ]).then(([deltas, presets]) => {
+      if (!mounted) return;
+      setLeagueDeltas((deltas.data ?? []) as LeagueDelta[]);
+      setLeaguePresets((presets.data ?? []) as LeagueFormatPreset[]);
+    });
     return () => {
       mounted = false;
     };
@@ -129,7 +171,7 @@ export function EloHistoryChart({ playerKey, leagueOnly = false, leagueSeason = 
         .select("game_id")
         .ilike("player_name", playerKey)
         .limit(2000);
-      const ids = Array.from(new Set(((mine ?? []) as { game_id: string }[]).map((r) => r.game_id)));
+      const ids = Array.from(new Set(((mine ?? []) as { game_id: string }[]).map((row) => row.game_id)));
       if (!ids.length) {
         if (mounted) {
           setGames([]);
@@ -152,14 +194,14 @@ export function EloHistoryChart({ playerKey, leagueOnly = false, leagueSeason = 
           .in("game_id", ids),
       ]);
       if (!mounted) return;
-      const rows = ((gs ?? []) as unknown as Array<Game & { game_results: Participant[] }>).map((g) => ({
-        ...g,
-        results: g.game_results ?? [],
+      const rows = ((gs ?? []) as unknown as Array<Game & { game_results: Participant[] }>).map((game) => ({
+        ...game,
+        results: game.game_results ?? [],
       }));
       const vmap: Record<string, number> = {};
-      ((sb ?? []) as Array<{ game_id: string; player_name: string; elo_delta_overall: number | null }>).forEach((r) => {
-        if (!r.game_id || !r.player_name || r.elo_delta_overall == null) return;
-        vmap[`${r.game_id}::${r.player_name.toLowerCase().trim()}`] = Number(r.elo_delta_overall);
+      ((sb ?? []) as Array<{ game_id: string; player_name: string; elo_delta_overall: number | null }>).forEach((row) => {
+        if (!row.game_id || !row.player_name || row.elo_delta_overall == null) return;
+        vmap[`${row.game_id}::${row.player_name.toLowerCase().trim()}`] = Number(row.elo_delta_overall);
       });
       setGames(rows);
       setVpDeltas(vmap);
@@ -171,62 +213,80 @@ export function EloHistoryChart({ playerKey, leagueOnly = false, leagueSeason = 
   }, [playerKey]);
 
   const series = useMemo<Point[]>(() => {
-    const relevant = games.filter((g) => {
-      if (system === "base" || system === "ix" || system === "uprising") return g.game_version === system;
+    const relevant = games.filter((game) => {
+      if (system === "base" || system === "ix" || system === "uprising") return game.game_version === system;
       return true;
     });
-    const lmap = new Map<string, number>();
-    for (const d of leagueDeltas) {
-      if (leagueSeason != null && d.season !== leagueSeason) continue;
-      lmap.set(d.game_id, Number(d.elo_delta));
+    const leagueMap = new Map<string, LeagueDelta>();
+    for (const delta of leagueDeltas) {
+      if (leagueSeason != null && delta.season !== leagueSeason) continue;
+      leagueMap.set(delta.game_id, delta);
     }
     let rating = BASELINE;
-    const pts: Point[] = [];
-    for (const g of relevant) {
-      const me = g.results.find((r) => r.player_name.toLowerCase().trim() === playerKey);
+    const points: Point[] = [];
+    for (const game of relevant) {
+      const me = game.results.find((result) => result.player_name.toLowerCase().trim() === playerKey);
       if (!me) continue;
       let delta: number | null = null;
+      const league = leagueMap.get(game.id);
       if (system === "overall") delta = me.elo_delta_overall;
-      else if (system === "vp") delta = vpDeltas[`${g.id}::${playerKey}`] ?? null;
-      else if (system === "league") delta = lmap.get(g.id) ?? null;
+      else if (system === "vp") delta = vpDeltas[`${game.id}::${playerKey}`] ?? null;
+      else if (system === "league") delta = league ? Number(league.elo_delta) : null;
       else delta = me.elo_delta;
       if (delta == null) continue;
       rating += Number(delta);
-      pts.push({
-        x: new Date(g.created_at).getTime(),
-        label: fmtDate(g.created_at),
+      points.push({
+        kind: "game",
+        x: new Date(game.created_at).getTime(),
+        label: fmtDate(game.created_at),
         rating: Math.round(rating * 10) / 10,
         delta: Number(delta),
-        game: g,
+        game,
+        rankBefore: system === "league" ? league?.rank_before ?? null : null,
+        rankAfter: system === "league" ? league?.rank_after ?? null : null,
       });
     }
-    return pts;
+    return points;
   }, [games, system, vpDeltas, playerKey, leagueDeltas, leagueSeason]);
 
   const windowed = useMemo(() => {
     if (mode === "count") {
-      const n = COUNTS.find((c) => c.k === count)?.n ?? null;
+      const n = COUNTS.find((item) => item.k === count)?.n ?? null;
       return n ? series.slice(-n) : series;
     }
-    const days = TIMEFRAMES.find((t) => t.k === timeframe)?.days ?? null;
+    const days = TIMEFRAMES.find((item) => item.k === timeframe)?.days ?? null;
     if (!days) return series;
     const cutoff = Date.now() - days * 86400000;
-    return series.filter((p) => p.x >= cutoff);
+    return series.filter((point) => point.x >= cutoff);
   }, [series, mode, timeframe, count]);
 
-  const chartData = useMemo(
-    () => windowed.map((p, i) => ({ ...p, idx: i })),
-    [windowed],
-  );
+  const chartData = useMemo<ChartPoint[]>(() => {
+    const points = metric === "rank"
+      ? windowed.filter((point) => point.rankAfter != null)
+      : withRatingBaseline(windowed);
+    return points.map((point, idx) => ({ ...point, idx }));
+  }, [windowed, metric]);
 
   const start = windowed[0];
   const latest = windowed[windowed.length - 1];
-  const change = start && latest ? latest.rating - (start.rating - start.delta) : 0;
-  const windowLabel =
-    mode === "count"
-      ? COUNTS.find((c) => c.k === count)?.label
-      : TIMEFRAMES.find((t) => t.k === timeframe)?.label;
-  const systemLabel = SYSTEMS.find((s) => s.k === system)?.label ?? "";
+  const startRating = start ? Math.round((start.rating - start.delta) * 10) / 10 : null;
+  const change = start && latest && startRating != null ? latest.rating - startRating : 0;
+  const ranks = useMemo(() => rankHistorySummary(windowed), [windowed]);
+  const firstRanked = windowed.find((point) => point.rankAfter != null);
+  const windowLabel = mode === "count"
+    ? COUNTS.find((item) => item.k === count)?.label
+    : TIMEFRAMES.find((item) => item.k === timeframe)?.label;
+  const systemLabel = SYSTEMS.find((item) => item.k === system)?.label ?? "";
+
+  const formatLines = useMemo(() => {
+    if (system !== "league" || !start || !latest) return [];
+    return visibleLeagueFormatChanges(leaguePresets, start.x - 1, latest.x, Date.now()).flatMap((marker) => {
+      const firstGameAfter = chartData.find((point) => point.kind === "game" && point.x >= marker.x);
+      const anchor = firstGameAfter ?? [...chartData].reverse().find((point) => point.kind === "game");
+      if (!anchor) return [];
+      return [{ ...marker, axisX: mode === "count" ? anchor.idx : marker.x > latest.x ? anchor.x : marker.x }];
+    });
+  }, [system, start, latest, leaguePresets, chartData, mode]);
 
   return (
     <section id="elo-history" className="mb-8 scroll-mt-24">
@@ -234,71 +294,87 @@ export function EloHistoryChart({ playerKey, leagueOnly = false, leagueSeason = 
         <TrendingUp className="size-5 text-sand" /> ELO History
       </h2>
 
-      <div className="grid sm:grid-cols-3 gap-3 mb-3">
-        <Card className="p-4 border-border/60 bg-card/70">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">Start</div>
-          <div className="font-display text-3xl text-sand mt-1 tabular-nums">
-            {start ? Math.round(start.rating - start.delta) : "—"}
-          </div>
-          <div className="text-xs text-muted-foreground mt-1">{start ? start.label : "No data"}</div>
-        </Card>
-        <Card className="p-4 border-border/60 bg-card/70">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">Latest</div>
-          <div className="font-display text-3xl text-sand mt-1 tabular-nums">
-            {latest ? Math.round(latest.rating) : "—"}
-          </div>
-          <div className="text-xs text-muted-foreground mt-1">{latest ? latest.label : "No data"}</div>
-        </Card>
-        <Card className="p-4 border-border/60 bg-card/70">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">Change</div>
-          <div
-            className={`font-display text-3xl mt-1 tabular-nums ${
-              change > 0 ? "text-emerald-400" : change < 0 ? "text-red-400" : "text-muted-foreground"
-            }`}
-          >
-            {latest ? `${change > 0 ? "+" : ""}${Math.round(change)}` : "—"}
-          </div>
-          <div className="text-xs text-muted-foreground mt-1">
-            {systemLabel} · {windowLabel}
-          </div>
-        </Card>
-      </div>
+      {metric === "rank" && system === "league" ? (
+        <div className="grid sm:grid-cols-3 gap-3 mb-3">
+          <Card className="p-4 border-border/60 bg-card/70">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">First Rank</div>
+            <div className="font-display text-3xl text-teal mt-1 tabular-nums">{ranks.first ? `#${ranks.first}` : "—"}</div>
+            <div className="text-xs text-muted-foreground mt-1">{firstRanked ? `After ${firstRanked.label}` : "No rank data"}</div>
+          </Card>
+          <Card className="p-4 border-border/60 bg-card/70">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Peak Rank</div>
+            <div className="font-display text-3xl text-teal mt-1 tabular-nums">{ranks.peak ? `#${ranks.peak}` : "—"}</div>
+            <div className="text-xs text-muted-foreground mt-1">Best after-game rank</div>
+          </Card>
+          <Card className="p-4 border-border/60 bg-card/70">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Current Rank</div>
+            <div className="font-display text-3xl text-teal mt-1 tabular-nums">{ranks.latest ? `#${ranks.latest}` : "—"}</div>
+            <div className="text-xs text-muted-foreground mt-1">League · {windowLabel}</div>
+          </Card>
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-3 gap-3 mb-3">
+          <Card className="p-4 border-border/60 bg-card/70">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Start</div>
+            <div className="font-display text-3xl text-sand mt-1 tabular-nums">{startRating != null ? Math.round(startRating) : "—"}</div>
+            <div className="text-xs text-muted-foreground mt-1">{start ? `Before ${start.label}` : "No data"}</div>
+          </Card>
+          <Card className="p-4 border-border/60 bg-card/70">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Latest</div>
+            <div className="font-display text-3xl text-sand mt-1 tabular-nums">{latest ? Math.round(latest.rating) : "—"}</div>
+            <div className="text-xs text-muted-foreground mt-1">{latest ? latest.label : "No data"}</div>
+          </Card>
+          <Card className="p-4 border-border/60 bg-card/70">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Change</div>
+            <div className={`font-display text-3xl mt-1 tabular-nums ${change > 0 ? "text-emerald-400" : change < 0 ? "text-red-400" : "text-muted-foreground"}`}>
+              {latest ? `${change > 0 ? "+" : ""}${Math.round(change)}` : "—"}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">{systemLabel} · {windowLabel}</div>
+          </Card>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <div className="inline-flex flex-wrap rounded-full border border-border/60 bg-card/60 p-0.5">
-          {SYSTEMS.filter((s) => !leagueOnly || s.k === "league").map((s) => (
-            <Pill key={s.k} active={system === s.k} onClick={() => setSystem(s.k)}>
-              {s.label}
+          {SYSTEMS.filter((item) => !leagueOnly || item.k === "league").map((item) => (
+            <Pill key={item.k} active={system === item.k} onClick={() => setSystem(item.k)}>
+              {item.label}
             </Pill>
           ))}
         </div>
+        {system === "league" && (
+          <div className="inline-flex rounded-full border border-border/60 bg-card/60 p-0.5" aria-label="League graph metric">
+            <Pill active={metric === "rating"} onClick={() => setMetric("rating")}>Rating (ELO)</Pill>
+            <Pill active={metric === "rank"} onClick={() => setMetric("rank")}>Rank after game</Pill>
+          </div>
+        )}
       </div>
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <div className="inline-flex rounded-full border border-border/60 bg-card/60 p-0.5">
-          {TIMEFRAMES.map((t) => (
+          {TIMEFRAMES.map((item) => (
             <Pill
-              key={t.k}
-              active={mode === "time" && timeframe === t.k}
+              key={item.k}
+              active={mode === "time" && timeframe === item.k}
               onClick={() => {
                 setMode("time");
-                setTimeframe(t.k);
+                setTimeframe(item.k);
               }}
             >
-              {t.label}
+              {item.label}
             </Pill>
           ))}
         </div>
         <div className="inline-flex rounded-full border border-border/60 bg-card/60 p-0.5">
-          {COUNTS.map((c) => (
+          {COUNTS.map((item) => (
             <Pill
-              key={c.k}
-              active={mode === "count" && count === c.k}
+              key={item.k}
+              active={mode === "count" && count === item.k}
               onClick={() => {
                 setMode("count");
-                setCount(c.k);
+                setCount(item.k);
               }}
             >
-              {c.label}
+              {item.label}
             </Pill>
           ))}
         </div>
@@ -308,53 +384,103 @@ export function EloHistoryChart({ playerKey, leagueOnly = false, leagueSeason = 
         {loading ? (
           <p className="text-muted-foreground text-sm py-10 text-center">Loading rating history…</p>
         ) : chartData.length === 0 ? (
-          <p className="text-muted-foreground text-sm py-10 text-center">No rated games in this window.</p>
+          <p className="text-muted-foreground text-sm py-10 text-center">
+            {metric === "rank" ? "No recorded League ranks in this window." : "No rated games in this window."}
+          </p>
         ) : (
-          <div className="h-[320px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 10, right: 12, bottom: 4, left: -12 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
-                <XAxis
-                  dataKey={mode === "count" ? "idx" : "label"}
-                  tickFormatter={(v) =>
-                    mode === "count" ? `#${Number(v) + 1}` : String(v)
-                  }
-                  tick={{ fontSize: 11 }}
-                  stroke="currentColor"
-                  className="text-muted-foreground"
-                  minTickGap={20}
-                />
-                <YAxis
-                  domain={["dataMin - 25", "dataMax + 25"]}
-                  tick={{ fontSize: 11 }}
-                  stroke="currentColor"
-                  className="text-muted-foreground"
-                  width={52}
-                />
-                <Tooltip
-                  cursor={{ stroke: "var(--border)" }}
-                  wrapperStyle={{ outline: "none", zIndex: 50 }}
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null;
-                    const p = payload[0].payload as Point;
-                    return <MatchTooltip point={p} playerKey={playerKey} system={system} />;
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="rating"
-                  stroke="var(--sand)"
-                  strokeWidth={2}
-                  dot={{ r: 2, fill: "var(--sand)" }}
-                  activeDot={{ r: 5, fill: "var(--sand)" }}
-                  isAnimationActive={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          <>
+            <div className="h-[320px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 28, right: 16, bottom: 4, left: -12 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
+                  <XAxis
+                    dataKey={mode === "count" ? "idx" : "x"}
+                    type="number"
+                    scale={mode === "count" ? "linear" : "time"}
+                    domain={mode === "count" ? [0, Math.max(1, chartData.length - 1)] : ["dataMin - 3600000", "dataMax + 3600000"]}
+                    tickFormatter={(value) => {
+                      if (mode === "time") return fmtDate(Number(value));
+                      const index = Number(value);
+                      if (metric === "rating") return index === 0 ? "Start" : `#${index}`;
+                      return `#${index + 1}`;
+                    }}
+                    tick={{ fontSize: 11 }}
+                    stroke="currentColor"
+                    className="text-muted-foreground"
+                    minTickGap={24}
+                  />
+                  <YAxis
+                    domain={metric === "rank"
+                      ? [(dataMin: number) => Math.max(1, Math.floor(dataMin - 1)), (dataMax: number) => Math.ceil(dataMax + 1)]
+                      : ["dataMin - 25", "dataMax + 25"]}
+                    reversed={metric === "rank"}
+                    allowDecimals={false}
+                    tickFormatter={(value) => metric === "rank" ? `#${value}` : String(value)}
+                    tick={{ fontSize: 11 }}
+                    stroke="currentColor"
+                    className="text-muted-foreground"
+                    width={52}
+                  />
+                  <Tooltip
+                    cursor={{ stroke: "var(--border)" }}
+                    wrapperStyle={{ outline: "none", zIndex: 50 }}
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const point = payload[0]?.payload as ChartPoint | undefined;
+                      if (!point) return null;
+                      if (point.kind === "baseline") return <BaselineTooltip point={point} />;
+                      return <MatchTooltip point={point} playerKey={playerKey} system={system} metric={metric} />;
+                    }}
+                  />
+                  {formatLines.map((marker) => (
+                    <ReferenceLine
+                      key={marker.id}
+                      x={marker.axisX}
+                      stroke="var(--teal)"
+                      strokeDasharray="4 4"
+                      strokeOpacity={0.75}
+                      label={{ value: marker.label, position: "insideTopRight", fill: "var(--teal)", fontSize: 10 }}
+                    />
+                  ))}
+                  <Line
+                    type="monotone"
+                    dataKey={metric === "rank" ? "rankAfter" : "rating"}
+                    stroke={metric === "rank" ? "var(--teal)" : "var(--sand)"}
+                    strokeWidth={2}
+                    dot={{ r: 2, fill: metric === "rank" ? "var(--teal)" : "var(--sand)" }}
+                    activeDot={{ r: 5, fill: metric === "rank" ? "var(--teal)" : "var(--sand)" }}
+                    isAnimationActive={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            {metric === "rank" && (
+              <p className="mt-2 text-xs text-muted-foreground">Rank is recorded after each of your games; rank #1 appears at the top.</p>
+            )}
+            {formatLines.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                {formatLines.map((marker) => (
+                  <span key={marker.id}>
+                    <span className="text-teal">{marker.label}</span>
+                    {marker.expansions?.length ? ` · ${marker.expansions.join(" + ")}` : ""}
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </Card>
     </section>
+  );
+}
+
+function BaselineTooltip({ point }: { point: RatingBaselinePoint }) {
+  return (
+    <div className="w-[240px] rounded-lg border border-border/60 bg-card p-3 shadow-xl">
+      <div className="text-xs uppercase tracking-wider text-muted-foreground">Start</div>
+      <div className="font-display text-2xl text-sand mt-1">{Math.round(point.rating)} ELO</div>
+      <div className="text-xs text-muted-foreground mt-1">Rating before the first game in this view.</div>
+    </div>
   );
 }
 
@@ -362,61 +488,63 @@ function MatchTooltip({
   point,
   playerKey,
   system,
+  metric,
 }: {
   point: Point;
   playerKey: string;
   system: SystemKey;
+  metric: ChartMetric;
 }) {
-  const g = point.game;
+  const game = point.game;
   const tags: string[] = [];
-  if (g.board_version) tags.push(g.board_version === "uprising" ? "Uprising" : "Base");
-  if (g.has_rise_of_ix) tags.push("Rise of Ix");
-  if (g.has_epic_mode) tags.push("Epic");
-  if (g.has_immortality) tags.push("Immortality");
-  if (g.has_base_leaders) tags.push("Base Leaders");
-  const sorted = [...g.results].sort((a, b) => a.placement - b.placement);
+  if (game.board_version) tags.push(game.board_version === "uprising" ? "Uprising" : "Base");
+  if (game.has_rise_of_ix) tags.push("Rise of Ix");
+  if (game.has_epic_mode) tags.push("Epic");
+  if (game.has_immortality) tags.push("Immortality");
+  if (game.has_base_leaders) tags.push("Base Leaders");
+  const sorted = [...game.results].sort((a, b) => a.placement - b.placement);
   const deltaLabel = `${point.delta > 0 ? "+" : ""}${Math.round(point.delta * 10) / 10}`;
 
   return (
-    <div className="w-[320px] rounded-lg border border-border/60 bg-card p-3 shadow-xl">
+    <div className="w-[320px] max-w-[calc(100vw-32px)] rounded-lg border border-border/60 bg-card p-3 shadow-xl">
       <div className="flex flex-wrap items-center gap-2 mb-2">
-        <span className="text-xs text-muted-foreground">{new Date(g.created_at).toLocaleString()}</span>
+        <span className="text-xs text-muted-foreground">{new Date(game.created_at).toLocaleString()}</span>
         <Link
           to="/match/$matchId"
-          params={{ matchId: g.public_match_id ?? g.id }}
+          params={{ matchId: game.public_match_id ?? game.id }}
           className="text-[11px] px-1.5 py-0.5 rounded border border-border/60 text-sand font-mono"
         >
-          #{g.public_match_id ?? g.id.slice(0, 8)}
+          #{game.public_match_id ?? game.id.slice(0, 8)}
         </Link>
       </div>
       <div className="flex flex-wrap gap-1 mb-2">
-        {tags.map((t) => (
-          <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary/60 text-secondary-foreground">
-            {t}
+        {tags.map((tag) => (
+          <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary/60 text-secondary-foreground">
+            {tag}
           </span>
         ))}
       </div>
       <div className="grid gap-1">
-        {sorted.map((r, i) => {
-          const isMe = r.player_name.toLowerCase().trim() === playerKey;
+        {sorted.map((result, index) => {
+          const isMe = result.player_name.toLowerCase().trim() === playerKey;
           return (
             <div
-              key={i}
+              key={index}
               className={`flex items-center justify-between gap-2 rounded px-2 py-1 text-xs ${
                 isMe ? "bg-sand/15 border border-sand/40 font-semibold" : "bg-background/40"
               }`}
             >
               <div className="flex items-center gap-2 min-w-0">
                 <span className="inline-flex size-4 items-center justify-center rounded bg-secondary/60 text-[10px] font-bold">
-                  {r.placement}
+                  {result.placement}
                 </span>
                 <span className="truncate">
-                  {r.player_name}
-                  <span className="text-muted-foreground font-normal"> · {r.leader_name ?? "—"}</span>
+                  {result.player_name}
+                  <span className="text-muted-foreground font-normal"> · {result.leader_name ?? "—"}</span>
                 </span>
               </div>
               <span className="tabular-nums flex items-center gap-1 shrink-0">
-                <span className="text-sand font-display">{r.points}</span>
+                <span className="text-sand font-display">{result.points}</span>
                 {isMe && (
                   <span className={point.delta > 0 ? "text-emerald-400" : point.delta < 0 ? "text-red-400" : "text-muted-foreground"}>
                     ({deltaLabel})
@@ -428,7 +556,13 @@ function MatchTooltip({
         })}
       </div>
       <div className="text-[10px] text-muted-foreground mt-2">
-        {SYSTEMS.find((s) => s.k === system)?.label} rating after match: {Math.round(point.rating)}
+        {metric === "rank" && point.rankAfter != null && (
+          <div className="text-teal">
+            League rank after match: #{point.rankAfter}
+            {point.rankBefore != null ? ` (was #${point.rankBefore})` : " (new on leaderboard)"}
+          </div>
+        )}
+        <div>{SYSTEMS.find((item) => item.k === system)?.label} rating after match: {Math.round(point.rating)}</div>
       </div>
     </div>
   );
