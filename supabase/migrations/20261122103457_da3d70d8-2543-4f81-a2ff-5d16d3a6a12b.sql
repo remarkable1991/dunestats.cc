@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "LFG admins view presets" ON public.league_presets;
