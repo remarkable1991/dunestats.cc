@@ -14,6 +14,9 @@ import {
 } from "recharts";
 import { TrendingUp } from "lucide-react";
 import {
+  leaguePresetSeason,
+  leagueSeasonParts,
+  pointsInLeaguePeriod,
   rankHistorySummary,
   visibleLeagueFormatChanges,
   withRatingBaseline,
@@ -130,6 +133,21 @@ export function EloHistoryChart({ playerKey, leagueOnly = false, leagueSeason = 
   const [count, setCount] = useState("25");
   const [leagueDeltas, setLeagueDeltas] = useState<LeagueDelta[]>([]);
   const [leaguePresets, setLeaguePresets] = useState<LeagueFormatPreset[]>([]);
+  const [leaguePart, setLeaguePart] = useState("all");
+
+  const activeLeagueSeason = useMemo(() => {
+    if (leagueSeason != null) return leagueSeason;
+    const seasons = leagueDeltas.map((delta) => delta.season).filter(Number.isFinite);
+    if (seasons.length) return Math.max(...seasons);
+    const now = Date.now();
+    const currentPreset = [...leaguePresets].reverse().find((preset) => new Date(preset.start_date).getTime() <= now);
+    return currentPreset ? leaguePresetSeason(currentPreset.name) : null;
+  }, [leagueSeason, leagueDeltas, leaguePresets]);
+  const leaguePeriods = useMemo(
+    () => leagueSeasonParts(leaguePresets, activeLeagueSeason),
+    [leaguePresets, activeLeagueSeason],
+  );
+  const activePeriod = leaguePeriods.find((period) => period.key === leaguePart) ?? null;
 
   useEffect(() => {
     if (leagueOnly) setSystem("league");
@@ -141,6 +159,10 @@ export function EloHistoryChart({ playerKey, leagueOnly = false, leagueSeason = 
   }, [system]);
 
   useEffect(() => {
+    setLeaguePart("all");
+  }, [system, activeLeagueSeason]);
+
+  useEffect(() => {
     let mounted = true;
     void Promise.all([
       supabase
@@ -150,7 +172,7 @@ export function EloHistoryChart({ playerKey, leagueOnly = false, leagueSeason = 
         .limit(2000),
       supabase
         .from("league_presets")
-        .select("id, name, start_date, expansions")
+        .select("id, name, start_date, end_date, expansions")
         .order("start_date", { ascending: true }),
     ]).then(([deltas, presets]) => {
       if (!mounted) return;
@@ -219,7 +241,7 @@ export function EloHistoryChart({ playerKey, leagueOnly = false, leagueSeason = 
     });
     const leagueMap = new Map<string, LeagueDelta>();
     for (const delta of leagueDeltas) {
-      if (leagueSeason != null && delta.season !== leagueSeason) continue;
+      if (activeLeagueSeason != null && delta.season !== activeLeagueSeason) continue;
       leagueMap.set(delta.game_id, delta);
     }
     let rating = BASELINE;
@@ -247,9 +269,10 @@ export function EloHistoryChart({ playerKey, leagueOnly = false, leagueSeason = 
       });
     }
     return points;
-  }, [games, system, vpDeltas, playerKey, leagueDeltas, leagueSeason]);
+  }, [games, system, vpDeltas, playerKey, leagueDeltas, activeLeagueSeason]);
 
   const windowed = useMemo(() => {
+    if (system === "league" && activePeriod) return pointsInLeaguePeriod(series, activePeriod);
     if (mode === "count") {
       const n = COUNTS.find((item) => item.k === count)?.n ?? null;
       return n ? series.slice(-n) : series;
@@ -258,7 +281,7 @@ export function EloHistoryChart({ playerKey, leagueOnly = false, leagueSeason = 
     if (!days) return series;
     const cutoff = Date.now() - days * 86400000;
     return series.filter((point) => point.x >= cutoff);
-  }, [series, mode, timeframe, count]);
+  }, [series, system, activePeriod, mode, timeframe, count]);
 
   const chartData = useMemo<ChartPoint[]>(() => {
     const points = metric === "rank"
@@ -273,20 +296,21 @@ export function EloHistoryChart({ playerKey, leagueOnly = false, leagueSeason = 
   const change = start && latest && startRating != null ? latest.rating - startRating : 0;
   const ranks = useMemo(() => rankHistorySummary(windowed), [windowed]);
   const firstRanked = windowed.find((point) => point.rankAfter != null);
-  const windowLabel = mode === "count"
+  const windowLabel = activePeriod?.label ?? (mode === "count"
     ? COUNTS.find((item) => item.k === count)?.label
-    : TIMEFRAMES.find((item) => item.k === timeframe)?.label;
+    : TIMEFRAMES.find((item) => item.k === timeframe)?.label);
   const systemLabel = SYSTEMS.find((item) => item.k === system)?.label ?? "";
 
   const formatLines = useMemo(() => {
     if (system !== "league" || !start || !latest) return [];
-    return visibleLeagueFormatChanges(leaguePresets, start.x - 1, latest.x, Date.now()).flatMap((marker) => {
+    const effectiveNow = activePeriod ? Math.min(Date.now(), activePeriod.end - 1) : Date.now();
+    return visibleLeagueFormatChanges(leaguePresets, start.x - 1, latest.x, effectiveNow).flatMap((marker) => {
       const firstGameAfter = chartData.find((point) => point.kind === "game" && point.x >= marker.x);
       const anchor = firstGameAfter ?? [...chartData].reverse().find((point) => point.kind === "game");
       if (!anchor) return [];
       return [{ ...marker, axisX: mode === "count" ? anchor.idx : marker.x > latest.x ? anchor.x : marker.x }];
     });
-  }, [system, start, latest, leaguePresets, chartData, mode]);
+  }, [system, start, latest, leaguePresets, chartData, mode, activePeriod]);
 
   return (
     <section id="elo-history" className="mb-8 scroll-mt-24">
@@ -349,36 +373,51 @@ export function EloHistoryChart({ playerKey, leagueOnly = false, leagueSeason = 
           </div>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <div className="inline-flex rounded-full border border-border/60 bg-card/60 p-0.5">
-          {TIMEFRAMES.map((item) => (
-            <Pill
-              key={item.k}
-              active={mode === "time" && timeframe === item.k}
-              onClick={() => {
-                setMode("time");
-                setTimeframe(item.k);
-              }}
-            >
-              {item.label}
-            </Pill>
-          ))}
+      {system === "league" && leaguePeriods.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <span className="text-xs uppercase tracking-wider text-muted-foreground">League period</span>
+          <div className="inline-flex flex-wrap rounded-full border border-border/60 bg-card/60 p-0.5" aria-label="League season part">
+            <Pill active={leaguePart === "all"} onClick={() => setLeaguePart("all")}>All Season</Pill>
+            {leaguePeriods.map((period) => (
+              <Pill key={period.key} active={leaguePart === period.key} onClick={() => setLeaguePart(period.key)}>
+                {period.label}
+              </Pill>
+            ))}
+          </div>
         </div>
-        <div className="inline-flex rounded-full border border-border/60 bg-card/60 p-0.5">
-          {COUNTS.map((item) => (
-            <Pill
-              key={item.k}
-              active={mode === "count" && count === item.k}
-              onClick={() => {
-                setMode("count");
-                setCount(item.k);
-              }}
-            >
-              {item.label}
-            </Pill>
-          ))}
+      )}
+      {!activePeriod && (
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <div className="inline-flex flex-wrap rounded-full border border-border/60 bg-card/60 p-0.5">
+            {TIMEFRAMES.map((item) => (
+              <Pill
+                key={item.k}
+                active={mode === "time" && timeframe === item.k}
+                onClick={() => {
+                  setMode("time");
+                  setTimeframe(item.k);
+                }}
+              >
+                {item.label}
+              </Pill>
+            ))}
+          </div>
+          <div className="inline-flex flex-wrap rounded-full border border-border/60 bg-card/60 p-0.5">
+            {COUNTS.map((item) => (
+              <Pill
+                key={item.k}
+                active={mode === "count" && count === item.k}
+                onClick={() => {
+                  setMode("count");
+                  setCount(item.k);
+                }}
+              >
+                {item.label}
+              </Pill>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <Card className="p-4 border-border/60 bg-card/70">
         {loading ? (

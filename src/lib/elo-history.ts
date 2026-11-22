@@ -45,11 +45,55 @@ export type LeagueFormatPreset = {
   id: number;
   name: string;
   start_date: string;
+  end_date: string;
   expansions: string[] | null;
 };
 
+export type LeaguePeriod = {
+  key: string;
+  id: number;
+  label: string;
+  start: number;
+  end: number;
+};
+
+export function leaguePresetSeason(name: string): number | null {
+  const match = name.match(/^Season\s+(\d+)\b/i);
+  return match?.[1] ? Number(match[1]) : null;
+}
+
 export function formatChangeLabel(name: string): string {
   return name.replace(/^Season\s+\d+\s*[-–—:]?\s*/i, "").trim() || name;
+}
+
+/** Builds consecutive, end-exclusive format periods for one League season. */
+export function leagueSeasonParts(
+  presets: readonly LeagueFormatPreset[],
+  season: number | null,
+): LeaguePeriod[] {
+  if (season == null) return [];
+  const chronological = presets
+    .filter((preset) => leaguePresetSeason(preset.name) === season)
+    .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime() || a.id - b.id);
+  return chronological.flatMap((preset, index) => {
+    const start = new Date(preset.start_date).getTime();
+    const end = new Date(chronological[index + 1]?.start_date ?? preset.end_date).getTime();
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return [];
+    return [{
+      key: String(preset.id),
+      id: preset.id,
+      label: formatChangeLabel(preset.name),
+      start,
+      end,
+    }];
+  });
+}
+
+export function pointsInLeaguePeriod<T extends { x: number }>(
+  points: readonly T[],
+  period: LeaguePeriod,
+): T[] {
+  return points.filter((point) => point.x >= period.start && point.x < period.end);
 }
 
 /** Returns real preset transitions, excluding the initial preset and changes outside the visible games. */
