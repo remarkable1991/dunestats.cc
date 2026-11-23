@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
@@ -23,26 +23,12 @@ import {
   winterPrizePlaces,
   type RecruitEdition,
 } from "@/lib/recruitment";
+import { useSearchState } from "@/lib/url-state";
+import { activeRecruitEdition, parseRewardsPath, rewardsHead, rewardsSplat, type RewardsTab } from "@/lib/rewards-path";
 
-export const Route = createFileRoute("/rewards")({
-  head: () => ({
-    meta: [
-      { title: "Rewards ledger · Strategy Arena" },
-      {
-        name: "description",
-        content:
-          "Seasonal and lifetime Rewards ranking plus the recruiter competition leaderboard. Earned by playing, uploading, verifying, competing and recruiting.",
-      },
-      { property: "og:title", content: "Rewards ledger · Strategy Arena" },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      {
-        property: "og:description",
-        content:
-          "Seasonal, lifetime and recruiter reward rankings — separate from Elo.",
-      },
-    ],
-  }),
+export const Route = createFileRoute("/rewards/$")({
+  validateSearch: (search: Record<string, unknown>) => search,
+  head: ({ params }) => rewardsHead(params._splat),
   component: RewardsPage,
 });
 
@@ -58,14 +44,28 @@ type SpRow = {
 type Season = { id: number; name: string; starts_at: string; ends_at: string };
 
 function RewardsPage() {
+  const navigate = useNavigate();
+  const path = parseRewardsPath(Route.useParams()._splat);
+  const tab = path.tab;
   const [rows, setRows] = useState<SpRow[]>([]);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"seasonal" | "lifetime" | "recruiters">("seasonal");
-  const [unclaimedOnly, setUnclaimedOnly] = useState(false);
-  const [q, setQ] = useState("");
-  const [seasonId, setSeasonId] = useState<number | null>(null);
+  const [unclaimedOnly, setUnclaimedOnly] = useSearchState<boolean>("unclaimed", false);
+  const [q, setQ] = useSearchState<string>("q", "");
   const [seasonSp, setSeasonSp] = useState<Map<string, number>>(new Map());
+
+  const goTo = (nextTab: RewardsTab, nextSeasonId?: number | null, nextEditionId?: RecruitEdition["id"] | null) => {
+    void navigate({
+      to: "/rewards/$",
+      params: { _splat: rewardsSplat(nextTab, nextSeasonId, nextEditionId) },
+      search: (prev: Record<string, unknown>) => prev,
+      replace: true,
+      resetScroll: false,
+    });
+  };
+  const setTab = (nextTab: RewardsTab) => {
+    goTo(nextTab, nextTab === "seasonal" ? path.seasonId : null, nextTab === "recruiters" ? path.editionId : null);
+  };
 
   useEffect(() => {
     (async () => {
@@ -122,9 +122,10 @@ function RewardsPage() {
     );
   }, [seasons]);
 
-  useEffect(() => {
-    if (seasonId == null && currentSeason) setSeasonId(currentSeason.id);
-  }, [currentSeason, seasonId]);
+  const seasonId =
+    path.tab === "seasonal" && path.seasonId != null && seasons.some((season) => season.id === path.seasonId)
+      ? path.seasonId
+      : (currentSeason?.id ?? null);
 
   useEffect(() => {
     if (seasonId == null) return;
@@ -180,7 +181,7 @@ function RewardsPage() {
           Uploading a match and verifying it give the <span className="text-foreground">identical</span> reward.
         </p>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as RewardsTab)}>
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <TabsList className="bg-card/60 border border-border/60">
               <TabsTrigger value="seasonal" className="data-[state=active]:bg-sand data-[state=active]:text-sand-foreground">
@@ -218,7 +219,7 @@ function RewardsPage() {
                 <select
                   aria-label="Season"
                   value={seasonId ?? ""}
-                  onChange={(e) => setSeasonId(Number(e.target.value))}
+                  onChange={(e) => goTo("seasonal", Number(e.target.value))}
                   className="h-8 rounded-md border border-border/60 bg-card/60 px-2 text-xs"
                 >
                   {startedSeasons.map((s) => (
@@ -239,7 +240,10 @@ function RewardsPage() {
           </TabsContent>
 
           <TabsContent value="recruiters">
-            <RecruiterBoard />
+            <RecruiterBoard
+              editionId={path.editionId ?? activeRecruitEdition().id}
+              onEditionChange={(editionId) => goTo("recruiters", null, editionId)}
+            />
           </TabsContent>
         </Tabs>
 
@@ -337,8 +341,13 @@ type LeaderboardRow = {
   total_qualifying_events: number;
 };
 
-function RecruiterBoard() {
-  const [editionId, setEditionId] = useState<RecruitEdition["id"]>("winter-2026");
+function RecruiterBoard({
+  editionId,
+  onEditionChange,
+}: {
+  editionId: RecruitEdition["id"];
+  onEditionChange: (editionId: RecruitEdition["id"]) => void;
+}) {
   const edition = RECRUIT_EDITIONS.find((e) => e.id === editionId) ?? RECRUIT_EDITIONS[0]!;
   const status = editionStatus(edition);
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
@@ -403,7 +412,7 @@ function RecruiterBoard() {
             <button
               key={e.id}
               type="button"
-              onClick={() => setEditionId(e.id)}
+              onClick={() => onEditionChange(e.id)}
               className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
                 e.id === editionId
                   ? "bg-sand text-sand-foreground border-sand"

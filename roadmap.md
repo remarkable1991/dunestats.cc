@@ -1,6 +1,6 @@
-# Profile graph improvements
+# Direct reward links
 
-- [x] Add a baseline point before the first visible game, matching the Start summary.
-- [x] Mark League format changes on the rating graph.
-- [x] Add an after-game League rank graph with rank-specific summaries.
-- [x] Test graph calculations and verify desktop/mobile profile behavior.
+- [x] Add seasonal, lifetime, recruiter-edition and season-specific URLs with aliases.
+- [x] Synchronize tabs, season/edition selection, search and unclaimed filters with the URL.
+- [x] Add view-specific metadata and preserve the existing `/rewards` link.
+- [x] Test path parsing and verify direct links and navigation in the browser.

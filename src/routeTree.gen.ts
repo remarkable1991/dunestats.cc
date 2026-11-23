@@ -18,7 +18,6 @@ import { Route as MatchesRouteImport } from './routes/matches'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as RewardsRouteImport } from './routes/rewards'
 import { Route as SandboxRouteImport } from './routes/sandbox'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SupportRouteImport } from './routes/support'
@@ -44,6 +43,8 @@ import { Route as LfgIdRouteImport } from './routes/lfg_.$id'
 import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
 import { Route as PlayersKeyRouteImport } from './routes/players.$key'
 import { Route as RUsernameRouteImport } from './routes/r.$username'
+import { Route as RewardsIndexRouteImport } from './routes/rewards.index'
+import { Route as RewardsSplatRouteImport } from './routes/rewards.$'
 import { Route as SeasonTournamentSeasonRouteImport } from './routes/season-tournament.$season'
 import { Route as StatsIndexRouteImport } from './routes/stats.index'
 import { Route as StatsSplatRouteImport } from './routes/stats.$'
@@ -97,11 +98,6 @@ const ProfileRoute = ProfileRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RewardsRoute = RewardsRouteImport.update({
-  id: '/rewards',
-  path: '/rewards',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SandboxRoute = SandboxRouteImport.update({
@@ -229,6 +225,16 @@ const RUsernameRoute = RUsernameRouteImport.update({
   path: '/r/$username',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RewardsIndexRoute = RewardsIndexRouteImport.update({
+  id: '/rewards/',
+  path: '/rewards/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RewardsSplatRoute = RewardsSplatRouteImport.update({
+  id: '/rewards/$',
+  path: '/rewards/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SeasonTournamentSeasonRoute = SeasonTournamentSeasonRouteImport.update({
   id: '/season-tournament/$season',
   path: '/season-tournament/$season',
@@ -287,7 +293,6 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/rewards': typeof RewardsRoute
   '/sandbox': typeof SandboxRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/support': typeof SupportRoute
@@ -312,11 +317,13 @@ export interface FileRoutesByFullPath {
   '/match/$matchId': typeof MatchMatchIdRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
+  '/rewards/$': typeof RewardsSplatRoute
   '/season-tournament/$season': typeof SeasonTournamentSeasonRoute
   '/stats/$': typeof StatsSplatRoute
   '/tournament-register/$num': typeof TournamentRegisterNumRoute
   '/tournament/$num': typeof TournamentNumRoute
   '/leaderboard/': typeof LeaderboardIndexRoute
+  '/rewards/': typeof RewardsIndexRoute
   '/stats/': typeof StatsIndexRoute
   '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
   '/tournament/$num/$table': typeof TournamentNumTableRoute
@@ -333,7 +340,6 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/rewards': typeof RewardsRoute
   '/sandbox': typeof SandboxRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/support': typeof SupportRoute
@@ -358,11 +364,13 @@ export interface FileRoutesByTo {
   '/match/$matchId': typeof MatchMatchIdRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
+  '/rewards/$': typeof RewardsSplatRoute
   '/season-tournament/$season': typeof SeasonTournamentSeasonRoute
   '/stats/$': typeof StatsSplatRoute
   '/tournament-register/$num': typeof TournamentRegisterNumRoute
   '/tournament/$num': typeof TournamentNumRoute
   '/leaderboard': typeof LeaderboardIndexRoute
+  '/rewards': typeof RewardsIndexRoute
   '/stats': typeof StatsIndexRoute
   '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
   '/tournament/$num/$table': typeof TournamentNumTableRoute
@@ -380,7 +388,6 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/rewards': typeof RewardsRoute
   '/sandbox': typeof SandboxRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/support': typeof SupportRoute
@@ -405,11 +412,13 @@ export interface FileRoutesById {
   '/match/$matchId': typeof MatchMatchIdRoute
   '/players/$key': typeof PlayersKeyRoute
   '/r/$username': typeof RUsernameRoute
+  '/rewards/$': typeof RewardsSplatRoute
   '/season-tournament/$season': typeof SeasonTournamentSeasonRoute
   '/stats/$': typeof StatsSplatRoute
   '/tournament-register_/$num': typeof TournamentRegisterNumRoute
   '/tournament_/$num': typeof TournamentNumRoute
   '/leaderboard/': typeof LeaderboardIndexRoute
+  '/rewards/': typeof RewardsIndexRoute
   '/stats/': typeof StatsIndexRoute
   '/leaders/$origin/$slug': typeof LeadersOriginSlugRoute
   '/tournament_/$num_/$table': typeof TournamentNumTableRoute
@@ -428,7 +437,6 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/reset-password'
-    | '/rewards'
     | '/sandbox'
     | '/sitemap.xml'
     | '/support'
@@ -453,11 +461,13 @@ export interface FileRouteTypes {
     | '/match/$matchId'
     | '/players/$key'
     | '/r/$username'
+    | '/rewards/$'
     | '/season-tournament/$season'
     | '/stats/$'
     | '/tournament-register/$num'
     | '/tournament/$num'
     | '/leaderboard/'
+    | '/rewards/'
     | '/stats/'
     | '/leaders/$origin/$slug'
     | '/tournament/$num/$table'
@@ -474,7 +484,6 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/reset-password'
-    | '/rewards'
     | '/sandbox'
     | '/sitemap.xml'
     | '/support'
@@ -499,11 +508,13 @@ export interface FileRouteTypes {
     | '/match/$matchId'
     | '/players/$key'
     | '/r/$username'
+    | '/rewards/$'
     | '/season-tournament/$season'
     | '/stats/$'
     | '/tournament-register/$num'
     | '/tournament/$num'
     | '/leaderboard'
+    | '/rewards'
     | '/stats'
     | '/leaders/$origin/$slug'
     | '/tournament/$num/$table'
@@ -520,7 +531,6 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/reset-password'
-    | '/rewards'
     | '/sandbox'
     | '/sitemap.xml'
     | '/support'
@@ -545,11 +555,13 @@ export interface FileRouteTypes {
     | '/match/$matchId'
     | '/players/$key'
     | '/r/$username'
+    | '/rewards/$'
     | '/season-tournament/$season'
     | '/stats/$'
     | '/tournament-register_/$num'
     | '/tournament_/$num'
     | '/leaderboard/'
+    | '/rewards/'
     | '/stats/'
     | '/leaders/$origin/$slug'
     | '/tournament_/$num_/$table'
@@ -567,7 +579,6 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
-  RewardsRoute: typeof RewardsRoute
   SandboxRoute: typeof SandboxRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SupportRoute: typeof SupportRoute
@@ -592,11 +603,13 @@ export interface RootRouteChildren {
   MatchMatchIdRoute: typeof MatchMatchIdRoute
   PlayersKeyRoute: typeof PlayersKeyRoute
   RUsernameRoute: typeof RUsernameRoute
+  RewardsSplatRoute: typeof RewardsSplatRoute
   SeasonTournamentSeasonRoute: typeof SeasonTournamentSeasonRoute
   StatsSplatRoute: typeof StatsSplatRoute
   TournamentRegisterNumRoute: typeof TournamentRegisterNumRoute
   TournamentNumRoute: typeof TournamentNumRoute
   LeaderboardIndexRoute: typeof LeaderboardIndexRoute
+  RewardsIndexRoute: typeof RewardsIndexRoute
   StatsIndexRoute: typeof StatsIndexRoute
   LeadersOriginSlugRoute: typeof LeadersOriginSlugRoute
   TournamentNumTableRoute: typeof TournamentNumTableRoute
@@ -667,13 +680,6 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/rewards': {
-      id: '/rewards'
-      path: '/rewards'
-      fullPath: '/rewards'
-      preLoaderRoute: typeof RewardsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sandbox': {
@@ -851,6 +857,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RUsernameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rewards/': {
+      id: '/rewards/'
+      path: '/rewards'
+      fullPath: '/rewards/'
+      preLoaderRoute: typeof RewardsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rewards/$': {
+      id: '/rewards/$'
+      path: '/rewards/$'
+      fullPath: '/rewards/$'
+      preLoaderRoute: typeof RewardsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/season-tournament/$season': {
       id: '/season-tournament/$season'
       path: '/season-tournament/$season'
@@ -927,7 +947,6 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   ResetPasswordRoute: ResetPasswordRoute,
-  RewardsRoute: RewardsRoute,
   SandboxRoute: SandboxRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SupportRoute: SupportRoute,
@@ -952,11 +971,13 @@ const rootRouteChildren: RootRouteChildren = {
   MatchMatchIdRoute: MatchMatchIdRoute,
   PlayersKeyRoute: PlayersKeyRoute,
   RUsernameRoute: RUsernameRoute,
+  RewardsSplatRoute: RewardsSplatRoute,
   SeasonTournamentSeasonRoute: SeasonTournamentSeasonRoute,
   StatsSplatRoute: StatsSplatRoute,
   TournamentRegisterNumRoute: TournamentRegisterNumRoute,
   TournamentNumRoute: TournamentNumRoute,
   LeaderboardIndexRoute: LeaderboardIndexRoute,
+  RewardsIndexRoute: RewardsIndexRoute,
   StatsIndexRoute: StatsIndexRoute,
   LeadersOriginSlugRoute: LeadersOriginSlugRoute,
   TournamentNumTableRoute: TournamentNumTableRoute,
