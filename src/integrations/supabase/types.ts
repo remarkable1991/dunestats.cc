@@ -2377,6 +2377,19 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_recruitment_leaderboard_window: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          image_upload_count: number
+          player_key: string
+          prize_rank: number
+          referral_jackpot_count: number
+          referral_signup_count: number
+          total_points: number
+          total_qualifying_events: number
+          user_id: string
+        }[]
+      }
       get_user_notifications: { Args: { p_user_id: string }; Returns: Json }
       has_role: {
         Args: {

@@ -12,6 +12,17 @@ import { SpLearnMore } from "@/components/SpLearnMore";
 import { Sparkles, CheckCircle2, HelpCircle, Gift, Trophy, ImageIcon, UserPlus, Coins } from "lucide-react";
 import { titleColor } from "@/lib/player-title";
 import { SeasonPrizePool } from "@/components/SeasonTournament";
+import { CalendarDays, Package } from "lucide-react";
+import {
+  RECRUIT_EDITIONS,
+  SUMMER_PRIZES,
+  WINTER_GRAND_PRIZE,
+  WINTER_PACKAGES,
+  WINTER_STRETCH_GOALS,
+  editionStatus,
+  winterPrizePlaces,
+  type RecruitEdition,
+} from "@/lib/recruitment";
 
 export const Route = createFileRoute("/rewards")({
   head: () => ({
@@ -327,6 +338,9 @@ type LeaderboardRow = {
 };
 
 function RecruiterBoard() {
+  const [editionId, setEditionId] = useState<RecruitEdition["id"]>("winter-2026");
+  const edition = RECRUIT_EDITIONS.find((e) => e.id === editionId) ?? RECRUIT_EDITIONS[0]!;
+  const status = editionStatus(edition);
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [lifetimeSp, setLifetimeSp] = useState<Record<string, number>>({});
@@ -340,7 +354,7 @@ function RecruiterBoard() {
         { data: ratings, error: ratingsError },
         { data: spRows, error: spError },
       ] = await Promise.all([
-        supabase.rpc("get_recruitment_leaderboard"),
+        supabase.rpc("get_recruitment_leaderboard_window", { p_start: edition.start, p_end: edition.end }),
         supabase
           .from("player_ratings")
           .select("player_key, display_name")
@@ -363,7 +377,10 @@ function RecruiterBoard() {
       setRows((lb ?? []) as LeaderboardRow[]);
       setLoading(false);
     })();
-  }, []);
+  }, [edition.start, edition.end]);
+
+  const communityPoints = useMemo(() => rows.reduce((t, r) => t + Number(r.total_points), 0), [rows]);
+  const prizePlaces = edition.id === "winter-2026" ? winterPrizePlaces(communityPoints) : 3;
 
   const displayRows = useMemo(
     () =>
@@ -375,14 +392,47 @@ function RecruiterBoard() {
       })),
     [rows, names, lifetimeSp],
   );
+  const goalMax = WINTER_STRETCH_GOALS[WINTER_STRETCH_GOALS.length - 1]!.points;
 
   return (
     <div>
+      <div className="flex flex-wrap gap-2 mb-4">
+        {RECRUIT_EDITIONS.map((e) => {
+          const st = editionStatus(e);
+          return (
+            <button
+              key={e.id}
+              type="button"
+              onClick={() => setEditionId(e.id)}
+              className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                e.id === editionId
+                  ? "bg-sand text-sand-foreground border-sand"
+                  : "border-border/60 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {e.label}
+              <span className="ml-1.5 text-xs opacity-80">
+                {st === "active" ? "· Live" : st === "finished" ? "· History" : "· Soon"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <Card className="p-5 sm:p-6 mb-6 border-border/60 bg-card/70 shadow-arena">
         <div className="flex flex-col gap-4">
-          <h2 className="font-display text-xl">Recruiter Competition</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-display text-xl">Recruiter Competition — {edition.label}</h2>
+            <Badge variant="outline" className="gap-1">
+              <CalendarDays className="size-3" /> {edition.periodLabel}
+            </Badge>
+            {status === "finished" && <Badge variant="secondary">Final standings</Badge>}
+            {status === "active" && <Badge className="bg-teal text-background">Live</Badge>}
+          </div>
           <p className="text-muted-foreground">
-            To kick off this new chapter, we are introducing a competitive reward track for our most effective recruiters running until September 1st!
+            {edition.id === "summer-2026"
+              ? "Our first recruiter competition, recorded from July 1 until September 1, 2026. These are the final results."
+              : "Recruit new players until the end of the year! Only points earned between November 23 and December 31, 2026 (23:59 UTC) count."}
           </p>
           <ul className="space-y-2 text-sm">
             <li className="flex items-start gap-3">
@@ -409,13 +459,71 @@ function RecruiterBoard() {
               <Gift className="size-4 text-sand" />
               <strong className="text-foreground">The Prizes</strong>
             </div>
-            <p className="text-sm text-muted-foreground">
-              The Top 3 Recruiters at the end of the event win a digital Steam key (1st choice down to 3rd)!
-              <br />
-              Choices: <span className="text-foreground">Wingspan</span> |{" "}
-              <span className="text-foreground">Terraforming Mars</span> |{" "}
-              <span className="text-foreground">Dune: Imperium</span>
-            </p>
+            {edition.id === "summer-2026" ? (
+              <p className="text-sm text-muted-foreground">
+                The Top 3 Recruiters won a digital Steam key (1st choice down to 3rd)!
+                <br />
+                Choices: {SUMMER_PRIZES.map((p, i) => (
+                  <span key={p}>
+                    {i > 0 && " | "}
+                    <span className="text-foreground">{p}</span>
+                  </span>
+                ))}
+              </p>
+            ) : (
+              <div className="space-y-4 text-sm">
+                <p className="text-muted-foreground">
+                  Winners pick in order: 1st place picks first, then 2nd, and so on. Currently{" "}
+                  <strong className="text-foreground">top {prizePlaces}</strong> win a prize.
+                </p>
+                <div className="rounded-lg border border-sand/40 bg-sand/10 p-3 flex items-start gap-3">
+                  <Package className="size-5 text-sand shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-medium text-foreground">Grand prize</div>
+                    <div className="text-muted-foreground">{WINTER_GRAND_PRIZE}</div>
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {WINTER_PACKAGES.map((pk) => (
+                    <details key={pk.name} className="rounded-lg border border-border/60 bg-secondary/20 p-3">
+                      <summary className="cursor-pointer">
+                        <span className="font-medium text-foreground">{pk.name}</span>{" "}
+                        <span className="text-xs text-muted-foreground">({pk.value} Steam keys)</span>
+                      </summary>
+                      <p className="mt-2 text-muted-foreground">{pk.blurb}</p>
+                      <ul className="mt-2 list-disc pl-5 space-y-1 text-muted-foreground">
+                        {pk.items.map((it) => (
+                          <li key={it}>{it}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  ))}
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>Community stretch goals</span>
+                    <span className="tabular-nums">{communityPoints} / {goalMax} pts</span>
+                  </div>
+                  <div className="relative h-3 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-sand transition-all"
+                      style={{ width: `${Math.min(100, (communityPoints / goalMax) * 100)}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {WINTER_STRETCH_GOALS.map((g) => {
+                      const hit = communityPoints >= g.points;
+                      return (
+                        <Badge key={g.points} variant={hit ? "default" : "outline"} className={hit ? "bg-teal text-background" : ""}>
+                          {hit ? <CheckCircle2 className="size-3 mr-1" /> : null}
+                          {g.points} pts → {g.place}th place prize {hit ? "unlocked" : "locked"}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </Card>
@@ -444,13 +552,13 @@ function RecruiterBoard() {
               {!loading && displayRows.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                    No recruiters on the board yet. Start recruiting!
+                    {status === "finished" ? "No recruiters recorded." : "No recruiters on the board yet. Start recruiting!"}
                   </td>
                 </tr>
               )}
               {!loading &&
                 displayRows.map((r) => {
-                  const isTopThree = r.prize_rank != null && r.prize_rank <= 3;
+                  const isTopThree = r.prize_rank != null && r.prize_rank <= prizePlaces;
                   const medal =
                     r.prize_rank === 1
                       ? "bg-sand text-sand-foreground"
