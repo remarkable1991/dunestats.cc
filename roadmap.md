@@ -1,6 +1,6 @@
-# Direct reward links
+# Match-linking and uploader fixes
 
-- [x] Add seasonal, lifetime, recruiter-edition and season-specific URLs with aliases.
-- [x] Synchronize tabs, season/edition selection, search and unclaimed filters with the URL.
-- [x] Add view-specific metadata and preserve the existing `/rewards` link.
-- [x] Test path parsing and verify direct links and navigation in the browser.
+- [ ] Clear lobby links and restore waiting-for-result state when a match is deleted; clean existing stale links.
+- [ ] Resolve uploaders through claimed ratings, Discord mappings, then account profiles.
+- [ ] Require an explicit League lobby confirmation or “None of these” before submitting ambiguous uploads.
+- [ ] Run focused tests, typecheck/build checks, and browser verification.
