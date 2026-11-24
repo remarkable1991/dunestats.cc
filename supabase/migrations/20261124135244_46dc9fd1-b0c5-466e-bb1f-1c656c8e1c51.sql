@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.clear_lobby_link_before_game_delete() FROM PUBLIC, anon, authenticated;

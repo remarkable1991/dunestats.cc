@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteGame } from "@/lib/games.functions";
+import { resolveUploaderNames } from "@/lib/uploader-names";
 import { toast } from "sonner";
 import { Youtube, ListOrdered, Search, Trash2, Loader2, Shield, ChevronLeft, ChevronRight } from "lucide-react";
 import { ScreenshotButton } from "@/components/ScreenshotButton";
@@ -180,17 +181,12 @@ function MatchesPage() {
       new Set(rows.map((g) => g.created_by).filter((v): v is string => !!v)),
     );
     if (ids.length) {
-      const { data: prs } = await supabase
-        .from("player_ratings")
-        .select("claimed_by, display_name, games_played")
-        .in("claimed_by", ids);
-      const map: Record<string, string> = {};
-      (prs ?? []).forEach((p) => {
-        if (!p.claimed_by || !p.display_name) return;
-        const existing = map[p.claimed_by];
-        // Prefer the display_name with the most games (most representative)
-        if (!existing) map[p.claimed_by] = p.display_name;
-      });
+      const [{ data: prs }, { data: maps }, { data: profs }] = await Promise.all([
+        supabase.from("player_ratings").select("claimed_by, display_name, games_played").in("claimed_by", ids),
+        supabase.from("player_discord_map").select("claimed_by, display_name, player_key").in("claimed_by", ids),
+        supabase.from("profiles").select("id, username").in("id", ids),
+      ]);
+      const map = resolveUploaderNames(prs ?? [], maps ?? [], profs ?? []);
       setUploaders(map);
     } else {
       setUploaders({});

@@ -286,6 +286,10 @@ function UploadPage() {
     const bad = rows.filter((r) => !isCanonicalLeader(r.leader_name));
     if (bad.length) return toast.error("Unrecognized leader — pick a valid leader from the dropdown for the highlighted row(s).");
     if (!userId) return toast.error("Sign in to submit");
+    if (leagueLobby && !leagueLobby.confirmed) {
+      document.getElementById("league-lobby-choice")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return toast.error("Choose which League lobby this match belongs to, or pick “None of these”, before submitting.");
+    }
     const dupLeaders = duplicateLeaders(rows.map((r) => r.leader_name));
     if (dupLeaders.length && !confirm(`The same leader is listed more than once (${dupLeaders.join(", ")}). Submit anyway? The match will be marked "Needs review".`)) return;
 
@@ -414,7 +418,7 @@ function UploadPage() {
           <strong className="text-foreground">Safest way to report a League game:</strong> upload directly on its lobby page. The lobby page links the match immediately without confusing it with another open lobby.
         </div>
         {leagueLobby && (
-          <Card className="mb-6 p-4 border-primary/50 bg-primary/10 space-y-4">
+          <Card id="league-lobby-choice" className="mb-6 p-4 border-primary/50 bg-primary/10 space-y-4">
             <div className="flex flex-wrap items-center gap-3">
               <Trophy className="size-5 text-primary" />
               <div className="flex-1 min-w-[220px] text-sm">
@@ -805,6 +809,9 @@ function UploadPage() {
                     </label>
                   </div>
                 )}
+                {leagueLobby && !leagueLobby.confirmed && (
+                  <p className="mt-4 rounded border border-primary/50 bg-primary/10 p-2 text-sm">Confirm the League lobby above (or choose “None of these”) to submit.</p>
+                )}
                 {duplicateLeaders(rows.map((r) => r.leader_name)).length > 0 && (
                   <p className="mt-4 rounded border border-destructive/50 bg-destructive/10 p-2 text-sm text-destructive">
                     The same leader appears more than once. Check the leaders — if you submit anyway, the match is marked "Needs review".
@@ -812,7 +819,7 @@ function UploadPage() {
                 )}
                 <Button
                   onClick={save}
-                  disabled={saving || checkingDup || hasUnrecognized || (duplicateWarn && !confirmDuplicate)}
+                  disabled={saving || checkingDup || hasUnrecognized || (duplicateWarn && !confirmDuplicate) || (!!leagueLobby && !leagueLobby.confirmed)}
                   className="w-full mt-4"
                 >
                   {saving || checkingDup ? (
