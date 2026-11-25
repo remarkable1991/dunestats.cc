@@ -31,7 +31,9 @@ import { parseScreenshot, saveGame } from "@/lib/games.functions";
 import { submitMatch } from "@/lib/match-submit";
 import { normalizeNames } from "@/lib/name-normalize";
 import { detectExpansions } from "@/lib/leaders";
-import { translateLeader } from "@/lib/leader-translate";
+import { translateLeader, leadersForMode } from "@/lib/leader-translate";
+import { snapToRosterNames, reorderLobbyRows } from "@/lib/lobby-manual-result";
+import { SelectGroup, SelectLabel } from "@/components/ui/select";
 import { useChampions, isChampion } from "@/lib/champions";
 import { loadTournamentModes, tournamentModes } from "@/lib/tournament-config";
 import { fetchTournamentByNum } from "@/lib/tournaments";
@@ -843,6 +845,8 @@ function CurrentTournament({
       if (best && bestScore >= 2) {
         setRound(best.round);
         setTableId(best.table);
+        const b = best;
+        setParsedRows((cur) => snapToRosterNames(cur, rosterFor(b.round, b.table)));
         toast.success(`Detected ${detected.length} players · matched ${best.round} · ${best.table}`);
       } else {
         toast.success(`Detected ${detected.length} players. Pick Round/Table manually.`);
@@ -862,9 +866,28 @@ function CurrentTournament({
   };
   onFileRef.current = onFile;
 
+  const rosterFor = (rt: string, ti: string) =>
+    rows
+      .filter((r) => r.round_type === rt && r.table_identifier === ti && !r.is_backup)
+      .map((r) => r.player_name);
+  const startManualFor = (rt: string, ti: string) => {
+    setFile(null);
+    setPreview(null);
+    resetUploaderIdentity();
+    setParsedRows(
+      rosterFor(rt, ti).slice(0, 4).map((name, i) => ({ placement: i + 1, player_name: name, leader_name: "", points: 0 })),
+    );
+  };
+  const updateParsed = (i: number, patch: Partial<{ player_name: string; leader_name: string; points: number }>) =>
+    setParsedRows((rs) => {
+      const sorted = [...rs].sort((a, b) => a.placement - b.placement);
+      return sorted.map((r, idx) => (idx === i ? { ...r, ...patch } : r));
+    });
+  const modeLeaders = leadersForMode({ board, hasIx, hasBaseLeaders });
   const openSubmitFor = (rt: string, ti: string) => {
     setRound(rt);
     setTableId(ti);
+    if (!file) startManualFor(rt, ti);
     uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -893,7 +916,7 @@ function CurrentTournament({
         hasEpic,
         hasImmortality,
         hasBaseLeaders,
-        rows: parsedRows.map((r) => ({
+        rows: snapToRosterNames(parsedRows, rosterFor(round, tableId)).map((r) => ({
           placement: r.placement,
           player_name: r.player_name,
           leader_name: r.leader_name || null,
@@ -1570,28 +1593,48 @@ function CurrentTournament({
                   </div>
                 </div>
 
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => startManualFor(round, tableId)}>
+                    Enter score manually
+                  </Button>
+                  <span className="text-xs text-muted-foreground">Prefills the {round} · {tableId} players.</span>
+                </div>
                 {parsedRows.length === 0 ? (
                   <p className="text-sm text-muted-foreground italic">
-                    Upload a screenshot to see detected players here.
+                    Upload a screenshot or enter the score manually.
                   </p>
                 ) : (
                   <ul className="space-y-1.5 text-sm">
+                    <datalist id="tournament-roster-names">
+                      {rosterFor(round, tableId).map((n) => <option key={n} value={n} />)}
+                    </datalist>
                     {parsedRows
                       .slice()
                       .sort((a, b) => a.placement - b.placement)
-                      .map((r, i) => (
-                        <li
-                          key={i}
-                          className="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_44px] gap-2 items-center rounded-md px-1 py-1.5"
-                        >
-                          <span className="font-display text-sand text-sm w-4 text-center tabular-nums">
-                            {r.placement}
-                          </span>
-                          <span className="truncate font-medium">{r.player_name}</span>
-                          <span className="truncate text-muted-foreground">{r.leader_name || "?"}</span>
-                          <span className="text-center font-mono text-sand tabular-nums">{r.points}</span>
-                        </li>
-                      ))}
+                      .map((r, i, arr) => {
+                        const onRoster = rosterFor(round, tableId).some((n) => n.trim().toLowerCase() === r.player_name.trim().toLowerCase());
+                        return (
+                          <li key={i} className="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_56px] gap-2 items-center rounded-md px-1 py-1">
+                            <div className="flex flex-col items-center">
+                              <button type="button" aria-label={`Move rank ${i + 1} up`} disabled={i === 0} onClick={() => setParsedRows((rs) => reorderLobbyRows(rs, i, i - 1))} className="text-muted-foreground hover:text-sand disabled:opacity-30"><ArrowUp className="size-3" /></button>
+                              <span className="font-display text-sand text-sm w-4 text-center tabular-nums">{i + 1}</span>
+                              <button type="button" aria-label={`Move rank ${i + 1} down`} disabled={i === arr.length - 1} onClick={() => setParsedRows((rs) => reorderLobbyRows(rs, i, i + 1))} className="text-muted-foreground hover:text-sand disabled:opacity-30"><ArrowDown className="size-3" /></button>
+                            </div>
+                            <Input list="tournament-roster-names" value={r.player_name} onChange={(e) => updateParsed(i, { player_name: e.target.value })} aria-label={`Player ${i + 1} name`} className={onRoster ? "" : "border-coral"} title={onRoster ? undefined : "Not on this table's roster"} />
+                            <Select value={r.leader_name || undefined} onValueChange={(v) => updateParsed(i, { leader_name: v })}>
+                              <SelectTrigger aria-label={`Player ${i + 1} leader`}><SelectValue placeholder="Leader" /></SelectTrigger>
+                              <SelectContent>
+                                {([["This mode", modeLeaders.preferred], ["Other leaders", modeLeaders.others]] as const).map(([label, list]) => list.length > 0 && (
+                                  <SelectGroup key={label}><SelectLabel>{label}</SelectLabel>
+                                    {list.map((l) => <SelectItem key={l} value={l} disabled={arr.some((o, j) => j !== i && o.leader_name === l)}>{l}</SelectItem>)}
+                                  </SelectGroup>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Input type="number" value={r.points} onChange={(e) => updateParsed(i, { points: Number(e.target.value) || 0 })} aria-label={`Player ${i + 1} VP`} />
+                          </li>
+                        );
+                      })}
                   </ul>
                 )}
 
