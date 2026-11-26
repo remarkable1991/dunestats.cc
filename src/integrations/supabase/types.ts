@@ -438,6 +438,7 @@ export type Database = {
           source: string
           tournament_num: number | null
           youtube_url: string | null
+          youtube_vod_discord_message_id: string | null
         }
         Insert: {
           ai_scan_discord_message_id?: string | null
@@ -462,6 +463,7 @@ export type Database = {
           source?: string
           tournament_num?: number | null
           youtube_url?: string | null
+          youtube_vod_discord_message_id?: string | null
         }
         Update: {
           ai_scan_discord_message_id?: string | null
@@ -486,6 +488,7 @@ export type Database = {
           source?: string
           tournament_num?: number | null
           youtube_url?: string | null
+          youtube_vod_discord_message_id?: string | null
         }
         Relationships: []
       }
