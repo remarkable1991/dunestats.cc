@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Navbar } from "@/components/Navbar";
 import { useEffect, useState } from "react";
-import { Trophy, Upload, BarChart3, Sparkles, Medal } from "lucide-react";
+import { Trophy, Upload, BarChart3, Sparkles, Medal, LineChart as LineChartIcon } from "lucide-react";
 import discordBanner from "@/assets/discord-banner.png.asset.json";
 import { TournamentCountdown } from "@/components/TournamentCountdown";
 import { CheckinBanner } from "@/components/CheckinBanner";
 import { fetchHomeStats, type HomeStats } from "@/lib/home-stats";
+import { HomeTrendPanel } from "@/components/HomeTrendPanel";
+import type { TrendMetric } from "@/lib/home-trends";
+import { Fragment } from "react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -50,6 +53,7 @@ const CARDS = [
 
 function Index() {
   const [stats, setStats] = useState<HomeStats | null>(null);
+  const [open, setOpen] = useState<{ metric: TrendMetric; label: string } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -108,24 +112,45 @@ function Index() {
           </div>
 
           {/* Eight metrics stay balanced at two columns on mobile and four on desktop. */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-7 rounded-xl border border-border/60 bg-card/60 backdrop-blur p-5 sm:p-6">
-            {[
-              { label: "Total Games Logged", value: stats?.games },
-              { label: "Games Logged This Week", value: stats?.weekGames },
-              { label: "Active Competitors", value: stats?.players },
-              { label: "Tournaments Hosted", value: stats?.tournaments },
-              { label: "League Games Played", value: stats?.leagueGames },
-              { label: "League Competitors", value: stats?.leaguePlayers },
-              { label: "Lobbies Hosted", value: stats?.lobbies },
-              { label: "Lobbies This Week", value: stats?.weekLobbies },
-            ].map((b) => (
-              <div key={b.label} className="text-center">
-                <div className="font-display text-3xl sm:text-4xl font-bold text-sand tabular-nums">
-                  {b.value == null ? "—" : b.value.toLocaleString()}
-                </div>
-                <div className="mt-1 text-[11px] uppercase tracking-widest text-muted-foreground">{b.label}</div>
-              </div>
-            ))}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-5 rounded-xl border border-border/60 bg-card/60 backdrop-blur p-5 sm:p-6">
+            {([
+              { label: "Total Games Logged", value: stats?.games, metric: "games" },
+              { label: "Games Logged This Week", value: stats?.weekGames, metric: "games" },
+              { label: "Active Competitors", value: stats?.players, metric: "players" },
+              { label: "Tournaments Hosted", value: stats?.tournaments, metric: "tournaments" },
+              { label: "League Games Played", value: stats?.leagueGames, metric: "leagueGames" },
+              { label: "League Competitors", value: stats?.leaguePlayers, metric: "leaguePlayers" },
+              { label: "Lobbies Hosted", value: stats?.lobbies, metric: "lobbies" },
+              { label: "Lobbies This Week", value: stats?.weekLobbies, metric: "lobbies" },
+            ] as const).map((b, i, arr) => {
+              const selected = open?.label === b.label;
+              // Panel opens below the row containing the clicked card (2 per row mobile, 4 desktop).
+              const openIdx = open ? arr.findIndex((x) => x.label === open.label) : -1;
+              const endMobile = openIdx >= 0 && (i === openIdx + (openIdx % 2 === 0 ? 1 : 0));
+              const endDesktop = openIdx >= 0 && i === Math.floor(openIdx / 4) * 4 + 3;
+              return (
+                <Fragment key={b.label}>
+                  <button
+                    type="button"
+                    onClick={() => setOpen(selected ? null : { metric: b.metric, label: b.label })}
+                    aria-expanded={selected}
+                    className={`group relative rounded-lg py-2 text-center transition-colors hover:bg-sand/10 ${selected ? "bg-sand/10 ring-1 ring-sand/40" : ""}`}
+                  >
+                    <LineChartIcon className="absolute right-2 top-2 size-3.5 text-sand opacity-40 transition-opacity group-hover:opacity-100" />
+                    <div className="font-display text-3xl sm:text-4xl font-bold text-sand tabular-nums">
+                      {b.value == null ? "—" : b.value.toLocaleString()}
+                    </div>
+                    <div className="mt-1 text-[11px] uppercase tracking-widest text-muted-foreground">{b.label}</div>
+                  </button>
+                  {open && endMobile && (
+                    <div className="col-span-2 md:hidden"><HomeTrendPanel metric={open.metric} onClose={() => setOpen(null)} /></div>
+                  )}
+                  {open && endDesktop && (
+                    <div className="hidden md:block md:col-span-4"><HomeTrendPanel metric={open.metric} onClose={() => setOpen(null)} /></div>
+                  )}
+                </Fragment>
+              );
+            })}
           </div>
 
           {/* Check-in phase banner */}
