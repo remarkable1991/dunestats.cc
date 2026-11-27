@@ -20,7 +20,7 @@ export function Navbar() {
   const [lfgCount, setLfgCount] = useState(0);
   const navigate = useNavigate();
   const pendingCount = usePendingTournamentGames().rows.length;
-  const pendingBadge = pendingCount > 0 ? <span title="Your tournament games under review" className="inline-flex min-w-5 items-center justify-center rounded-full bg-amber-500/20 px-1 text-xs text-amber-400">{pendingCount}</span> : null;
+  const pendingBadge = pendingCount > 0 ? <span title="Your active and pending tournament games" className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary/20 px-1 text-xs text-primary">{pendingCount}</span> : null;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
