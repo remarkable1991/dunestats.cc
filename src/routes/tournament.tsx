@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PendingTournamentGames } from "@/components/PendingTournamentGames";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -933,7 +934,9 @@ function CurrentTournament({
         toast.success(
           result.tournamentApplied
             ? "Results submitted to tournament + global leaderboard!"
-            : "Global leaderboard updated (tournament write skipped).",
+            : result.pendingReview
+              ? "Results saved and sent to a tournament moderator for review (a name didn't match the table). No need to upload again."
+              : "Global leaderboard updated (tournament write skipped).",
         );
       }
       setFile(null);
@@ -2150,6 +2153,7 @@ function CurrentTournamentsHub() {
 
   return (
     <div className="space-y-6">
+      <PendingTournamentGames />
       <header>
         <h2 className="font-display text-3xl flex items-center gap-2">
           <Sword className="size-7 text-sand" /> Active Tournaments

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "./Logo";
 import { NotificationCenter } from "./NotificationCenter";
+import { usePendingTournamentGames } from "@/hooks/use-pending-tournament-games";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,6 +19,8 @@ export function Navbar() {
   const [userId, setUserId] = useState<string | null>(null);
   const [lfgCount, setLfgCount] = useState(0);
   const navigate = useNavigate();
+  const pendingCount = usePendingTournamentGames().rows.length;
+  const pendingBadge = pendingCount > 0 ? <span title="Your tournament games under review" className="inline-flex min-w-5 items-center justify-center rounded-full bg-amber-500/20 px-1 text-xs text-amber-400">{pendingCount}</span> : null;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
@@ -61,6 +64,7 @@ export function Navbar() {
             <Link to="/tournament">
               <Trophy className="size-4" />
               Tournament
+              {pendingBadge}
             </Link>
           </Button>
           <Button asChild variant="ghost" size="sm"><Link to="/leaderboard"><Medal className="size-4" />Leaderboard</Link></Button>
@@ -89,7 +93,7 @@ export function Navbar() {
         </nav>
 
         <nav className="flex min-w-0 flex-1 items-center justify-end gap-1 lg:hidden">
-          <Button asChild variant="ghost" size="sm"><Link to="/tournament"><Trophy className="size-4" /><span className="hidden sm:inline">Tournament</span></Link></Button>
+          <Button asChild variant="ghost" size="sm"><Link to="/tournament"><Trophy className="size-4" /><span className="hidden sm:inline">Tournament</span>{pendingBadge}</Link></Button>
           <Button asChild variant="ghost" size="sm"><Link to="/stats" aria-label="Stats"><BarChart3 className="size-4" /><span className="hidden sm:inline">Stats</span></Link></Button>
           {userId ? <><NotificationCenter /><Button asChild variant="ghost" size="sm"><Link to="/upload"><Upload className="size-4" /><span className="hidden sm:inline">Upload</span></Link></Button></> : null}
           <DropdownMenu>
